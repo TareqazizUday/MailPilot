@@ -1,0 +1,37 @@
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.pdb
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+env/
+
+# Django static/media build outputs
+staticfiles/
+media/
+
+# Local data / tokens / creds (never commit)
+.env
+.env.*
+*.env
+client_secret*.json
+data/**/client_secret*.json
+data/**/token*.json
+data/users/**
+
+# Local tooling
+.idea/
+.vscode/

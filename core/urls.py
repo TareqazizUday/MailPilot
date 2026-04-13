@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+from django.urls import path
+
+from core import auth_views, views
+
+urlpatterns = [
+    path("robots.txt", views.robots_txt, name="robots_txt"),
+    path("sitemap.xml", views.sitemap_xml, name="sitemap_xml"),
+    path("terms", views.terms_page, name="terms"),
+    path("privacy", views.privacy_page, name="privacy"),
+    path("features", views.features_page, name="features"),
+    path("how-it-works", views.how_it_works_page, name="how_it_works"),
+    path("reviews", views.reviews_page, name="reviews"),
+    path("pricing", views.pricing_page, name="pricing"),
+    path("", views.landing_page, name="home"),
+    path("login", auth_views.login_view, name="login"),
+    path("signup", auth_views.signup_view, name="signup"),
+    path("logout", auth_views.logout_view, name="logout"),
+    path("favicon.ico", views.favicon),
+    path("healthz", views.healthz),
+    path("setup", views.setup_page, name="setup"),
+    path("dashboard", views.dashboard_page, name="dashboard"),
+    path("profile", views.profile_page, name="profile"),
+    path("settings", views.settings_page, name="settings"),
+    path("api/setup/credentials", views.api_setup_credentials, name="api_setup_credentials"),
+    path("api/gmail/oauth/start", views.oauth_start, name="oauth_start"),
+    path("api/gmail/oauth/callback", views.oauth_callback, name="oauth_callback"),
+    path("api/gmail/connection-status", views.api_gmail_connection_status),
+    path("api/gmail/disconnect", views.api_gmail_disconnect),
+    path("api/gmail/inbox", views.api_gmail_inbox),
+    path("api/gmail/threads/<str:thread_id>", views.api_gmail_thread_detail),
+    path("api/trigger-poll", views.api_trigger_poll),
+    path("api/kb/status", views.api_kb_status),
+    path("api/admin/config", views.api_admin_config),
+    path("api/smtp/test", views.api_smtp_test),
+    path("api/smtp/status", views.api_smtp_status),
+    path("api/smtp/disconnect", views.api_smtp_disconnect),
+    path("api/kb/upload-json", views.api_kb_upload_json),
+    path("api/kb/crawl", views.api_kb_crawl),
+    path("api/pending", views.api_pending),
+]

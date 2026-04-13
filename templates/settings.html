@@ -1,0 +1,131 @@
+{% extends "mailpilot_base.html" %}
+
+{% block title %}Settings · MailPilot{% endblock %}
+
+{% block content %}
+  <style>
+    .set-wrap{max-width:980px;margin:0 auto;}
+    .set-grid{display:grid;grid-template-columns:1fr 320px;gap:0;}
+    .set-main{padding:28px 32px;border-right:1px solid var(--glass-border);}
+    .set-side{padding:24px;}
+    @media(max-width:900px){
+      .set-grid{grid-template-columns:1fr;}
+      .set-main{border-right:none;border-bottom:1px solid var(--glass-border);}
+    }
+
+    .msg{padding:10px 12px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);font-size:0.88rem;margin-bottom:12px;}
+    .msg.ok{border-color:rgba(74,222,128,0.25);background:rgba(74,222,128,0.08);color:#bbf7d0;}
+    .msg.bad{border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.08);color:#fecaca;}
+
+    .h{font-weight:900;font-size:1.05rem;letter-spacing:-.01em;margin-bottom:6px;}
+    .sub{font-size:0.82rem;color:rgba(148,163,184,0.82);line-height:1.55;margin-bottom:18px;}
+
+    .sec{border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.02);border-radius:14px;padding:18px;}
+    .sec + .sec{margin-top:14px;}
+    .sec-title{display:flex;align-items:center;gap:10px;font-weight:900;margin-bottom:12px;}
+    .sec-title i{color:rgba(148,163,184,0.9);}
+
+    .field{margin-bottom:16px;}
+    .label{font-size:0.75rem;font-weight:850;text-transform:uppercase;letter-spacing:0.5px;color:rgba(148,163,184,0.9);margin-bottom:10px;display:block;}
+    .input{width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:var(--font);outline:none;}
+    .input:focus{border-color:rgba(79,110,247,0.6);background:rgba(79,110,247,0.06);box-shadow:0 0 0 3px rgba(79,110,247,0.1);}
+    .help{font-size:0.78rem;color:rgba(148,163,184,0.82);margin-top:8px;line-height:1.5;}
+
+    .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;}
+    .btn-primary2{
+      padding:12px 16px;border:none;border-radius:12px;
+      background:linear-gradient(135deg,#4f6ef7,#a78bfa);
+      color:#fff;font-weight:800;cursor:pointer;
+      box-shadow:0 6px 22px rgba(79,110,247,0.35);
+      display:inline-flex;align-items:center;gap:8px;
+      font-family:'Inter',sans-serif;
+    }
+    .btn-primary2:hover{transform:translateY(-1px);}
+    .btn-soft{
+      padding:11px 14px;border-radius:12px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.10);
+      color:rgba(226,232,240,0.92);
+      font-weight:800;cursor:pointer;
+      display:inline-flex;align-items:center;gap:8px;
+      text-decoration:none;
+      font-family:'Inter',sans-serif;
+    }
+    .btn-soft:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.08);}
+
+    .side-card{background:rgba(79,110,247,0.05);border:1px solid rgba(79,110,247,0.15);border-radius:14px;padding:18px;}
+    .side-title{font-size:0.9rem;font-weight:900;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+    .side-desc{font-size:0.82rem;color:rgba(148,163,184,0.85);line-height:1.65;}
+    .side-desc a{color:#c4b5fd;text-decoration:none;}
+  </style>
+
+  <div class="set-wrap">
+    <div class="setup-card">
+      <div class="setup-card-header">
+        <div class="setup-card-title">⚙️ Settings</div>
+        <div class="setup-card-sub">Security and account settings for your MailPilot profile.</div>
+      </div>
+
+      <div class="set-grid">
+        <div class="set-main">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="msg {% if 'success' in message.tags %}ok{% elif 'error' in message.tags %}bad{% endif %}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+
+          <div class="sec">
+            <div class="sec-title"><i class="fa-solid fa-key" aria-hidden="true"></i> Change password</div>
+            <form method="post" action="{% url 'settings' %}">
+              {% csrf_token %}
+
+              <div class="field">
+                <label class="label" for="old_password">Current password</label>
+                <input class="input" id="old_password" name="old_password" type="password" autocomplete="current-password" required/>
+              </div>
+              <div class="field">
+                <label class="label" for="new_password1">New password</label>
+                <input class="input" id="new_password1" name="new_password1" type="password" autocomplete="new-password" required/>
+              </div>
+              <div class="field">
+                <label class="label" for="new_password2">Confirm new password</label>
+                <input class="input" id="new_password2" name="new_password2" type="password" autocomplete="new-password" required/>
+                <div class="help">Use at least 8 characters. Avoid common passwords.</div>
+              </div>
+
+              <div class="btn-row">
+                <button class="btn-primary2" type="submit"><i class="fa-solid fa-lock" aria-hidden="true"></i> Update password</button>
+                <a class="btn-soft" href="{% url 'profile' %}"><i class="fa-regular fa-id-badge" aria-hidden="true"></i> Profile details</a>
+              </div>
+            </form>
+          </div>
+
+          <div class="sec">
+            <div class="sec-title"><i class="fa-regular fa-user" aria-hidden="true"></i> Account</div>
+            <div class="help">
+              Signed in as <strong style="color:rgba(226,232,240,0.95)">@{{ user.username }}</strong>.
+              Update your name, email, avatar, and profile info in <a href="{% url 'profile' %}">Profile details</a>.
+            </div>
+          </div>
+        </div>
+
+        <div class="set-side">
+          <div class="side-card">
+            <div class="side-title"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Security tips</div>
+            <div class="side-desc">
+              Use a unique password and keep your device secure. If you think your account is compromised, change your password immediately.
+            </div>
+          </div>
+          <div style="height:12px"></div>
+          <div class="side-card">
+            <div class="side-title"><i class="fa-solid fa-gear" aria-hidden="true"></i> Automation settings</div>
+            <div class="side-desc">
+              Configure Gmail/SMTP, routing, and knowledge base in <a href="{% url 'setup' %}">Setup</a>.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+

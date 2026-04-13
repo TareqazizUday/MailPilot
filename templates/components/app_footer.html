@@ -1,0 +1,32 @@
+<footer class="app-footer" aria-label="Footer">
+  <div class="app-footer-inner">
+    <div class="app-footer-brand">
+      <div class="app-footer-title">Email Automation</div>
+      <div class="app-footer-desc">MailPilot — AI email automation for Gmail &amp; IMAP.</div>
+    </div>
+
+    <div class="app-footer-cols">
+      <div class="app-footer-col">
+        <div class="app-footer-col-title">Account</div>
+        <ul class="app-footer-links">
+          <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+          <li><a href="{% url 'setup' %}">Setup</a></li>
+          <li><a href="{% url 'profile' %}">Profile</a></li>
+        </ul>
+      </div>
+      <div class="app-footer-col">
+        <div class="app-footer-col-title">Legal</div>
+        <ul class="app-footer-links">
+          <li><a href="{% url 'terms' %}">Terms of Service</a></li>
+          <li><a href="{% url 'privacy' %}">Privacy Policy</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-footer-bottom">
+    <div class="app-footer-copy">© 2026 MailPilot. All rights reserved.</div>
+    <div class="app-footer-powered">Powered by <span class="app-footer-chip">Timerni</span></div>
+  </div>
+</footer>
+

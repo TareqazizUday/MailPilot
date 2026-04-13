@@ -1,0 +1,273 @@
+{% extends "mailpilot_base.html" %}
+
+{% block title %}Profile · Email Automation{% endblock %}
+
+{% block content %}
+  <style>
+    .prof-wrap{max-width:980px;margin:0 auto;}
+    .prof-grid{display:grid;grid-template-columns: 1fr;gap:0;}
+    .prof-main{padding:28px 32px;}
+    @media(max-width:900px){.prof-main{padding:22px 16px;}}
+
+    .msg{padding:10px 12px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);font-size:0.88rem;margin-bottom:12px;}
+    .msg.ok{border-color:rgba(74,222,128,0.25);background:rgba(74,222,128,0.08);color:#bbf7d0;}
+    .msg.bad{border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.08);color:#fecaca;}
+
+    .prof-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px;}
+    .prof-title{font-weight:950;font-size:1.08rem;letter-spacing:-.02em;}
+    .prof-sub{font-size:0.84rem;color:rgba(148,163,184,0.84);line-height:1.6;}
+
+    .av{display:flex;align-items:center;gap:14px;margin:12px 0 18px;}
+    .av-img{
+      width:88px;height:88px;border-radius:999px;
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.10);
+      display:flex;align-items:center;justify-content:center;
+      overflow:hidden;flex-shrink:0;
+    }
+    .av-img img{width:100%;height:100%;object-fit:cover;display:block;}
+    .av-fallback{font-weight:950;font-size:1.45rem;color:rgba(226,232,240,0.95);}
+    .av-meta{min-width:0;}
+    .av-name{font-weight:900;font-size:0.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .av-usr{font-size:0.82rem;color:rgba(148,163,184,0.86);}
+
+    .fu-row{margin-top:10px;}
+    .fu-mini{font-size:0.78rem;color:rgba(148,163,184,0.82);margin-top:8px;line-height:1.5;}
+
+    .field{margin-bottom:18px;}
+    .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:720px){.field-grid{grid-template-columns:1fr;}}
+    .label{font-size:0.75rem;font-weight:850;text-transform:uppercase;letter-spacing:0.5px;color:rgba(148,163,184,0.9);margin-bottom:10px;display:block;}
+    .input{width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:var(--font);outline:none;}
+    .input:focus{border-color:rgba(79,110,247,0.6);background:rgba(79,110,247,0.06);box-shadow:0 0 0 3px rgba(79,110,247,0.1);}
+    .textarea{min-height:92px;resize:vertical;}
+
+    .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;}
+    .btn-primary2{
+      padding:12px 16px;border:none;border-radius:12px;
+      background:linear-gradient(135deg,#4f6ef7,#a78bfa);
+      color:#fff;font-weight:800;cursor:pointer;
+      box-shadow:0 6px 22px rgba(79,110,247,0.35);
+      display:inline-flex;align-items:center;gap:8px;
+      font-family:'Inter',sans-serif;
+    }
+    .btn-primary2:hover{transform:translateY(-1px);}
+    .btn-sm{padding:10px 12px;border-radius:11px;font-weight:850;font-size:0.86rem;box-shadow:0 4px 16px rgba(79,110,247,0.28);}
+    .btn-sm i{font-size:0.92em;}
+    .btn-soft{
+      padding:11px 14px;border-radius:12px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.10);
+      color:rgba(226,232,240,0.92);
+      font-weight:800;cursor:pointer;
+      display:inline-flex;align-items:center;gap:8px;
+      text-decoration:none;
+    }
+    .btn-soft:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.08);}
+
+    .sec{border:1px solid rgba(255,255,255,0.10);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));border-radius:14px;padding:18px;}
+    .sec-title{display:flex;align-items:center;gap:10px;font-weight:950;margin-bottom:12px;letter-spacing:-.01em;}
+    .sec-title i{color:rgba(148,163,184,0.9);}
+
+    .val{color:rgba(226,232,240,0.94);font-weight:800;}
+    .val-muted{color:rgba(148,163,184,0.88);line-height:1.65;white-space:pre-wrap;}
+    .actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;}
+  </style>
+
+  <div class="prof-wrap">
+    <div class="setup-card">
+      <div class="setup-card-header">
+        <div class="setup-card-title">👤 Profile overview</div>
+        <div class="setup-card-sub">Your profile photo and details as they appear in the app.</div>
+      </div>
+
+      <div class="prof-grid">
+        <div class="prof-main">
+          {# Messages shown as toast in mailpilot_base.html #}
+
+          {% if is_edit %}
+          <form method="post" action="{% url 'profile' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="prof-top">
+              <div>
+                <div class="prof-title">Your details</div>
+                <div class="prof-sub">These details help personalize the dashboard and logs.</div>
+              </div>
+              <div class="btn-row" style="margin-top:0;">
+                <a class="btn-soft" href="{% url 'profile' %}"><i class="fa-solid fa-eye" aria-hidden="true"></i> View</a>
+              </div>
+            </div>
+
+            <div class="av">
+              <div class="av-img" aria-label="Avatar">
+                {% if avatar_url %}
+                  <img id="avImg" src="{{ avatar_url }}" alt="Avatar" loading="lazy" decoding="async"/>
+                {% else %}
+                  <div class="av-fallback" id="avFallback">{{ user.username|slice:":1"|upper }}</div>
+                {% endif %}
+              </div>
+              <div class="av-meta">
+                <div class="av-name">
+                  {% if profile.display_name %}{{ profile.display_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
+                </div>
+                <div class="av-usr">@{{ user.username }} · {{ user.email|default:"—" }}</div>
+                <div class="fu-row">
+                  <label class="label" for="avatar">Profile photo</label>
+                  <input class="input" id="avatar" name="avatar" type="file" accept="image/*"/>
+                  <div class="fu-mini">PNG/JPG/WEBP/GIF · Max 2 MB.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <div class="field">
+                <label class="label" for="email">Email</label>
+                <input class="input" id="email" name="email" type="email" value="{{ user.email|default:'' }}" maxlength="254" autocomplete="email"/>
+              </div>
+              <div class="field">
+                <label class="label">Username</label>
+                <input class="input" value="{{ user.username }}" disabled />
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <div class="field">
+                <label class="label" for="fn">First name</label>
+                <input class="input" id="fn" name="first_name" type="text" value="{{ user.first_name|default:'' }}" maxlength="150" autocomplete="given-name"/>
+              </div>
+              <div class="field">
+                <label class="label" for="ln">Last name</label>
+                <input class="input" id="ln" name="last_name" type="text" value="{{ user.last_name|default:'' }}" maxlength="150" autocomplete="family-name"/>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <div class="field">
+                <label class="label" for="dn">Display name</label>
+                <input class="input" id="dn" name="display_name" type="text" value="{{ profile.display_name|default:'' }}" maxlength="120" placeholder="Name shown in the app"/>
+              </div>
+              <div class="field">
+                <label class="label" for="co">Company</label>
+                <input class="input" id="co" name="company" type="text" value="{{ profile.company|default:'' }}" maxlength="160"/>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <div class="field">
+                <label class="label" for="ph">Phone</label>
+                <input class="input" id="ph" name="phone" type="text" value="{{ profile.phone|default:'' }}" maxlength="32" autocomplete="tel"/>
+              </div>
+              <div class="field">
+                <label class="label" for="tz">Timezone</label>
+                <input class="input" id="tz" name="timezone" type="text" value="{{ profile.timezone|default:'UTC' }}" maxlength="64" placeholder="e.g. UTC"/>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="no">Notes (private)</label>
+              <textarea class="input textarea" id="no" name="notes" rows="4" maxlength="2000" placeholder="Optional notes (only visible to you)">{{ profile.notes|default:'' }}</textarea>
+            </div>
+
+            <div class="btn-row">
+              <button class="btn-primary2" type="submit"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save changes</button>
+              <a class="btn-soft" href="{% url 'settings' %}"><i class="fa-solid fa-gear" aria-hidden="true"></i> Settings</a>
+            </div>
+          </form>
+          <script>
+            (function(){
+              const fi = document.getElementById('avatar');
+              if(!fi) return;
+              fi.addEventListener('change', () => {
+                const f = fi.files && fi.files[0];
+                if(!f) return;
+                if(!String(f.type || '').startsWith('image/')) return;
+                const url = URL.createObjectURL(f);
+                let img = document.getElementById('avImg');
+                const fb = document.getElementById('avFallback');
+                if(!img){
+                  img = document.createElement('img');
+                  img.id = 'avImg';
+                  img.alt = 'Avatar preview';
+                  img.loading = 'lazy';
+                  img.decoding = 'async';
+                  const wrap = fi.closest('.av')?.querySelector('.av-img');
+                  if(wrap){
+                    wrap.innerHTML = '';
+                    wrap.appendChild(img);
+                  }
+                }
+                if(fb) fb.style.display = 'none';
+                img.src = url;
+              });
+            })();
+          </script>
+          {% else %}
+          <div class="prof-top">
+            <div>
+              <div class="prof-title">Details</div>
+            </div>
+            <div class="actions">
+              <a class="btn-primary2 btn-sm" href="{% url 'profile' %}?edit=1"><i class="fa-solid fa-pen" aria-hidden="true"></i> Edit profile</a>
+            </div>
+          </div>
+
+          <div class="av" style="margin-top:0;">
+            <div class="av-img" aria-label="Avatar">
+              {% if avatar_url %}
+                <img src="{{ avatar_url }}" alt="Avatar" loading="lazy" decoding="async"/>
+              {% else %}
+                <div class="av-fallback">{{ user.username|slice:":1"|upper }}</div>
+              {% endif %}
+            </div>
+            <div class="av-meta">
+              <div class="av-name">
+                {% if profile.display_name %}{{ profile.display_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
+              </div>
+              <div class="av-usr">@{{ user.username }} · {{ user.email|default:"—" }}</div>
+            </div>
+          </div>
+
+          <div class="sec" style="margin-top:10px;">
+            <div class="sec-title"><i class="fa-regular fa-address-card" aria-hidden="true"></i> Details</div>
+            <div class="field-grid">
+              <div class="field">
+                <div class="label">Full name</div>
+                <div class="val">{{ user.get_full_name|default:"—" }}</div>
+              </div>
+              <div class="field">
+                <div class="label">Email</div>
+                <div class="val">{{ user.email|default:"—" }}</div>
+              </div>
+            </div>
+            <div class="field-grid">
+              <div class="field">
+                <div class="label">Company</div>
+                <div class="val">{{ profile.company|default:"—" }}</div>
+              </div>
+              <div class="field">
+                <div class="label">Phone</div>
+                <div class="val">{{ profile.phone|default:"—" }}</div>
+              </div>
+            </div>
+            <div class="field-grid">
+              <div class="field">
+                <div class="label">Timezone</div>
+                <div class="val">{{ profile.timezone|default:"UTC" }}</div>
+              </div>
+              <div class="field">
+                <div class="label">Display name</div>
+                <div class="val">{{ profile.display_name|default:"—" }}</div>
+              </div>
+            </div>
+            <div class="field">
+              <div class="label">Notes (private)</div>
+              <div class="val-muted">{{ profile.notes|default:"—" }}</div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

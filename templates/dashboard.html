@@ -1,0 +1,552 @@
+{% extends "mailpilot_base.html" %}
+
+{% block title %}Dashboard · Email Automation{% endblock %}
+
+{% block head_extra %}
+  <style>
+    .dash-card{max-width:1180px;margin:0 auto;width:100%;}
+    /* ── Three Column Layout (inside MailPilot card) ── */
+    .tri{display:grid;grid-template-columns:280px 1fr 380px;gap:12px;min-height:560px}
+    @media(max-width:1100px){.tri{grid-template-columns:220px 1fr 300px}}
+    @media(max-width:900px){.tri{grid-template-columns:1fr;min-height:auto}.tri .pnl{min-height:320px}}
+
+    /* ── Panel ── */
+    .pnl{background:var(--card);border:1px solid var(--bdr);border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+    .pnl-hd{padding:11px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .pnl-t{font-family:var(--font-head);font-size:12.5px;font-weight:600;letter-spacing:-.01em}
+    .pnl-badge{font-size:10px;color:var(--txm);background:var(--bg2);padding:1px 7px;border-radius:8px}
+
+    /* ── Messages Panel ── */
+    .msg-search{padding:8px 12px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+    .msg-si{display:flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--bdr);border-radius:7px;padding:6px 10px;transition:all .2s}
+    .msg-si:focus-within{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-soft)}
+    .msg-si i{color:var(--txm);font-size:11px}
+    .msg-si input{background:transparent;border:none;outline:none;color:var(--tx);font-size:12px;font-family:var(--font);width:100%}
+    .msg-si input::placeholder{color:var(--txm)}
+    .msg-list{flex:1;overflow-y:auto}
+    .msg-it{padding:11px 14px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:all .15s;position:relative;background:transparent;text-align:left;width:100%}
+    .msg-it:hover{background:var(--card-h)}
+    .msg-it.sel{background:var(--blue-soft);border-left:2px solid var(--blue)}
+    .msg-it.unr::after{content:'';position:absolute;right:12px;top:16px;width:5px;height:5px;border-radius:50%;background:var(--blue)}
+    .msg-fr{font-size:12px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px;color:var(--tx)}
+    .msg-sj{font-size:11.5px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+    .msg-tm{font-size:10px;color:var(--txm)}
+
+    /* ── Reading Pane ── */
+    .rp-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--txm);gap:8px;padding:18px}
+    .rp-empty i{font-size:36px;opacity:.18}
+    .rp-empty p{font-size:12.5px}
+    .rp-empty span{font-size:10.5px;opacity:.5}
+    .rp-fill{flex:1;display:none;flex-direction:column;overflow:hidden}
+    .rp-fill.on{display:flex}
+    .rp-top{padding:18px 20px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+    .rp-subj{font-family:var(--font-head);font-size:15.5px;font-weight:600;letter-spacing:-.02em;line-height:1.35;margin-bottom:12px}
+    .rp-meta{display:flex;align-items:center;gap:10px}
+    .rp-av{width:32px;height:32px;border-radius:50%;background:var(--bg2);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--blue-l);flex-shrink:0}
+    .rp-inf{flex:1;min-width:0}
+    .rp-nm{font-size:12.5px;font-weight:600}
+    .rp-em{font-size:11px;color:var(--txm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rp-dt{font-size:10.5px;color:var(--txm);flex-shrink:0}
+    .rp-body{flex:1;overflow-y:auto;padding:20px;font-size:13px;line-height:1.75;color:var(--tx2)}
+    .rp-body pre{white-space:pre-wrap;word-break:break-word;font-family:var(--font);margin:0}
+
+    /* ── Controls Panel ── */
+    .ctrl-sec{padding:12px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+    .run-btn{width:100%;padding:9px;border:none;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--blue-d));color:#fff;font-family:var(--font-head);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:7px;position:relative;overflow:hidden}
+    .run-btn:hover{transform:translateY(-1px);box-shadow:0 5px 20px var(--blue-glow)}
+    .run-btn:active{transform:translateY(0)}
+    .run-btn.proc{pointer-events:none;opacity:.8}
+    .run-btn .sh{position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:shim 4s infinite}
+    @keyframes shim{0%{left:-100%}100%{left:100%}}
+    .ctrl-row{display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--txm);gap:10px}
+    .qt-w{flex:1;overflow-y:auto}
+    .qt{width:100%;border-collapse:collapse;font-size:11px}
+    .qt thead{position:sticky;top:0;z-index:1}
+    .qt th{padding:8px 11px;text-align:left;font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--txm);background:var(--card);border-bottom:1px solid var(--bdr)}
+    .qt td{padding:7px 11px;border-bottom:1px solid var(--bdr);color:var(--tx2);vertical-align:middle}
+    .qt tr:hover td{background:var(--card-h)}
+    .qt tr:last-child td{border-bottom:none}
+    .qt-id{font-family:var(--font-head);font-weight:600;color:var(--txm);font-size:10px}
+    .qt-fr{font-size:10px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rb{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}
+    .rb.ap{background:rgba(251,191,36,.08);color:var(--warn);border:1px solid rgba(251,191,36,.15)}
+    .rb.rk{background:rgba(248,113,113,.08);color:var(--red);border:1px solid rgba(248,113,113,.15)}
+    .rb.ar{background:rgba(59,130,246,.08);color:var(--blue-l);border:1px solid rgba(59,130,246,.15)}
+    .sb{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}
+    .sb.pe{background:rgba(99,102,241,.08);color:var(--info);border:1px solid rgba(99,102,241,.15)}
+    .sb.dn{background:rgba(16,185,129,.08);color:var(--grn-l);border:1px solid rgba(16,185,129,.15)}
+
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="setup-card dash-card">
+    <div class="setup-card-header">
+      <div class="setup-card-title">📬 Dashboard</div>
+      <div class="setup-card-sub">
+        Inbox preview, queue status, and manual runs. <strong id="pgStatus">Checking connection…</strong>
+      </div>
+    </div>
+    <div style="padding: 22px 22px 28px; min-height: 620px;">
+  <!-- Hidden legacy status elements used by existing JS -->
+  <div style="display:none;">
+    <span id="gmailConnectedBadge">—</span>
+    <span id="gmailTokenHint">—</span>
+    <span id="lastRunAt">—</span>
+    <span id="lastError">—</span>
+  </div>
+
+  <div class="tri" id="inbox-section">
+    <!-- Messages -->
+    <div class="pnl">
+      <div class="pnl-hd">
+        <span class="pnl-t">Messages</span>
+        <span class="pnl-badge" id="msgCnt">—</span>
+      </div>
+      <div class="msg-search">
+        <div class="msg-si">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input type="text" placeholder="Search messages..." id="msgQ" oninput="filterMsg()" autocomplete="off">
+        </div>
+      </div>
+      <div id="messages-title" style="display:none;">Messages</div>
+      <div class="msg-list" id="threadList" role="listbox" aria-labelledby="messages-title"></div>
+      <div class="small" id="inboxListHint" style="padding:10px 14px; border-top: 1px solid var(--bdr);">{% if inbox_ready %}Loading…{% else %}Connect Gmail OAuth or save SMTP+IMAP on Setup to load messages.{% endif %}</div>
+    </div>
+
+    <!-- Reading Pane -->
+    <div class="pnl">
+      <div class="pnl-hd"><span class="pnl-t">Reading pane</span></div>
+      <div class="rp-empty" id="rpE">
+        <i class="fa-regular fa-envelope-open" aria-hidden="true"></i>
+        <p>Select a thread</p>
+        <span>Click a message from the list to preview</span>
+        <div class="small" id="threadDetailHint" style="margin-top: 10px;"></div>
+      </div>
+      <div class="rp-fill" id="rpF">
+        <div class="rp-top">
+          <div class="rp-subj" id="rpS"></div>
+          <div class="rp-meta">
+            <div class="rp-av" id="rpA"></div>
+            <div class="rp-inf">
+              <div class="rp-nm" id="rpN"></div>
+              <div class="rp-em" id="rpM"></div>
+            </div>
+            <div class="rp-dt" id="rpD"></div>
+          </div>
+        </div>
+        <div class="rp-body" id="threadDetail"></div>
+      </div>
+
+      <!-- Keep these IDs for existing JS compatibility (hidden) -->
+      <div id="readingWrap" class="reading-wrap is-empty" style="display:none;"></div>
+      <div id="threadMessagesBlock" style="display:none;"></div>
+      <div id="readingHead" style="display:none;"></div>
+      <div id="readingTitle" style="display:none;"></div>
+      <div id="readingSub" style="display:none;"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="pnl">
+      <div class="pnl-hd">
+        <span class="pnl-t">Controls</span>
+        <span class="pnl-badge" id="qCnt">—</span>
+      </div>
+      <div class="ctrl-sec">
+        <button class="run-btn" id="btnRunNow" type="button" onclick="triggerPoll()">
+          <span class="sh" aria-hidden="true"></span>
+          <i class="fa-solid fa-play" id="runIco" aria-hidden="true"></i>
+          <span id="runTxt">Run Now</span>
+        </button>
+        <div class="ctrl-row">
+          <span id="pInfo">—</span>
+          <span id="lRun">Last run: —</span>
+        </div>
+      </div>
+      <div class="pnl-hd" style="border-top:1px solid var(--bdr)">
+        <span class="pnl-t">Queue</span>
+        <span class="pnl-badge" id="pendingInfo">—</span>
+      </div>
+      <div class="qt-w">
+        <table class="qt">
+          <thead><tr><th>ID</th><th>From</th><th>Reason</th><th>Status</th></tr></thead>
+          <tbody id="pendingBody">
+            <tr><td colspan="4" class="small" style="padding: 12px 11px;">Nothing waiting</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="small" id="pendingHint" style="padding: 10px 14px; border-top: 1px solid var(--bdr);">—</div>
+
+      <!-- Sent records removed (Queue already shows status) -->
+    </div>
+  </div>
+
+  <script>
+    // UI helpers for the “hubbuhu” dashboard layout
+    let _allThreadRows = [];
+    function renderThreadRows(rows){
+      _allThreadRows = rows || [];
+      filterMsg();
+      const cnt = document.getElementById('msgCnt');
+      if(cnt) cnt.textContent = String(_allThreadRows.length);
+    }
+    function filterMsg(){
+      const q = (document.getElementById('msgQ')?.value || '').toLowerCase().trim();
+      const list = document.getElementById('threadList');
+      if(!list) return;
+      const shown = !_allThreadRows.length ? [] : _allThreadRows.filter(r => {
+        if(!q) return true;
+        return (r._search || '').includes(q);
+      });
+      list.innerHTML = shown.map(r => r.html).join('');
+      // re-bind click handlers after render
+      list.querySelectorAll('.msg-it').forEach(el => {
+        el.addEventListener('click', () => {
+          const tid = el.getAttribute('data-tid');
+          selectThread(tid, { focusEl: el });
+        });
+      });
+      // selection highlight
+      if(activeTid){
+        list.querySelectorAll('.msg-it').forEach(el => {
+          const on = el.getAttribute('data-tid') === activeTid;
+          el.classList.toggle('sel', on);
+        });
+      }
+    }
+
+    function setEnabled(el, enabled){
+      if(!el) return;
+      el.disabled = !enabled;
+      el.style.opacity = enabled ? "1" : "0.55";
+      el.style.cursor = enabled ? "pointer" : "not-allowed";
+    }
+
+    async function apiGetPending(){
+      const res = await fetch('/api/pending');
+      return await res.json();
+    }
+
+    async function refreshPending(){
+      const info = document.getElementById('pendingInfo');
+      const hint = document.getElementById('pendingHint');
+      try{
+        const j = await apiGetPending();
+        if(!j.ok){
+          info.textContent = j.error || 'Could not load';
+          if(hint) hint.textContent = 'Try refreshing the page.';
+          return;
+        }
+        const items = j.items || [];
+        const body = document.getElementById('pendingBody');
+        const activeCount = items.filter(it => {
+          const s = (it.status || 'pending').toLowerCase();
+          return s !== 'completed' && s !== 'done';
+        }).length;
+        if(items.length === 0){
+          body.innerHTML = '<tr><td colspan="4" class="small" style="padding: 12px 11px;">Nothing waiting</td></tr>';
+          info.textContent = '0';
+          if(hint) hint.textContent = 'When a reply needs approval, it will show here.';
+          const qc = document.getElementById('qCnt'); if(qc) qc.textContent = '0';
+          const pi = document.getElementById('pInfo'); if(pi) pi.textContent = '0 items in queue';
+          return;
+        }
+        body.innerHTML = items.map(it => {
+          const status = (it.status || 'pending');
+          const isDone = status === 'completed' || status === 'done';
+          const cls = isDone ? 'dn' : 'pe';
+          const label = status[0].toUpperCase() + status.slice(1);
+          const reason = (it.reason || '').toLowerCase();
+          const rbClass = reason.includes('approval') ? 'ap' : (reason.includes('risk') || reason.includes('keyword')) ? 'rk' : 'ar';
+          const rbLabel = it.reason || 'auto_reply';
+          return (
+            `<tr>
+              <td><span class="qt-id">#${it.id}</span></td>
+              <td><span class="qt-fr" title="${attrEsc(it.from_email || '—')}">${esc(it.from_email || '—')}</span></td>
+              <td><span class="rb ${rbClass}">${esc(rbLabel)}</span></td>
+              <td><span class="sb ${cls}">${esc(label)}</span></td>
+            </tr>`
+          );
+        }).join('');
+        info.textContent = String(activeCount);
+        if(hint){
+          hint.textContent = activeCount > 0
+            ? 'These need a decision before sending.'
+            : 'No approval needed. Below is recent activity (sent / queued / ignored).';
+        }
+        const qc = document.getElementById('qCnt'); if(qc) qc.textContent = String(activeCount);
+        const pi = document.getElementById('pInfo');
+        if(pi) pi.textContent = activeCount > 0 ? (activeCount + ' items in queue') : ('0 pending · ' + items.length + ' recent');
+      }catch(e){
+        info.textContent = 'Could not load';
+        if(hint) hint.textContent = 'Network error. Try again.';
+      }
+    }
+
+    async function refreshStatus(){
+      const res = await fetch('/healthz');
+      const j = await res.json();
+      document.getElementById('lastRunAt').textContent = j.last_run_at || '—';
+      document.getElementById('lastError').textContent = j.last_error || '—';
+      const lrEl = document.getElementById('lRun');
+      if(lrEl) lrEl.textContent = 'Last run: ' + (j.last_run_at || '—');
+    }
+
+    async function refreshGmailConnection(){
+      try{
+        const res = await fetch('/api/gmail/connection-status');
+        const j = await res.json();
+        const badge = document.getElementById('gmailConnectedBadge');
+        const hint = document.getElementById('gmailTokenHint');
+        const pg = document.getElementById('pgStatus');
+        if(!j.ok){
+          badge.textContent = 'Not connected';
+          if(hint) hint.textContent = j.error || 'Could not verify Gmail.';
+          setEnabled(document.getElementById('btnRunNow'), false);
+          if(pg) pg.style.display = 'none';
+          return;
+        }
+
+        const gmailConnected = !!j.gmail_connected;
+        const imapConnected = !!j.imap_connected;
+        const anyConnected = !!j.connected;
+        if(anyConnected){
+          badge.textContent = 'Connected';
+          if(pg){
+            pg.style.display = '';
+            var pgLine = gmailConnected
+              ? 'Connected to Gmail'
+              : (imapConnected
+                ? 'Mailbox (IMAP)'
+                : (j.smtp_last_test_ok && j.send_transport === 'smtp' ? 'SMTP verified' : 'Connected'));
+            pg.innerHTML = '<i class="fa-solid fa-circle" aria-hidden="true"></i> ' + pgLine;
+          }
+        }else{
+          badge.textContent = 'Not connected';
+          if(pg) pg.style.display = 'none';
+        }
+
+        const tokenErr = j.token_error ? (' ' + j.token_error) : '';
+        const base = j.has_token ? 'Signed in with Google.' : 'Not signed in — add Gmail on the Connect page.';
+        if(hint){
+          if(imapConnected && !gmailConnected){
+            hint.textContent = 'Reading inbox via IMAP (same mailbox as SMTP).';
+          }else{
+            hint.textContent = (base + tokenErr).trim();
+          }
+        }
+
+        setEnabled(document.getElementById('btnRunNow'), !!j.poll_ready);
+        if(typeof window.refreshNavConnectionStatus === 'function'){
+          window.refreshNavConnectionStatus(j);
+        }
+      }catch(e){
+        const badge = document.getElementById('gmailConnectedBadge');
+        if(badge){
+          badge.className = 'status-badge disconnected';
+          badge.textContent = 'Unknown';
+        }
+        setEnabled(document.getElementById('btnRunNow'), false);
+      }
+    }
+
+    async function triggerPoll(){
+      const res = await fetch('/api/trigger-poll', { method:'POST' });
+      const j = await res.json().catch(() => ({}));
+      if(!res.ok || !j.ok) alert(j.error || 'Could not start run');
+      await refreshStatus();
+      await refreshPending();
+    }
+    setEnabled(document.getElementById('btnRunNow'), false);
+
+    function esc(s){
+      const d = document.createElement('div');
+      d.textContent = s == null ? '' : String(s);
+      return d.innerHTML;
+    }
+    function attrEsc(s){
+      if(s == null || s === '') return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;');
+    }
+    function fmtTs(ms){
+      if(!ms) return '—';
+      try{ return new Date(ms).toLocaleString(); }catch(e){ return String(ms); }
+    }
+
+    function setHashThread(threadId){
+      if(!threadId) return;
+      const h = '#t=' + encodeURIComponent(threadId);
+      const base = location.pathname + location.search;
+      if(location.hash !== h) history.replaceState(null, '', base + h);
+    }
+    function threadIdFromHash(){
+      const m = /^#t=(.+)$/.exec(location.hash || '');
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+    let activeTid = null;
+    async function loadInbox(){
+      const hint = document.getElementById('inboxListHint');
+      const list = document.getElementById('threadList');
+      if(!hint || !list) return;
+      list.innerHTML = '';
+      hint.textContent = 'Loading your inbox…';
+      try{
+        const res = await fetch('/api/gmail/inbox');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          hint.textContent = j.error || 'Could not load inbox';
+          return;
+        }
+        const threads = j.threads || [];
+        if(threads.length === 0){
+          hint.textContent = 'No threads in this folder.';
+          renderThreadRows([]);
+          return;
+        }
+        hint.textContent = threads.length + ' messages';
+        renderThreadRows(threads.map(t => {
+          const from = (t.from || '').trim();
+          const sj = (t.subject || '').trim();
+          const tm = fmtTs(t.internal_date);
+          const sn = (t.snippet || '').trim();
+          const html = (
+            `<button type="button" class="msg-it${t.unread ? ' unr' : ''}" data-tid="${attrEsc(t.thread_id)}" role="option" aria-selected="false">
+              <div class="msg-fr">${esc(from || '—')}</div>
+              <div class="msg-sj">${esc(sj || '(No subject)')}</div>
+              <div class="msg-tm">${esc(tm)}</div>
+            </button>`
+          );
+          return { html, _search: (from + ' ' + sj + ' ' + sn).toLowerCase(), thread_id: t.thread_id };
+        }));
+
+        const wanted = threadIdFromHash();
+        if(wanted){
+          const match = Array.from(list.querySelectorAll('.msg-it')).find(b => b.getAttribute('data-tid') === wanted);
+          if(match) selectThread(wanted, { focusEl: match, skipHash: true });
+        }
+      }catch(e){
+        hint.textContent = 'Could not load inbox.';
+      }
+    }
+    async function selectThread(threadId, opts){
+      opts = opts || {};
+      if(!threadId) return;
+      activeTid = threadId;
+      if(!opts.skipHash) setHashThread(threadId);
+
+      document.querySelectorAll('.msg-it').forEach(el => {
+        const on = el.getAttribute('data-tid') === threadId;
+        el.classList.toggle('sel', on);
+        el.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+
+      const hint = document.getElementById('threadDetailHint');
+      const panel = document.getElementById('threadDetail');
+      const rpE = document.getElementById('rpE');
+      const rpF = document.getElementById('rpF');
+      const rpS = document.getElementById('rpS');
+      const rpA = document.getElementById('rpA');
+      const rpN = document.getElementById('rpN');
+      const rpM = document.getElementById('rpM');
+      const rpD = document.getElementById('rpD');
+      if(!panel || !rpE || !rpF) return;
+
+      rpE.style.display = 'none';
+      rpF.classList.add('on');
+      panel.innerHTML = '<div class="small" style="padding: 12px 0; color: var(--txm);">Opening…</div>';
+      hint.textContent = '';
+
+      if(opts.focusEl && opts.focusEl.scrollIntoView){
+        try{ opts.focusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }catch(e){}
+      }
+
+      try{
+        const res = await fetch('/api/gmail/threads/' + encodeURIComponent(threadId));
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          rpF.classList.remove('on');
+          rpE.style.display = 'flex';
+          hint.textContent = j.error || 'Could not open thread';
+          return;
+        }
+        const msgs = j.messages || [];
+        const subj = (msgs.length && (msgs[msgs.length - 1].subject || msgs[0].subject)) ? (msgs[msgs.length - 1].subject || msgs[0].subject) : '(No subject)';
+        const top = msgs.length ? msgs[msgs.length - 1] : null;
+        const from = top?.from || (msgs[0]?.from || '');
+        const fromName = (from || '').replace(/\s*<.*?>/, '').trim();
+        const fromEmail = (from || '').match(/<([^>]+)>/)?.[1] || '';
+        const dt = fmtTs(top?.internal_date || msgs[0]?.internal_date);
+
+        rpS.textContent = subj;
+        rpA.textContent = (fromName || fromEmail || '—').slice(0,1).toUpperCase();
+        rpN.textContent = fromName || 'Contact';
+        rpM.textContent = fromEmail || from || '';
+        rpD.textContent = dt;
+
+        hint.textContent = '';
+        panel.innerHTML = msgs.map(m => {
+          const rawBody = (m.body_text || '').trim();
+          const fallback = (!rawBody && (m.snippet || '')) ? ('Preview: ' + m.snippet) : (rawBody || m.snippet || '(No content)');
+          const who = m.is_from_me ? 'You' : ((m.from || '').replace(/\s*<.*?>/, '').trim() || 'Contact');
+          const whoEmail = m.from || '';
+          return (
+            `<div style="margin-bottom: 14px;">
+              <div class="small" style="display:flex; justify-content:space-between; gap:10px; margin-bottom:6px;">
+                <span><strong style="color:var(--tx); font-family:var(--font-head); font-weight:600;">${esc(who)}</strong> <span style="color:var(--txm);">· ${esc(whoEmail)}</span></span>
+                <span>${esc(fmtTs(m.internal_date))}</span>
+              </div>
+              <pre>${esc(fallback)}</pre>
+            </div>`
+          );
+        }).join('');
+
+        const rp = document.getElementById('readingWrap');
+        if(rp && rp.scrollIntoView && window.innerWidth < 900){
+          try{ rp.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){}
+        }
+      }catch(e){
+        rpF.classList.remove('on');
+        rpE.style.display = 'flex';
+        hint.textContent = 'Could not open this thread.';
+      }
+    }
+    window.addEventListener('hashchange', () => {
+      const tid = threadIdFromHash();
+      if(tid && tid !== activeTid){
+        const match = Array.from(document.querySelectorAll('.msg-it')).find(b => b.getAttribute('data-tid') === tid);
+        if(match) selectThread(tid, { focusEl: match, skipHash: true });
+      }
+    });
+
+    function maybeScrollFromView(){
+      try{
+        const p = new URLSearchParams(location.search);
+        if(p.get('view') === 'inbox'){
+          const el = document.getElementById('inbox-section');
+          if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }catch(e){}
+    }
+
+    refreshStatus();
+    refreshGmailConnection();
+    refreshPending();
+    setInterval(() => { refreshStatus(); refreshGmailConnection(); refreshPending(); }, 8000);
+
+    maybeScrollFromView();
+    {% if inbox_ready %}
+      loadInbox();
+      // Auto-refresh inbox without page reload.
+      setInterval(() => { loadInbox(); }, 120000);
+    {% else %}
+      const inh = document.getElementById('inboxListHint');
+      if(inh) inh.textContent = 'Connect Gmail or configure IMAP (Setup) to load messages.';
+    {% endif %}
+  </script>
+    </div>
+  </div>
+{% endblock %}

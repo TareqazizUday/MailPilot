@@ -1,0 +1,29 @@
+Flask>=3.0.3
+Django>=5.0,<6
+
+celery[redis]>=5.4.0
+redis>=5.0.0
+cryptography>=44.0.0
+django-ratelimit>=4.1.0
+
+apscheduler>=3.10.4
+werkzeug>=3.0.0
+
+pydantic>=2.12.5
+pydantic-settings>=2.7.0
+python-dotenv>=1.0.1
+
+requests>=2.33.0
+
+google-api-python-client>=2.145.0
+google-auth>=2.35.0
+google-auth-oauthlib>=1.2.1
+google-auth-httplib2>=0.2.0
+
+# Knowledge base ingestion + vector search (self-hosted)
+psycopg[binary]>=3.2.6
+beautifulsoup4>=4.12.3
+playwright>=1.54.0
+
+# Calendar booking
+dateparser>=1.2.1

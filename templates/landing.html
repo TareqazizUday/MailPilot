@@ -1,0 +1,1069 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ seo_page_title }}</title>
+  <meta name="description" content="{{ seo_meta_description }}" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="theme-color" content="#060818" />
+  <link rel="canonical" href="{{ seo_canonical_url }}" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="MailPilot" />
+  <meta property="og:title" content="{{ seo_page_title }}" />
+  <meta property="og:description" content="{{ seo_meta_description }}" />
+  <meta property="og:url" content="{{ seo_canonical_url }}" />
+  <meta property="og:locale" content="en_US" />
+  {% if seo_og_image %}
+  <meta property="og:image" content="{{ seo_og_image }}" />
+  <meta property="og:image:alt" content="MailPilot — AI email automation for Gmail and IMAP" />
+  {% endif %}
+
+  <meta name="twitter:card" content="{% if seo_og_image %}summary_large_image{% else %}summary{% endif %}" />
+  <meta name="twitter:title" content="{{ seo_page_title }}" />
+  <meta name="twitter:description" content="{{ seo_meta_description }}" />
+  {% if seo_og_image %}
+  <meta name="twitter:image" content="{{ seo_og_image }}" />
+  {% endif %}
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f6ef7'/%3E%3Cpath d='M6 10l10 8 10-8' stroke='white' stroke-width='2' fill='none'/%3E%3C/svg%3E" />
+
+  <script type="application/ld+json">{{ seo_json_ld|safe }}</script>
+
+  <style>
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #060818;
+      --surface: #0d1230;
+      --accent: #4f6ef7;
+      --accent2: #a78bfa;
+      --accent3: #38bdf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.09);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    .skip-link {
+      position: absolute; left: -9999px; top: 0; z-index: 1000;
+      padding: 12px 20px; background: #4f6ef7; color: #fff; font-weight: 600;
+      text-decoration: none; border-radius: 0 0 8px 8px;
+    }
+    .skip-link:focus { left: 16px; outline: 2px solid #a78bfa; outline-offset: 2px; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── CANVAS ── */
+    #bg-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 7%;
+      backdrop-filter: blur(18px);
+      background: rgba(6,8,24,0.7);
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-logo svg { width: 32px; height: 32px; }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a {
+      color: var(--muted); font-size: 0.9rem; font-weight: 500;
+      text-decoration: none; transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      color: #fff; border: none; padding: 10px 26px;
+      border-radius: 50px; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+      text-decoration: none;
+    }
+    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,110,247,0.45); }
+
+    /* App-style badge (when logged in) */
+    .app-actions{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+    .conn-badge{display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;color:var(--muted);}
+    .conn-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 10px rgba(74,222,128,.8);}
+    .conn-dot.off{background:#f87171;box-shadow:0 0 10px rgba(248,113,113,.5);}
+    .app-link{color:var(--muted);font-size:0.9rem;font-weight:600;text-decoration:none;padding:8px 12px;border-radius:10px;transition:background .2s,color .2s;}
+    .app-link:hover{background:rgba(255,255,255,0.05);color:var(--text);}
+
+    /* Profile dropdown (home page only) */
+    .acct{position:relative;display:flex;align-items:center;margin-left:4px;}
+    .acct-btn{
+      display:inline-flex;align-items:center;gap:10px;
+      padding:8px 12px;border-radius:12px;
+      background:rgba(255,255,255,0.03);
+      border:1px solid var(--glass-border);
+      color:var(--text);font-size:0.9rem;font-weight:700;
+      cursor:pointer;transition:background .2s,border-color .2s;
+      font-family:'Inter',sans-serif;
+    }
+    .acct-btn:hover{background:rgba(79,110,247,0.08);border-color:rgba(79,110,247,0.22);}
+    .acct-ico{
+      width:26px;height:26px;border-radius:999px;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(79,110,247,0.12);
+      border:1px solid rgba(79,110,247,0.18);
+      color:rgba(226,232,240,0.95);
+      flex-shrink:0;
+      font-size:0.95rem;
+    }
+    .acct-ico img{width:100%;height:100%;object-fit:cover;display:block;border-radius:999px;}
+    .acct-dd{
+      position:absolute;right:0;top:46px;min-width:220px;
+      background:rgba(13,18,48,0.92);
+      border:1px solid rgba(255,255,255,0.10);
+      border-radius:14px;
+      box-shadow:0 18px 60px rgba(0,0,0,.55);
+      backdrop-filter:blur(18px);
+      padding:8px;
+      display:none;
+      z-index:120;
+    }
+    .acct.open .acct-dd{display:block;}
+    .acct-item{
+      display:flex;align-items:center;gap:10px;
+      width:100%;
+      padding:10px 10px;
+      border-radius:12px;
+      color:rgba(226,232,240,0.92);
+      text-decoration:none;
+      background:transparent;
+      border:none;
+      cursor:pointer;
+      font-family:'Inter',sans-serif;
+      font-size:0.9rem;
+      font-weight:650;
+    }
+    .acct-item:hover{background:rgba(255,255,255,0.05);}
+    .acct-item i{width:18px;text-align:center;color:rgba(148,163,184,0.9);}
+    .acct-sep{height:1px;background:rgba(255,255,255,0.08);margin:6px 4px;}
+    .acct-logout{color:#fecaca;}
+    .acct-logout i{color:#f87171;}
+
+    /* ── HERO ── */
+    #hero {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 120px 7% 80px;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 18px; border-radius: 50px;
+      border: 1px solid rgba(79,110,247,0.4);
+      background: rgba(79,110,247,0.1);
+      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.8px;
+      text-transform: uppercase; color: #a5b4fc; margin-bottom: 28px;
+      animation: fadeUp 0.8s ease both;
+    }
+    .hero-badge span { width: 7px; height: 7px; border-radius: 50%; background: #a78bfa; animation: pulse 2s infinite; }
+
+    h1 {
+      font-size: clamp(2.8rem, 6vw, 5.2rem);
+      font-weight: 900; line-height: 1.08; letter-spacing: -2px;
+      animation: fadeUp 0.9s 0.1s ease both;
+    }
+    h1 .gradient {
+      background: linear-gradient(135deg, #4f6ef7 0%, #a78bfa 50%, #38bdf8 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      max-width: 620px; margin: 22px auto 0;
+      font-size: 1.15rem; font-weight: 400; color: var(--muted); line-height: 1.7;
+      animation: fadeUp 1s 0.2s ease both;
+    }
+    .hero-btns {
+      display: flex; gap: 16px; justify-content: center; margin-top: 42px; flex-wrap: wrap;
+      animation: fadeUp 1s 0.3s ease both;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      color: #fff; padding: 15px 38px; border-radius: 50px;
+      font-size: 1rem; font-weight: 700; text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(79,110,247,0.35);
+    }
+    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 36px rgba(79,110,247,0.5); }
+    .btn-secondary {
+      background: var(--glass); color: var(--text);
+      border: 1px solid var(--glass-border); padding: 15px 38px;
+      border-radius: 50px; font-size: 1rem; font-weight: 600;
+      text-decoration: none; transition: background 0.2s, transform 0.2s;
+      backdrop-filter: blur(8px);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.08); transform: translateY(-3px); }
+
+    /* 3D FLOATING CARD */
+    .hero-visual {
+      position: relative; margin-top: 70px; width: 100%; max-width: 820px;
+      animation: fadeUp 1s 0.4s ease both;
+    }
+    .hero-card {
+      background: linear-gradient(135deg, rgba(13,18,48,0.9), rgba(23,28,68,0.85));
+      border: 1px solid var(--glass-border);
+      border-radius: 24px; padding: 28px 30px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+      transform: perspective(1000px) rotateX(6deg);
+      transition: transform 0.4s ease;
+    }
+    .hero-card:hover { transform: perspective(1000px) rotateX(0deg); }
+    .card-topbar {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 20px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot.red { background: #ff5f57; } .dot.yellow { background: #febc2e; } .dot.green { background: #28c840; }
+    .card-topbar-title { margin-left: auto; margin-right: auto; font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+
+    .email-list { display: flex; flex-direction: column; gap: 10px; }
+    .email-item {
+      display: flex; align-items: center; gap: 14px;
+      background: rgba(255,255,255,0.04); border-radius: 12px;
+      padding: 12px 16px; border: 1px solid rgba(255,255,255,0.06);
+      transition: background 0.2s;
+    }
+    .email-item:hover { background: rgba(255,255,255,0.07); }
+    .email-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .email-meta { flex: 1; text-align: left; }
+    .email-from { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+    .email-subject { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .email-badge {
+      font-size: 0.68rem; font-weight: 600; padding: 4px 10px;
+      border-radius: 50px; white-space: nowrap;
+    }
+    .badge-replied { background: rgba(40,200,100,0.15); color: #4ade80; border: 1px solid rgba(40,200,100,0.3); }
+    .badge-pending { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+    .badge-skipped { background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2); }
+    .badge-rag { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+
+    /* ── STATS ── */
+    .stats-bar {
+      position: relative; z-index: 1;
+      display: flex; justify-content: center; gap: 0;
+      flex-wrap: wrap; margin: 0 7% 80px;
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 20px; overflow: hidden;
+      backdrop-filter: blur(12px);
+    }
+    .stat-item {
+      flex: 1; min-width: 180px; padding: 32px 24px; text-align: center;
+      border-right: 1px solid var(--glass-border);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-num {
+      font-size: 2.2rem; font-weight: 900; letter-spacing: -1px;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stat-label { font-size: 0.82rem; color: var(--muted); margin-top: 4px; font-weight: 500; }
+
+    /* ── FEATURES ── */
+    #features {
+      position: relative; z-index: 1;
+      padding: 80px 7%; text-align: center;
+    }
+    .section-tag {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: #a78bfa; margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800;
+      letter-spacing: -1px; line-height: 1.2;
+    }
+    .section-sub { color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px; margin-left: auto; margin-right: auto; }
+
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 20px; margin-top: 56px;
+    }
+    .feat-card {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 20px; padding: 32px 28px; text-align: left;
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+      backdrop-filter: blur(10px);
+      position: relative; overflow: hidden;
+    }
+    .feat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--card-accent, #4f6ef7), transparent);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .feat-card:hover { transform: translateY(-6px); border-color: rgba(79,110,247,0.3); box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
+    .feat-card:hover::before { opacity: 1; }
+    .feat-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; margin-bottom: 20px;
+    }
+    .feat-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 10px; }
+    .feat-desc { font-size: 0.875rem; color: var(--muted); line-height: 1.65; }
+
+    /* ── HOW IT WORKS ── */
+    #how-it-works {
+      position: relative; z-index: 1; padding: 80px 7%; text-align: center;
+    }
+    .steps {
+      display: flex; gap: 0; margin-top: 56px; position: relative;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .step {
+      flex: 1; min-width: 200px; max-width: 240px; padding: 0 20px;
+      position: relative; text-align: center;
+    }
+    .step::after {
+      content: '→';
+      position: absolute; right: -10px; top: 28px;
+      color: var(--accent); font-size: 1.4rem; font-weight: 300;
+    }
+    .step:last-child::after { display: none; }
+    .step-num {
+      width: 60px; height: 60px; border-radius: 50%;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 800; margin: 0 auto 20px;
+      box-shadow: 0 8px 24px rgba(79,110,247,0.4);
+    }
+    .step-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
+    .step-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── TESTIMONIALS ── */
+    #testimonials {
+      position: relative; z-index: 1; padding: 80px 7%; text-align: center;
+    }
+    .testimonials-intro {
+      color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
+      margin-left: auto; margin-right: auto; line-height: 1.65;
+    }
+    .trust-strip {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+      gap: 12px 28px; margin-top: 36px; margin-bottom: 8px;
+    }
+    .trust-strip-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #64748b;
+    }
+    .trust-logo {
+      font-size: 0.85rem; font-weight: 700; color: rgba(148,163,184,0.55);
+      letter-spacing: 0.06em;
+    }
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px; margin-top: 40px; text-align: left;
+      max-width: 1120px; margin-left: auto; margin-right: auto;
+    }
+    .testimonial-card {
+      background: linear-gradient(165deg, rgba(13,18,48,0.72), rgba(10,14,36,0.45));
+      border: 1px solid var(--glass-border);
+      border-radius: 22px; padding: 28px 24px 24px;
+      backdrop-filter: blur(14px);
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+      position: relative; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .testimonial-card::before {
+      content: '"';
+      position: absolute; top: 12px; right: 20px;
+      font-size: 4.5rem; font-weight: 800; line-height: 1;
+      color: rgba(79,110,247,0.12); font-family: Georgia, serif; pointer-events: none;
+    }
+    .testimonial-card:hover {
+      border-color: rgba(79,110,247,0.35);
+      box-shadow: 0 28px 56px rgba(0,0,0,0.38);
+      transform: translateY(-5px);
+    }
+    .testimonial-stars {
+      color: #fbbf24; font-size: 0.9rem; letter-spacing: 2px; margin-bottom: 14px;
+    }
+    .testimonial-quote {
+      font-size: 0.92rem; line-height: 1.68; color: var(--text);
+      font-weight: 500; flex: 1;
+    }
+    .testimonial-metric {
+      margin-top: 16px; padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.78rem; font-weight: 600;
+      color: #a5b4fc;
+    }
+    .testimonial-footer {
+      display: flex; align-items: center; gap: 14px; margin-top: 20px;
+    }
+    .testimonial-avatar {
+      width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; font-weight: 800;
+      color: #fff;
+      background: linear-gradient(135deg, var(--av1,#4f6ef7), var(--av2,#a78bfa));
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .testimonial-name { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+    .testimonial-role {
+      font-size: 0.78rem; color: var(--muted); margin-top: 2px; line-height: 1.4;
+    }
+    @media (max-width: 992px) {
+      .testimonials-grid { grid-template-columns: 1fr; max-width: 480px; }
+    }
+
+    /* ── PRICING ── */
+    #pricing {
+      position: relative; z-index: 1; padding: 80px 7%; text-align: center;
+    }
+    .pricing-intro {
+      color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
+      margin-left: auto; margin-right: auto; line-height: 1.65;
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px; margin-top: 48px; text-align: left;
+      max-width: 1120px; margin-left: auto; margin-right: auto;
+      align-items: stretch;
+    }
+    .pricing-card {
+      background: linear-gradient(165deg, rgba(13,18,48,0.65), rgba(10,14,36,0.5));
+      border: 1px solid var(--glass-border);
+      border-radius: 22px; padding: 28px 24px 26px;
+      backdrop-filter: blur(12px);
+      display: flex; flex-direction: column;
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+      position: relative;
+    }
+    .pricing-card:hover {
+      border-color: rgba(79,110,247,0.35);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.35);
+      transform: translateY(-4px);
+    }
+    .pricing-card.featured {
+      border-color: rgba(79,110,247,0.45);
+      background: linear-gradient(165deg, rgba(79,110,247,0.14), rgba(13,18,48,0.75));
+      box-shadow: 0 4px 40px rgba(79,110,247,0.15);
+    }
+    .pricing-card.featured:hover {
+      box-shadow: 0 28px 56px rgba(79,110,247,0.22);
+    }
+    .pricing-badge {
+      position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      color: #fff; font-size: 0.68rem; font-weight: 800;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 5px 14px; border-radius: 50px;
+      white-space: nowrap;
+    }
+    .pricing-tier { font-size: 0.82rem; font-weight: 700; color: #a5b4fc; margin-bottom: 6px; }
+    .pricing-price {
+      font-size: 2.35rem; font-weight: 900; letter-spacing: -1px; color: var(--text);
+      line-height: 1.1;
+    }
+    .pricing-price span { font-size: 1rem; font-weight: 600; color: var(--muted); }
+    .pricing-period { font-size: 0.85rem; color: var(--muted); margin-top: 4px; margin-bottom: 22px; }
+    .pricing-desc { font-size: 0.875rem; color: var(--muted); line-height: 1.55; margin-bottom: 20px; }
+    .pricing-features {
+      list-style: none; flex: 1; margin-bottom: 24px;
+    }
+    .pricing-features li {
+      font-size: 0.84rem; color: var(--text); padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: flex-start; gap: 10px;
+      line-height: 1.45;
+    }
+    .pricing-features li:last-child { border-bottom: none; }
+    .pricing-features li::before {
+      content: '✓'; color: #4ade80; font-weight: 800; flex-shrink: 0; font-size: 0.75rem; margin-top: 2px;
+    }
+    .pricing-cta {
+      display: block; text-align: center; padding: 13px 20px; border-radius: 50px;
+      font-size: 0.9rem; font-weight: 700; text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .pricing-cta.primary {
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      color: #fff; box-shadow: 0 4px 20px rgba(79,110,247,0.35);
+    }
+    .pricing-cta.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,110,247,0.45); }
+    .pricing-cta.secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--text); border: 1px solid var(--glass-border);
+    }
+    .pricing-cta.secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+    @media (max-width: 992px) {
+      .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+    }
+
+    /* ── CTA ── */
+    #cta {
+      position: relative; z-index: 1; padding: 100px 7%; text-align: center;
+    }
+    .cta-box {
+      background: linear-gradient(135deg, rgba(79,110,247,0.12), rgba(167,139,250,0.12));
+      border: 1px solid rgba(79,110,247,0.25);
+      border-radius: 32px; padding: 72px 40px;
+      position: relative; overflow: hidden;
+    }
+    .cta-box::before {
+      content: ''; position: absolute;
+      width: 400px; height: 400px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(79,110,247,0.12), transparent);
+      top: -100px; right: -100px; pointer-events: none;
+    }
+    .cta-title { font-size: clamp(1.8rem, 3.5vw, 2.6rem); font-weight: 900; letter-spacing: -1px; }
+    .cta-sub { color: var(--muted); font-size: 1.05rem; margin: 16px auto 40px; max-width: 500px; }
+
+    {% include "components/footer_css.html" %}
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%     { opacity: 0.5; transform: scale(1.3); }
+    }
+    @keyframes float {
+      0%,100% { transform: perspective(1000px) rotateX(6deg) translateY(0); }
+      50%     { transform: perspective(1000px) rotateX(6deg) translateY(-12px); }
+    }
+    .floating { animation: float 4s ease-in-out infinite; }
+
+    /* ── GLOW ORBS ── */
+    .orb {
+      position: fixed; border-radius: 50%; filter: blur(100px);
+      pointer-events: none; z-index: 0;
+    }
+    .orb1 { width: 600px; height: 600px; background: rgba(79,110,247,0.12); top: -200px; left: -200px; }
+    .orb2 { width: 500px; height: 500px; background: rgba(167,139,250,0.10); bottom: 10%; right: -150px; }
+    .orb3 { width: 400px; height: 400px; background: rgba(56,189,248,0.07); top: 50%; left: 40%; }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .step::after { display: none; }
+      .steps { gap: 32px; }
+    }
+  </style>
+</head>
+<body>
+
+<button class="skip-link" type="button" onclick="document.getElementById('main-content')?.scrollIntoView({behavior:'smooth'});">
+  Skip to main content
+</button>
+
+<!-- Glow orbs -->
+<div class="orb orb1" aria-hidden="true"></div>
+<div class="orb orb2" aria-hidden="true"></div>
+<div class="orb orb3" aria-hidden="true"></div>
+
+<!-- Animated particle canvas -->
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+<!-- NAV -->
+<nav aria-label="Primary">
+  <a href="{% url 'home' %}" class="nav-logo" style="text-decoration:none;color:inherit;" aria-label="MailPilot home">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+      <rect width="32" height="32" rx="8" fill="url(#ng)"/>
+      <path d="M6 10l10 8 10-8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      <path d="M6 10h20v14a2 2 0 01-2 2H8a2 2 0 01-2-2V10z" stroke="white" stroke-width="2"/>
+      <circle cx="22" cy="10" r="4" fill="#a78bfa"/>
+      <defs>
+        <linearGradient id="ng" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#4f6ef7"/><stop offset="1" stop-color="#a78bfa"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    MailPilot
+  </a>
+  <ul class="nav-links">
+    <li><a href="{% url 'features' %}">Features</a></li>
+    <li><a href="{% url 'how_it_works' %}">How it Works</a></li>
+    <li><a href="{% url 'reviews' %}">Reviews</a></li>
+    <li><a href="{% url 'pricing' %}">Pricing</a></li>
+  </ul>
+  {% if user.is_authenticated %}
+    <div class="app-actions">
+      <a class="app-link" href="{% url 'setup' %}">Setup</a>
+      <a class="app-link" href="{% url 'dashboard' %}">Dashboard</a>
+      <div class="conn-badge">
+        {% if connected %}
+          <span class="conn-dot" aria-hidden="true"></span> Connected
+        {% else %}
+          <span class="conn-dot off" aria-hidden="true"></span> Not connected
+        {% endif %}
+      </div>
+      <div class="acct" id="acctMenu">
+        <button class="acct-btn" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false">
+          <span class="acct-ico" aria-hidden="true">
+            {% if nav_avatar_url %}
+              <img src="{{ nav_avatar_url }}" alt="" loading="lazy" decoding="async"/>
+            {% else %}
+              👤
+            {% endif %}
+          </span>
+          Profile
+          <span aria-hidden="true" style="opacity:.85">▾</span>
+        </button>
+        <div class="acct-dd" id="acctDd" role="menu" aria-label="Profile menu">
+          <a class="acct-item" href="{% url 'profile' %}" role="menuitem">
+            <i class="fa-regular fa-id-badge" aria-hidden="true"></i>
+            Profile details
+          </a>
+          <a class="acct-item" href="{% url 'settings' %}" role="menuitem">
+            <i class="fa-solid fa-gear" aria-hidden="true"></i>
+            Settings
+          </a>
+          <div class="acct-sep" role="separator" aria-hidden="true"></div>
+          <form action="{% url 'logout' %}" method="post" style="margin:0;">
+            {% csrf_token %}
+            <button class="acct-item acct-logout" type="submit" role="menuitem">
+              <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+              Log out
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
+      <a href="{% url 'login' %}" style="color:var(--muted);font-size:0.9rem;font-weight:500;text-decoration:none;">Log in</a>
+      <a href="{% url 'signup' %}" class="nav-cta">Get Started →</a>
+    </div>
+  {% endif %}
+</nav>
+
+{% if user.is_authenticated %}
+<script>
+  (function(){
+    const menu = document.getElementById('acctMenu');
+    const btn  = document.getElementById('acctBtn');
+    const dd   = document.getElementById('acctDd');
+    if(!menu || !btn) return;
+    function setOpen(open){
+      menu.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      setOpen(!menu.classList.contains('open'));
+    });
+    dd?.addEventListener('click', (e) => {
+      const a = e.target && e.target.closest ? e.target.closest('a') : null;
+      if(a) setOpen(false);
+    });
+    document.addEventListener('click', (e) => {
+      if(!menu.classList.contains('open')) return;
+      if(menu.contains(e.target)) return;
+      setOpen(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape') setOpen(false);
+    });
+  })();
+</script>
+{% endif %}
+
+<main id="main-content">
+<!-- HERO -->
+<section id="hero" aria-labelledby="hero-heading">
+  <div class="hero-badge"><span></span> AI-Powered Email Automation</div>
+  <h1 id="hero-heading">Your Inbox,<br/><span class="gradient">Fully Automated.</span></h1>
+  <p class="hero-sub">MailPilot reads your emails, checks relevance, crafts intelligent replies using LLMs + RAG knowledge base — and sends them. All on autopilot.</p>
+  <div class="hero-btns">
+    <a href="{% url 'signup' %}" class="btn-primary">Start Automating →</a>
+    <a href="{% url 'how_it_works' %}" class="btn-secondary">See How It Works</a>
+  </div>
+
+  <div class="hero-visual floating">
+    <div class="hero-card">
+      <div class="card-topbar">
+        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+        <div class="card-topbar-title">📬 MailPilot — Live Inbox</div>
+      </div>
+      <div class="email-list">
+        <div class="email-item">
+          <div class="email-avatar" style="background:linear-gradient(135deg,#4f6ef7,#a78bfa)">AK</div>
+          <div class="email-meta">
+            <div class="email-from">Alice Kim — Product Inquiry</div>
+            <div class="email-subject">What pricing plans do you offer for enterprise?</div>
+          </div>
+          <div class="email-badge badge-replied">✓ Auto-Replied</div>
+        </div>
+        <div class="email-item">
+          <div class="email-avatar" style="background:linear-gradient(135deg,#38bdf8,#4f6ef7)">RJ</div>
+          <div class="email-meta">
+            <div class="email-from">Raj Joshi — Support Request</div>
+            <div class="email-subject">How do I integrate the Gmail OAuth flow?</div>
+          </div>
+          <div class="email-badge badge-rag">🧠 RAG Enhanced</div>
+        </div>
+        <div class="email-item">
+          <div class="email-avatar" style="background:linear-gradient(135deg,#a78bfa,#ec4899)">ML</div>
+          <div class="email-meta">
+            <div class="email-from">Maria Lopez — Partnership</div>
+            <div class="email-subject">Interested in co-marketing collaboration...</div>
+          </div>
+          <div class="email-badge badge-pending">⏳ In Queue</div>
+        </div>
+        <div class="email-item">
+          <div class="email-avatar" style="background:linear-gradient(135deg,#94a3b8,#475569)">NO</div>
+          <div class="email-meta">
+            <div class="email-from">Newsletter — Daily Digest</div>
+            <div class="email-subject">Top stories in AI this week...</div>
+          </div>
+          <div class="email-badge badge-skipped">— Skipped</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats-bar" aria-label="Product highlights">
+  <div class="stat-item"><div class="stat-num">10x</div><div class="stat-label">Faster Responses</div></div>
+  <div class="stat-item"><div class="stat-num">99%</div><div class="stat-label">Relevance Accuracy</div></div>
+  <div class="stat-item"><div class="stat-num">∞</div><div class="stat-label">Knowledge Base Scale</div></div>
+  <div class="stat-item"><div class="stat-num">Multi</div><div class="stat-label">Tenant Support</div></div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-tag">⚡ Core Features</div>
+  <h2 class="section-title">Everything you need to<br/><span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">automate email at scale</span></h2>
+  <p class="section-sub">Built on Django with a powerful email_automation engine — designed for teams and enterprises.</p>
+  <div class="features-grid">
+    <div class="feat-card" style="--card-accent:#4f6ef7">
+      <div class="feat-icon" style="background:rgba(79,110,247,0.15)">📧</div>
+      <div class="feat-title">Inbox Intelligence</div>
+      <div class="feat-desc">Automatically reads Gmail and IMAP inboxes, filters noise, and identifies emails that need a response — powered by LLM relevance scoring.</div>
+    </div>
+    <div class="feat-card" style="--card-accent:#a78bfa">
+      <div class="feat-icon" style="background:rgba(167,139,250,0.15)">🧠</div>
+      <div class="feat-title">RAG-Powered Replies</div>
+      <div class="feat-desc">Enriches every AI reply with your own knowledge base via Postgres + pgvector. Answers are grounded in your actual documentation and FAQs.</div>
+    </div>
+    <div class="feat-card" style="--card-accent:#38bdf8">
+      <div class="feat-icon" style="background:rgba(56,189,248,0.15)">🔐</div>
+      <div class="feat-title">Secure Multi-Tenancy</div>
+      <div class="feat-desc">Full user isolation — per-user encrypted credentials (Fernet), scoped state store, tenant-prefixed vector DB, and audit logging built in.</div>
+    </div>
+    <div class="feat-card" style="--card-accent:#4ade80">
+      <div class="feat-icon" style="background:rgba(74,222,128,0.15)">⚙️</div>
+      <div class="feat-title">Flexible Scheduling</div>
+      <div class="feat-desc">Runs via APScheduler in-process or scales out with Celery + Redis. Periodic polling, manual triggers, and priority queues all supported.</div>
+    </div>
+    <div class="feat-card" style="--card-accent:#fb923c">
+      <div class="feat-icon" style="background:rgba(251,146,60,0.15)">🔗</div>
+      <div class="feat-title">Gmail OAuth + SMTP/IMAP</div>
+      <div class="feat-desc">Connect via Google OAuth 2.0 or any SMTP/IMAP provider. Per-user token files, automatic refresh, and OAuth callback handling included.</div>
+    </div>
+    <div class="feat-card" style="--card-accent:#f472b6">
+      <div class="feat-icon" style="background:rgba(244,114,182,0.15)">📊</div>
+      <div class="feat-title">Dashboard & Audit Trail</div>
+      <div class="feat-desc">Real-time dashboard showing pending queue, sent replies, skipped emails, and full audit logs — all scoped per user account.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works">
+  <div class="section-tag">🔄 Workflow</div>
+  <h2 class="section-title">How MailPilot <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">works</span></h2>
+  <p class="section-sub">Six automated steps from inbox to intelligent reply.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">Poll Inbox</div>
+      <div class="step-desc">Gmail API or IMAP scans for new unread emails on schedule.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">Relevance Check</div>
+      <div class="step-desc">LLM scores each email — skip newsletters, flag actionable ones.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">RAG Lookup</div>
+      <div class="step-desc">Query pgvector knowledge base for context specific to the email.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-title">Draft Reply</div>
+      <div class="step-desc">LLM generates a grounded, professional reply using KB context.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-title">Safety Queue</div>
+      <div class="step-desc">Reply held in queue for review or auto-approved by policy.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-title">Send & Log</div>
+      <div class="step-desc">Email sent via Gmail/SMTP. State updated. Full audit logged.</div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials" aria-labelledby="testimonials-heading">
+  <div class="section-tag">Social proof</div>
+  <h2 class="section-title" id="testimonials-heading">Trusted by <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">teams who live in email</span></h2>
+  <p class="testimonials-intro">Support, sales, and operations leads use MailPilot-style automation to answer faster—without losing tone or accuracy. Here is what they highlight.</p>
+
+  <div class="trust-strip" aria-hidden="true">
+    <span class="trust-strip-label">Teams at</span>
+    <span class="trust-logo">NORTHLINE LOGISTICS</span>
+    <span class="trust-logo">BRIGHTSTACK</span>
+    <span class="trust-logo">STUDIO MERIDIAN</span>
+    <span class="trust-logo">HELIX SUPPORT</span>
+  </div>
+
+  <div class="testimonials-grid">
+    <article class="testimonial-card">
+      <div class="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
+      <p class="testimonial-quote">We were drowning in tier‑1 inbox questions. Replies now pull from our product docs automatically—CSAT went up and our queue actually clears by end of day.</p>
+      <p class="testimonial-metric">First-response time cut by roughly half in six weeks</p>
+      <div class="testimonial-footer">
+        <div class="testimonial-avatar" style="--av1:#4f6ef7;--av2:#6366f1">SC</div>
+        <div>
+          <div class="testimonial-name">Sarah Chen</div>
+          <div class="testimonial-role">VP of Operations · Northline Logistics</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="testimonial-card">
+      <div class="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
+      <p class="testimonial-quote">The RAG piece sold us. Generic AI drafts were embarrassing; grounded answers from our own KB sound like us. Onboarding took an afternoon, not a sprint.</p>
+      <p class="testimonial-metric">Audit trail per rep—compliance finally stopped asking for screenshots</p>
+      <div class="testimonial-footer">
+        <div class="testimonial-avatar" style="--av1:#a78bfa;--av2:#c084fc">MW</div>
+        <div>
+          <div class="testimonial-name">Marcus Webb</div>
+          <div class="testimonial-role">Head of Customer Experience · Brightstack</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="testimonial-card">
+      <div class="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
+      <p class="testimonial-quote">I run a small agency—no room for a 24/7 inbox. MailPilot skips newsletters and cold outreach, and only surfaces what needs a human touch. Game changer.</p>
+      <p class="testimonial-metric">~15 hours a week back for billable work</p>
+      <div class="testimonial-footer">
+        <div class="testimonial-avatar" style="--av1:#38bdf8;--av2:#4f6ef7">ER</div>
+        <div>
+          <div class="testimonial-name">Elena Ruiz</div>
+          <div class="testimonial-role">Founder · Studio Meridian</div>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" aria-labelledby="pricing-heading">
+  <div class="section-tag">Pricing</div>
+  <h2 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h2>
+  <p class="pricing-intro">Start free, scale when volume grows. All plans include secure sign-in and tenant-isolated data—adjust numbers to match your real billing when you launch.</p>
+
+  <div class="pricing-grid">
+    <article class="pricing-card">
+      <div class="pricing-tier">Starter</div>
+      <div class="pricing-price">$0<span>/mo</span></div>
+      <p class="pricing-period">For individuals &amp; trials</p>
+      <p class="pricing-desc">One mailbox, core automation, and enough AI to prove value before you commit.</p>
+      <ul class="pricing-features">
+        <li>1 connected inbox (Gmail or IMAP)</li>
+        <li>Basic relevance scoring &amp; queue</li>
+        <li>Limited AI replies per month</li>
+        <li>Dashboard &amp; audit log (self)</li>
+      </ul>
+      <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free</a>
+    </article>
+
+    <article class="pricing-card featured">
+      <span class="pricing-badge">Most popular</span>
+      <div class="pricing-tier">Pro</div>
+      <div class="pricing-price">$49<span>/mo</span></div>
+      <p class="pricing-period">Billed monthly · cancel anytime</p>
+      <p class="pricing-desc">Full RAG knowledge base, higher limits, and background workers for reliable polling.</p>
+      <ul class="pricing-features">
+        <li>Up to 3 mailboxes</li>
+        <li>pgvector RAG &amp; document ingestion</li>
+        <li>Higher AI &amp; send volume</li>
+        <li>Celery-ready job queue (with Redis)</li>
+        <li>Priority email support</li>
+      </ul>
+      <a href="{% url 'signup' %}" class="pricing-cta primary">Get Pro</a>
+    </article>
+
+    <article class="pricing-card">
+      <div class="pricing-tier">Business</div>
+      <div class="pricing-price">Custom</div>
+      <p class="pricing-period">Teams &amp; compliance</p>
+      <p class="pricing-desc">Volume, SSO, SLAs, and deployment options for teams that need a contract.</p>
+      <ul class="pricing-features">
+        <li>Unlimited mailboxes (fair use)</li>
+        <li>Team seats &amp; admin controls</li>
+        <li>Advanced audit &amp; retention</li>
+        <li>Dedicated onboarding &amp; SLAs</li>
+        <li>Optional private / VPC deployment</li>
+      </ul>
+      <a href="{% url 'signup' %}" class="pricing-cta secondary">Contact sales</a>
+    </article>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="cta-box">
+    <h2 class="cta-title">Ready to put your<br/><span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">inbox on autopilot?</span></h2>
+    <p class="cta-sub">Sign up, connect your Gmail or IMAP account, and let MailPilot handle the rest.</p>
+    <div class="hero-btns">
+      <a href="{% url 'signup' %}" class="btn-primary">Create Free Account</a>
+    </div>
+  </div>
+</section>
+</main>
+
+{% include "components/footer.html" %}
+
+<!-- 3D PARTICLE ANIMATION -->
+<script>
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [], mouse = {x: -9999, y: -9999};
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+class Particle {
+  constructor() { this.reset(); }
+  reset() {
+    this.x = Math.random() * W;
+    this.y = Math.random() * H;
+    this.z = Math.random() * 800 + 200;
+    this.vx = (Math.random() - 0.5) * 0.4;
+    this.vy = (Math.random() - 0.5) * 0.4;
+    this.r = Math.random() * 1.8 + 0.4;
+    const cols = ['rgba(79,110,247', 'rgba(167,139,250', 'rgba(56,189,248'];
+    this.col = cols[Math.floor(Math.random() * cols.length)];
+  }
+  update() {
+    this.x += this.vx; this.y += this.vy;
+    const dx = this.x - mouse.x, dy = this.y - mouse.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 120) {
+      this.x += dx / dist * 1.2;
+      this.y += dy / dist * 1.2;
+    }
+    if (this.x < 0) this.x = W;
+    if (this.x > W) this.x = 0;
+    if (this.y < 0) this.y = H;
+    if (this.y > H) this.y = 0;
+  }
+  draw() {
+    const scale = 800 / this.z;
+    const a = Math.min(0.7, scale * 0.4);
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r * scale, 0, Math.PI * 2);
+    ctx.fillStyle = `${this.col},${a})`;
+    ctx.fill();
+  }
+}
+
+for (let i = 0; i < 140; i++) particles.push(new Particle());
+
+function drawConnections() {
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i+1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x;
+      const dy = particles[i].y - particles[j].y;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < 110) {
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.strokeStyle = `rgba(79,110,247,${(1 - d/110) * 0.18})`;
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function animate() {
+  ctx.clearRect(0, 0, W, H);
+  drawConnections();
+  particles.forEach(p => { p.update(); p.draw(); });
+  requestAnimationFrame(animate);
+}
+animate();
+
+// 3D tilt on hero card
+const card = document.querySelector('.hero-card');
+if(card) {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect();
+    const x = e.clientX - r.left - r.width/2;
+    const y = e.clientY - r.top - r.height/2;
+    card.style.transform = `perspective(1000px) rotateX(${-y/30}deg) rotateY(${x/30}deg)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = 'perspective(1000px) rotateX(6deg)';
+  });
+}
+
+// Scroll-reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if(e.isIntersecting) {
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.12 });
+
+document.querySelectorAll('.feat-card, .step, .stat-item, .testimonial-card, .pricing-card').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(30px)';
+  el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+  observer.observe(el);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MailPilot — Create Account</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #060818;
+      --accent: #4f6ef7;
+      --accent2: #a78bfa;
+      --accent3: #38bdf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.09);
+      --input-bg: rgba(255,255,255,0.05);
+      --input-border: rgba(255,255,255,0.1);
+      --danger-bg: rgba(251,113,133,0.10);
+      --danger-border: rgba(251,113,133,0.25);
+    }
+
+    html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
+
+    #bg-canvas { position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+
+    .orb { position:fixed; border-radius:50%; filter:blur(100px); pointer-events:none; z-index:0; }
+    .orb1 { width:600px; height:600px; background:rgba(79,110,247,0.13); top:-200px; right:-150px; }
+    .orb2 { width:500px; height:500px; background:rgba(167,139,250,0.10); bottom:-100px; left:-150px; }
+    .orb3 { width:350px; height:350px; background:rgba(56,189,248,0.07); top:40%; left:30%; }
+
+    .page-wrapper {
+      position:relative; z-index:1; min-height:100vh;
+      display:grid; grid-template-columns:1fr;
+    }
+
+    .left-panel {
+      display:flex; flex-direction:column; justify-content:space-between;
+      padding:44px 56px;
+      border-right:1px solid var(--glass-border);
+      background:rgba(6,8,24,0.4); backdrop-filter:blur(4px);
+    }
+    .logo {
+      display:flex; align-items:center; gap:10px;
+      font-size:1.3rem; font-weight:800; letter-spacing:-0.5px;
+      background:linear-gradient(135deg,#4f6ef7,#a78bfa);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      text-decoration:none;
+    }
+    .logo svg { width:34px; height:34px; flex-shrink:0; }
+
+    .left-content { flex:1; display:flex; flex-direction:column; justify-content:center; padding:60px 0 40px; }
+
+    .left-tagline {
+      font-size:clamp(2rem,3.2vw,2.8rem); font-weight:900;
+      line-height:1.1; letter-spacing:-1.5px; margin-bottom:20px;
+      animation:fadeUp 0.8s ease both;
+    }
+    .left-tagline .gr {
+      background:linear-gradient(135deg,#4f6ef7,#a78bfa,#38bdf8);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    }
+    .left-desc { font-size:0.95rem; color:var(--muted); line-height:1.7; max-width:360px; animation:fadeUp 0.9s 0.1s ease both; }
+
+    .onboard-steps { margin-top:40px; display:flex; flex-direction:column; gap:0; animation:fadeUp 1s 0.2s ease both; }
+    .step-item { display:flex; gap:16px; align-items:flex-start; padding:18px 0; position:relative; }
+    .step-item:not(:last-child)::after {
+      content:''; position:absolute; left:19px; top:52px;
+      width:2px; height:calc(100% - 36px);
+      background:linear-gradient(to bottom, rgba(79,110,247,0.4), transparent);
+    }
+    .step-num {
+      width:38px; height:38px; border-radius:50%; flex-shrink:0;
+      background:linear-gradient(135deg,#4f6ef7,#a78bfa);
+      display:flex; align-items:center; justify-content:center;
+      font-size:0.85rem; font-weight:800;
+      box-shadow:0 4px 16px rgba(79,110,247,0.35);
+    }
+    .step-body { padding-top:6px; }
+    .step-label { font-size:0.88rem; font-weight:700; color:var(--text); }
+    .step-desc  { font-size:0.78rem; color:var(--muted); margin-top:3px; line-height:1.55; }
+
+    .trust-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:36px; animation:fadeUp 1s 0.3s ease both; }
+    .trust-badge {
+      display:flex; align-items:center; gap:7px;
+      padding:7px 14px; border-radius:50px;
+      background:var(--glass); border:1px solid var(--glass-border);
+      font-size:0.75rem; font-weight:600; color:var(--muted);
+    }
+
+    .left-footer { font-size:0.75rem; color:var(--muted); }
+
+    .right-panel {
+      display:flex; flex-direction:column; justify-content:center; align-items:center;
+      padding:48px 48px; overflow-y:auto;
+    }
+
+    .form-box { width:100%; max-width:440px; animation:fadeUp 0.8s 0.15s ease both; }
+
+    .form-header { margin-bottom:18px; }
+    .form-title { font-size:1.85rem; font-weight:900; letter-spacing:-1px; line-height:1.15; }
+    .form-title span {
+      background:linear-gradient(135deg,#4f6ef7,#a78bfa);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    }
+    .form-sub { color:var(--muted); font-size:0.88rem; margin-top:8px; }
+    .form-sub a { color:#a78bfa; text-decoration:none; font-weight:600; }
+    .form-sub a:hover { text-decoration:underline; }
+
+    .err {
+      margin: 16px 0 0;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: #fecdd3;
+      font-size: 0.85rem;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .divider {
+      display:flex; align-items:center; gap:14px;
+      margin:20px 0; color:var(--muted); font-size:0.78rem;
+    }
+    .divider::before,.divider::after { content:''; flex:1; height:1px; background:var(--glass-border); }
+
+    .field { margin-bottom:16px; }
+    .field label { display:block; font-size:0.82rem; font-weight:600; color:var(--text); margin-bottom:7px; }
+    .input-wrap { position:relative; }
+    .input-wrap .icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:0.95rem; pointer-events:none; }
+    .input-wrap input {
+      width:100%; padding:12px 14px 12px 42px;
+      background:var(--input-bg); border:1px solid var(--input-border);
+      border-radius:12px; color:var(--text); font-size:0.88rem;
+      font-family:'Inter',sans-serif; outline:none;
+      transition:border-color 0.2s,background 0.2s,box-shadow 0.2s;
+    }
+    .input-wrap input::placeholder { color:var(--muted); }
+    .input-wrap input:focus {
+      border-color:rgba(79,110,247,0.6); background:rgba(79,110,247,0.06);
+      box-shadow:0 0 0 3px rgba(79,110,247,0.12);
+    }
+    .input-wrap input.error { border-color:rgba(239,68,68,0.6); box-shadow:0 0 0 3px rgba(239,68,68,0.1); }
+    .input-wrap input.success { border-color:rgba(74,222,128,0.5); box-shadow:0 0 0 3px rgba(74,222,128,0.08); }
+    .eye-btn {
+      position:absolute; right:14px; top:50%; transform:translateY(-50%);
+      background:none; border:none; color:var(--muted); cursor:pointer; font-size:1rem; padding:0;
+      transition:color 0.2s;
+    }
+    .eye-btn:hover { color:var(--text); }
+
+    .field-hint { font-size:0.72rem; color:var(--muted); margin-top:5px; }
+    .field-hint.err { color:#f87171; }
+    .field-hint.ok  { color:#4ade80; }
+
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+    .pwd-strength { margin-top:8px; }
+    .strength-bar { display:flex; gap:4px; margin-bottom:5px; }
+    .strength-seg { flex:1; height:4px; border-radius:99px; background:rgba(255,255,255,0.1); transition:background 0.3s; }
+    .strength-label { font-size:0.72rem; color:var(--muted); }
+
+    .submit-btn {
+      width:100%; padding:14px;
+      background:linear-gradient(135deg,#4f6ef7,#a78bfa);
+      border:none; border-radius:14px; color:#fff;
+      font-size:0.95rem; font-weight:700; cursor:pointer;
+      transition:transform 0.2s,box-shadow 0.2s;
+      box-shadow:0 4px 20px rgba(79,110,247,0.35);
+      font-family:'Inter',sans-serif; position:relative; overflow:hidden;
+    }
+    .submit-btn::before {
+      content:''; position:absolute; top:0; left:-100%;
+      width:100%; height:100%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);
+      transition:left 0.5s;
+    }
+    .submit-btn:hover { transform:translateY(-2px); box-shadow:0 10px 32px rgba(79,110,247,0.5); }
+    .submit-btn:hover::before { left:100%; }
+
+    .terms-row { display:flex; align-items:flex-start; gap:10px; margin-bottom:20px; }
+    .terms-row input[type=checkbox] { width:16px; height:16px; accent-color:#4f6ef7; cursor:pointer; margin-top:2px; flex-shrink:0; }
+    .terms-row label { font-size:0.8rem; color:var(--muted); cursor:pointer; line-height:1.5; }
+    .terms-row a { color:#a78bfa; text-decoration:none; font-weight:600; }
+
+    .bottom-link { text-align:center; margin-top:22px; font-size:0.85rem; color:var(--muted); }
+    .bottom-link a { color:#a78bfa; font-weight:600; text-decoration:none; }
+    .bottom-link a:hover { text-decoration:underline; }
+
+    .security-note { display:flex; align-items:center; justify-content:center; gap:6px; margin-top:24px; font-size:0.74rem; color:var(--muted); }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(24px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    @media (max-width:900px) {
+      .right-panel { padding:40px 24px; min-height:100vh; }
+      .two-col { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="orb orb1" aria-hidden="true"></div>
+<div class="orb orb2" aria-hidden="true"></div>
+<div class="orb orb3" aria-hidden="true"></div>
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+<div class="page-wrapper">
+  <div class="right-panel">
+    <div class="form-box">
+      <div class="form-header">
+        <h1 class="form-title">Create your <span>free account</span></h1>
+        {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
+      </div>
+
+      <form method="post" action="{% url 'signup' %}" id="signupForm">
+        {% csrf_token %}
+
+        <div class="two-col">
+          <div class="field">
+            <label for="first_name">First Name</label>
+            <div class="input-wrap">
+              <span class="icon">👤</span>
+              <input type="text" id="first_name" name="first_name" placeholder="John" autocomplete="given-name" required />
+            </div>
+          </div>
+          <div class="field">
+            <label for="last_name">Last Name</label>
+            <div class="input-wrap">
+              <span class="icon">👤</span>
+              <input type="text" id="last_name" name="last_name" placeholder="Doe" autocomplete="family-name" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="email">Email Address</label>
+          <div class="input-wrap">
+            <span class="icon">✉</span>
+            <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+          </div>
+          <div class="field-hint" id="emailHint"></div>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <span class="icon">🔒</span>
+            <input type="password" id="password" name="password" placeholder="Min. 8 characters" autocomplete="new-password" required minlength="8" oninput="checkStrength(this.value);checkMatch();" />
+            <button type="button" class="eye-btn" onclick="togglePwd('password','eyeBtn1')" id="eyeBtn1" aria-label="Show password">👁</button>
+          </div>
+          <div class="pwd-strength">
+            <div class="strength-bar" aria-hidden="true">
+              <div class="strength-seg" id="s1"></div>
+              <div class="strength-seg" id="s2"></div>
+              <div class="strength-seg" id="s3"></div>
+              <div class="strength-seg" id="s4"></div>
+            </div>
+            <div class="strength-label" id="strengthLabel">Enter a password</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="password2">Confirm Password</label>
+          <div class="input-wrap">
+            <span class="icon">🔒</span>
+            <input type="password" id="password2" name="password2" placeholder="Re-enter password" autocomplete="new-password" required minlength="8" oninput="checkMatch()" />
+            <button type="button" class="eye-btn" onclick="togglePwd('password2','eyeBtn2')" id="eyeBtn2" aria-label="Show password">👁</button>
+          </div>
+          <div class="field-hint" id="matchHint"></div>
+        </div>
+
+        <div class="terms-row">
+          <input type="checkbox" id="terms" name="terms" required>
+          <label for="terms">I agree to the <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.</label>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">Create Account</button>
+      </form>
+
+      <div class="bottom-link">
+        Already have an account? <a href="{% url 'login' %}">Sign in here</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [], mouse = {x:-9999,y:-9999};
+function resize(){ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; }
+resize(); window.addEventListener('resize',resize);
+window.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+
+class Particle {
+  constructor(){ this.reset(); }
+  reset(){
+    this.x=Math.random()*W; this.y=Math.random()*H; this.z=Math.random()*800+200;
+    this.vx=(Math.random()-0.5)*0.35; this.vy=(Math.random()-0.5)*0.35;
+    this.r=Math.random()*1.6+0.3;
+    const c=['rgba(79,110,247','rgba(167,139,250','rgba(56,189,248'];
+    this.col=c[Math.floor(Math.random()*c.length)];
+  }
+  update(){
+    this.x+=this.vx; this.y+=this.vy;
+    const dx=this.x-mouse.x,dy=this.y-mouse.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<100){this.x+=dx/d;this.y+=dy/d;}
+    if(this.x<0)this.x=W; if(this.x>W)this.x=0;
+    if(this.y<0)this.y=H; if(this.y>H)this.y=0;
+  }
+  draw(){
+    const sc=800/this.z,a=Math.min(0.65,sc*0.38);
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.r*sc,0,Math.PI*2);
+    ctx.fillStyle=`${this.col},${a})`; ctx.fill();
+  }
+}
+for(let i=0;i<120;i++) particles.push(new Particle());
+function drawLines(){
+  for(let i=0;i<particles.length;i++) for(let j=i+1;j<particles.length;j++){
+    const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<100){ ctx.beginPath(); ctx.moveTo(particles[i].x,particles[i].y); ctx.lineTo(particles[j].x,particles[j].y); ctx.strokeStyle=`rgba(79,110,247,${(1-d/100)*0.15})`; ctx.lineWidth=0.5; ctx.stroke(); }
+  }
+}
+function animate(){ ctx.clearRect(0,0,W,H); drawLines(); particles.forEach(p=>{p.update();p.draw();}); requestAnimationFrame(animate); }
+animate();
+
+function togglePwd(id, btnId){
+  const inp=document.getElementById(id), btn=document.getElementById(btnId);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}
+
+function checkStrength(val){
+  const segs=[document.getElementById('s1'),document.getElementById('s2'),document.getElementById('s3'),document.getElementById('s4')];
+  const lbl=document.getElementById('strengthLabel');
+  let score=0;
+  if(val.length>=8) score++;
+  if(/[A-Z]/.test(val)) score++;
+  if(/[0-9]/.test(val)) score++;
+  if(/[^A-Za-z0-9]/.test(val)) score++;
+  const colors=['#ef4444','#f97316','#eab308','#4ade80'];
+  const labels=['Too weak','Could be stronger','Good password','Strong password ✓'];
+  segs.forEach((s,i)=>{ s.style.background = i<score ? colors[score-1] : 'rgba(255,255,255,0.1)'; });
+  lbl.textContent = val.length===0 ? 'Enter a password' : labels[score-1]||labels[0];
+  lbl.style.color = val.length===0 ? 'var(--muted)' : colors[score-1]||colors[0];
+}
+
+function checkMatch(){
+  const p1=document.getElementById('password').value;
+  const p2=document.getElementById('password2').value;
+  const hint=document.getElementById('matchHint');
+  const inp=document.getElementById('password2');
+  if(p2.length===0){ hint.textContent=''; hint.className='field-hint'; inp.classList.remove('error','success'); return; }
+  if(p1===p2){ hint.textContent='✓ Passwords match'; hint.className='field-hint ok'; inp.classList.add('success'); inp.classList.remove('error'); }
+  else       { hint.textContent='✗ Passwords do not match'; hint.className='field-hint err'; inp.classList.add('error'); inp.classList.remove('success'); }
+}
+
+document.getElementById('email')?.addEventListener('blur', function(){
+  const hint=document.getElementById('emailHint');
+  const re=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(this.value && !re.test(this.value)){ hint.textContent='✗ Please enter a valid email'; hint.className='field-hint err'; }
+  else { hint.textContent=''; hint.className='field-hint'; }
+});
+
+function setHint(el, text, ok){
+  if(!el) return;
+  el.textContent = text || '';
+  el.className = ok === true ? 'field-hint ok' : (ok === false ? 'field-hint err' : 'field-hint');
+}
+
+function setInputState(inp, ok){
+  if(!inp) return;
+  inp.classList.remove('error','success');
+  if(ok === true) inp.classList.add('success');
+  if(ok === false) inp.classList.add('error');
+}
+
+function validateEmail(val){
+  const v = (val || '').trim();
+  const re=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return v.length > 0 && re.test(v);
+}
+
+function validateSignupForm(){
+  const firstName = document.getElementById('first_name');
+  const email = document.getElementById('email');
+  const pwd1 = document.getElementById('password');
+  const pwd2 = document.getElementById('password2');
+  const terms = document.getElementById('terms');
+
+  let ok = true;
+
+  const fn = (firstName?.value || '').trim();
+  if(!fn){
+    ok = false;
+    setInputState(firstName, false);
+  } else {
+    setInputState(firstName, true);
+  }
+
+  const eok = validateEmail(email?.value || '');
+  setInputState(email, eok);
+  setHint(document.getElementById('emailHint'), eok || !(email?.value || '').trim() ? '' : '✗ Please enter a valid email', eok ? null : false);
+  if(!eok) ok = false;
+
+  const p1 = pwd1?.value || '';
+  const p2 = pwd2?.value || '';
+  if(p1.length < 8){
+    ok = false;
+    setInputState(pwd1, false);
+    const lbl = document.getElementById('strengthLabel');
+    if(lbl && p1.length > 0) { lbl.textContent = 'Min. 8 characters'; lbl.style.color = '#ef4444'; }
+  } else {
+    setInputState(pwd1, true);
+  }
+
+  if(!p2){
+    ok = false;
+    setInputState(pwd2, false);
+    setHint(document.getElementById('matchHint'), '✗ Please confirm your password', false);
+  } else if(p1 !== p2){
+    ok = false;
+    setInputState(pwd2, false);
+    setHint(document.getElementById('matchHint'), '✗ Passwords do not match', false);
+  } else {
+    setInputState(pwd2, true);
+    setHint(document.getElementById('matchHint'), '✓ Passwords match', true);
+  }
+
+  if(!terms?.checked){
+    ok = false;
+    // keep native required, just add a small visual nudge via outline
+    terms?.focus?.();
+  }
+
+  return ok;
+}
+
+document.getElementById('signupForm')?.addEventListener('submit', function(e){
+  // Run full validation on submit
+  const ok = validateSignupForm();
+  if(!ok){
+    e.preventDefault();
+  }
+});
+
+// Live validation
+document.getElementById('first_name')?.addEventListener('blur', function(){
+  setInputState(this, (this.value || '').trim().length > 0);
+});
+document.getElementById('email')?.addEventListener('input', function(){
+  if(!(this.value || '').trim()) { setInputState(this, null); setHint(document.getElementById('emailHint'), '', null); return; }
+  const eok = validateEmail(this.value);
+  setInputState(this, eok);
+  setHint(document.getElementById('emailHint'), eok ? '' : '✗ Please enter a valid email', eok ? null : false);
+});
+document.getElementById('password')?.addEventListener('input', function(){
+  checkStrength(this.value);
+  validateSignupForm();
+});
+document.getElementById('password2')?.addEventListener('input', function(){
+  checkMatch();
+});
+
+document.querySelectorAll('input[type=text],input[type=email],input[type=password]').forEach(el=>{
+  el.addEventListener('focus',()=> el.closest('.input-wrap').style.filter='drop-shadow(0 0 8px rgba(79,110,247,0.25))');
+  el.addEventListener('blur', ()=> el.closest('.input-wrap').style.filter='none');
+});
+
+document.querySelectorAll('.step-item').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{ el.style.transform='translateX(6px)'; el.style.transition='transform 0.2s ease'; });
+  el.addEventListener('mouseleave',()=>{ el.style.transform='translateX(0)'; });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{% load static %}
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="footer-brand-title"><span>MailPilot</span> — AI Email Automation</div>
+      <div class="footer-brand-desc">Automate Gmail and IMAP replies with relevance filtering, RAG grounding, and secure multi-tenant controls—built for teams that need consistent, fast responses.</div>
+    </div>
+
+    <div class="footer-cols" aria-label="Footer links">
+      <div>
+        <div class="footer-col-title">Product</div>
+        <ul class="footer-links">
+          <li><a href="{% url 'features' %}">Features</a></li>
+          <li><a href="{% url 'how_it_works' %}">How it Works</a></li>
+          <li><a href="{% url 'pricing' %}">Pricing</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Account</div>
+        <ul class="footer-links">
+          <li><a href="{% url 'signup' %}">Create account</a></li>
+          <li><a href="{% url 'login' %}">Log in</a></li>
+          <li><a href="{% url 'terms' %}">Terms of Service</a></li>
+          <li><a href="{% url 'privacy' %}">Privacy Policy</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2026 <span>MailPilot</span>. All rights reserved.</div>
+    <a class="footer-powered" href="https://timerni.com" target="_blank" rel="noopener noreferrer" aria-label="Powered by Timerni">
+      <span>Powered by</span>
+      <span class="timerni-mark">
+        <img class="timerni-logo" src="{% static 'brand/timerni.png' %}" alt="Timerni logo" loading="lazy" decoding="async" />
+        <span class="timerni-text">Timerni</span>
+      </span>
+    </a>
+  </div>
+</footer>
+

@@ -1,0 +1,360 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MailPilot — Pricing</title>
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#060818" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #060818;
+      --accent: #4f6ef7;
+      --accent2: #a78bfa;
+      --accent3: #38bdf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.09);
+    }
+    html, body { height: 100%; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
+
+    /* BG canvas + orbs (match landing vibe) */
+    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+    .orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; }
+    .orb1 { width: 600px; height: 600px; background: rgba(79,110,247,0.12); top: -200px; left: -200px; }
+    .orb2 { width: 500px; height: 500px; background: rgba(167,139,250,0.10); bottom: 10%; right: -150px; }
+    .orb3 { width: 400px; height: 400px; background: rgba(56,189,248,0.07); top: 50%; left: 40%; }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 7%;
+      backdrop-filter: blur(18px);
+      background: rgba(6,8,24,0.7);
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+    .nav-logo svg { width: 32px; height: 32px; }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a { color: var(--muted); font-size: 0.9rem; font-weight: 500; text-decoration: none; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      color: #fff; border: none; padding: 10px 26px;
+      border-radius: 50px; font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+      text-decoration: none;
+    }
+    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,110,247,0.45); }
+
+    /* App-style actions (logged in) */
+    .app-actions{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+    .conn-badge{display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;color:var(--muted);white-space:nowrap;}
+    .conn-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 10px rgba(74,222,128,.8);}
+    .conn-dot.off{background:#f87171;box-shadow:0 0 10px rgba(248,113,113,.5);}
+    .app-link{color:var(--muted);font-size:0.9rem;font-weight:700;text-decoration:none;padding:8px 12px;border-radius:10px;transition:background .2s,color .2s;white-space:nowrap;}
+    .app-link:hover{background:rgba(255,255,255,0.05);color:var(--text);}
+    .acct{position:relative;display:flex;align-items:center;margin-left:4px;}
+    .acct-btn{display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);color:var(--text);font-size:0.9rem;font-weight:800;cursor:pointer;transition:background .2s,border-color .2s;font-family:'Inter',sans-serif;white-space:nowrap;}
+    .acct-btn:hover{background:rgba(79,110,247,0.08);border-color:rgba(79,110,247,0.22);}
+    .acct-ico{width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(79,110,247,0.12);border:1px solid rgba(79,110,247,0.18);color:rgba(226,232,240,0.95);flex-shrink:0;font-size:0.95rem;overflow:hidden;}
+    .acct-ico img{width:100%;height:100%;object-fit:cover;display:block;border-radius:999px;}
+    .acct-dd{position:absolute;right:0;top:46px;min-width:220px;background:rgba(13,18,48,0.92);border:1px solid rgba(255,255,255,0.10);border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.55);backdrop-filter:blur(18px);padding:8px;display:none;z-index:120;}
+    .acct.open .acct-dd{display:block;}
+    .acct-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px 10px;border-radius:12px;color:rgba(226,232,240,0.92);text-decoration:none;background:transparent;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:700;}
+    .acct-item:hover{background:rgba(255,255,255,0.05);}
+    .acct-item i{width:18px;text-align:center;color:rgba(148,163,184,0.9);}
+    .acct-sep{height:1px;background:rgba(255,255,255,0.08);margin:6px 4px;}
+    .acct-logout{color:#fecaca;}
+    .acct-logout i{color:#f87171;}
+
+    main { position: relative; z-index: 1; padding: 120px 7% 20px; }
+    .page-head { max-width: 1120px; margin: 0 auto 18px; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 999px;
+      border: 1px solid rgba(79,110,247,0.35);
+      background: rgba(79,110,247,0.10);
+      color: #a5b4fc;
+      font-size: 0.78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    }
+    h1 { margin-top: 14px; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -1px; }
+    .sub { margin-top: 10px; color: rgba(148,163,184,0.90); line-height: 1.7; max-width: 760px; }
+
+    .pricing-grid { max-width: 1120px; margin: 26px auto 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .pricing-card {
+      background: linear-gradient(165deg, rgba(13,18,48,0.72), rgba(10,14,36,0.45));
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 22px;
+      padding: 22px 20px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 24px 50px rgba(0,0,0,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .pricing-card.featured { border-color: rgba(79,110,247,0.35); box-shadow: 0 30px 70px rgba(79,110,247,0.10), 0 24px 50px rgba(0,0,0,0.35); }
+    .pricing-badge { position:absolute; top:16px; right:16px; font-size:.75rem; font-weight:900; padding:6px 10px; border-radius:999px; background: rgba(167,139,250,0.14); border: 1px solid rgba(167,139,250,0.30); color: rgba(226,232,240,0.92); }
+    .pricing-tier { font-weight: 900; letter-spacing: -0.3px; }
+    .pricing-price { margin-top: 10px; font-size: 2.2rem; font-weight: 900; letter-spacing: -1px; }
+    .pricing-price span { font-size: 1rem; font-weight: 800; color: rgba(148,163,184,0.85); }
+    .pricing-period { margin-top: 6px; color: rgba(148,163,184,0.86); font-size: 0.9rem; }
+    .pricing-desc { margin-top: 10px; color: rgba(148,163,184,0.92); line-height: 1.7; }
+    .pricing-features { margin-top: 14px; padding-left: 18px; color: rgba(148,163,184,0.92); line-height: 1.75; }
+    .pricing-features li { margin: 6px 0; }
+    .pricing-cta {
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-top: 16px;
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-weight: 900;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      transition: transform .2s, box-shadow .2s, background .2s;
+    }
+    .pricing-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,0.35); background: rgba(79,110,247,0.10); }
+    .pricing-cta.primary { background: linear-gradient(135deg, #4f6ef7, #a78bfa); border-color: transparent; }
+
+    {% include "components/footer_css.html" %}
+
+    @media (max-width: 980px) { .pricing-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) { .nav-links { display:none; } }
+  </style>
+</head>
+<body>
+  <div class="orb orb1" aria-hidden="true"></div>
+  <div class="orb orb2" aria-hidden="true"></div>
+  <div class="orb orb3" aria-hidden="true"></div>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <nav aria-label="Primary">
+    <a href="{% url 'home' %}" class="nav-logo" aria-label="MailPilot home">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <rect width="32" height="32" rx="8" fill="url(#ng)"/>
+        <path d="M6 10l10 8 10-8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <path d="M6 10h20v14a2 2 0 01-2 2H8a2 2 0 01-2-2V10z" stroke="white" stroke-width="2"/>
+        <circle cx="22" cy="10" r="4" fill="#a78bfa"/>
+        <defs>
+          <linearGradient id="ng" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#4f6ef7"/><stop offset="1" stop-color="#a78bfa"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      MailPilot
+    </a>
+    <ul class="nav-links">
+      <li><a href="{% url 'features' %}">Features</a></li>
+      <li><a href="{% url 'how_it_works' %}">How it Works</a></li>
+      <li><a href="{% url 'reviews' %}">Reviews</a></li>
+      <li><a href="{% url 'pricing' %}">Pricing</a></li>
+    </ul>
+    {% if user.is_authenticated %}
+      <div class="app-actions">
+        <a class="app-link" href="{% url 'setup' %}">Setup</a>
+        <a class="app-link" href="{% url 'dashboard' %}">Dashboard</a>
+        <div class="conn-badge">
+          {% if connected %}
+            <span class="conn-dot" aria-hidden="true"></span> Connected
+          {% else %}
+            <span class="conn-dot off" aria-hidden="true"></span> Not connected
+          {% endif %}
+        </div>
+        <div class="acct" id="acctMenu">
+          <button class="acct-btn" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false">
+            <span class="acct-ico" aria-hidden="true">
+              {% if nav_avatar_url %}
+                <img src="{{ nav_avatar_url }}" alt="" loading="lazy" decoding="async"/>
+              {% else %}
+                <i class="fa-regular fa-user" aria-hidden="true"></i>
+              {% endif %}
+            </span>
+            Profile <span aria-hidden="true" style="opacity:.85">▾</span>
+          </button>
+          <div class="acct-dd" id="acctDd" role="menu" aria-label="Profile menu">
+            <a class="acct-item" href="{% url 'profile' %}" role="menuitem">
+              <i class="fa-regular fa-id-badge" aria-hidden="true"></i>
+              Profile details
+            </a>
+            <a class="acct-item" href="{% url 'settings' %}" role="menuitem">
+              <i class="fa-solid fa-gear" aria-hidden="true"></i>
+              Settings
+            </a>
+            <div class="acct-sep" role="separator" aria-hidden="true"></div>
+            <form action="{% url 'logout' %}" method="post" style="margin:0;">
+              {% csrf_token %}
+              <button class="acct-item acct-logout" type="submit" role="menuitem">
+                <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+                Log out
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
+        <a href="{% url 'login' %}" style="color:var(--muted);font-size:0.9rem;font-weight:600;text-decoration:none;">Log in</a>
+        <a href="{% url 'signup' %}" class="nav-cta">Get Started →</a>
+      </div>
+    {% endif %}
+  </nav>
+
+  <main>
+    <div class="page-head">
+      <div class="tag"><span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block;"></span> Pricing</div>
+      <h1>Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h1>
+      <p class="sub">Start free, scale when volume grows. All plans include secure sign-in and tenant-isolated data—adjust numbers to match your real billing when you launch.</p>
+    </div>
+
+    <div class="pricing-grid" aria-label="Pricing plans">
+      <article class="pricing-card">
+        <div class="pricing-tier">Starter</div>
+        <div class="pricing-price">$0<span>/mo</span></div>
+        <div class="pricing-period">For individuals &amp; trials</div>
+        <p class="pricing-desc">One mailbox, core automation, and enough AI to prove value before you commit.</p>
+        <ul class="pricing-features">
+          <li>1 connected inbox (Gmail or IMAP)</li>
+          <li>Basic relevance scoring &amp; queue</li>
+          <li>Limited AI replies per month</li>
+          <li>Dashboard &amp; audit log (self)</li>
+        </ul>
+        <a href="{% url 'signup' %}" class="pricing-cta">Start free</a>
+      </article>
+
+      <article class="pricing-card featured">
+        <span class="pricing-badge">Most popular</span>
+        <div class="pricing-tier">Pro</div>
+        <div class="pricing-price">$49<span>/mo</span></div>
+        <div class="pricing-period">Billed monthly · cancel anytime</div>
+        <p class="pricing-desc">Full RAG knowledge base, higher limits, and background workers for reliable polling.</p>
+        <ul class="pricing-features">
+          <li>Up to 3 mailboxes</li>
+          <li>pgvector RAG &amp; document ingestion</li>
+          <li>Higher AI &amp; send volume</li>
+          <li>Celery-ready job queue (with Redis)</li>
+          <li>Priority email support</li>
+        </ul>
+        <a href="{% url 'signup' %}" class="pricing-cta primary">Get Pro</a>
+      </article>
+
+      <article class="pricing-card">
+        <div class="pricing-tier">Business</div>
+        <div class="pricing-price">Custom</div>
+        <div class="pricing-period">Teams &amp; compliance</div>
+        <p class="pricing-desc">Volume, SSO, SLAs, and deployment options for teams that need a contract.</p>
+        <ul class="pricing-features">
+          <li>Unlimited mailboxes (fair use)</li>
+          <li>Team seats &amp; admin controls</li>
+          <li>Advanced audit &amp; retention</li>
+          <li>Dedicated onboarding &amp; SLAs</li>
+          <li>Optional private / VPC deployment</li>
+        </ul>
+        <a href="{% url 'signup' %}" class="pricing-cta">Contact sales</a>
+      </article>
+    </div>
+  </main>
+
+  {% include "components/footer.html" %}
+
+  {% if user.is_authenticated %}
+  <script>
+    (function(){
+      const menu = document.getElementById('acctMenu');
+      const btn  = document.getElementById('acctBtn');
+      const dd   = document.getElementById('acctDd');
+      if(!menu || !btn) return;
+      function setOpen(open){
+        menu.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      btn.addEventListener('click', (e) => { e.preventDefault(); setOpen(!menu.classList.contains('open')); });
+      dd && dd.addEventListener('click', (e) => { const a = e.target && e.target.closest ? e.target.closest('a') : null; if(a) setOpen(false); });
+      document.addEventListener('click', (e) => { if(!menu.classList.contains('open')) return; if(menu.contains(e.target)) return; setOpen(false); });
+      document.addEventListener('keydown', (e) => { if(e.key === 'Escape') setOpen(false); });
+    })();
+  </script>
+  {% endif %}
+
+  <script>
+    // Lightweight particle background (same idea as landing)
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    let W, H, particles = [], mouse = {x: -9999, y: -9999};
+    function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+    resize(); window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    class Particle{
+      constructor(){ this.reset(); }
+      reset(){
+        this.x = Math.random() * W; this.y = Math.random() * H;
+        this.z = Math.random() * 800 + 200;
+        this.vx = (Math.random() - 0.5) * 0.4;
+        this.vy = (Math.random() - 0.5) * 0.4;
+        this.r = Math.random() * 1.8 + 0.4;
+        const cols = ['rgba(79,110,247', 'rgba(167,139,250', 'rgba(56,189,248'];
+        this.col = cols[Math.floor(Math.random() * cols.length)];
+      }
+      update(){
+        this.x += this.vx; this.y += this.vy;
+        const dx = this.x - mouse.x, dy = this.y - mouse.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if(dist < 120 && dist > 0.001){
+          this.x += dx / dist * 1.2;
+          this.y += dy / dist * 1.2;
+        }
+        if(this.x < 0) this.x = W; if(this.x > W) this.x = 0;
+        if(this.y < 0) this.y = H; if(this.y > H) this.y = 0;
+      }
+      draw(){
+        const scale = 800 / this.z;
+        const a = Math.min(0.7, scale * 0.4);
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r * scale, 0, Math.PI * 2);
+        ctx.fillStyle = `${this.col},${a})`;
+        ctx.fill();
+      }
+    }
+    for(let i=0;i<140;i++) particles.push(new Particle());
+    function drawConnections(){
+      for(let i=0;i<particles.length;i++){
+        for(let j=i+1;j<particles.length;j++){
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const d = Math.sqrt(dx*dx + dy*dy);
+          if(d < 110){
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(79,110,247,${(1 - d/110) * 0.18})`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+    function animate(){
+      ctx.clearRect(0,0,W,H);
+      drawConnections();
+      particles.forEach(p => { p.update(); p.draw(); });
+      requestAnimationFrame(animate);
+    }
+    animate();
+  </script>
+</body>
+</html>
+

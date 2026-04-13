@@ -1,0 +1,1035 @@
+{% extends "mailpilot_base.html" %}
+
+{% block title %}Connect Gmail · Email Automation{% endblock %}
+
+{# page_header block not used in mailpilot_base.html #}
+
+{% block head_extra %}
+  <style>
+    /* Match mailpilot_setup.html look */
+    .setup-card{max-width:1100px;margin:0 auto;}
+
+    .main-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--glass-border);}
+    .main-tab{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:16px 24px;cursor:pointer;
+      border-right:1px solid var(--glass-border);
+      transition:background 0.2s;
+      background:none;border-top:none;border-bottom:none;border-left:none;
+      font-family:var(--font);color:var(--muted);text-align:left;
+    }
+    .main-tab:last-child{border-right:none;}
+    .main-tab.on{
+      background:linear-gradient(135deg,rgba(79,110,247,0.12),rgba(167,139,250,0.08));
+      color:var(--text);
+      border-bottom:2px solid var(--accent);
+    }
+    .main-tab:hover:not(.on){background:var(--glass);color:var(--text);}
+    .main-tab .sub{font-size:0.72rem;color:var(--muted);margin-top:2px;font-weight:600;}
+    .tab-icon{
+      width:32px;height:32px;border-radius:999px;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      font-size:0.92rem;background:rgba(255,255,255,0.05);color:var(--muted);
+      border:1px solid rgba(255,255,255,0.08);
+    }
+    .main-tab.on .tab-icon{
+      background:rgba(79,110,247,0.20);
+      border-color:rgba(79,110,247,0.28);
+      color:var(--text);
+    }
+
+    .content-grid{display:grid;grid-template-columns:1fr 320px;gap:0;}
+    .content-main{padding:28px 32px;border-right:1px solid var(--glass-border);}
+    .content-aside{padding:24px;}
+    @media(max-width:900px){
+      .main-tabs{grid-template-columns:1fr;}
+      .content-grid{grid-template-columns:1fr;}
+      .content-main{border-right:none;border-bottom:1px solid var(--glass-border);}
+    }
+
+    .sec{border:1px solid var(--glass-border);border-radius:14px;background:rgba(255,255,255,0.02);padding:18px;}
+    .sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}
+    .s-sub{font-size:1rem;font-weight:800;letter-spacing:-.01em;}
+
+    .pill{
+      font-size:0.72rem;font-weight:700;padding:4px 12px;border-radius:50px;
+      border:1px solid rgba(79,110,247,0.3);
+      background:rgba(79,110,247,0.12);
+      color:#818cf8;
+      white-space:nowrap;
+    }
+    .pill.ok{background:rgba(74,222,128,0.12);color:#4ade80;border:1px solid rgba(74,222,128,0.3);}
+    .pill.bad{background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);}
+    .pill.info{background:rgba(79,110,247,0.08);color:rgba(226,232,240,0.9);border:1px solid rgba(79,110,247,0.20);}
+    .pill.wrap{white-space:normal;max-width:520px;line-height:1.35;}
+
+    /* Helper text spacing (was missing -> causes “sticking” look) */
+    .mini{
+      margin-top:8px;
+      font-size:0.78rem;
+      color:rgba(148,163,184,0.82);
+      line-height:1.55;
+    }
+
+    /* Checkbox pills (separate from status pills) */
+    label.pill{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 12px;
+      border-radius:12px;
+      border:1px solid var(--glass-border);
+      background:rgba(255,255,255,0.03);
+      color:var(--text);
+      font-size:0.82rem;
+      font-weight:650;
+      letter-spacing:0;
+      white-space:normal;
+    }
+    label.pill input{margin:0 !important;}
+    label.pill:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.06);}
+
+    .tabs{display:flex;gap:0;margin-bottom:20px;background:rgba(255,255,255,0.04);border-radius:12px;padding:4px;border:1px solid var(--glass-border);}
+    .tab{
+      flex:1;padding:10px 16px;border-radius:9px;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      font-size:0.875rem;font-weight:700;cursor:pointer;
+      background:none;border:none;color:var(--muted);
+      font-family:var(--font);transition:all 0.2s;
+    }
+    .tab.on{background:linear-gradient(135deg,rgba(79,110,247,0.25),rgba(167,139,250,0.2));color:#fff;box-shadow:0 2px 12px rgba(79,110,247,0.25);}
+    .tab:hover:not(.on){color:var(--text);}
+    .panel{display:none;}
+    .panel.on{display:block;}
+
+    .hint{background:rgba(79,110,247,0.07);border:1px solid rgba(79,110,247,0.2);border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:0.8rem;color:var(--muted);line-height:1.6;}
+
+    .oauth-box{background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:12px;padding:14px 16px;margin-top:18px;}
+    .oauth-box.tighter{margin-top:12px;}
+    .oauth-h{font-size:0.82rem;font-weight:800;margin-bottom:6px;}
+    .oauth-txt{font-size:0.8rem;color:var(--muted);line-height:1.65;}
+    .url-box{margin-top:10px;padding:8px 10px;background:rgba(6,8,24,0.6);border:1px solid var(--glass-border);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .url-txt{font-size:0.78rem;color:rgba(148,163,184,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .cp-btn{background:none;border:1px solid var(--glass-border);color:var(--muted);border-radius:10px;padding:6px 10px;cursor:pointer;}
+    .cp-btn:hover{border-color:rgba(79,110,247,0.5);color:var(--text);}
+
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+    @media(max-width:900px){.row2{grid-template-columns:1fr;}}
+    /* Field spacing: keep labels from “sticking” to inputs */
+    .fg{margin-bottom:18px;}
+    .row2 .fg{margin-bottom:0;}
+    .fl{font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:10px;display:block;}
+    .fi{width:100%;padding:10px 14px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;color:var(--text);font-size:0.875rem;font-family:var(--font);outline:none;transition:border-color 0.2s,background 0.2s,box-shadow 0.2s;}
+    .fi:focus{border-color:rgba(79,110,247,0.6);background:rgba(79,110,247,0.06);box-shadow:0 0 0 3px rgba(79,110,247,0.1);}
+    .fi::placeholder{color:rgba(148,163,184,0.5);}
+    select.fi{
+      appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;
+      background-position:right 12px center;
+      padding-right:36px;
+    }
+    /* Ensure dropdown options readable on dark UI */
+    select.fi option{
+      background:#0b1026;
+      color:#e2e8f0;
+    }
+    select.fi optgroup{
+      background:#0b1026;
+      color:#e2e8f0;
+    }
+
+    .pw-wrap{position:relative;}
+    .pw-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:1px solid var(--glass-border);border-radius:10px;padding:6px 10px;color:var(--muted);cursor:pointer;}
+    .pw-btn:hover{border-color:rgba(79,110,247,0.4);color:var(--text);}
+
+    .aside-card{background:rgba(79,110,247,0.05);border:1px solid rgba(79,110,247,0.15);border-radius:14px;padding:18px;}
+    .aside-title{font-size:0.88rem;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+    .aside-desc{font-size:0.8rem;color:var(--muted);line-height:1.65;}
+    .aside-desc strong{color:var(--text);}
+    .content-aside{position:relative;}
+    .content-aside .aside-card{position:sticky;top:86px;}
+
+    /* File uploader – make it more “clickable” */
+    .fu{
+      border:2px dashed rgba(255,255,255,0.14);
+      border-radius:12px;
+      padding:22px 16px;
+      background:rgba(255,255,255,0.02);
+      cursor:pointer;
+      transition:border-color .2s, background .2s, transform .2s;
+      user-select:none;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      text-align:center;
+      min-height:108px;
+    }
+    .fu:hover{border-color:rgba(79,110,247,0.5);background:rgba(79,110,247,0.06);}
+    .fu.over{border-color:rgba(79,110,247,0.7);background:rgba(79,110,247,0.09);transform:translateY(-1px);}
+    .fu p{font-size:0.86rem;color:var(--text);margin:0;line-height:1.45;}
+    .fu p span{color:var(--accent2);font-weight:800;}
+    .fu .ht{font-size:0.78rem;color:rgba(148,163,184,0.82);margin:0;}
+    .fu i{
+      width:42px;height:42px;border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(79,110,247,0.10);
+      border:1px solid rgba(79,110,247,0.20);
+      color:rgba(226,232,240,0.9);
+      font-size:18px;
+    }
+
+    /* KB JSON uploader (match Client Secret uploader) */
+    .kb-up{margin-top:8px;}
+    .kb-up .fu{min-height:96px;}
+    .kb-up .fu p{font-size:0.84rem;}
+
+    .main-sec{display:none}
+    .main-sec.on{display:block}
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <div class="setup-card-title">⚙️ Setup</div>
+      <div class="setup-card-sub">
+        Connect Gmail, then configure what counts as <strong>service-related</strong> and build your Knowledge Base (website + JSON). Setup is where you control the agent.
+      </div>
+    </div>
+
+    <!-- Top-level section buttons (styled like mailpilot_setup.html tab bar) -->
+    <div class="main-tabs" role="tablist" aria-label="Setup sections">
+      <button class="main-tab on" id="btnMainTransport" type="button" onclick="showMain('transport')">
+        <div>
+          <div style="font-size:0.88rem;font-weight:700;">Email Transport</div>
+          <div class="sub">Gmail / SMTP</div>
+        </div>
+        <div class="tab-icon" aria-hidden="true">⇄</div>
+      </button>
+      <button class="main-tab" id="btnMainRouting" type="button" onclick="showMain('routing')">
+        <div>
+          <div style="font-size:0.88rem;font-weight:700;">Relevance / Routing</div>
+          <div class="sub">Only handle related mails</div>
+        </div>
+        <div class="tab-icon" aria-hidden="true">▼</div>
+      </button>
+      <button class="main-tab" id="btnMainKb" type="button" onclick="showMain('kb')">
+        <div>
+          <div style="font-size:0.88rem;font-weight:700;">Knowledge Base (RAG)</div>
+          <div class="sub">Website + JSON ingest</div>
+        </div>
+        <div class="tab-icon" aria-hidden="true">◑</div>
+      </button>
+    </div>
+
+      <!-- Sections -->
+      <div class="main-sec on" id="secTransport">
+        <div class="content-grid">
+          <div class="content-main">
+            <div class="sec">
+          <div class="sec-h">
+            <div class="s-sub">Email Transport</div>
+            <span class="pill" id="transportPill">—</span>
+          </div>
+
+          <!-- Transport tabs -->
+          <div class="tabs" role="tablist" aria-label="Email setup mode">
+            <button class="tab on" id="tabG" type="button" onclick="showPanel('gmail')"><i class="fa-brands fa-google" aria-hidden="true"></i> Gmail</button>
+            <button class="tab" id="tabS" type="button" onclick="showPanel('smtp')"><i class="fa-solid fa-envelope" aria-hidden="true"></i> SMTP</button>
+          </div>
+
+          <!-- Gmail Panel -->
+          <div class="panel on" id="pGmail">
+          <div class="hint">Use Google OAuth to read inbox and send replies via Gmail API.</div>
+
+      {% if connected %}
+        <div class="oauth-box" style="border-color: rgba(16,185,129,.18);">
+          <div class="oauth-h"><i class="fa-solid fa-link" aria-hidden="true" style="color: var(--grn-l);"></i> Connected</div>
+          <p class="oauth-txt" style="margin:0;">OAuth token found on server. Open <a href="{% url 'dashboard' %}">Dashboard</a>.</p>
+        </div>
+        <button class="btn btn-ghost btn-block disc-btn" type="button" onclick="disconnectGmail()">
+          <i class="fa-solid fa-link-slash" aria-hidden="true"></i> Disconnect
+        </button>
+      {% else %}
+        <form method="POST" action="{% url 'api_setup_credentials' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="fg">
+            <label class="fl" for="gmail_address">Email Address</label>
+            <input class="fi" type="email" id="gmail_address" name="gmail_address" value="{{ gmail_address|default:'' }}" placeholder="your@email.com" autocomplete="email" required>
+          </div>
+
+          <div class="fg">
+            <label class="fl" for="client_secret">Client Secret File</label>
+            <div class="fu" id="fUp" onclick="document.getElementById('client_secret').click()">
+              <i class="fa-solid fa-cloud-arrow-up" id="fIco" aria-hidden="true"></i>
+              <p id="fTxt">Drag &amp; drop your <span>credentials.json</span> here</p>
+              <div class="ht" id="fHt">or click to browse — JSON files only</div>
+            </div>
+            <input type="file" id="client_secret" name="client_secret" accept="application/json" style="display:none" required>
+          </div>
+
+          {% if oauth_error %}
+            <div class="oauth-box" style="border-color: rgba(248,113,113,.18);">
+              <div class="oauth-h"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="color: var(--red);"></i> Google OAuth did not finish</div>
+              <p class="oauth-txt" style="margin:0;"><span class="code-inline" style="word-break:break-all;">{{ oauth_error }}</span></p>
+            </div>
+          {% endif %}
+
+          <div class="oauth-box">
+            <div class="oauth-h"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> OAuth Configuration</div>
+            <p class="oauth-txt">OAuth client type must be <strong>Web application</strong>. Add this redirect URI exactly in Google Cloud Console:</p>
+            <div class="url-box" role="group" aria-label="Redirect URI">
+              <span class="url-txt" id="redirTxt">{{ oauth_redirect_uri }}</span>
+              <button class="cp-btn" type="button" onclick="cpRedirect()" title="Copy">Copy</button>
+            </div>
+          </div>
+
+          <button class="btn btn-purp btn-block" type="submit"><i class="fa-brands fa-google" aria-hidden="true"></i> Connect Gmail</button>
+        </form>
+      {% endif %}
+          </div>
+
+          <!-- SMTP Panel -->
+          <div class="panel" id="pSmtp">
+            <div class="hint"><strong>SMTP</strong> sends mail. <strong>IMAP</strong> (below) reads the same mailbox on the Dashboard when Gmail OAuth is not used.</div>
+
+            <div class="oauth-box" style="margin-top:0;">
+              <div class="oauth-h"><i class="fa-solid fa-gear" aria-hidden="true"></i> Quick profile</div>
+              <p class="oauth-txt" style="margin:0;">
+                For <span class="code-inline">timerni.com</span>:\n
+                Incoming IMAP: <span class="code-inline">imap.timerni.com</span> (SSL 993), Outgoing SMTP: <span class="code-inline">smtp.timerni.com</span>\n
+                Ports: <span class="code-inline">465 (SSL)</span> or <span class="code-inline">587 (TLS)</span>
+              </p>
+            </div>
+
+          <div class="row2" style="margin-top:12px;">
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="smtpHost">SMTP Host</label>
+              <input class="fi" id="smtpHost" placeholder="smtp.gmail.com" />
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="smtpPort">Port</label>
+              <input class="fi" id="smtpPort" type="number" min="1" step="1" value="587" />
+              <div class="mini" id="smtpPortHint">Tip: 465 = SSL, 587 = TLS</div>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="smtpUser">Username</label>
+              <input class="fi" id="smtpUser" placeholder="your@email.com" autocomplete="username" />
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="smtpPass">Password / App password</label>
+              <div class="pw-wrap">
+                <input class="fi" id="smtpPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+                <button class="pw-btn" type="button" onclick="togglePw()" title="Show/Hide password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
+              </div>
+              <div class="mini">Saved to <span class="code-inline">data/app_config.json</span>. Don’t commit this file. Prefer “app password” if your provider supports it.</div>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="smtpFrom">From email (optional)</label>
+              <input class="fi" id="smtpFrom" placeholder="from@email.com" />
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl">Security</label>
+              <div class="row2" style="gap:8px;">
+                <label class="pill" style="justify-content:center;cursor:pointer;">
+                  <input type="checkbox" id="smtpTls" style="margin-right:8px;" checked> TLS
+                </label>
+                <label class="pill" style="justify-content:center;cursor:pointer;">
+                  <input type="checkbox" id="smtpSsl" style="margin-right:8px;"> SSL
+                </label>
+              </div>
+              <div class="mini" style="margin-top:8px;">
+                <label class="pill" style="justify-content:center;cursor:pointer;">
+                  <input type="checkbox" id="smtpVerify" style="margin-right:8px;" checked> Verify certificate
+                </label>
+                <div class="small" style="margin-top:6px;">
+                  If your provider has a hostname mismatch certificate error, temporarily turn this off (less secure).
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="oauth-box" style="margin-top:14px;">
+            <div class="oauth-h"><i class="fa-solid fa-inbox" aria-hidden="true"></i> IMAP (read inbox)</div>
+            <p class="oauth-txt" style="margin:0;">Leave <span class="code-inline">IMAP host</span> empty to derive <span class="code-inline">imap.&lt;domain&gt;</span> from your SMTP host (e.g. <span class="code-inline">smtp.timerni.com</span> → <span class="code-inline">imap.timerni.com</span>). Uses the same username/password as SMTP.</p>
+          </div>
+          <div class="row2" style="margin-top:10px;">
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="imapHost">IMAP host (optional)</label>
+              <input class="fi" id="imapHost" placeholder="imap.timerni.com" />
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="imapPort">IMAP port</label>
+              <input class="fi" id="imapPort" type="number" min="1" step="1" value="993" />
+            </div>
+          </div>
+          <div class="row2">
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="smtpTlsServer">SMTP TLS name (cert mismatch)</label>
+              <input class="fi" id="smtpTlsServer" placeholder="timerni.com" />
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="imapTlsServer">IMAP TLS name (optional)</label>
+              <input class="fi" id="imapTlsServer" placeholder="timerni.com" />
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:10px;">
+            <label class="pill" style="justify-content:flex-start;cursor:pointer;">
+              <input type="checkbox" id="imapVerify" style="margin-right:8px;" checked> Verify IMAP certificate
+            </label>
+          </div>
+
+          <button class="btn btn-purp btn-block" type="button" onclick="saveSmtp()"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save mail settings</button>
+          <button class="btn btn-ghost btn-block" type="button" style="margin-top:10px;" onclick="connectSmtpAndEnable()"><i class="fa-solid fa-plug" aria-hidden="true"></i> Connect SMTP &amp; run automation</button>
+          <div class="mini" style="margin-top:8px;">Tests SMTP, enables SMTP sending, then checks unread mail once (same as Dashboard &quot;Run Now&quot;).</div>
+          <button class="btn btn-ghost btn-block disc-btn" id="btnSmtpDisconnect" style="margin-top:10px; display:none;" type="button" onclick="disconnectSmtp()">
+            <i class="fa-solid fa-link-slash" aria-hidden="true"></i> Disconnect SMTP
+          </button>
+          <div class="mini"><span id="smtpStatus" class="pill">—</span></div>
+          </div>
+          </div>
+          </div>
+          <div class="content-aside">
+            <div class="aside-card">
+              <div class="aside-title">💡 Next</div>
+              <div class="aside-desc">After choosing how to send replies, configure <strong>Routing</strong> so only service-related emails are handled.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-sec" id="secRouting">
+        <div class="content-grid">
+          <div class="content-main">
+            <div class="sec">
+          <div class="sec-h">
+            <div class="s-sub">Relevance / Routing</div>
+            <span class="pill" id="routingPill">—</span>
+          </div>
+          <div class="oauth-box tighter" style="margin-top:0;">
+            <div class="oauth-h"><i class="fa-solid fa-filter" aria-hidden="true"></i> What emails should the agent handle?</div>
+            <p class="oauth-txt" style="margin:0;">Set keywords/brand tokens so only related emails are processed. Unrelated mail will be ignored.</p>
+          </div>
+
+          <div class="fg" style="margin-top:12px;">
+            <label class="fl" for="svcKeywords">Service keywords (comma separated)</label>
+            <input class="fi" id="svcKeywords" placeholder="website, pricing, quote, support, meeting" />
+            <div class="mini">Tip: include local-language keywords too (optional).</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="brandTokens">Brand / domain tokens (comma separated)</label>
+            <input class="fi" id="brandTokens" placeholder="yourdomain.com, yourbrand" />
+          </div>
+          <div class="row2">
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="allowDomains">Sender allowlist domains</label>
+              <input class="fi" id="allowDomains" placeholder="clutch.co, linkedin.com" />
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="blockDomains">Sender blocklist domains</label>
+              <input class="fi" id="blockDomains" placeholder="spam.com" />
+            </div>
+          </div>
+          <div class="row2">
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="relThreshold">Relevance threshold</label>
+              <input class="fi" id="relThreshold" type="number" min="0" step="1" value="2" />
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl" for="replyMode">Reply mode</label>
+              <select class="fi" id="replyMode">
+                <option value="send">send</option>
+                <option value="draft">draft</option>
+                <option value="both">both</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-purp btn-block" type="button" onclick="saveRouting()">Save Routing Settings</button>
+          <div class="mini"><span id="routingStatus" class="pill info">Syncing…</span></div>
+            </div>
+          </div>
+          <div class="content-aside">
+            <div class="aside-card">
+              <div class="aside-title">💡 Tip</div>
+              <div class="aside-desc">Add local-language keywords to improve matching (optional).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-sec" id="secKb">
+        <div class="content-grid">
+          <div class="content-main">
+            <div class="sec">
+          <div class="sec-h">
+            <div class="s-sub">Knowledge Base (RAG)</div>
+            <span id="kbPill" class="pill wrap">Checking…</span>
+          </div>
+          <div class="oauth-box" style="margin-top:0;">
+            <div class="oauth-h"><i class="fa-solid fa-brain" aria-hidden="true"></i> Build knowledge for “perfect replies”</div>
+            <p class="oauth-txt" style="margin:0;">Upload structured JSON or crawl your website so replies can be grounded in your real service info.</p>
+          </div>
+
+          <div class="fg" style="margin-top:12px;">
+            <label class="fl" for="vectorDsn">Vector DB DSN (Postgres + pgvector)</label>
+            <input class="fi" id="vectorDsn" placeholder="postgresql://user:pass@127.0.0.1:5432/email_agent" />
+            <div class="mini">This is stored in <span class="code-inline">data/app_config.json</span>. Keep DB private (self-hosted).</div>
+          </div>
+          <button class="btn btn-ghost btn-block" type="button" onclick="saveVector()">Save Vector DB</button>
+
+          <div class="oauth-box">
+            <div class="oauth-h"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> KB Status</div>
+            <p class="oauth-txt" style="margin:0;">
+              <span class="small" id="kbMeta" style="margin-left:8px;">—</span>
+            </p>
+          </div>
+
+          <div class="fg" style="margin-top:14px;">
+            <label class="fl">Upload JSON knowledge</label>
+            <div class="kb-up">
+              <div class="fu" id="kbUp" onclick="document.getElementById('kbJsonFile').click()">
+                <i class="fa-solid fa-upload" id="kbUpIco" aria-hidden="true"></i>
+                <p id="kbUpTxt">Click to choose a <span>.json</span> file</p>
+                <div class="ht" id="kbUpHt">JSON only · Max size depends on server</div>
+              </div>
+              <input class="fi" type="file" id="kbJsonFile" accept="application/json" style="display:none" />
+            </div>
+            <button class="btn btn-purp btn-block" style="margin-top:10px;" type="button" onclick="uploadKbJson()">
+              <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload & Ingest JSON
+            </button>
+            <div class="mini"><span id="kbUploadStatus" class="pill">—</span></div>
+          </div>
+
+          <div class="fg">
+            <label class="fl" for="crawlUrl">Crawl website URL</label>
+            <input class="fi" id="crawlUrl" placeholder="https://yourdomain.com" />
+            <button class="btn btn-purp btn-block" style="margin-top:10px;" type="button" onclick="startCrawl()">
+              <i class="fa-solid fa-spider" aria-hidden="true"></i> Start Crawl & Ingest
+            </button>
+            <div class="mini"><span id="crawlStatus" class="pill">—</span></div>
+          </div>
+            </div>
+          </div>
+          <div class="content-aside">
+            <div class="aside-card">
+              <div class="aside-title">🚀 Next</div>
+              <div class="aside-desc">After KB + routing are set, go to <a href="{% url 'dashboard' %}">Dashboard</a> and click <strong>Run Now</strong> to test.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <script>
+    (function(){
+      const fu = document.getElementById('fUp');
+      const fi = document.getElementById('client_secret');
+      if(!fu || !fi) return;
+
+      function setFileName(name){
+        fu.classList.add('ok');
+        const ico = document.getElementById('fIco'); if(ico) ico.className = 'fa-solid fa-file-circle-check';
+        const txt = document.getElementById('fTxt'); if(txt) txt.innerHTML = '<span>' + name + '</span> selected';
+        const ht = document.getElementById('fHt'); if(ht) ht.textContent = 'Click to change';
+      }
+
+      fi.addEventListener('change', () => {
+        if(fi.files && fi.files[0]) setFileName(fi.files[0].name);
+      });
+      fu.addEventListener('dragover', (e) => { e.preventDefault(); fu.classList.add('over'); });
+      fu.addEventListener('dragleave', () => fu.classList.remove('over'));
+      fu.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fu.classList.remove('over');
+        const f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if(!f) return;
+        if(!f.name.toLowerCase().endsWith('.json')) return;
+        fi.files = e.dataTransfer.files;
+        setFileName(f.name);
+      });
+    })();
+
+    (function(){
+      const up = document.getElementById('kbUp');
+      const fi = document.getElementById('kbJsonFile');
+      if(!up || !fi) return;
+
+      function setName(name){
+        up.classList.add('ok');
+        const ico = document.getElementById('kbUpIco'); if(ico) ico.className = 'fa-solid fa-file-circle-check';
+        const txt = document.getElementById('kbUpTxt'); if(txt) txt.innerHTML = '<span>' + name + '</span> selected';
+        const ht  = document.getElementById('kbUpHt'); if(ht) ht.textContent = 'Click to change file';
+      }
+
+      fi.addEventListener('change', () => {
+        if(fi.files && fi.files[0]) setName(fi.files[0].name);
+      });
+      up.addEventListener('dragover', (e) => { e.preventDefault(); up.classList.add('over'); });
+      up.addEventListener('dragleave', () => up.classList.remove('over'));
+      up.addEventListener('drop', (e) => {
+        e.preventDefault();
+        up.classList.remove('over');
+        const f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if(!f) return;
+        if(!f.name.toLowerCase().endsWith('.json')) return;
+        fi.files = e.dataTransfer.files;
+        setName(f.name);
+      });
+    })();
+
+    function cpRedirect(){
+      const t = document.getElementById('redirTxt')?.textContent || '';
+      if(!t) return;
+      navigator.clipboard?.writeText(t);
+    }
+
+    async function disconnectGmail(){
+      if(!confirm('Disconnect Gmail from this app?')) return;
+      const res = await fetch('/api/gmail/disconnect', { method: 'POST' });
+      const j = await res.json().catch(() => ({}));
+      if(!res.ok || !j.ok){
+        alert(j.error || 'Failed to disconnect');
+        return;
+      }
+      location.reload();
+    }
+
+    function setPill(el, text, cls){
+      if(!el) return;
+      el.textContent = text || '—';
+      el.className = 'pill' + (cls ? (' ' + cls) : '');
+    }
+
+    function transportLabel(tr, connected){
+      if(tr === 'smtp') return 'Sending via SMTP';
+      if(tr === 'gmail_api') return connected ? 'Sending via Gmail' : 'Gmail not connected';
+      return 'Not configured';
+    }
+
+    function syncNavFromServer(){
+      if(typeof window.refreshNavConnectionStatus === 'function'){
+        window.refreshNavConnectionStatus();
+      }
+    }
+
+    function togglePw(){
+      const el = document.getElementById('smtpPass');
+      if(!el) return;
+      el.type = (el.type === 'password') ? 'text' : 'password';
+    }
+
+    function applySmtpPortHints(){
+      const portEl = document.getElementById('smtpPort');
+      const tlsEl = document.getElementById('smtpTls');
+      const sslEl = document.getElementById('smtpSsl');
+      const hintEl = document.getElementById('smtpPortHint');
+      if(!portEl || !tlsEl || !sslEl) return;
+      const p = parseInt(portEl.value || '0', 10);
+      if(p === 465){
+        sslEl.checked = true;
+        tlsEl.checked = false;
+        if(hintEl) hintEl.textContent = 'Port 465 selected: SSL ON, TLS OFF';
+      }else if(p === 587){
+        sslEl.checked = false;
+        tlsEl.checked = true;
+        if(hintEl) hintEl.textContent = 'Port 587 selected: TLS ON, SSL OFF';
+      }else{
+        if(hintEl) hintEl.textContent = 'Tip: 465 = SSL, 587 = TLS';
+      }
+    }
+
+    async function loadConfig(){
+      const pill = document.getElementById('routingStatus');
+      try{
+        const res = await fetch('/api/admin/config');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Could not load config'), 'bad');
+          return;
+        }
+        const e = j.effective || {};
+        document.getElementById('svcKeywords').value = e.SERVICE_KEYWORDS || '';
+        document.getElementById('brandTokens').value = e.SERVICE_BRAND_TOKENS || '';
+        document.getElementById('allowDomains').value = e.SERVICE_SENDER_DOMAIN_ALLOWLIST || '';
+        document.getElementById('blockDomains').value = e.SERVICE_SENDER_DOMAIN_BLOCKLIST || '';
+        document.getElementById('relThreshold').value = e.RELEVANCE_THRESHOLD ?? 2;
+        document.getElementById('replyMode').value = e.REPLY_MODE || 'send';
+        // transport
+        const tr = e.SEND_TRANSPORT || 'gmail_api';
+        if(tr === 'smtp') showPanel('smtp'); else showPanel('gmail');
+        const tp = document.getElementById('transportPill');
+        const gmailConnected = !!(e.GMAIL_CONNECTED ?? e.gmail_connected ?? e.connected);
+        const pillText = transportLabel(tr, gmailConnected);
+        const cls = (tr === 'smtp') ? '' : (gmailConnected ? 'ok' : 'bad');
+        setPill(tp, pillText, cls);
+        // smtp config (password never echoed back)
+        document.getElementById('smtpHost').value = e.SMTP_HOST || '';
+        document.getElementById('smtpPort').value = e.SMTP_PORT ?? 587;
+        document.getElementById('smtpUser').value = e.SMTP_USERNAME || '';
+        document.getElementById('smtpFrom').value = e.SMTP_FROM_EMAIL || '';
+        document.getElementById('smtpTls').checked = !!e.SMTP_USE_TLS;
+        document.getElementById('smtpSsl').checked = !!e.SMTP_USE_SSL;
+        document.getElementById('smtpVerify').checked = (e.SMTP_VERIFY_TLS !== false);
+        document.getElementById('smtpTlsServer').value = e.SMTP_TLS_SERVERNAME || '';
+        document.getElementById('imapHost').value = e.IMAP_HOST || '';
+        document.getElementById('imapPort').value = e.IMAP_PORT ?? 993;
+        document.getElementById('imapVerify').checked = (e.IMAP_VERIFY_TLS !== false);
+        document.getElementById('imapTlsServer').value = e.IMAP_TLS_SERVERNAME || '';
+        applySmtpPortHints();
+        document.getElementById('vectorDsn').value = (e.VECTOR_DB_DSN && e.VECTOR_DB_DSN !== '***') ? e.VECTOR_DB_DSN : '';
+        setPill(pill, 'Settings synced', 'ok');
+        // Keep the UI clean: auto-hide after a moment.
+        setTimeout(() => {
+          const el = document.getElementById('routingStatus');
+          if(el && el.textContent === 'Settings synced') setPill(el, '—', '');
+        }, 2200);
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+    }
+
+    function showPanel(which){
+      const tg = document.getElementById('tabG');
+      const ts = document.getElementById('tabS');
+      const pg = document.getElementById('pGmail');
+      const ps = document.getElementById('pSmtp');
+      const smtpOn = which === 'smtp';
+
+      tg?.classList.toggle('on', !smtpOn);
+      ts?.classList.toggle('on', smtpOn);
+      pg?.classList.toggle('on', !smtpOn);
+      ps?.classList.toggle('on', smtpOn);
+    }
+
+    function _smtpSavePayload(){
+      return {
+        SMTP_HOST: document.getElementById('smtpHost').value || '',
+        SMTP_PORT: parseInt(document.getElementById('smtpPort').value || '587', 10),
+        SMTP_USERNAME: document.getElementById('smtpUser').value || '',
+        SMTP_PASSWORD: document.getElementById('smtpPass').value || '',
+        SMTP_FROM_EMAIL: document.getElementById('smtpFrom').value || '',
+        SMTP_USE_TLS: !!document.getElementById('smtpTls').checked,
+        SMTP_USE_SSL: !!document.getElementById('smtpSsl').checked,
+        SMTP_VERIFY_TLS: !!document.getElementById('smtpVerify').checked,
+        SMTP_TLS_SERVERNAME: document.getElementById('smtpTlsServer').value || '',
+        IMAP_HOST: document.getElementById('imapHost').value || '',
+        IMAP_PORT: parseInt(document.getElementById('imapPort').value || '993', 10),
+        IMAP_VERIFY_TLS: !!document.getElementById('imapVerify').checked,
+        IMAP_TLS_SERVERNAME: document.getElementById('imapTlsServer').value || '',
+      };
+    }
+
+    async function saveSmtp(){
+      const pill = document.getElementById('smtpStatus');
+      setPill(pill, 'Saving…', '');
+      const payload = _smtpSavePayload();
+      try{
+        const res = await fetch('/api/admin/config', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Save failed'), 'bad');
+          return;
+        }
+        setPill(pill, 'Saved mail settings (password hidden)', 'ok');
+        // Clear password field after save
+        document.getElementById('smtpPass').value = '';
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+    }
+
+    async function connectSmtpAndEnable(){
+      const pill = document.getElementById('smtpStatus');
+      setPill(pill, 'Saving…', '');
+      try{
+        const r0 = await fetch('/api/admin/config', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(_smtpSavePayload()),
+        });
+        const j0 = await r0.json().catch(() => ({}));
+        if(!r0.ok || !j0.ok){
+          setPill(pill, (j0.error || 'Save failed'), 'bad');
+          return;
+        }
+        document.getElementById('smtpPass').value = '';
+
+        setPill(pill, 'Testing SMTP…', '');
+        const r1 = await fetch('/api/smtp/test', { method:'POST' });
+        const j1 = await r1.json().catch(() => ({}));
+        if(!j1.ok){
+          setPill(pill, (j1.error || 'SMTP test failed'), 'bad');
+          return;
+        }
+
+        setPill(pill, 'Enabling SMTP send…', '');
+        const r2 = await fetch('/api/admin/config', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ SEND_TRANSPORT: 'smtp' }),
+        });
+        const j2 = await r2.json().catch(() => ({}));
+        if(!r2.ok || !j2.ok){
+          setPill(pill, (j2.error || 'Could not set transport'), 'bad');
+          return;
+        }
+        const tp = document.getElementById('transportPill');
+        setPill(tp, transportLabel('smtp', true), '');
+
+        setPill(pill, 'Checking unread mail…', '');
+        const r3 = await fetch('/api/trigger-poll', { method:'POST' });
+        const j3 = await r3.json().catch(() => ({}));
+        if(!r3.ok || !j3.ok){
+          setPill(pill, 'SMTP OK — inbox run failed: ' + (j3.error || r3.status), 'bad');
+          return;
+        }
+
+        setPill(pill, 'SMTP connected — automation ran (check Dashboard queue)', 'ok');
+        const dbtn = document.getElementById('btnSmtpDisconnect');
+        if(dbtn) dbtn.style.display = '';
+        syncNavFromServer();
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+    }
+
+    async function disconnectSmtp(){
+      if(!confirm('Disconnect SMTP/IMAP and clear stored mail settings?')) return;
+      const pill = document.getElementById('smtpStatus');
+      setPill(pill, 'Disconnecting…', '');
+      try{
+        const res = await fetch('/api/smtp/disconnect', { method:'POST' });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Disconnect failed'), 'bad');
+          return;
+        }
+        setPill(pill, 'Disconnected', '');
+        // Hide disconnect button
+        const dbtn = document.getElementById('btnSmtpDisconnect');
+        if(dbtn) dbtn.style.display = 'none';
+        // Clear UI fields too
+        document.getElementById('smtpHost').value = '';
+        document.getElementById('smtpPort').value = 587;
+        document.getElementById('smtpUser').value = '';
+        document.getElementById('smtpPass').value = '';
+        document.getElementById('smtpFrom').value = '';
+        document.getElementById('smtpTls').checked = true;
+        document.getElementById('smtpSsl').checked = false;
+        document.getElementById('smtpVerify').checked = true;
+        document.getElementById('smtpTlsServer').value = '';
+        document.getElementById('imapHost').value = '';
+        document.getElementById('imapPort').value = 993;
+        document.getElementById('imapVerify').checked = true;
+        document.getElementById('imapTlsServer').value = '';
+        applySmtpPortHints();
+        const tp = document.getElementById('transportPill');
+        // Switching back to Gmail transport doesn't guarantee OAuth is connected.
+        setPill(tp, transportLabel('gmail_api', false), 'bad');
+        syncNavFromServer();
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+    }
+
+    async function refreshSmtpStatus(){
+      const pill = document.getElementById('smtpStatus');
+      const dbtn = document.getElementById('btnSmtpDisconnect');
+      try{
+        const res = await fetch('/api/smtp/status');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          return;
+        }
+        if(j.last_test_ok){
+          const at = j.last_test_at ? (' · ' + j.last_test_at) : '';
+          setPill(pill, 'Connected' + at, 'ok');
+          if(dbtn) dbtn.style.display = '';
+          syncNavFromServer();
+        }else if(j.last_test_error){
+          setPill(pill, 'Not connected: ' + j.last_test_error, 'bad');
+          if(dbtn) dbtn.style.display = 'none';
+        }else{
+          setPill(pill, 'Not connected', '');
+          if(dbtn) dbtn.style.display = 'none';
+        }
+      }catch(err){
+        // ignore
+      }
+    }
+
+    async function saveRouting(){
+      const pill = document.getElementById('routingStatus');
+      setPill(pill, 'Saving…', '');
+      const payload = {
+        SERVICE_KEYWORDS: document.getElementById('svcKeywords').value || '',
+        SERVICE_BRAND_TOKENS: document.getElementById('brandTokens').value || '',
+        SERVICE_SENDER_DOMAIN_ALLOWLIST: document.getElementById('allowDomains').value || '',
+        SERVICE_SENDER_DOMAIN_BLOCKLIST: document.getElementById('blockDomains').value || '',
+        RELEVANCE_THRESHOLD: parseInt(document.getElementById('relThreshold').value || '2', 10),
+        REPLY_MODE: document.getElementById('replyMode').value || 'send',
+      };
+      try{
+        const res = await fetch('/api/admin/config', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Save failed'), 'bad');
+          return;
+        }
+        setPill(pill, 'Saved', 'ok');
+        const rp = document.getElementById('routingPill');
+        setPill(rp, 'Routing saved', 'ok');
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+    }
+
+    async function saveVector(){
+      const pill = document.getElementById('kbPill');
+      const dsn = (document.getElementById('vectorDsn').value || '').trim();
+      if(!dsn){
+        setPill(pill, 'VECTOR_DB_DSN is empty', 'bad');
+        return;
+      }
+      setPill(pill, 'Saving DSN…', '');
+      try{
+        const res = await fetch('/api/admin/config', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ VECTOR_DB_DSN: dsn }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Save failed'), 'bad');
+          return;
+        }
+        setPill(pill, 'Saved DSN', 'ok');
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+      await refreshKbStatus();
+    }
+
+    async function refreshKbStatus(){
+      const pill = document.getElementById('kbPill');
+      const meta = document.getElementById('kbMeta');
+      try{
+        const res = await fetch('/api/kb/status');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'KB not ready'), 'bad');
+          if(meta) meta.textContent = '';
+          return;
+        }
+        setPill(pill, 'Ready', 'ok');
+        if(meta) meta.textContent = `${j.documents || 0} docs · ${j.chunks || 0} chunks`;
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+        if(meta) meta.textContent = '';
+      }
+    }
+
+    async function uploadKbJson(){
+      const pill = document.getElementById('kbUploadStatus');
+      const f = document.getElementById('kbJsonFile')?.files?.[0];
+      if(!f){
+        setPill(pill, 'Select a JSON file first', 'bad');
+        return;
+      }
+      setPill(pill, 'Uploading…', '');
+      const fd = new FormData();
+      fd.append('json_file', f, f.name);
+      try{
+        const res = await fetch('/api/kb/upload-json', { method:'POST', body: fd });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Upload failed'), 'bad');
+          return;
+        }
+        setPill(pill, `Ingested: ${j.documents} docs, ${j.chunks} chunks`, 'ok');
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+      await refreshKbStatus();
+    }
+
+    async function startCrawl(){
+      const pill = document.getElementById('crawlStatus');
+      const url = (document.getElementById('crawlUrl').value || '').trim();
+      if(!url){
+        setPill(pill, 'Enter a start URL', 'bad');
+        return;
+      }
+      setPill(pill, 'Starting crawl…', '');
+      const fd = new FormData();
+      fd.append('start_url', url);
+      try{
+        const res = await fetch('/api/kb/crawl', { method:'POST', body: fd });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Crawl failed'), 'bad');
+          return;
+        }
+        setPill(pill, 'Crawl started (runs in background). Refresh KB status soon.', 'ok');
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+      // Poll KB status a few times.
+      setTimeout(() => refreshKbStatus(), 2500);
+      setTimeout(() => refreshKbStatus(), 8000);
+      setTimeout(() => refreshKbStatus(), 15000);
+    }
+
+    loadConfig();
+    refreshKbStatus();
+    refreshSmtpStatus();
+
+    function showMain(which){
+      const b1 = document.getElementById('btnMainTransport');
+      const b2 = document.getElementById('btnMainRouting');
+      const b3 = document.getElementById('btnMainKb');
+      const s1 = document.getElementById('secTransport');
+      const s2 = document.getElementById('secRouting');
+      const s3 = document.getElementById('secKb');
+
+      const map = {
+        transport: { b: b1, s: s1 },
+        routing: { b: b2, s: s2 },
+        kb: { b: b3, s: s3 },
+      };
+      Object.values(map).forEach(x => { x.b?.classList.remove('on'); x.s?.classList.remove('on'); });
+      (map[which] || map.transport).b?.classList.add('on');
+      (map[which] || map.transport).s?.classList.add('on');
+    }
+    window.showMain = showMain;
+
+    // SMTP live hints
+    document.getElementById('smtpPort')?.addEventListener('input', applySmtpPortHints);
+    document.getElementById('smtpSsl')?.addEventListener('change', () => {
+      const ssl = document.getElementById('smtpSsl')?.checked;
+      const tlsEl = document.getElementById('smtpTls');
+      if(ssl && tlsEl) tlsEl.checked = false;
+    });
+    document.getElementById('smtpTls')?.addEventListener('change', () => {
+      const tls = document.getElementById('smtpTls')?.checked;
+      const sslEl = document.getElementById('smtpSsl');
+      if(tls && sslEl) sslEl.checked = false;
+    });
+  </script>
+{% endblock %}

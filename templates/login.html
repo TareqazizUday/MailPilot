@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MailPilot — Sign In</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #060818;
+      --surface: #0d1230;
+      --accent: #4f6ef7;
+      --accent2: #a78bfa;
+      --accent3: #38bdf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.09);
+      --input-bg: rgba(255,255,255,0.05);
+      --input-border: rgba(255,255,255,0.1);
+      --danger: #fb7185;
+      --danger-bg: rgba(251,113,133,0.10);
+      --danger-border: rgba(251,113,133,0.25);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    #bg-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
+    }
+
+    .orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; }
+    .orb1 { width: 600px; height: 600px; background: rgba(79,110,247,0.13); top: -200px; left: -150px; }
+    .orb2 { width: 500px; height: 500px; background: rgba(167,139,250,0.10); bottom: -100px; right: -150px; }
+    .orb3 { width: 350px; height: 350px; background: rgba(56,189,248,0.07); top: 40%; left: 50%; }
+
+    .page-wrapper {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .left-panel {
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      padding: 44px 56px;
+      border-right: 1px solid var(--glass-border);
+      background: rgba(6,8,24,0.4);
+      backdrop-filter: blur(4px);
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+    .logo svg { width: 34px; height: 34px; flex-shrink: 0; }
+
+    .left-content { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 60px 0 40px; }
+
+    .left-tagline {
+      font-size: clamp(2rem, 3.2vw, 2.8rem);
+      font-weight: 900; line-height: 1.1; letter-spacing: -1.5px;
+      margin-bottom: 20px;
+      animation: fadeUp 0.8s ease both;
+    }
+    .left-tagline .gr {
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa, #38bdf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .left-desc {
+      font-size: 0.95rem; color: var(--muted); line-height: 1.7; max-width: 360px;
+      animation: fadeUp 0.9s 0.1s ease both;
+    }
+
+    .mini-inbox {
+      margin-top: 44px;
+      background: rgba(13,18,48,0.85);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px; padding: 20px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+      animation: fadeUp 1s 0.2s ease both;
+      transform-style: preserve-3d;
+    }
+    .mini-inbox-header { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot.r { background:#ff5f57;} .dot.y{background:#febc2e;} .dot.g{background:#28c840;}
+    .mini-title { margin: 0 auto; font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+
+    .mini-row {
+      display: flex; align-items: center; gap: 11px;
+      padding: 10px 12px; border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 8px; transition: background 0.2s;
+    }
+    .mini-row:last-child { margin-bottom: 0; }
+    .mini-row:hover { background: rgba(255,255,255,0.07); }
+    .mini-av {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
+    }
+    .mini-info { flex: 1; }
+    .mini-from { font-size: 0.75rem; font-weight: 600; }
+    .mini-sub  { font-size: 0.68rem; color: var(--muted); margin-top: 1px; }
+    .mini-badge { font-size: 0.62rem; font-weight: 600; padding: 3px 9px; border-radius: 50px; white-space: nowrap; }
+    .b-green { background:rgba(40,200,100,0.15); color:#4ade80; border:1px solid rgba(40,200,100,0.3); }
+    .b-purple{ background:rgba(167,139,250,0.12); color:#a78bfa; border:1px solid rgba(167,139,250,0.3); }
+    .b-yellow{ background:rgba(251,191,36,0.12); color:#fbbf24; border:1px solid rgba(251,191,36,0.3); }
+
+    .feat-list { margin-top: 36px; display: flex; flex-direction: column; gap: 14px; animation: fadeUp 1s 0.3s ease both; }
+    .feat-row { display: flex; align-items: center; gap: 12px; }
+    .feat-icon-sm {
+      width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    }
+    .feat-text { font-size: 0.82rem; color: var(--muted); font-weight: 500; }
+    .feat-text strong { color: var(--text); font-weight: 600; }
+
+    .left-footer { font-size: 0.75rem; color: var(--muted); }
+
+    .right-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 56px 48px; }
+    .form-box { width: 100%; max-width: 420px; animation: fadeUp 0.8s 0.15s ease both; }
+    .form-header { margin-bottom: 26px; }
+    .form-title { font-size: 1.9rem; font-weight: 900; letter-spacing: -1px; line-height: 1.15; }
+    .form-title span { background: linear-gradient(135deg, #4f6ef7, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .form-sub { color: var(--muted); font-size: 0.9rem; margin-top: 8px; }
+    .form-sub a { color: #a78bfa; text-decoration: none; font-weight: 600; }
+    .form-sub a:hover { text-decoration: underline; }
+
+    .err {
+      margin: 16px 0 0;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: #fecdd3;
+      font-size: 0.85rem;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .field-hint { font-size: 0.74rem; color: var(--muted); margin-top: 6px; }
+    .field-hint.err { color: #f87171; font-weight: 600; }
+
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .input-wrap { position: relative; }
+    .input-wrap .icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 1rem; pointer-events: none;
+    }
+    .input-wrap input {
+      width: 100%; padding: 13px 14px 13px 42px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 12px; color: var(--text);
+      font-size: 0.9rem; font-family: 'Inter', sans-serif;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .input-wrap input::placeholder { color: var(--muted); }
+    .input-wrap input:focus {
+      border-color: rgba(79,110,247,0.6);
+      background: rgba(79,110,247,0.06);
+      box-shadow: 0 0 0 3px rgba(79,110,247,0.12);
+    }
+    .input-wrap input.error {
+      border-color: rgba(239,68,68,0.6);
+      box-shadow: 0 0 0 3px rgba(239,68,68,0.10);
+    }
+    .input-wrap .eye-btn {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 1rem; padding: 0;
+      transition: color 0.2s;
+    }
+    .input-wrap .eye-btn:hover { color: var(--text); }
+
+    .submit-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      border: none; border-radius: 14px;
+      color: #fff; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(79,110,247,0.35);
+      font-family: 'Inter', sans-serif;
+      position: relative; overflow: hidden;
+    }
+    .submit-btn::before {
+      content: '';
+      position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      transition: left 0.5s;
+    }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(79,110,247,0.5); }
+    .submit-btn:hover::before { left: 100%; }
+    .submit-btn:active { transform: translateY(0); }
+
+    .bottom-link { text-align: center; margin-top: 18px; font-size: 0.85rem; color: var(--muted); }
+    .bottom-link a { color: #a78bfa; font-weight: 600; text-decoration: none; }
+    .bottom-link a:hover { text-decoration: underline; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 900px) {
+      .right-panel { padding: 40px 28px; min-height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="orb orb1" aria-hidden="true"></div>
+<div class="orb orb2" aria-hidden="true"></div>
+<div class="orb orb3" aria-hidden="true"></div>
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+<div class="page-wrapper">
+  <div class="right-panel">
+    <div class="form-box">
+      <div class="form-header">
+        <h1 class="form-title">Sign in to <span>MailPilot</span></h1>
+        {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
+      </div>
+
+      <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+
+        <div class="field">
+          <label for="username">Username or Gmail</label>
+          <div class="input-wrap">
+            <span class="icon">👤</span>
+            <input id="username" name="username" placeholder="username or you@gmail.com" autocomplete="username" required />
+          </div>
+          <div class="field-hint" id="userHint"></div>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <span class="icon">🔒</span>
+            <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required />
+            <button type="button" class="eye-btn" onclick="togglePwd()" id="eyeBtn" aria-label="Show password">👁</button>
+          </div>
+          <div class="field-hint" id="passHint"></div>
+        </div>
+
+        <button type="submit" class="submit-btn">Sign In to MailPilot</button>
+      </form>
+
+      <div class="bottom-link">
+        New to MailPilot? <a href="{% url 'signup' %}">Create your free account</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [], mouse = {x:-9999, y:-9999};
+
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+window.addEventListener('mousemove', e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
+
+class Particle {
+  constructor(){ this.reset(); }
+  reset(){
+    this.x = Math.random()*W; this.y = Math.random()*H;
+    this.z = Math.random()*800+200;
+    this.vx = (Math.random()-0.5)*0.35; this.vy = (Math.random()-0.5)*0.35;
+    this.r = Math.random()*1.6+0.3;
+    const c = ['rgba(79,110,247','rgba(167,139,250','rgba(56,189,248'];
+    this.col = c[Math.floor(Math.random()*c.length)];
+  }
+  update(){
+    this.x+=this.vx; this.y+=this.vy;
+    const dx=this.x-mouse.x, dy=this.y-mouse.y, d=Math.sqrt(dx*dx+dy*dy);
+    if(d<100){ this.x+=dx/d*1; this.y+=dy/d*1; }
+    if(this.x<0)this.x=W; if(this.x>W)this.x=0;
+    if(this.y<0)this.y=H; if(this.y>H)this.y=0;
+  }
+  draw(){
+    const sc=800/this.z, a=Math.min(0.65, sc*0.38);
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.r*sc, 0, Math.PI*2);
+    ctx.fillStyle=`${this.col},${a})`; ctx.fill();
+  }
+}
+for(let i=0;i<120;i++) particles.push(new Particle());
+
+function drawLines(){
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<100){
+        ctx.beginPath(); ctx.moveTo(particles[i].x,particles[i].y);
+        ctx.lineTo(particles[j].x,particles[j].y);
+        ctx.strokeStyle=`rgba(79,110,247,${(1-d/100)*0.15})`; ctx.lineWidth=0.5; ctx.stroke();
+      }
+    }
+  }
+}
+function animate(){ ctx.clearRect(0,0,W,H); drawLines(); particles.forEach(p=>{p.update();p.draw();}); requestAnimationFrame(animate); }
+animate();
+
+function togglePwd(){
+  const inp = document.getElementById('password');
+  const btn = document.getElementById('eyeBtn');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}
+
+function validateEmail(val){
+  const v = (val || '').trim();
+  const re=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return v.length > 0 && re.test(v);
+}
+
+function setHint(id, text){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.textContent = text || '';
+  el.className = text ? 'field-hint err' : 'field-hint';
+}
+
+function setErr(inp, isErr){
+  if(!inp) return;
+  inp.classList.toggle('error', !!isErr);
+}
+
+function validateLogin(){
+  const u = document.getElementById('username');
+  const p = document.getElementById('password');
+  const uv = (u?.value || '').trim();
+  const pv = (p?.value || '');
+  let ok = true;
+
+  if(!uv){
+    ok = false;
+    setErr(u, true);
+    setHint('userHint', '✗ Username or Gmail is required');
+  } else if(uv.includes('@') && !validateEmail(uv)){
+    ok = false;
+    setErr(u, true);
+    setHint('userHint', '✗ Please enter a valid email address');
+  } else {
+    setErr(u, false);
+    setHint('userHint', '');
+  }
+
+  if(!pv){
+    ok = false;
+    setErr(p, true);
+    setHint('passHint', '✗ Password is required');
+  } else {
+    setErr(p, false);
+    setHint('passHint', '');
+  }
+
+  return ok;
+}
+
+document.querySelector("form[action='{% url 'login' %}']")?.addEventListener('submit', (e)=>{
+  if(!validateLogin()) e.preventDefault();
+});
+document.getElementById('username')?.addEventListener('input', validateLogin);
+document.getElementById('password')?.addEventListener('input', validateLogin);
+
+document.querySelectorAll('input[type=text], input[type=password]').forEach(el=>{
+  el.addEventListener('focus', ()=> el.closest('.input-wrap').style.filter='drop-shadow(0 0 8px rgba(79,110,247,0.25))');
+  el.addEventListener('blur',  ()=> el.closest('.input-wrap').style.filter='none');
+});
+
+const inbox = document.querySelector('.mini-inbox');
+if(inbox){
+  inbox.addEventListener('mousemove', e=>{
+    const r=inbox.getBoundingClientRect();
+    const x=(e.clientX-r.left-r.width/2)/r.width*16;
+    const y=(e.clientY-r.top-r.height/2)/r.height*16;
+    inbox.style.transform=`perspective(800px) rotateX(${-y}deg) rotateY(${x}deg) scale(1.02)`;
+    inbox.style.transition='transform 0.1s ease';
+  });
+  inbox.addEventListener('mouseleave', ()=>{
+    inbox.style.transform='perspective(800px) rotateX(0deg) rotateY(0deg) scale(1)';
+    inbox.style.transition='transform 0.4s ease';
+  });
+}
+</script>
+</body>
+</html>

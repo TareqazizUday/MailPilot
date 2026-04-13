@@ -1,0 +1,299 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MailPilot — Terms of Service</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #060818;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.09);
+      --accent: #4f6ef7;
+      --accent2: #a78bfa;
+    }
+    html { scroll-behavior: smooth; }
+    html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
+    body { overflow-x: hidden; }
+
+    /* ── CANVAS ── */
+    #bg-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
+    }
+
+    /* ── NAV (same as home) ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 7%;
+      backdrop-filter: blur(18px);
+      background: rgba(6,8,24,0.7);
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      background-clip: text;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-logo svg { width: 32px; height: 32px; }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a {
+      color: var(--muted); font-size: 0.9rem; font-weight: 500;
+      text-decoration: none; transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      color: #fff; border: none; padding: 10px 26px;
+      border-radius: 50px; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+      text-decoration: none;
+    }
+    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,110,247,0.45); }
+
+    /* Logged-in navbar actions */
+    .app-actions{display:flex;align-items:center;gap:14px;flex-shrink:0;}
+    .conn-badge{display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;color:var(--muted);white-space:nowrap;}
+    .conn-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 10px rgba(74,222,128,.8);}
+    .conn-dot.off{background:#f87171;box-shadow:0 0 10px rgba(248,113,113,.5);}
+    .app-link{color:var(--muted);font-size:0.9rem;font-weight:600;text-decoration:none;padding:8px 12px;border-radius:10px;transition:background .2s,color .2s;white-space:nowrap;}
+    .app-link:hover{background:rgba(255,255,255,0.05);color:var(--text);}
+    .acct{position:relative;display:flex;align-items:center;margin-left:4px;}
+    .acct-btn{display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);color:var(--text);font-size:0.9rem;font-weight:800;cursor:pointer;transition:background .2s,border-color .2s;font-family:'Inter',sans-serif;white-space:nowrap;}
+    .acct-btn:hover{background:rgba(79,110,247,0.08);border-color:rgba(79,110,247,0.22);}
+    .acct-ico{width:26px;height:26px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(79,110,247,0.12);border:1px solid rgba(79,110,247,0.18);color:rgba(226,232,240,0.95);flex-shrink:0;font-size:0.95rem;overflow:hidden;}
+    .acct-ico img{width:100%;height:100%;object-fit:cover;display:block;border-radius:999px;}
+    .acct-dd{position:absolute;right:0;top:46px;min-width:220px;background:rgba(13,18,48,0.92);border:1px solid rgba(255,255,255,0.10);border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.55);backdrop-filter:blur(18px);padding:8px;display:none;z-index:120;}
+    .acct.open .acct-dd{display:block;}
+    .acct-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px 10px;border-radius:12px;color:rgba(226,232,240,0.92);text-decoration:none;background:transparent;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:0.9rem;font-weight:700;}
+    .acct-item:hover{background:rgba(255,255,255,0.05);}
+    .acct-item i{width:18px;text-align:center;color:rgba(148,163,184,0.9);}
+    .acct-sep{height:1px;background:rgba(255,255,255,0.08);margin:6px 4px;}
+    .acct-logout{color:#fecaca;}
+    .acct-logout i{color:#f87171;}
+
+    /* ── GLOW ORBS ── */
+    .orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; }
+    .orb1 { width: 600px; height: 600px; background: rgba(79,110,247,0.12); top: -200px; left: -200px; }
+    .orb2 { width: 500px; height: 500px; background: rgba(167,139,250,0.10); bottom: 10%; right: -150px; }
+    .orb3 { width: 400px; height: 400px; background: rgba(56,189,248,0.07); top: 50%; left: 40%; }
+
+    /* ── PAGE ── */
+    .wrap { min-height: 100vh; padding: 120px 7% 44px; position: relative; z-index: 1; }
+    .card {
+      position: relative; z-index: 1;
+      max-width: 980px; margin: 0 auto;
+      background: linear-gradient(165deg, rgba(13,18,48,0.72), rgba(10,14,36,0.45));
+      border: 1px solid var(--glass-border);
+      border-radius: 22px;
+      padding: 34px 28px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 28px 56px rgba(0,0,0,0.35);
+    }
+    .brand {
+      font-size: 1.05rem;
+      font-weight: 900;
+      letter-spacing: -0.6px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      background-clip: text;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    h1 { margin-top: 18px; font-size: 2rem; letter-spacing: -1px; }
+    .meta { margin-top: 8px; color: rgba(148,163,184,0.82); font-size: 0.9rem; line-height: 1.6; }
+    .meta strong { color: var(--text); font-weight: 700; }
+    hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 22px 0; }
+    h2 { margin-top: 18px; font-size: 1.05rem; letter-spacing: -0.2px; }
+    p, li { color: rgba(148,163,184,0.92); line-height: 1.75; font-size: 0.95rem; }
+    ul { margin: 10px 0 0 18px; }
+    li { margin: 6px 0; }
+    .notice {
+      margin-top: 16px;
+      padding: 14px 14px;
+      border-radius: 14px;
+      background: rgba(79,110,247,0.10);
+      border: 1px solid rgba(79,110,247,0.22);
+      color: rgba(226,232,240,0.92);
+      font-size: 0.92rem;
+      line-height: 1.65;
+    }
+    {% include "components/footer_css.html" %}
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="orb orb1" aria-hidden="true"></div>
+  <div class="orb orb2" aria-hidden="true"></div>
+  <div class="orb orb3" aria-hidden="true"></div>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <nav aria-label="Primary">
+    <a href="{% url 'home' %}" class="nav-logo" style="text-decoration:none;color:inherit;" aria-label="MailPilot home">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <rect width="32" height="32" rx="8" fill="url(#ng)"/>
+        <path d="M6 10l10 8 10-8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <path d="M6 10h20v14a2 2 0 01-2 2H8a2 2 0 01-2-2V10z" stroke="white" stroke-width="2"/>
+        <circle cx="22" cy="10" r="4" fill="#a78bfa"/>
+        <defs>
+          <linearGradient id="ng" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#4f6ef7"/><stop offset="1" stop-color="#a78bfa"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      MailPilot
+    </a>
+    <ul class="nav-links">
+      <li><a href="{% url 'terms' %}">Terms</a></li>
+      <li><a href="{% url 'privacy' %}">Privacy</a></li>
+    </ul>
+    {% if user.is_authenticated %}
+      <div class="app-actions">
+        <a class="app-link" href="{% url 'setup' %}">Setup</a>
+        <a class="app-link" href="{% url 'dashboard' %}">Dashboard</a>
+        <div class="conn-badge">
+          {% if connected %}
+            <span class="conn-dot" aria-hidden="true"></span> Connected
+          {% else %}
+            <span class="conn-dot off" aria-hidden="true"></span> Not connected
+          {% endif %}
+        </div>
+        <div class="acct" id="acctMenu">
+          <button class="acct-btn" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false">
+            <span class="acct-ico" aria-hidden="true">
+              {% if nav_avatar_url %}
+                <img src="{{ nav_avatar_url }}" alt="" loading="lazy" decoding="async"/>
+              {% else %}
+                <i class="fa-regular fa-user" aria-hidden="true"></i>
+              {% endif %}
+            </span>
+            Profile
+            <span aria-hidden="true" style="opacity:.85">▾</span>
+          </button>
+          <div class="acct-dd" id="acctDd" role="menu" aria-label="Profile menu">
+            <a class="acct-item" href="{% url 'profile' %}" role="menuitem">
+              <i class="fa-regular fa-id-badge" aria-hidden="true"></i>
+              Profile details
+            </a>
+            <a class="acct-item" href="{% url 'settings' %}" role="menuitem">
+              <i class="fa-solid fa-gear" aria-hidden="true"></i>
+              Settings
+            </a>
+            <div class="acct-sep" role="separator" aria-hidden="true"></div>
+            <form action="{% url 'logout' %}" method="post" style="margin:0;">
+              {% csrf_token %}
+              <button class="acct-item acct-logout" type="submit" role="menuitem">
+                <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+                Log out
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
+        <a href="{% url 'login' %}" style="color:var(--muted);font-size:0.9rem;font-weight:500;text-decoration:none;">Log in</a>
+        <a href="{% url 'signup' %}" class="nav-cta">Get Started →</a>
+      </div>
+    {% endif %}
+  </nav>
+
+  {% if user.is_authenticated %}
+  <script>
+    (function(){
+      const menu = document.getElementById('acctMenu');
+      const btn  = document.getElementById('acctBtn');
+      const dd   = document.getElementById('acctDd');
+      if(!menu || !btn) return;
+      function setOpen(open){
+        menu.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        setOpen(!menu.classList.contains('open'));
+      });
+      dd && dd.addEventListener('click', (e) => {
+        const a = e.target && e.target.closest ? e.target.closest('a') : null;
+        if(a) setOpen(false);
+      });
+      document.addEventListener('click', (e) => {
+        if(!menu.classList.contains('open')) return;
+        if(menu.contains(e.target)) return;
+        setOpen(false);
+      });
+      document.addEventListener('keydown', (e) => {
+        if(e.key === 'Escape') setOpen(false);
+      });
+    })();
+  </script>
+  {% endif %}
+
+  <div class="wrap">
+    <article class="card">
+      <h1>Terms of Service</h1>
+      <div class="meta">
+        <div><strong>Effective date:</strong> April 13, 2026</div>
+        <div>These Terms govern your use of MailPilot (“we”, “us”, “our”) and the MailPilot web application (the “Service”).</div>
+      </div>
+
+      <div class="notice">
+        This is a general template to help you launch quickly. For production use—especially if you process customer email, OAuth tokens, or business data—review with legal counsel and tailor it to your jurisdiction, pricing, refunds, and compliance obligations.
+      </div>
+
+      <hr/>
+
+      <h2>1) Eligibility and accounts</h2>
+      <p>You must be able to form a legally binding contract to use the Service. You are responsible for the activity on your account and for keeping your credentials secure.</p>
+
+      <h2>2) Acceptable use</h2>
+      <p>You agree not to misuse the Service. This includes attempting to access other users’ data, disrupting the Service, or using the Service to send spam, phishing, malware, or illegal content.</p>
+
+      <h2>3) Email access and automation</h2>
+      <p>MailPilot may access connected mailboxes (e.g., Gmail OAuth or IMAP/SMTP) only as authorized by you and to provide features such as relevance filtering, drafting replies, and sending messages according to your settings.</p>
+      <ul>
+        <li>You represent that you have the right to connect the mailbox and to grant access.</li>
+        <li>You are responsible for reviewing and configuring automation rules and approval modes.</li>
+      </ul>
+
+      <h2>4) Content and data</h2>
+      <p>You retain ownership of your content. You grant us permission to process your content solely to provide and improve the Service, including generating drafts and maintaining audit logs, subject to our Privacy Policy.</p>
+
+      <h2>5) Third-party services</h2>
+      <p>The Service may integrate with third-party providers (for example, Google OAuth). Your use of those services is governed by their terms, and we are not responsible for third-party outages or changes.</p>
+
+      <h2>6) Security</h2>
+      <p>We use reasonable technical measures to protect the Service. However, no method of transmission or storage is completely secure. You agree to use strong passwords and protect your environment and connected credentials.</p>
+
+      <h2>7) Service availability and changes</h2>
+      <p>We may modify, suspend, or discontinue the Service (in whole or part) at any time. We do not guarantee uninterrupted availability.</p>
+
+      <h2>8) Disclaimers</h2>
+      <p>The Service is provided “as is” and “as available”. Drafted replies are generated automatically and may be inaccurate or inappropriate. You are responsible for what gets sent from your mailbox.</p>
+
+      <h2>9) Limitation of liability</h2>
+      <p>To the maximum extent permitted by law, we will not be liable for indirect, incidental, special, consequential, or punitive damages, or any loss of profits or data.</p>
+
+      <h2>10) Termination</h2>
+      <p>You may stop using the Service at any time. We may suspend or terminate access if we reasonably believe you violated these Terms or if required by law.</p>
+
+      <h2>11) Contact</h2>
+      <p>Questions about these Terms? Contact support via your admin channels, or add a support email address to this document when you go live.</p>
+
+    </article>
+  </div>
+  {% include "components/footer.html" %}
+</body>
+</html>
+

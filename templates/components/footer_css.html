@@ -1,0 +1,95 @@
+/* ── FOOTER (shared) ── */
+footer {
+  position: relative; z-index: 1;
+  padding: 44px 7%;
+  border-top: 1px solid var(--glass-border);
+  color: var(--muted); font-size: 0.82rem;
+  text-align: left;
+}
+footer span {
+  background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+  background-clip: text;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;
+}
+.footer-inner {
+  max-width: 1120px; margin: 0 auto;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 26px; flex-wrap: wrap;
+}
+.footer-brand {
+  display: flex; flex-direction: column; gap: 10px;
+  min-width: 240px;
+}
+.footer-brand-title {
+  font-size: 1rem; font-weight: 800; letter-spacing: -0.2px;
+  color: var(--text);
+}
+.footer-brand-desc {
+  max-width: 360px;
+  color: var(--muted); font-size: 0.86rem; line-height: 1.6;
+}
+.footer-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 14px 28px;
+  flex: 1;
+  justify-content: start;
+}
+.footer-col-title {
+  font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: rgba(148,163,184,0.85);
+  margin-bottom: 8px;
+}
+.footer-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.footer-links li { margin: 0; padding: 0; }
+.footer-links a {
+  color: rgba(148,163,184,0.85);
+  text-decoration: none;
+  font-size: 0.86rem; font-weight: 600;
+  line-height: 1.35;
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--text); }
+.footer-bottom {
+  max-width: 1120px; margin: 26px auto 0;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  font-size: 0.82rem;
+}
+.footer-copy { color: rgba(148,163,184,0.75); }
+.footer-powered {
+  display: inline-flex; align-items: center; gap: 10px;
+  color: rgba(148,163,184,0.75);
+  text-decoration: none;
+  font-weight: 600;
+}
+.timerni-mark {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.timerni-logo {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 18px rgba(79,110,247,0.18));
+}
+.timerni-text {
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--text);
+}
+@media (max-width: 680px) {
+  .footer-cols { grid-template-columns: 1fr; }
+  .footer-bottom { justify-content: center; text-align: center; }
+}
+
