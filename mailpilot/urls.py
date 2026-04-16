@@ -7,6 +7,7 @@ from django.urls import include, path
 from django.views.static import serve as media_serve
 
 urlpatterns = [
+    path("api/", include("api.urls")),
     path("admin/", admin.site.urls),
     path("", include("core.urls")),
 ]
@@ -22,5 +23,5 @@ urlpatterns += [
 # Serve STATIC_URL in development/local runs even when DEBUG=False.
 # In production, serve STATIC_URL via your web server/CDN.
 urlpatterns += [
-    path("static/<path:path>", staticfiles_views.serve),
+    path("static/<path:path>", staticfiles_views.serve, {"insecure": True}),
 ]

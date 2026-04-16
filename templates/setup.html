@@ -71,6 +71,36 @@
       line-height:1.55;
     }
 
+    /* Keyword suggestion chips */
+    .kw-sugs{
+      margin-top:10px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .kw-chip{
+      border:1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+      color: rgba(226,232,240,0.92);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: background .15s, border-color .15s, transform .15s;
+    }
+    .kw-chip:hover{
+      background: rgba(79,110,247,0.10);
+      border-color: rgba(79,110,247,0.28);
+      transform: translateY(-1px);
+    }
+    .kw-chip.kw-add{
+      background: rgba(34,197,94,0.10);
+      border-color: rgba(34,197,94,0.26);
+      color: #bbf7d0;
+    }
+
     /* Checkbox pills (separate from status pills) */
     label.pill{
       display:inline-flex;
@@ -419,12 +449,13 @@
           </div>
 
           <div class="fg" style="margin-top:12px;">
-            <label class="fl" for="svcKeywords">Service keywords (comma separated)</label>
+            <label class="fl" for="svcKeywords">Keywords</label>
             <input class="fi" id="svcKeywords" placeholder="website, pricing, quote, support, meeting" />
+            <div class="kw-sugs" id="kwSugs" aria-label="Keyword suggestions"></div>
             <div class="mini">Tip: include local-language keywords too (optional).</div>
           </div>
           <div class="fg">
-            <label class="fl" for="brandTokens">Brand / domain tokens (comma separated)</label>
+            <label class="fl" for="brandTokens">Brand / domain tokens</label>
             <input class="fi" id="brandTokens" placeholder="yourdomain.com, yourbrand" />
           </div>
           <div class="row2">
@@ -695,6 +726,105 @@
         setPill(pill, 'Network error', 'bad');
       }
     }
+
+    // Keyword suggestions helper (comma-separated input, chip UI)
+    (function(){
+      const inp = document.getElementById('svcKeywords');
+      const host = document.getElementById('kwSugs');
+      if(!inp || !host) return;
+
+      const ALL = [
+        'website','web','pricing','price','quote','proposal','support','help',
+        'meeting','schedule','appointment','demo','trial','invoice','payment',
+        'refund','delivery','order','partnership','collaboration'
+      ];
+
+      function splitTokens(v){
+        return (v || '').split(',').map(s => s.trim()).filter(Boolean);
+      }
+      function normalizeToken(t){ return (t || '').trim(); }
+      function joinTokens(arr){
+        return arr.join(', ') + (arr.length ? ', ' : '');
+      }
+      function currentPrefix(v){
+        const parts = (v || '').split(',');
+        return (parts[parts.length - 1] || '').trim();
+      }
+      function dedup(tokens){
+        const seen = new Set();
+        const out = [];
+        for(const t of tokens){
+          const k = t.toLowerCase();
+          if(!k || seen.has(k)) continue;
+          seen.add(k);
+          out.push(t);
+        }
+        return out;
+      }
+      function addToken(tok){
+        tok = normalizeToken(tok);
+        if(!tok) return;
+        const tokens = splitTokens(inp.value);
+        const pref = currentPrefix(inp.value);
+        if(pref){
+          tokens[tokens.length - 1] = tok;
+        }else{
+          tokens.push(tok);
+        }
+        inp.value = joinTokens(dedup(tokens));
+        inp.focus();
+        render();
+      }
+
+      function makeChip(label){
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'kw-chip';
+        b.textContent = label;
+        b.addEventListener('click', () => addToken(label));
+        return b;
+      }
+
+      function render(){
+        const pref = currentPrefix(inp.value).toLowerCase();
+        const existing = new Set(splitTokens(inp.value).map(t => t.toLowerCase()));
+
+        // build list: matched suggestions first
+        const items = ALL
+          .filter(k => !existing.has(k.toLowerCase()))
+          .filter(k => !pref || k.toLowerCase().includes(pref))
+          .slice(0, 18);
+
+        host.innerHTML = '';
+        items.forEach(it => host.appendChild(makeChip(it)));
+
+        // Show a chip for the current typed prefix if it's new
+        const raw = currentPrefix(inp.value);
+        const rawK = raw.toLowerCase();
+        if(raw && !existing.has(rawK) && !ALL.map(x=>x.toLowerCase()).includes(rawK)){
+          const c = makeChip(`Add \"${raw}\"`);
+          c.classList.add('kw-add');
+          c.addEventListener('click', () => addToken(raw));
+          host.prepend(c);
+        }
+      }
+
+      inp.addEventListener('focus', render);
+      inp.addEventListener('click', render);
+      inp.addEventListener('input', () => render());
+      inp.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter' || e.key === ','){
+          const pref = currentPrefix(inp.value);
+          if(pref){
+            e.preventDefault();
+            addToken(pref);
+          }
+        }
+      });
+
+      // Initial render (after config load populates)
+      setTimeout(render, 50);
+    })();
 
     function showPanel(which){
       const tg = document.getElementById('tabG');

@@ -39,6 +39,22 @@ class UserMailSettings(models.Model):
         db_table = "core_usermailsettings"
 
 
+class PasswordResetOTP(models.Model):
+    """One-time codes for email OTP password reset (hashed, time-limited)."""
+
+    email = models.CharField(max_length=254, db_index=True)
+    otp_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = "core_passwordresetotp"
+
+    def __str__(self) -> str:
+        return f"PasswordResetOTP({self.email})"
+
+
 class AuditLog(models.Model):
     """Security-relevant events (no PII in message)."""
 

@@ -1,6 +1,7 @@
 """Django settings for Mailpilot — mirrors Flask `email_automation` app behavior."""
 from __future__ import annotations
 
+import json
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -30,7 +31,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "drf_spectacular",
     "core.apps.CoreConfig",
+    "api.apps.ApiConfig",
 ]
 
 MIDDLEWARE = [
@@ -99,6 +103,114 @@ OG_IMAGE_URL = (os.environ.get("OG_IMAGE_URL") or "").strip()
 
 APPEND_SLASH = False
 
+
+def _load_app_config_json() -> dict:
+    p = BASE_DIR / "data" / "app_config.json"
+    try:
+        if p.is_file():
+            return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
+_APP_CFG = _load_app_config_json()
+
+
+def _smtp_from_django_env() -> dict | None:
+    host = (os.environ.get("DJANGO_EMAIL_HOST") or "").strip()
+    user = (os.environ.get("DJANGO_EMAIL_HOST_USER") or "").strip()
+    pw = (os.environ.get("DJANGO_EMAIL_HOST_PASSWORD") or "").strip()
+    if not (host and user and pw):
+        return None
+    return {
+        "host": host,
+        "port": int(os.environ.get("DJANGO_EMAIL_PORT", "587") or "587"),
+        "user": user,
+        "password": pw,
+        "use_tls": (os.environ.get("DJANGO_EMAIL_USE_TLS", "true") or "true").lower()
+        in ("1", "true", "yes"),
+        "use_ssl": (os.environ.get("DJANGO_EMAIL_USE_SSL") or "").lower() in ("1", "true", "yes"),
+        "from_addr": (os.environ.get("DJANGO_DEFAULT_FROM_EMAIL") or "").strip(),
+        "verify_tls": (os.environ.get("DJANGO_EMAIL_VERIFY_TLS", "true") or "true").lower()
+        in ("1", "true", "yes"),
+    }
+
+
+def _smtp_from_mail_env() -> dict | None:
+    """Same SMTP_* keys as `.env` / email_automation (not DJANGO_EMAIL_*)."""
+    host = (os.environ.get("SMTP_HOST") or "").strip()
+    user = (os.environ.get("SMTP_USERNAME") or "").strip()
+    pw = (os.environ.get("SMTP_PASSWORD") or "").strip()
+    if not (host and user and pw):
+        return None
+    return {
+        "host": host,
+        "port": int(os.environ.get("SMTP_PORT", "587") or "587"),
+        "user": user,
+        "password": pw,
+        "use_tls": (os.environ.get("SMTP_USE_TLS", "true") or "true").lower()
+        in ("1", "true", "yes"),
+        "use_ssl": (os.environ.get("SMTP_USE_SSL") or "").lower() in ("1", "true", "yes"),
+        "from_addr": (os.environ.get("SMTP_FROM_EMAIL") or "").strip(),
+        "verify_tls": (os.environ.get("SMTP_VERIFY_TLS", "true") or "true").lower() in ("1", "true", "yes"),
+        "tls_servername": (os.environ.get("SMTP_TLS_SERVERNAME") or "").strip(),
+    }
+
+
+def _smtp_from_app_config(cfg: dict) -> dict | None:
+    host = str(cfg.get("SMTP_HOST") or "").strip()
+    user = str(cfg.get("SMTP_USERNAME") or "").strip()
+    pw = str(cfg.get("SMTP_PASSWORD") or "").strip()
+    if not (host and user and pw):
+        return None
+    return {
+        "host": host,
+        "port": int(cfg.get("SMTP_PORT") or 587),
+        "user": user,
+        "password": pw,
+        "use_tls": bool(cfg.get("SMTP_USE_TLS", True)),
+        "use_ssl": bool(cfg.get("SMTP_USE_SSL", False)),
+        "from_addr": str(cfg.get("SMTP_FROM_EMAIL") or "").strip(),
+        "verify_tls": bool(cfg.get("SMTP_VERIFY_TLS", True)),
+        "tls_servername": str(cfg.get("SMTP_TLS_SERVERNAME") or "").strip(),
+    }
+
+
+# Outbound email (password reset, etc.).
+# Priority: 1) DJANGO_EMAIL_*  2) SMTP_* in `.env` (same as automation)  3) data/app_config.json
+# 4) DJANGO_EMAIL_BACKEND or console.
+_default_from = (os.environ.get("DJANGO_DEFAULT_FROM_EMAIL") or "").strip()
+DEFAULT_FROM_EMAIL = _default_from or "MailPilot <noreply@localhost>"
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+EMAIL_TIMEOUT = 25
+
+_SMTP = _smtp_from_django_env() or _smtp_from_mail_env() or _smtp_from_app_config(_APP_CFG)
+if _SMTP:
+    _verify_tls = bool(_SMTP.get("verify_tls", True))
+    _tls_servername = str(_SMTP.get("tls_servername") or "").strip()
+    if not _verify_tls:
+        EMAIL_BACKEND = "mailpilot.email_backend.InsecureTLSEmailBackend"
+    elif _tls_servername:
+        EMAIL_BACKEND = "mailpilot.email_backend.NoHostnameCheckEmailBackend"
+    else:
+        EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = _SMTP["host"]
+    EMAIL_PORT = _SMTP["port"]
+    EMAIL_HOST_USER = _SMTP["user"]
+    EMAIL_HOST_PASSWORD = _SMTP["password"]
+    EMAIL_USE_TLS = _SMTP["use_tls"]
+    EMAIL_USE_SSL = _SMTP["use_ssl"]
+    if not _default_from:
+        _addr = _SMTP.get("from_addr") or _SMTP["user"]
+        if _addr:
+            DEFAULT_FROM_EMAIL = f"MailPilot <{_addr}>"
+            SERVER_EMAIL = DEFAULT_FROM_EMAIL
+else:
+    EMAIL_BACKEND = (os.environ.get("DJANGO_EMAIL_BACKEND") or "").strip() or (
+        "django.core.mail.backends.console.EmailBackend"
+    )
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
@@ -121,7 +233,14 @@ if CELERY_BROKER_URL:
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_SECURE = not DEBUG
+_cookie_secure_env = (os.environ.get("DJANGO_COOKIE_SECURE") or "").strip().lower()
+if _cookie_secure_env:
+    SESSION_COOKIE_SECURE = _cookie_secure_env in ("1", "true", "yes")
+else:
+    # Default safe behavior: only force secure cookies when HTTPS redirect is enabled.
+    # This keeps local HTTP dev working even when DEBUG=false (e.g. FLASK_DEBUG=false).
+    SESSION_COOKIE_SECURE = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "").lower() in ("1", "true", "yes")
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "").lower() in ("1", "true", "yes")
@@ -139,3 +258,44 @@ CSRF_TRUSTED_ORIGINS = [
     for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000").split(",")
     if o.strip()
 ]
+
+# ---- REST API (DRF) ----
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # Keep session auth for admin + web UI helpers.
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "MailPilot API",
+    "DESCRIPTION": "MailPilot backend API (versioned, token-auth).",
+    "VERSION": "1.0.0",
+    # JWT bearer auth in Swagger UI
+    "SECURITY": [{"bearerAuth": []}],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "COMPONENT_SECURITY_SCHEMES": {
+        "bearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    },
+}
+
+# Short, mobile-friendly JWT defaults (override via env if needed)
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=int(os.environ.get("JWT_ACCESS_MINUTES", "30") or "30")
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        days=int(os.environ.get("JWT_REFRESH_DAYS", "14") or "14")
+    ),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": False,
+}

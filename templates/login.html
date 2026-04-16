@@ -214,6 +214,16 @@
     .submit-btn:hover::before { left: 100%; }
     .submit-btn:active { transform: translateY(0); }
 
+    .forgot-row {
+      display: flex; justify-content: flex-end;
+      margin-top: -6px; margin-bottom: 14px;
+    }
+    .forgot-row a {
+      font-size: 0.82rem; font-weight: 600; color: #a78bfa;
+      text-decoration: none;
+    }
+    .forgot-row a:hover { text-decoration: underline; }
+
     .bottom-link { text-align: center; margin-top: 18px; font-size: 0.85rem; color: var(--muted); }
     .bottom-link a { color: #a78bfa; font-weight: 600; text-decoration: none; }
     .bottom-link a:hover { text-decoration: underline; }
@@ -238,6 +248,7 @@
 <div class="page-wrapper">
   <div class="right-panel">
     <div class="form-box">
+      {% include "components/toasts.html" with toast_top="18px" %}
       <div class="form-header">
         <h1 class="form-title">Sign in to <span>MailPilot</span></h1>
         {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
@@ -263,6 +274,10 @@
             <button type="button" class="eye-btn" onclick="togglePwd()" id="eyeBtn" aria-label="Show password">👁</button>
           </div>
           <div class="field-hint" id="passHint"></div>
+        </div>
+
+        <div class="forgot-row">
+          <a href="{% url 'password_reset' %}">Forgot password?</a>
         </div>
 
         <button type="submit" class="submit-btn">Sign In to MailPilot</button>

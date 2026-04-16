@@ -141,6 +141,11 @@
       z-index:120;
     }
     .acct.open .acct-dd{display:block;}
+    /* Desktop convenience: show menu on hover/focus */
+    @media (hover:hover) and (pointer:fine){
+      .acct:hover .acct-dd{display:block;}
+    }
+    .acct:focus-within .acct-dd{display:block;}
     .acct-item{
       display:flex;align-items:center;gap:10px;
       width:100%;
@@ -157,6 +162,8 @@
     .acct-item:hover{background:rgba(255,255,255,0.05);}
     .acct-item i{width:18px;text-align:center;color:rgba(148,163,184,0.9);}
     .acct-sep{height:1px;background:rgba(255,255,255,0.08);margin:6px 4px;}
+    .acct-logout{color:#fecaca;}
+    .acct-logout i{color:#f87171;}
 
     /* MAIN */
     .main-wrap{position:relative;z-index:1;margin-top:56px;min-height:calc(100vh - 56px);padding:32px 40px 64px;}
@@ -240,29 +247,6 @@
     .small{font-size:0.82rem;color:var(--muted);line-height:1.55;}
     .code-inline{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);padding:2px 8px;border-radius:10px;color:rgba(226,232,240,0.85);}
 
-    /* Toasts (Django messages) */
-    .toasts{position:fixed;right:18px;top:74px;z-index:200;display:flex;flex-direction:column;gap:10px;pointer-events:none;}
-    .toast{
-      pointer-events:none;
-      min-width:260px;max-width:360px;
-      padding:12px 14px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,0.10);
-      background:rgba(13,18,48,0.92);
-      backdrop-filter:blur(18px);
-      box-shadow:0 18px 60px rgba(0,0,0,.55);
-      color:rgba(226,232,240,0.95);
-      font-size:0.88rem;
-      transform:translateX(18px);
-      opacity:0;
-      animation:toast-in .18s ease forwards, toast-out .18s ease forwards;
-      animation-delay:0ms, 900ms;
-    }
-    .toast.ok{border-color:rgba(74,222,128,0.22);background:rgba(16,185,129,0.10);color:#bbf7d0;}
-    .toast.bad{border-color:rgba(239,68,68,0.22);background:rgba(239,68,68,0.10);color:#fecaca;}
-    @keyframes toast-in{to{transform:translateX(0);opacity:1;}}
-    @keyframes toast-out{to{transform:translateX(14px);opacity:0;}}
-
     .aside-card{background:rgba(79,110,247,0.05);border:1px solid rgba(79,110,247,0.15);border-radius:14px;padding:18px;}
     .aside-title{font-size:0.88rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
     .aside-desc{font-size:0.8rem;color:var(--muted);line-height:1.65;}
@@ -335,12 +319,16 @@
             <i class="fa-solid fa-gear" aria-hidden="true"></i>
             Settings
           </a>
+          <div class="acct-sep" aria-hidden="true"></div>
+          <form action="{% url 'logout' %}" method="post" style="margin:0;">
+            {% csrf_token %}
+            <button class="acct-item acct-logout" type="submit" role="menuitem">
+              <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+              Log out
+            </button>
+          </form>
         </div>
       </div>
-      <form action="{% url 'logout' %}" method="post" style="display:inline;margin:0;">
-        {% csrf_token %}
-        <button class="logout-btn" type="submit">Log out</button>
-      </form>
       {% endif %}
     </div>
   </nav>
@@ -349,15 +337,7 @@
     {% block content %}{% endblock %}
   </main>
 
-  <div class="toasts" id="toasts" aria-live="polite" aria-atomic="true"></div>
-
-  {% if messages %}
-    <div id="djMsgs" style="display:none">
-      {% for message in messages %}
-        <div class="djMsg" data-tags="{{ message.tags|default:'' }}" data-text="{{ message|escapejs }}"></div>
-      {% endfor %}
-    </div>
-  {% endif %}
+  {% include "components/toasts.html" with toast_top="74px" %}
 
   <script>
     /* PARTICLE BG */
@@ -410,24 +390,7 @@
       });
     })();
 
-    /* Toast messages */
-    (function(){
-      const holder = document.getElementById('djMsgs');
-      if(!holder) return;
-      const host = document.getElementById('toasts');
-      if(!host) return;
-      const nodes = Array.from(holder.querySelectorAll('.djMsg'));
-      nodes.forEach(n => {
-        const tags = (n.getAttribute('data-tags') || '').toLowerCase();
-        const text = n.getAttribute('data-text') || '';
-        if(!text) return;
-        const t = document.createElement('div');
-        t.className = 'toast' + (tags.includes('success') ? ' ok' : tags.includes('error') ? ' bad' : '');
-        t.textContent = text;
-        host.appendChild(t);
-        setTimeout(() => { try{ t.remove(); }catch(e){} }, 1200);
-      });
-    })();
+    /* Toast messages are handled by components/toasts.html */
   </script>
   {% block body_extra %}{% endblock %}
 </body>
