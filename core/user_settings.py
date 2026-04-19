@@ -64,6 +64,53 @@ def build_effective_settings(user: User):
 
     from core.models import UserMailSettings
 
+    def _derive_imap_from_smtp(d: dict[str, Any]) -> dict[str, Any]:
+        """
+        Dashboard reads inbox via IMAP when SEND_TRANSPORT=smtp.
+        Setup UI stores SMTP creds and expects IMAP to use the same user/pass.
+        Derive IMAP_* fields from SMTP_* when missing so inbox can load reliably.
+        """
+        out = dict(d or {})
+        if str(out.get("SEND_TRANSPORT") or "").strip() != "smtp":
+            return out
+
+        smtp_host = str(out.get("SMTP_HOST") or "").strip()
+        smtp_user = str(out.get("SMTP_USERNAME") or "").strip()
+        smtp_pass = out.get("SMTP_PASSWORD")
+
+        if smtp_host and not str(out.get("IMAP_HOST") or "").strip():
+            host_l = smtp_host.lower()
+            if host_l.startswith("smtp."):
+                domain = smtp_host[5:]
+            else:
+                parts = smtp_host.split(".", 1)
+                domain = parts[1] if len(parts) == 2 else smtp_host
+            if domain:
+                out["IMAP_HOST"] = f"imap.{domain}"
+
+        if smtp_user and not str(out.get("IMAP_USERNAME") or "").strip():
+            out["IMAP_USERNAME"] = smtp_user
+
+        imap_pass = out.get("IMAP_PASSWORD")
+        imap_pass_str = ""
+        try:
+            imap_pass_str = (
+                imap_pass.get_secret_value() if hasattr(imap_pass, "get_secret_value") else str(imap_pass or "")
+            )
+        except Exception:
+            imap_pass_str = str(imap_pass or "")
+        if smtp_pass is not None and (imap_pass is None or not str(imap_pass_str).strip()):
+            out["IMAP_PASSWORD"] = smtp_pass
+
+        if out.get("IMAP_PORT") in (None, "", 0):
+            out["IMAP_PORT"] = 993
+
+        # Carry over TLS servername to IMAP if present.
+        if str(out.get("SMTP_TLS_SERVERNAME") or "").strip() and not str(out.get("IMAP_TLS_SERVERNAME") or "").strip():
+            out["IMAP_TLS_SERVERNAME"] = str(out.get("SMTP_TLS_SERVERNAME") or "").strip()
+
+        return out
+
     base = Settings()
     try:
         ms = UserMailSettings.objects.get(user=user)
@@ -71,6 +118,7 @@ def build_effective_settings(user: User):
         merged = base.model_dump(mode="python")
         merged["GOOGLE_TOKEN_FILE"] = token_path_for_user(user.id)
         merged["GOOGLE_CLIENT_SECRET_FILE"] = client_secret_path_for_user(user.id)
+        merged = _derive_imap_from_smtp(merged)
         return Settings.model_validate(merged)
 
     sync_encrypted_files_to_disk(user.id, ms)
@@ -87,6 +135,7 @@ def build_effective_settings(user: User):
     merged.update({k: v for k, v in patch.items() if k in Settings.model_fields})
     merged["GOOGLE_TOKEN_FILE"] = token_path_for_user(user.id)
     merged["GOOGLE_CLIENT_SECRET_FILE"] = client_secret_path_for_user(user.id)
+    merged = _derive_imap_from_smtp(merged)
 
     # Per-user VECTOR_DB_DSN can include schema or we scope by tenant_id in DSN — use same DSN, tenant in tables
     try:
@@ -156,6 +205,14 @@ def save_client_secret_json(user: User, secret_json: str) -> None:
 
 def migrate_legacy_file_config_if_needed(user: User) -> None:
     """One-time: copy global data/app_config.json into first user's settings if user has empty DB row."""
+    # IMPORTANT: Do NOT auto-provision legacy/global SMTP/IMAP credentials for newly created users.
+    # This could make a brand-new account appear "connected" without user intent.
+    #
+    # If you need the old behavior (e.g. single-tenant migration), explicitly enable it via env:
+    #   MAILPILOT_MIGRATE_LEGACY_CONFIG=1
+    if (os.environ.get("MAILPILOT_MIGRATE_LEGACY_CONFIG") or "").strip().lower() not in ("1", "true", "yes"):
+        return
+
     from django.conf import settings as dj
 
     from core.models import UserMailSettings

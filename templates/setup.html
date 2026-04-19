@@ -697,7 +697,20 @@
         const tr = e.SEND_TRANSPORT || 'gmail_api';
         if(tr === 'smtp') showPanel('smtp'); else showPanel('gmail');
         const tp = document.getElementById('transportPill');
-        const gmailConnected = !!(e.GMAIL_CONNECTED ?? e.gmail_connected ?? e.connected);
+        // Connection status comes from a separate endpoint (admin/config doesn't include it).
+        // Use server truth so the badge doesn't incorrectly say "Gmail not connected".
+        let gmailConnected = false;
+        try{
+          const rs = await fetch('/api/gmail/connection-status');
+          const js = await rs.json().catch(() => ({}));
+          gmailConnected = !!(js && js.ok && js.gmail_connected);
+          // Also refresh the nav connection badge when available.
+          if(typeof window.refreshNavConnectionStatus === 'function'){
+            window.refreshNavConnectionStatus(js);
+          }
+        }catch(_e){
+          gmailConnected = false;
+        }
         const pillText = transportLabel(tr, gmailConnected);
         const cls = (tr === 'smtp') ? '' : (gmailConnected ? 'ok' : 'bad');
         setPill(tp, pillText, cls);

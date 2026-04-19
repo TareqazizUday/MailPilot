@@ -68,7 +68,10 @@ def _oauth_callback_url(request, effective: Settings) -> str:
     explicit = (effective.OAUTH_REDIRECT_URI or "").strip()
     if explicit:
         return explicit.rstrip("/")
-    return request.build_absolute_uri(reverse("oauth_callback"))
+    # Prefer SITE_URL when behind a reverse proxy (IIS/ARR), because the backend
+    # may see Host=127.0.0.1 and generate a localhost redirect URI otherwise.
+    base = _public_base_url(request)
+    return f"{base}{reverse('oauth_callback')}"
 
 
 def server_error(request, exception=None):
@@ -941,6 +944,46 @@ def api_admin_config(request):
             "IMAP_TLS_SERVERNAME",
         }
         patch = {k: v for k, v in payload.items() if k in allowed}
+
+        # Setup UI expects: IMAP uses the same username/password as SMTP.
+        # The client sends SMTP creds + IMAP host/port/tls settings, but not IMAP username/password.
+        # If we don't derive those here, IMAP inbox never becomes "ready" -> no mailbox messages.
+        smtp_host = str(patch.get("SMTP_HOST") or "").strip()
+        smtp_user = str(patch.get("SMTP_USERNAME") or "").strip()
+        smtp_tls_servername = str(patch.get("SMTP_TLS_SERVERNAME") or "").strip()
+        imap_host = str(patch.get("IMAP_HOST") or "").strip()
+        imap_user = str(patch.get("IMAP_USERNAME") or "").strip()
+
+        if smtp_host and not imap_host:
+            # smtp.<domain> -> imap.<domain>
+            host_l = smtp_host.lower()
+            if host_l.startswith("smtp."):
+                domain = smtp_host[5:]
+            else:
+                # Fallback: drop the first label
+                parts = smtp_host.split(".", 1)
+                domain = parts[1] if len(parts) == 2 else smtp_host
+            if domain:
+                patch["IMAP_HOST"] = f"imap.{domain}"
+
+        imap_tls_servername = str(patch.get("IMAP_TLS_SERVERNAME") or "").strip()
+        if smtp_tls_servername and not imap_tls_servername:
+            patch["IMAP_TLS_SERVERNAME"] = smtp_tls_servername
+
+        if smtp_user and not imap_user:
+            patch["IMAP_USERNAME"] = smtp_user
+
+        # Copy SMTP password -> IMAP password when IMAP password wasn't provided.
+        # (Setup UI never sends IMAP_PASSWORD.)
+        smtp_password = patch.get("SMTP_PASSWORD")
+        imap_password = patch.get("IMAP_PASSWORD")
+        if smtp_password is not None and (imap_password is None or str(imap_password).strip() == ""):
+            smtp_password_str = (
+                smtp_password.get_secret_value() if hasattr(smtp_password, "get_secret_value") else str(smtp_password)
+            )
+            if smtp_password_str.strip():
+                patch["IMAP_PASSWORD"] = smtp_password
+
         for _k in ("SMTP_PASSWORD", "IMAP_PASSWORD"):
             if patch.get(_k) == "":
                 patch.pop(_k, None)

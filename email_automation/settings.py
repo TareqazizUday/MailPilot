@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 
 class Settings(BaseModel):
@@ -55,11 +55,45 @@ class Settings(BaseModel):
     # LLM
     LLM_API_KEY: SecretStr | None = None
 
+    @staticmethod
+    def _csv_to_list(v: Any) -> list[str]:
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return [str(x).strip() for x in v if str(x).strip()]
+        if isinstance(v, str):
+            s = v.strip()
+            if not s:
+                return []
+            # Split on commas/newlines; trim; drop empties.
+            parts = []
+            for chunk in s.replace("\n", ",").split(","):
+                t = chunk.strip()
+                if t:
+                    parts.append(t)
+            return parts
+        return [str(v).strip()] if str(v).strip() else []
+
+    @field_validator(
+        "SERVICE_KEYWORDS",
+        "SERVICE_BRAND_TOKENS",
+        "SERVICE_SENDER_DOMAIN_ALLOWLIST",
+        "SERVICE_SENDER_DOMAIN_BLOCKLIST",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_csv_lists(cls, v: Any) -> list[str]:
+        return cls._csv_to_list(v)
+
     def gmail_scopes(self) -> list[str]:
-        # Minimal set for listing threads + sending
+        # Keep in sync with Google OAuth consent.
+        # If scopes change after a token is issued, token exchange can fail with:
+        # "Scope has changed from ... to ..."
         return [
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.compose",
+            "https://www.googleapis.com/auth/gmail.modify",
         ]
 
     def outbound_from_email(self) -> str:

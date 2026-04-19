@@ -106,6 +106,41 @@ def settings_field_names() -> set[str]:
 def get_effective_settings(user: Optional[User] = None):
     from email_automation.settings import Settings
 
+    def _derive_imap_from_smtp(d: dict[str, Any]) -> dict[str, Any]:
+        out = dict(d or {})
+        if str(out.get("SEND_TRANSPORT") or "").strip() != "smtp":
+            return out
+        smtp_host = str(out.get("SMTP_HOST") or "").strip()
+        smtp_user = str(out.get("SMTP_USERNAME") or "").strip()
+        smtp_pass = out.get("SMTP_PASSWORD")
+
+        if smtp_host and not str(out.get("IMAP_HOST") or "").strip():
+            host_l = smtp_host.lower()
+            if host_l.startswith("smtp."):
+                domain = smtp_host[5:]
+            else:
+                parts = smtp_host.split(".", 1)
+                domain = parts[1] if len(parts) == 2 else smtp_host
+            if domain:
+                out["IMAP_HOST"] = f"imap.{domain}"
+        if smtp_user and not str(out.get("IMAP_USERNAME") or "").strip():
+            out["IMAP_USERNAME"] = smtp_user
+        imap_pass = out.get("IMAP_PASSWORD")
+        imap_pass_str = ""
+        try:
+            imap_pass_str = (
+                imap_pass.get_secret_value() if hasattr(imap_pass, "get_secret_value") else str(imap_pass or "")
+            )
+        except Exception:
+            imap_pass_str = str(imap_pass or "")
+        if smtp_pass is not None and (imap_pass is None or not str(imap_pass_str).strip()):
+            out["IMAP_PASSWORD"] = smtp_pass
+        if out.get("IMAP_PORT") in (None, "", 0):
+            out["IMAP_PORT"] = 993
+        if str(out.get("SMTP_TLS_SERVERNAME") or "").strip() and not str(out.get("IMAP_TLS_SERVERNAME") or "").strip():
+            out["IMAP_TLS_SERVERNAME"] = str(out.get("SMTP_TLS_SERVERNAME") or "").strip()
+        return out
+
     if user is not None and getattr(user, "is_authenticated", False):
         from core.user_settings import build_effective_settings
 
@@ -116,6 +151,7 @@ def get_effective_settings(user: Optional[User] = None):
     filtered = {k: v for k, v in overrides.items() if k in settings_field_names()}
     merged: dict = _settings.model_dump(mode="python")
     merged.update(filtered)
+    merged = _derive_imap_from_smtp(merged)
     try:
         return Settings.model_validate(merged)
     except ValidationError as e:

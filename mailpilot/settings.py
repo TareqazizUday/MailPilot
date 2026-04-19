@@ -253,11 +253,32 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("DJANGO_SECURE_HSTS_INCLUDE_SUBD
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
-CSRF_TRUSTED_ORIGINS = [
-    o.strip()
-    for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000").split(",")
-    if o.strip()
-]
+def _norm_origin(o: str) -> str:
+    return (o or "").strip().rstrip("/")
+
+
+_csrf_origins_raw = os.environ.get(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    "http://127.0.0.1:8000,http://localhost:8000",
+)
+CSRF_TRUSTED_ORIGINS = [_norm_origin(o) for o in _csrf_origins_raw.split(",") if _norm_origin(o)]
+
+# If SITE_URL is set, trust it for CSRF (common reverse-proxy / custom domain setup).
+if SITE_URL:
+    if SITE_URL not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(SITE_URL)
+
+# Also trust https://<allowed-host> for production domains.
+if not DEBUG:
+    for _h in ALLOWED_HOSTS or []:
+        h = (_h or "").strip()
+        if not h or h == "*":
+            continue
+        # Add both schemes to be safe if a proxy forwards http internally.
+        for scheme in ("https://", "http://"):
+            o = _norm_origin(f"{scheme}{h}")
+            if o and o not in CSRF_TRUSTED_ORIGINS:
+                CSRF_TRUSTED_ORIGINS.append(o)
 
 # ---- REST API (DRF) ----
 REST_FRAMEWORK = {
