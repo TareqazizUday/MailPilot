@@ -1,4 +1,4 @@
-# MailPilot — Client Setup (Windows Server + Docker)
+# MailPilot — Client Setup (Windows Server + Docker) (step-by-step)
 
 This guide is written for a **Windows Server** deployment where **PostgreSQL + pgvector runs in Docker**, and the MailPilot app runs on the server.
 
@@ -22,9 +22,24 @@ If you already have a working production instance (example: `https://mailpilot.t
 
 - **Docker** + **Docker Compose**
   - Windows Server can run Docker in different ways depending on edition and policy.
-  - The client’s ops team should pick the standard they support.
+  - Use the client’s standard approach (Docker Desktop, Mirantis Container Runtime, etc.).
 - **Python** 3.10+ and `pip`
 - **Git** (optional but recommended)
+
+### Quick verify (copy/paste)
+
+Open **PowerShell** (prefer “Run as Administrator”) and run:
+
+```powershell
+docker --version
+docker compose version
+python --version
+pip --version
+```
+
+Expected:
+- `docker compose version` prints a version (not an error)
+- Python prints `3.10+`
 
 ---
 
@@ -40,6 +55,13 @@ The folder must contain:
 - `docker-compose.yml`
 - `.env.example`
 
+### Quick verify (copy/paste)
+
+```powershell
+cd C:\apps\mailpilot
+dir
+```
+
 ---
 
 ## 3) Start PostgreSQL (Docker, includes pgvector)
@@ -50,6 +72,14 @@ From the repo root (where `docker-compose.yml` exists):
 docker compose up -d
 docker compose ps
 ```
+
+### Verify DB container is healthy
+
+```powershell
+docker compose logs -n 80 db
+```
+
+You should see logs indicating Postgres is ready (no crash loop).
 
 ### Port conflicts (important)
 
@@ -62,6 +92,12 @@ Default mapping is `5432:5432` (host:container). If port `5432` is already used 
 2) In `.env`, set:
 
 - `DJANGO_DB_PORT=5433`
+
+### Optional: connect from the server to confirm DB works
+
+```powershell
+docker exec mailpilot-db psql -U mailpilot_user -d mailpilot -c "SELECT 1;"
+```
 
 ---
 
@@ -91,6 +127,16 @@ Minimum production values:
 
 Security rule: **never** commit `.env` to git.
 
+### Generate a Django secret key (copy/paste)
+
+Run in repo root:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Put the output into `DJANGO_SECRET_KEY`.
+
 ---
 
 ## 5) Ensure pgvector is enabled
@@ -109,6 +155,14 @@ Verification query:
 SELECT extname, extversion FROM pg_extension WHERE extname IN ('vector');
 ```
 
+### Verify the KB table exists after first ingest
+
+After you ingest a JSON in the UI:
+
+```sql
+SELECT COUNT(*) FROM mailpilot_kb_chunks;
+```
+
 ---
 
 ## 6) Install Python dependencies (server)
@@ -119,12 +173,24 @@ In the repo root:
 pip install -r requirements.txt
 ```
 
+If `pip` installs `playwright`, you may also need to install browsers:
+
+```powershell
+python -m playwright install
+```
+
 ---
 
 ## 7) Run migrations (creates Django tables)
 
 ```powershell
 python manage.py migrate
+```
+
+Optional: create an admin user (recommended for ops)
+
+```powershell
+python manage.py createsuperuser
 ```
 
 ---
@@ -136,6 +202,9 @@ python manage.py migrate
 ```powershell
 python manage.py runserver 0.0.0.0:8000
 ```
+
+Then open:
+- `http://<server-ip>:8000/`
 
 ### Production (recommended)
 
@@ -152,15 +221,21 @@ If the client wants a fully dockerized app container too, add a Dockerfile + app
 
 ## 9) Post-deploy checks (must pass)
 
-- App loads in browser at your domain
+- App loads in browser at your domain (or `http://<server-ip>:8000/` for UAT)
 - Login works
 - KB status is OK:
   - open `/setup` → Knowledge Base → upload JSON → ingest
+  - UI shows non-zero chunks after ingest
   - DB confirms rows:
 
 ```sql
 SELECT COUNT(*) FROM mailpilot_kb_chunks;
 ```
+
+### Useful health check
+
+Open:
+- `/healthz`
 
 ---
 
