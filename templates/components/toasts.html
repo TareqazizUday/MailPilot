@@ -83,7 +83,10 @@
       t.className = 'toast toast-' + level;
       const ico = document.createElement('div');
       ico.className = 'ico';
-      ico.textContent = (level === 'error') ? '!' : (level === 'warning') ? '!' : '✓';
+      const cls = (level === 'error') ? 'fa-solid fa-triangle-exclamation'
+                : (level === 'warning') ? 'fa-solid fa-triangle-exclamation'
+                : 'fa-solid fa-check';
+      ico.innerHTML = '<i class=\"' + cls + '\" aria-hidden=\"true\"></i>';
       const msg = document.createElement('div');
       msg.textContent = text;
       t.appendChild(ico);

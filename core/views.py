@@ -26,7 +26,7 @@ from email_automation.imap_mailbox import ImapMailbox, imap_inbox_ready
 from email_automation.kb.crawler import crawl_site
 from email_automation.kb.embedder import embed_texts
 from email_automation.kb.extract import KBDocument, chunk_text, documents_from_json_upload, html_to_text, stable_doc_id
-from email_automation.kb.store import VectorStore
+from email_automation.kb.store import VectorStore, is_vector_db_configured
 from email_automation.settings import Settings
 from email_automation.smtp_client import SMTPClient
 
@@ -721,13 +721,12 @@ def api_kb_status(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     try:
         effective = runtime.get_effective_settings(request.user)
-        dsn = (effective.VECTOR_DB_DSN or "").strip()
-        if not dsn:
+        if not is_vector_db_configured(effective):
             return JsonResponse(
                 {
                     "ok": False,
                     "configured": False,
-                    "error": "VECTOR_DB_DSN is not set. Add Postgres+pgvector DSN in .env to enable KB.",
+                    "error": "No KB database connection. Set DJANGO_DB_* in .env (same DB is fine) or VECTOR_DB_DSN, and run CREATE EXTENSION vector; on that database — see docs/kb-pgvector-setup.md",
                 }
             )
         vs = _get_vector_store_for_user(request.user)
@@ -830,6 +829,80 @@ def api_kb_crawl(request):
 
     threading.Thread(target=_run, daemon=True).start()
     return JsonResponse({"ok": True, "started": True})
+
+
+@csrf_exempt
+def api_kb_clear(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        effective = runtime.get_effective_settings(request.user)
+        if not is_vector_db_configured(effective):
+            return JsonResponse({"ok": True, "deleted_documents": 0, "deleted_chunks": 0})
+        vs = _get_vector_store_for_user(request.user)
+        res = vs.clear()
+        return JsonResponse({"ok": True, **res})
+    except Exception as e:
+        logger.exception("kb clear failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@require_GET
+def api_kb_export_json(request):
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        effective = runtime.get_effective_settings(request.user)
+        if not is_vector_db_configured(effective):
+            return JsonResponse({"ok": True, "documents": []})
+        vs = _get_vector_store_for_user(request.user)
+        docs = vs.export_documents(limit=200)
+        return JsonResponse({"ok": True, "documents": docs})
+    except Exception as e:
+        logger.exception("kb export failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@csrf_exempt
+def api_kb_replace_json(request):
+    """
+    Replace (clear then ingest) KB from JSON payload.
+    Body can be:
+      - {"documents": [{title,url,text,...}, ...]}
+      - a list of {title,url,text}
+      - any dict JSON (flattened into one document)
+    """
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    ct = request.content_type or ""
+    if "application/json" not in ct:
+        return JsonResponse({"ok": False, "error": "expected_json"}, status=400)
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": f"invalid_json: {e}"}, status=400)
+    try:
+        effective = runtime.get_effective_settings(request.user)
+        if not is_vector_db_configured(effective):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "kb_not_configured",
+                },
+                status=400,
+            )
+        vs = _get_vector_store_for_user(request.user)
+        cleared = vs.clear()
+        docs = documents_from_json_upload(payload, source_name="kb_edit.json")
+        res = _ingest_documents(docs, request.user)
+        return JsonResponse({"ok": True, **cleared, **res})
+    except Exception as e:
+        logger.exception("kb replace failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
 @require_GET

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from email_automation.settings import Settings
-from email_automation.state_store import StateStore
+from core.state_store import StateStore
 
 
 @dataclass(frozen=True)

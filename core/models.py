@@ -67,3 +67,30 @@ class AuditLog(models.Model):
     class Meta:
         db_table = "core_auditlog"
         ordering = ["-created_at"]
+
+
+class ProcessedMeta(models.Model):
+    tenant_id = models.CharField(max_length=64, db_index=True, default="")
+    message_id = models.CharField(max_length=255, default="")
+    meta_json = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "core_processedmeta"
+        constraints = [
+            models.UniqueConstraint(fields=["tenant_id", "message_id"], name="uq_processedmeta_tenant_message")
+        ]
+
+
+class QueueItem(models.Model):
+    tenant_id = models.CharField(max_length=64, db_index=True, default="")
+    message_id = models.CharField(max_length=255, default="")
+    status = models.CharField(max_length=32, db_index=True, default="")
+    details_json = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        db_table = "core_queueitem"
+        constraints = [
+            models.UniqueConstraint(fields=["tenant_id", "message_id"], name="uq_queueitem_tenant_message")
+        ]
+        indexes = [models.Index(fields=["tenant_id", "-updated_at"], name="idx_queueitem_tenant_updated")]

@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 # Mailpilot project root: the folder that contains `manage.py`, `.env`, `requirements.txt`, `templates/`, `data/`.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / ".env")
+# `.env` should win over inherited shell/system vars (e.g. stale DJANGO_DB_PORT on Windows).
+load_dotenv(BASE_DIR / ".env", override=True)
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY") or "dev-email-automation-secret"
 
@@ -68,10 +69,21 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "mailpilot.wsgi.application"
 
+_db_engine = (os.environ.get("DJANGO_DB_ENGINE") or "django.db.backends.postgresql").strip()
+_db_name = (os.environ.get("DJANGO_DB_NAME") or "mailpilot").strip()
+_db_user = (os.environ.get("DJANGO_DB_USER") or "mailpilot_user").strip()
+_db_password = os.environ.get("DJANGO_DB_PASSWORD") or ""
+_db_host = (os.environ.get("DJANGO_DB_HOST") or "127.0.0.1").strip()
+_db_port = str(os.environ.get("DJANGO_DB_PORT") or "5432").strip()
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "data" / "django.sqlite3",
+        "ENGINE": _db_engine,
+        "NAME": _db_name,
+        "USER": _db_user,
+        "PASSWORD": _db_password,
+        "HOST": _db_host,
+        "PORT": _db_port,
     }
 }
 

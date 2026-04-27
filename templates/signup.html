@@ -187,6 +187,7 @@
     .terms-row input[type=checkbox] { width:16px; height:16px; accent-color:#4f6ef7; cursor:pointer; margin-top:2px; flex-shrink:0; }
     .terms-row label { font-size:0.8rem; color:var(--muted); cursor:pointer; line-height:1.5; }
     .terms-row a { color:#a78bfa; text-decoration:none; font-weight:600; }
+    #termsHint { margin-top:-10px; margin-bottom:18px; }
 
     .bottom-link { text-align:center; margin-top:22px; font-size:0.85rem; color:var(--muted); }
     .bottom-link a { color:#a78bfa; font-weight:600; text-decoration:none; }
@@ -227,14 +228,14 @@
           <div class="field">
             <label for="first_name">First Name</label>
             <div class="input-wrap">
-              <span class="icon">👤</span>
+              <span class="icon" aria-hidden="true"><i class="fa-regular fa-user"></i></span>
               <input type="text" id="first_name" name="first_name" placeholder="John" autocomplete="given-name" required />
             </div>
           </div>
           <div class="field">
             <label for="last_name">Last Name</label>
             <div class="input-wrap">
-              <span class="icon">👤</span>
+              <span class="icon" aria-hidden="true"><i class="fa-regular fa-user"></i></span>
               <input type="text" id="last_name" name="last_name" placeholder="Doe" autocomplete="family-name" />
             </div>
           </div>
@@ -243,7 +244,7 @@
         <div class="field">
           <label for="email">Email Address</label>
           <div class="input-wrap">
-            <span class="icon">✉</span>
+            <span class="icon" aria-hidden="true"><i class="fa-regular fa-envelope"></i></span>
             <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required />
           </div>
           <div class="field-hint" id="emailHint"></div>
@@ -252,9 +253,9 @@
         <div class="field">
           <label for="password">Password</label>
           <div class="input-wrap">
-            <span class="icon">🔒</span>
+            <span class="icon" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
             <input type="password" id="password" name="password" placeholder="Min. 8 characters" autocomplete="new-password" required minlength="8" oninput="checkStrength(this.value);checkMatch();" />
-            <button type="button" class="eye-btn" onclick="togglePwd('password','eyeBtn1')" id="eyeBtn1" aria-label="Show password">👁</button>
+            <button type="button" class="eye-btn" onclick="togglePwd('password','eyeBtn1')" id="eyeBtn1" aria-label="Show password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
           </div>
           <div class="pwd-strength">
             <div class="strength-bar" aria-hidden="true">
@@ -270,9 +271,9 @@
         <div class="field">
           <label for="password2">Confirm Password</label>
           <div class="input-wrap">
-            <span class="icon">🔒</span>
+            <span class="icon" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
             <input type="password" id="password2" name="password2" placeholder="Re-enter password" autocomplete="new-password" required minlength="8" oninput="checkMatch()" />
-            <button type="button" class="eye-btn" onclick="togglePwd('password2','eyeBtn2')" id="eyeBtn2" aria-label="Show password">👁</button>
+            <button type="button" class="eye-btn" onclick="togglePwd('password2','eyeBtn2')" id="eyeBtn2" aria-label="Show password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
           </div>
           <div class="field-hint" id="matchHint"></div>
         </div>
@@ -281,6 +282,7 @@
           <input type="checkbox" id="terms" name="terms" required>
           <label for="terms">I agree to the <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.</label>
         </div>
+        <div class="field-hint" id="termsHint"></div>
 
         <button type="submit" class="submit-btn" id="submitBtn">Create Account</button>
       </form>
@@ -335,9 +337,13 @@ animate();
 
 function togglePwd(id, btnId){
   const inp=document.getElementById(id), btn=document.getElementById(btnId);
+  if(!inp || !btn) return;
   const show = inp.type === 'password';
   inp.type = show ? 'text' : 'password';
-  btn.textContent = show ? '🙈' : '👁';
+  const ico = btn.querySelector('i');
+  if(ico){
+    ico.className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+  }
   btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
 }
 
@@ -362,14 +368,14 @@ function checkMatch(){
   const hint=document.getElementById('matchHint');
   const inp=document.getElementById('password2');
   if(p2.length===0){ hint.textContent=''; hint.className='field-hint'; inp.classList.remove('error','success'); return; }
-  if(p1===p2){ hint.textContent='✓ Passwords match'; hint.className='field-hint ok'; inp.classList.add('success'); inp.classList.remove('error'); }
-  else       { hint.textContent='✗ Passwords do not match'; hint.className='field-hint err'; inp.classList.add('error'); inp.classList.remove('success'); }
+  if(p1===p2){ hint.textContent='Passwords match'; hint.className='field-hint ok'; inp.classList.add('success'); inp.classList.remove('error'); }
+  else       { hint.textContent='Passwords do not match'; hint.className='field-hint err'; inp.classList.add('error'); inp.classList.remove('success'); }
 }
 
 document.getElementById('email')?.addEventListener('blur', function(){
   const hint=document.getElementById('emailHint');
   const re=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if(this.value && !re.test(this.value)){ hint.textContent='✗ Please enter a valid email'; hint.className='field-hint err'; }
+  if(this.value && !re.test(this.value)){ hint.textContent='Please enter a valid email'; hint.className='field-hint err'; }
   else { hint.textContent=''; hint.className='field-hint'; }
 });
 
@@ -392,7 +398,11 @@ function validateEmail(val){
   return v.length > 0 && re.test(v);
 }
 
-function validateSignupForm(){
+function validateSignupForm(opts){
+  const o = opts || {};
+  const includeTerms = (o.includeTerms !== false); // default: true
+  const showTermsHint = (o.showTermsHint !== false); // default: true
+
   const firstName = document.getElementById('first_name');
   const email = document.getElementById('email');
   const pwd1 = document.getElementById('password');
@@ -411,7 +421,7 @@ function validateSignupForm(){
 
   const eok = validateEmail(email?.value || '');
   setInputState(email, eok);
-  setHint(document.getElementById('emailHint'), eok || !(email?.value || '').trim() ? '' : '✗ Please enter a valid email', eok ? null : false);
+  setHint(document.getElementById('emailHint'), eok || !(email?.value || '').trim() ? '' : 'Please enter a valid email', eok ? null : false);
   if(!eok) ok = false;
 
   const p1 = pwd1?.value || '';
@@ -428,20 +438,26 @@ function validateSignupForm(){
   if(!p2){
     ok = false;
     setInputState(pwd2, false);
-    setHint(document.getElementById('matchHint'), '✗ Please confirm your password', false);
+    setHint(document.getElementById('matchHint'), 'Please confirm your password', false);
   } else if(p1 !== p2){
     ok = false;
     setInputState(pwd2, false);
-    setHint(document.getElementById('matchHint'), '✗ Passwords do not match', false);
+    setHint(document.getElementById('matchHint'), 'Passwords do not match', false);
   } else {
     setInputState(pwd2, true);
-    setHint(document.getElementById('matchHint'), '✓ Passwords match', true);
+    setHint(document.getElementById('matchHint'), 'Passwords match', true);
   }
 
-  if(!terms?.checked){
-    ok = false;
-    // keep native required, just add a small visual nudge via outline
-    terms?.focus?.();
+  if(includeTerms){
+    const th = document.getElementById('termsHint');
+    if(!terms?.checked){
+      ok = false;
+      if(showTermsHint){
+        setHint(th, '✗ Please agree to the Terms of Service and Privacy Policy', false);
+      }
+    }else{
+      setHint(th, '', null);
+    }
   }
 
   return ok;
@@ -449,7 +465,7 @@ function validateSignupForm(){
 
 document.getElementById('signupForm')?.addEventListener('submit', function(e){
   // Run full validation on submit
-  const ok = validateSignupForm();
+  const ok = validateSignupForm({ includeTerms: true, showTermsHint: true });
   if(!ok){
     e.preventDefault();
   }
@@ -467,10 +483,18 @@ document.getElementById('email')?.addEventListener('input', function(){
 });
 document.getElementById('password')?.addEventListener('input', function(){
   checkStrength(this.value);
-  validateSignupForm();
+  // Live validation should not force Terms agreement before submit
+  validateSignupForm({ includeTerms: false });
 });
 document.getElementById('password2')?.addEventListener('input', function(){
   checkMatch();
+});
+
+// If user checks terms after a failed submit, clear the hint immediately
+document.getElementById('terms')?.addEventListener('change', function(){
+  if(this.checked){
+    setHint(document.getElementById('termsHint'), '', null);
+  }
 });
 
 document.querySelectorAll('input[type=text],input[type=email],input[type=password]').forEach(el=>{

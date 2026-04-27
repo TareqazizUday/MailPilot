@@ -63,9 +63,9 @@ def _ensure_imports():
     rr = _repo_root()
     _settings = Settings()
     _config_store = ConfigStore(path=os.path.join(rr, "data", "app_config.json"))
-    from email_automation.state_store import StateStore
+    from core.state_store import StateStore
 
-    _state_store_singleton = StateStore(db_path=os.path.join(rr, "data", "state.db"), tenant_id="")
+    _state_store_singleton = StateStore(tenant_id="")
 
 
 def base_settings():
@@ -79,13 +79,12 @@ def config_store():
 
 
 def state_store_for_user(user: Optional[User] = None):
-    """Shared SQLite file; rows scoped by tenant_id = str(user.id)."""
-    from email_automation.state_store import StateStore
+    """Rows scoped by tenant_id = str(user.id)."""
+    from core.state_store import StateStore
 
     _ensure_imports()
-    db_path = os.path.join(_repo_root(), "data", "state.db")
     tid = str(user.id) if user is not None and getattr(user, "is_authenticated", False) else ""
-    return StateStore(db_path=db_path, tenant_id=tid)
+    return StateStore(tenant_id=tid)
 
 
 def state_store():

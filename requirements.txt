@@ -25,8 +25,12 @@ google-auth-httplib2>=0.2.0
 
 # Knowledge base ingestion + vector search (self-hosted)
 psycopg[binary]>=3.2.6
+pgvector>=0.2.5
 beautifulsoup4>=4.12.3
 playwright>=1.54.0
 
 # Calendar booking
 dateparser>=1.2.1
+
+# OpenAI embeddings for KB
+openai>=1.40.0

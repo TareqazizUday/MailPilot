@@ -119,6 +119,35 @@
     label.pill input{margin:0 !important;}
     label.pill:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.06);}
 
+    /* Collapsible long error/details inside pills */
+    .pill .vm{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      min-width:0;
+      width:100%;
+      white-space:normal;
+      word-break:break-word;
+    }
+    .pill .vm-btn{
+      background:none;
+      border:1px solid rgba(255,255,255,0.12);
+      color:rgba(226,232,240,0.92);
+      border-radius:999px;
+      padding:2px 10px;
+      font-size:0.72rem;
+      font-weight:800;
+      cursor:pointer;
+      flex:0 0 auto;
+    }
+    .pill .vm-btn:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.10);}
+    .pill .vm-pre{
+      flex:1 1 auto;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
     .tabs{display:flex;gap:0;margin-bottom:20px;background:rgba(255,255,255,0.04);border-radius:12px;padding:4px;border:1px solid var(--glass-border);}
     .tab{
       flex:1;padding:10px 16px;border-radius:9px;
@@ -216,6 +245,26 @@
     .kb-up .fu{min-height:96px;}
     .kb-up .fu p{font-size:0.84rem;}
 
+    /* Minimal modal for KB editor */
+    .mp-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:50;padding:18px;}
+    .mp-modal.on{display:flex;}
+    .mp-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);}
+    .mp-modal-card{position:relative;z-index:51;max-width:920px;width:100%;border:1px solid var(--glass-border);border-radius:16px;background:rgba(6,8,24,0.92);box-shadow:0 18px 60px rgba(0,0,0,0.55);}
+    .mp-modal-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--glass-border);}
+    .mp-modal-t{font-size:0.9rem;font-weight:900;}
+    .mp-modal-x{background:none;border:1px solid var(--glass-border);color:var(--muted);border-radius:10px;padding:6px 10px;cursor:pointer;}
+    .mp-modal-x:hover{border-color:rgba(79,110,247,0.5);color:var(--text);}
+    .mp-modal-b{padding:14px 16px;}
+    .kb-editor{
+      width:100%;min-height:320px;max-height:52vh;resize:vertical;
+      padding:12px 12px;background:rgba(255,255,255,0.03);
+      border:1px solid var(--glass-border);border-radius:12px;color:var(--text);
+      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:0.82rem;line-height:1.55;outline:none;
+    }
+    .kb-editor:focus{border-color:rgba(79,110,247,0.55);box-shadow:0 0 0 3px rgba(79,110,247,0.12);}
+    .kb-editor-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+
     .main-sec{display:none}
     .main-sec.on{display:block}
   </style>
@@ -224,7 +273,7 @@
 {% block content %}
   <div class="setup-card">
     <div class="setup-card-header">
-      <div class="setup-card-title">⚙️ Setup</div>
+      <div class="setup-card-title"><i class="fa-solid fa-gear" aria-hidden="true"></i> Setup</div>
       <div class="setup-card-sub">
         Connect Gmail, then configure what counts as <strong>service-related</strong> and build your Knowledge Base (website + JSON). Setup is where you control the agent.
       </div>
@@ -237,21 +286,21 @@
           <div style="font-size:0.88rem;font-weight:700;">Email Transport</div>
           <div class="sub">Gmail / SMTP</div>
         </div>
-        <div class="tab-icon" aria-hidden="true">⇄</div>
+        <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-right-left"></i></div>
       </button>
       <button class="main-tab" id="btnMainRouting" type="button" onclick="showMain('routing')">
         <div>
           <div style="font-size:0.88rem;font-weight:700;">Relevance / Routing</div>
           <div class="sub">Only handle related mails</div>
         </div>
-        <div class="tab-icon" aria-hidden="true">▼</div>
+        <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-filter"></i></div>
       </button>
       <button class="main-tab" id="btnMainKb" type="button" onclick="showMain('kb')">
         <div>
           <div style="font-size:0.88rem;font-weight:700;">Knowledge Base (RAG)</div>
           <div class="sub">Website + JSON ingest</div>
         </div>
-        <div class="tab-icon" aria-hidden="true">◑</div>
+        <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-brain"></i></div>
       </button>
     </div>
 
@@ -428,7 +477,7 @@
           </div>
           <div class="content-aside">
             <div class="aside-card">
-              <div class="aside-title">💡 Next</div>
+              <div class="aside-title"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Next</div>
               <div class="aside-desc">After choosing how to send replies, configure <strong>Routing</strong> so only service-related emails are handled.</div>
             </div>
           </div>
@@ -489,7 +538,7 @@
           </div>
           <div class="content-aside">
             <div class="aside-card">
-              <div class="aside-title">💡 Tip</div>
+              <div class="aside-title"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Tip</div>
               <div class="aside-desc">Add local-language keywords to improve matching (optional).</div>
             </div>
           </div>
@@ -509,19 +558,26 @@
             <p class="oauth-txt" style="margin:0;">Upload structured JSON or crawl your website so replies can be grounded in your real service info.</p>
           </div>
 
-          <div class="fg" style="margin-top:12px;">
-            <label class="fl" for="vectorDsn">Vector DB DSN (Postgres + pgvector)</label>
-            <input class="fi" id="vectorDsn" placeholder="postgresql://user:pass@127.0.0.1:5432/email_agent" />
-            <div class="mini">This is stored in <span class="code-inline">data/app_config.json</span>. Keep DB private (self-hosted).</div>
-          </div>
-          <button class="btn btn-ghost btn-block" type="button" onclick="saveVector()">Save Vector DB</button>
-
           <div class="oauth-box">
             <div class="oauth-h"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> KB Status</div>
             <p class="oauth-txt" style="margin:0;">
               <span class="small" id="kbMeta" style="margin-left:8px;">—</span>
             </p>
           </div>
+          <button class="btn btn-ghost btn-block" type="button" style="margin-top:10px;border-color: rgba(248,113,113,.25); color: #fecdd3;" onclick="clearKb()">
+            <i class="fa-solid fa-trash" aria-hidden="true"></i> Delete Knowledge Base
+          </button>
+          <div class="mini"><span id="kbClearStatus" class="pill">—</span></div>
+
+          <div class="row2" style="margin-top:10px;gap:10px;">
+            <button class="btn btn-ghost btn-block" type="button" onclick="downloadKbJson()">
+              <i class="fa-solid fa-download" aria-hidden="true"></i> Download KB JSON
+            </button>
+            <button class="btn btn-ghost btn-block" type="button" onclick="openKbEditor()">
+              <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit KB JSON
+            </button>
+          </div>
+          <div class="mini"><span id="kbEditStatus" class="pill">—</span></div>
 
           <div class="fg" style="margin-top:14px;">
             <label class="fl">Upload JSON knowledge</label>
@@ -551,12 +607,36 @@
           </div>
           <div class="content-aside">
             <div class="aside-card">
-              <div class="aside-title">🚀 Next</div>
+              <div class="aside-title"><i class="fa-solid fa-rocket" aria-hidden="true"></i> Next</div>
               <div class="aside-desc">After KB + routing are set, go to <a href="{% url 'dashboard' %}">Dashboard</a> and click <strong>Run Now</strong> to test.</div>
             </div>
           </div>
         </div>
       </div>
+  </div>
+
+  <!-- KB editor modal -->
+  <div class="mp-modal" id="kbEditModal" role="dialog" aria-modal="true" aria-label="Edit Knowledge Base JSON">
+    <div class="mp-modal-backdrop" onclick="closeKbEditor()"></div>
+    <div class="mp-modal-card">
+      <div class="mp-modal-h">
+        <div class="mp-modal-t">Edit Knowledge Base (JSON)</div>
+        <button class="mp-modal-x" type="button" onclick="closeKbEditor()">Close</button>
+      </div>
+      <div class="mp-modal-b">
+        <div class="mini" style="margin-top:0;">
+          Tip: edit the JSON then click <strong>Save &amp; Replace KB</strong>. This will delete your current KB and re-ingest from the edited JSON.
+        </div>
+        <textarea class="kb-editor" id="kbEditorText" spellcheck="false"></textarea>
+        <div class="kb-editor-actions">
+          <button class="btn btn-ghost" type="button" onclick="downloadKbJson()">Download again</button>
+          <button class="btn btn-purp" type="button" onclick="saveKbEditor()">
+            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save &amp; Replace KB
+          </button>
+        </div>
+        <div class="mini"><span id="kbEditorPill" class="pill">—</span></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -635,8 +715,40 @@
 
     function setPill(el, text, cls){
       if(!el) return;
-      el.textContent = text || '—';
+      const full = (text || '—');
       el.className = 'pill' + (cls ? (' ' + cls) : '');
+
+      // Collapse very long messages to avoid breaking the layout.
+      // Click "View more" to expand in-place.
+      const limit = 140;
+      if(full.length > limit){
+        const isExpanded = el.getAttribute('data-expanded') === '1';
+        const shown = isExpanded ? full : (full.slice(0, limit).trimEnd() + '…');
+        el.replaceChildren();
+
+        const wrap = document.createElement('span');
+        wrap.className = 'vm';
+        const pre = document.createElement('span');
+        pre.className = 'vm-pre';
+        pre.textContent = shown;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'vm-btn';
+        btn.textContent = isExpanded ? 'View less' : 'View more';
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          el.setAttribute('data-expanded', isExpanded ? '0' : '1');
+          setPill(el, full, cls);
+        });
+        wrap.appendChild(pre);
+        wrap.appendChild(btn);
+        el.appendChild(wrap);
+        return;
+      }
+
+      el.removeAttribute('data-expanded');
+      el.textContent = full;
     }
 
     function transportLabel(tr, connected){
@@ -728,7 +840,6 @@
         document.getElementById('imapVerify').checked = (e.IMAP_VERIFY_TLS !== false);
         document.getElementById('imapTlsServer').value = e.IMAP_TLS_SERVERNAME || '';
         applySmtpPortHints();
-        document.getElementById('vectorDsn').value = (e.VECTOR_DB_DSN && e.VECTOR_DB_DSN !== '***') ? e.VECTOR_DB_DSN : '';
         setPill(pill, 'Settings synced', 'ok');
         // Keep the UI clean: auto-hide after a moment.
         setTimeout(() => {
@@ -1043,32 +1154,6 @@
       }
     }
 
-    async function saveVector(){
-      const pill = document.getElementById('kbPill');
-      const dsn = (document.getElementById('vectorDsn').value || '').trim();
-      if(!dsn){
-        setPill(pill, 'VECTOR_DB_DSN is empty', 'bad');
-        return;
-      }
-      setPill(pill, 'Saving DSN…', '');
-      try{
-        const res = await fetch('/api/admin/config', {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json' },
-          body: JSON.stringify({ VECTOR_DB_DSN: dsn }),
-        });
-        const j = await res.json().catch(() => ({}));
-        if(!res.ok || !j.ok){
-          setPill(pill, (j.error || 'Save failed'), 'bad');
-          return;
-        }
-        setPill(pill, 'Saved DSN', 'ok');
-      }catch(err){
-        setPill(pill, 'Network error', 'bad');
-      }
-      await refreshKbStatus();
-    }
-
     async function refreshKbStatus(){
       const pill = document.getElementById('kbPill');
       const meta = document.getElementById('kbMeta');
@@ -1087,6 +1172,139 @@
         if(meta) meta.textContent = '';
       }
     }
+
+    async function clearKb(){
+      if(!confirm('Delete your Knowledge Base now? This cannot be undone.')) return;
+      const pill = document.getElementById('kbClearStatus');
+      setPill(pill, 'Deleting…', 'info');
+      try{
+        const res = await fetch('/api/kb/clear', { method:'POST' });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Delete failed'), 'bad');
+          return;
+        }
+        const docs = j.deleted_documents ?? 0;
+        const chunks = j.deleted_chunks ?? 0;
+        setPill(pill, `Deleted ${docs} docs · ${chunks} chunks`, 'ok');
+
+        // Reset uploader visuals (optional)
+        const up = document.getElementById('kbUp');
+        if(up){
+          up.classList.remove('ok');
+          const ico = document.getElementById('kbUpIco'); if(ico) ico.className = 'fa-solid fa-upload';
+          const txt = document.getElementById('kbUpTxt'); if(txt) txt.innerHTML = 'Click to choose a <span>.json</span> file';
+          const ht  = document.getElementById('kbUpHt'); if(ht) ht.textContent = 'JSON only · Max size depends on server';
+        }
+        const fi = document.getElementById('kbJsonFile');
+        if(fi) fi.value = '';
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+      await refreshKbStatus();
+    }
+    window.clearKb = clearKb;
+
+    function _downloadBlob(filename, content, mime){
+      const blob = new Blob([content], { type: mime || 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    async function downloadKbJson(){
+      const pill = document.getElementById('kbEditStatus');
+      setPill(pill, 'Downloading…', 'info');
+      try{
+        const res = await fetch('/api/kb/export-json');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Download failed'), 'bad');
+          return;
+        }
+        const docs = j.documents || [];
+        const payload = { documents: docs.map(d => ({ title: d.title || '', url: d.url || '', text: d.text || '' })) };
+        _downloadBlob('mailpilot_kb.json', JSON.stringify(payload, null, 2), 'application/json');
+        setPill(pill, `Downloaded ${docs.length} docs`, 'ok');
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+    }
+    window.downloadKbJson = downloadKbJson;
+
+    function openKbEditor(){
+      const m = document.getElementById('kbEditModal');
+      if(m) m.classList.add('on');
+      loadKbEditor();
+    }
+    window.openKbEditor = openKbEditor;
+
+    function closeKbEditor(){
+      const m = document.getElementById('kbEditModal');
+      if(m) m.classList.remove('on');
+    }
+    window.closeKbEditor = closeKbEditor;
+
+    async function loadKbEditor(){
+      const pill = document.getElementById('kbEditorPill');
+      setPill(pill, 'Loading…', 'info');
+      try{
+        const res = await fetch('/api/kb/export-json');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Load failed'), 'bad');
+          return;
+        }
+        const docs = j.documents || [];
+        const payload = { documents: docs.map(d => ({ title: d.title || '', url: d.url || '', text: d.text || '' })) };
+        const ta = document.getElementById('kbEditorText');
+        if(ta) ta.value = JSON.stringify(payload, null, 2);
+        setPill(pill, `Loaded ${docs.length} docs`, 'ok');
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+    }
+
+    async function saveKbEditor(){
+      if(!confirm('Replace your Knowledge Base with this JSON? This will delete the current KB.')) return;
+      const pill = document.getElementById('kbEditorPill');
+      setPill(pill, 'Saving…', 'info');
+      const ta = document.getElementById('kbEditorText');
+      const raw = (ta?.value || '').trim();
+      if(!raw){
+        setPill(pill, 'JSON is empty', 'bad');
+        return;
+      }
+      let payload;
+      try{
+        payload = JSON.parse(raw);
+      }catch(e){
+        setPill(pill, 'Invalid JSON', 'bad');
+        return;
+      }
+      try{
+        const res = await fetch('/api/kb/replace-json', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Save failed'), 'bad');
+          return;
+        }
+        setPill(pill, `Replaced: ${j.documents||0} docs · ${j.chunks||0} chunks`, 'ok');
+        await refreshKbStatus();
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+      }
+    }
+    window.saveKbEditor = saveKbEditor;
 
     async function uploadKbJson(){
       const pill = document.getElementById('kbUploadStatus');

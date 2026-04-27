@@ -260,7 +260,7 @@
         <div class="field">
           <label for="username">Username or Gmail</label>
           <div class="input-wrap">
-            <span class="icon">👤</span>
+            <span class="icon" aria-hidden="true"><i class="fa-regular fa-user"></i></span>
             <input id="username" name="username" placeholder="username or you@gmail.com" autocomplete="username" required />
           </div>
           <div class="field-hint" id="userHint"></div>
@@ -269,9 +269,9 @@
         <div class="field">
           <label for="password">Password</label>
           <div class="input-wrap">
-            <span class="icon">🔒</span>
+            <span class="icon" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
             <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required />
-            <button type="button" class="eye-btn" onclick="togglePwd()" id="eyeBtn" aria-label="Show password">👁</button>
+            <button type="button" class="eye-btn" onclick="togglePwd()" id="eyeBtn" aria-label="Show password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
           </div>
           <div class="field-hint" id="passHint"></div>
         </div>
@@ -344,9 +344,13 @@ animate();
 function togglePwd(){
   const inp = document.getElementById('password');
   const btn = document.getElementById('eyeBtn');
+  if(!inp || !btn) return;
   const show = inp.type === 'password';
   inp.type = show ? 'text' : 'password';
-  btn.textContent = show ? '🙈' : '👁';
+  const ico = btn.querySelector('i');
+  if(ico){
+    ico.className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+  }
   btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
 }
 
@@ -378,11 +382,11 @@ function validateLogin(){
   if(!uv){
     ok = false;
     setErr(u, true);
-    setHint('userHint', '✗ Username or Gmail is required');
+    setHint('userHint', 'Username or Gmail is required');
   } else if(uv.includes('@') && !validateEmail(uv)){
     ok = false;
     setErr(u, true);
-    setHint('userHint', '✗ Please enter a valid email address');
+    setHint('userHint', 'Please enter a valid email address');
   } else {
     setErr(u, false);
     setHint('userHint', '');
@@ -391,7 +395,7 @@ function validateLogin(){
   if(!pv){
     ok = false;
     setErr(p, true);
-    setHint('passHint', '✗ Password is required');
+    setHint('passHint', 'Password is required');
   } else {
     setErr(p, false);
     setHint('passHint', '');

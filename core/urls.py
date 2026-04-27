@@ -43,5 +43,8 @@ urlpatterns = [
     path("api/smtp/disconnect", views.api_smtp_disconnect),
     path("api/kb/upload-json", views.api_kb_upload_json),
     path("api/kb/crawl", views.api_kb_crawl),
+    path("api/kb/clear", views.api_kb_clear),
+    path("api/kb/export-json", views.api_kb_export_json),
+    path("api/kb/replace-json", views.api_kb_replace_json),
     path("api/pending", views.api_pending),
 ]
