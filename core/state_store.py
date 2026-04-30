@@ -64,3 +64,27 @@ class StateStore:
         if changed:
             row.details_json = details
             row.save(update_fields=["details_json", "updated_at"])
+
+    def mark_processed(self, message_id: str, meta: dict[str, Any]) -> None:
+        """Upsert ProcessedMeta for this message_id."""
+        if not message_id:
+            return
+        if not isinstance(meta, dict):
+            meta = {}
+        ProcessedMeta.objects.update_or_create(
+            tenant_id=self.tenant_id,
+            message_id=str(message_id),
+            defaults={"meta_json": meta},
+        )
+
+    def upsert_queue_item(self, message_id: str, *, status: str, details: dict[str, Any]) -> None:
+        """Upsert QueueItem used by the Dashboard queue panel."""
+        if not message_id:
+            return
+        if not isinstance(details, dict):
+            details = {}
+        QueueItem.objects.update_or_create(
+            tenant_id=self.tenant_id,
+            message_id=str(message_id),
+            defaults={"status": str(status or ""), "details_json": details},
+        )

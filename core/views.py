@@ -58,10 +58,20 @@ def _smtp_imap_inbox_active(effective: Settings) -> bool:
 
 
 def _mailbox_connected_for_ui(effective: Settings, cfg: dict[str, Any]) -> bool:
-    if gmail_oauth_ready(effective) or imap_inbox_ready(effective):
-        return True
+    """True if the user has a usable mailbox path for the *current* transport.
+
+    IMAP credentials alone must not imply "connected" when SEND_TRANSPORT is still
+    gmail_api (e.g. stale IMAP fields after saving SMTP once) — that broke the
+    navbar showing Connected after Gmail OAuth disconnect.
+    """
     transport = str(cfg.get("SEND_TRANSPORT") or effective.SEND_TRANSPORT or "").strip()
-    return transport == "smtp" and bool(cfg.get("SMTP_LAST_TEST_OK"))
+    if gmail_oauth_ready(effective):
+        return True
+    if transport == "smtp":
+        if imap_inbox_ready(effective):
+            return True
+        return bool(cfg.get("SMTP_LAST_TEST_OK"))
+    return False
 
 
 def _oauth_callback_url(request, effective: Settings) -> str:
@@ -302,6 +312,7 @@ def setup_page(request):
         "setup.html",
         {
             "connected": connected,
+            "gmail_oauth_connected": gmail_oauth_ready(effective),
             "gmail_address": (cfg.get("GMAIL_ADDRESS") or ""),
             "oauth_error": (request.GET.get("oauth_error") or "").strip(),
             "oauth_redirect_uri": oauth_redirect_uri,
@@ -936,6 +947,12 @@ def api_pending(request):
     except Exception:
         pass
     return JsonResponse({"ok": True, "items": items})
+
+
+@require_GET
+def api_voice_intent(request):
+    """No-op endpoint to avoid noisy 404 polling from external clients/extensions."""
+    return JsonResponse({"ok": False, "error": "not_enabled"}, status=204)
 
 
 @csrf_exempt

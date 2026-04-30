@@ -47,4 +47,5 @@ urlpatterns = [
     path("api/kb/export-json", views.api_kb_export_json),
     path("api/kb/replace-json", views.api_kb_replace_json),
     path("api/pending", views.api_pending),
+    path("api/voice/intent/", views.api_voice_intent),
 ]

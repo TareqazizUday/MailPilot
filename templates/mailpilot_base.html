@@ -390,6 +390,45 @@
       });
     })();
 
+    /* Navbar: Connected / Not connected (live refresh; same API as Setup/Dashboard) */
+    window.refreshNavConnectionStatus = function (prefetched) {
+      const el = document.getElementById('navConnStatus');
+      if (!el) return Promise.resolve();
+
+      function applyNav(j) {
+        if (!j || !j.ok) return;
+        if (j.connected) {
+          const st = j.send_transport || '';
+          const hint =
+            j.gmail_connected
+              ? 'Gmail OAuth'
+              : j.imap_connected
+                ? 'SMTP + IMAP mailbox'
+                : j.smtp_last_test_ok && st === 'smtp'
+                  ? 'SMTP verified (outgoing)'
+                  : 'Connected';
+          el.title = hint;
+          el.innerHTML =
+            '<span class="connected-dot" aria-hidden="true"></span> Connected';
+        } else {
+          el.title = '';
+          el.textContent = 'Not connected';
+        }
+      }
+
+      if (prefetched && prefetched.ok) {
+        applyNav(prefetched);
+        return Promise.resolve();
+      }
+      return fetch('/api/gmail/connection-status')
+        .then(function (r) {
+          return r.json();
+        })
+        .then(applyNav)
+        .catch(function () {});
+    };
+    window.refreshNavConnectionStatus();
+
     /* Toast messages are handled by components/toasts.html */
   </script>
   {% block body_extra %}{% endblock %}

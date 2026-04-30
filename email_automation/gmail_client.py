@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+import email.utils
 import re
+from email.message import EmailMessage
 from typing import Any, Dict, List, Tuple
 
 from email_automation.settings import Settings
@@ -178,4 +180,34 @@ class GmailClient:
         payload = m.get("payload") or {}
         headers = payload.get("headers") or []
         return self._header(headers, "From"), self._header(headers, "Subject")
+
+    def send_reply(
+        self,
+        *,
+        to_email: str,
+        subject: str,
+        body_text: str,
+        thread_id: str | None = None,
+        in_reply_to: str | None = None,
+        references: str | None = None,
+    ) -> str:
+        """Send a simple text email (optionally within a thread). Returns Gmail message id."""
+        svc = self._service()
+        msg = EmailMessage()
+        msg["To"] = to_email
+        msg["From"] = self.settings.outbound_from_email() or "me"
+        msg["Subject"] = subject or "(No subject)"
+        msg["Message-ID"] = email.utils.make_msgid(domain=None)
+        if in_reply_to:
+            msg["In-Reply-To"] = in_reply_to
+        if references:
+            msg["References"] = references
+        msg.set_content(body_text or "")
+
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
+        body: dict[str, Any] = {"raw": raw}
+        if thread_id:
+            body["threadId"] = str(thread_id)
+        sent = svc.users().messages().send(userId="me", body=body).execute()
+        return str(sent.get("id") or "")
 

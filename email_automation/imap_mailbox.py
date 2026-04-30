@@ -31,6 +31,15 @@ class ImapMailbox:
         self.settings = settings
         self._conn: Optional[imaplib.IMAP4] = None
 
+    def _mailbox_name(self) -> str:
+        return (self.settings.IMAP_MAILBOX or "INBOX").strip() or "INBOX"
+
+    def _select_mailbox(self, conn: imaplib.IMAP4) -> None:
+        mailbox = self._mailbox_name()
+        typ, _ = conn.select(mailbox, readonly=True)
+        if typ != "OK":
+            raise RuntimeError(f"IMAP select failed for mailbox: {mailbox}")
+
     def _ssl_context(self):
         # Import lazily so this module still imports even if ssl isn't used.
         import ssl
@@ -105,6 +114,7 @@ class ImapMailbox:
             return 0
 
     def _fetch_flags(self, conn: imaplib.IMAP4, uid: str) -> List[str]:
+        self._select_mailbox(conn)
         typ, data = conn.uid("fetch", uid, "(FLAGS)")
         if typ != "OK" or not data:
             return []
@@ -117,10 +127,7 @@ class ImapMailbox:
 
     def _search_recent_uids(self, conn: imaplib.IMAP4, max_threads: int) -> List[str]:
         # Use UID ordering; grab only the latest N UIDs for performance.
-        mailbox = (self.settings.IMAP_MAILBOX or "INBOX").strip() or "INBOX"
-        typ, _ = conn.select(mailbox, readonly=True)
-        if typ != "OK":
-            raise RuntimeError("IMAP select failed")
+        self._select_mailbox(conn)
 
         typ, data = conn.uid("search", None, "ALL")
         if typ != "OK" or not data or not data[0]:
@@ -129,8 +136,8 @@ class ImapMailbox:
         if not all_uids:
             return []
         n = max(1, int(max_threads or 40))
-        # Return the last N UIDs (or fewer if mailbox smaller).
-        return all_uids[-n:]
+        # Return newest-first so the UI shows the latest mail at the top.
+        return list(reversed(all_uids[-n:]))
 
     def list_inbox_summaries(self, max_threads: int = 40) -> List[Dict[str, Any]]:
         conn = self._connect()
@@ -184,10 +191,20 @@ class ImapMailbox:
 
     def get_thread_for_ui(self, uid: int) -> Dict[str, Any]:
         conn = self._connect()
+        self._select_mailbox(conn)
         uid_str = str(int(uid))
 
         # Fetch full RFC822 to reliably extract text/plain.
-        typ, data = conn.uid("fetch", uid_str, "(RFC822)")
+        try:
+            typ, data = conn.uid("fetch", uid_str, "(RFC822)")
+        except imaplib.IMAP4.error as e:
+            msg = str(e or "")
+            # Some servers require SELECT again if state resets to AUTH.
+            if ("state AUTH" in msg) or ("states SELECTED" in msg) or ("only allowed in states" in msg):
+                self._select_mailbox(conn)
+                typ, data = conn.uid("fetch", uid_str, "(RFC822)")
+            else:
+                raise
         if typ != "OK" or not data:
             return {"thread_id": uid_str, "messages": []}
 

@@ -10,7 +10,7 @@ from urllib.parse import quote_plus
 
 import psycopg
 from email_automation.settings import Settings
-from pgvector.psycopg import register_vector
+from pgvector.psycopg import Vector, register_vector
 
 log = logging.getLogger("mailpilot.kb.store")
 
@@ -253,7 +253,8 @@ class VectorStore:
                         MAX(source) as source,
                         MAX(url) as url,
                         MAX(title) as title,
-                        MAX(metadata_json) as metadata_json,
+                        -- PG<14 has no max(jsonb); first chunk matches STRING_AGG order
+                        (array_agg(metadata_json ORDER BY chunk_id))[1] as metadata_json,
                         STRING_AGG(chunk_text, '' ORDER BY chunk_id) as full_text
                     FROM {_KB_TABLE}
                     WHERE tenant_id = %s
@@ -299,6 +300,7 @@ class VectorStore:
                 f"query_embedding len {len(query_embedding)} != EMBEDDING_DIM {self._dim}"
             )
         k = max(1, int(limit))
+        qv = Vector(query_embedding)
         with self._connect() as conn:
             self._ensure_schema(conn)
             with conn.cursor() as cur:
@@ -312,7 +314,7 @@ class VectorStore:
                     ORDER BY embedding <=> %s
                     LIMIT %s
                     """,
-                    (query_embedding, self.tenant_id, query_embedding, k),
+                    (qv, self.tenant_id, qv, k),
                 )
                 rows = cur.fetchall()
         out: list[dict[str, Any]] = []

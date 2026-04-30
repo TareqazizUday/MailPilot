@@ -34,3 +34,6 @@ dateparser>=1.2.1
 
 # OpenAI embeddings for KB
 openai>=1.40.0
+
+# Recommended production WSGI server (reduces devserver socket timeouts)
+waitress>=3.0.0

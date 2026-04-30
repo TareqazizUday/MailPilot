@@ -202,6 +202,20 @@
     .pw-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:1px solid var(--glass-border);border-radius:10px;padding:6px 10px;color:var(--muted);cursor:pointer;}
     .pw-btn:hover{border-color:rgba(79,110,247,0.4);color:var(--text);}
 
+    /* SMTP/IMAP inline validation */
+    .field-err{
+      margin-top:6px;
+      font-size:0.75rem;
+      font-weight:700;
+      color:#f87171;
+      line-height:1.35;
+      min-height:0;
+    }
+    .fi.field-invalid{
+      border-color:rgba(248,113,113,0.7) !important;
+      box-shadow:0 0 0 2px rgba(248,113,113,0.12);
+    }
+
     .aside-card{background:rgba(79,110,247,0.05);border:1px solid rgba(79,110,247,0.15);border-radius:14px;padding:18px;}
     .aside-title{font-size:0.88rem;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
     .aside-desc{font-size:0.8rem;color:var(--muted);line-height:1.65;}
@@ -265,6 +279,23 @@
     .kb-editor:focus{border-color:rgba(79,110,247,0.55);box-shadow:0 0 0 3px rgba(79,110,247,0.12);}
     .kb-editor-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
 
+    /* Reusable confirm dialog (replaces window.confirm) */
+    .setup-confirm-modal{z-index:70;}
+    .setup-confirm-modal .mp-modal-card{max-width:440px;}
+    .setup-confirm-msg{margin:0;font-size:0.88rem;color:rgba(226,232,240,0.88);line-height:1.55;}
+    .setup-confirm-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;}
+    .setup-confirm-modal .btn-danger{
+      background:rgba(239,68,68,0.14);
+      border:1px solid rgba(239,68,68,0.45);
+      color:#fecaca;
+      box-shadow:none;
+    }
+    .setup-confirm-modal .btn-danger:hover{
+      background:rgba(239,68,68,0.22);
+      border-color:rgba(248,113,113,0.65);
+      transform:translateY(-1px);
+    }
+
     .main-sec{display:none}
     .main-sec.on{display:block}
   </style>
@@ -324,7 +355,7 @@
           <div class="panel on" id="pGmail">
           <div class="hint">Use Google OAuth to read inbox and send replies via Gmail API.</div>
 
-      {% if connected %}
+      {% if gmail_oauth_connected %}
         <div class="oauth-box" style="border-color: rgba(16,185,129,.18);">
           <div class="oauth-h"><i class="fa-solid fa-link" aria-hidden="true" style="color: var(--grn-l);"></i> Connected</div>
           <p class="oauth-txt" style="margin:0;">OAuth token found on server. Open <a href="{% url 'dashboard' %}">Dashboard</a>.</p>
@@ -386,26 +417,30 @@
 
           <div class="row2" style="margin-top:12px;">
             <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpHost">SMTP Host</label>
-              <input class="fi" id="smtpHost" placeholder="smtp.gmail.com" />
+              <label class="fl" for="smtpHost">SMTP Host <span style="color:#f87171;">*</span></label>
+              <input class="fi" id="smtpHost" name="smtpHost" placeholder="smtp.gmail.com" autocomplete="off" />
+              <div class="field-err" id="errSmtpHost" role="alert"></div>
             </div>
             <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpPort">Port</label>
-              <input class="fi" id="smtpPort" type="number" min="1" step="1" value="587" />
+              <label class="fl" for="smtpPort">Port <span style="color:#f87171;">*</span></label>
+              <input class="fi" id="smtpPort" name="smtpPort" type="number" min="1" max="65535" step="1" value="587" />
+              <div class="field-err" id="errSmtpPort" role="alert"></div>
               <div class="mini" id="smtpPortHint">Tip: 465 = SSL, 587 = TLS</div>
             </div>
           </div>
           <div class="row2">
             <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpUser">Username</label>
-              <input class="fi" id="smtpUser" placeholder="your@email.com" autocomplete="username" />
+              <label class="fl" for="smtpUser">SMTP Username <span style="color:#f87171;">*</span></label>
+              <input class="fi" id="smtpUser" name="smtpUser" placeholder="your@email.com" autocomplete="username" />
+              <div class="field-err" id="errSmtpUser" role="alert"></div>
             </div>
             <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpPass">Password / App password</label>
+              <label class="fl" for="smtpPass">Password / App password <span style="color:#f87171;">*</span></label>
               <div class="pw-wrap">
-                <input class="fi" id="smtpPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+                <input class="fi" id="smtpPass" name="smtpPass" type="password" placeholder="••••••••" autocomplete="current-password" />
                 <button class="pw-btn" type="button" onclick="togglePw()" title="Show/Hide password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
               </div>
+              <div class="field-err" id="errSmtpPass" role="alert"></div>
               <div class="mini">Saved to <span class="code-inline">data/app_config.json</span>. Don’t commit this file. Prefer “app password” if your provider supports it.</div>
             </div>
           </div>
@@ -445,8 +480,9 @@
               <input class="fi" id="imapHost" placeholder="imap.timerni.com" />
             </div>
             <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="imapPort">IMAP port</label>
-              <input class="fi" id="imapPort" type="number" min="1" step="1" value="993" />
+              <label class="fl" for="imapPort">IMAP port <span style="color:#f87171;">*</span></label>
+              <input class="fi" id="imapPort" name="imapPort" type="number" min="1" max="65535" step="1" value="993" />
+              <div class="field-err" id="errImapPort" role="alert"></div>
             </div>
           </div>
           <div class="row2">
@@ -465,9 +501,9 @@
             </label>
           </div>
 
-          <button class="btn btn-purp btn-block" type="button" onclick="saveSmtp()"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save mail settings</button>
+          <div class="mini" style="margin-top:4px;"><span style="color:#f87171;">*</span> Required. Optional: From email; IMAP host (blank = auto from SMTP host); SMTP/IMAP TLS name fields.</div>
           <button class="btn btn-ghost btn-block" type="button" style="margin-top:10px;" onclick="connectSmtpAndEnable()"><i class="fa-solid fa-plug" aria-hidden="true"></i> Connect SMTP &amp; run automation</button>
-          <div class="mini" style="margin-top:8px;">Tests SMTP, enables SMTP sending, then checks unread mail once (same as Dashboard &quot;Run Now&quot;).</div>
+          <div class="mini" style="margin-top:8px;">Tests SMTP, enables SMTP sending, then checks unread mail once.</div>
           <button class="btn btn-ghost btn-block disc-btn" id="btnSmtpDisconnect" style="margin-top:10px; display:none;" type="button" onclick="disconnectSmtp()">
             <i class="fa-solid fa-link-slash" aria-hidden="true"></i> Disconnect SMTP
           </button>
@@ -608,7 +644,7 @@
           <div class="content-aside">
             <div class="aside-card">
               <div class="aside-title"><i class="fa-solid fa-rocket" aria-hidden="true"></i> Next</div>
-              <div class="aside-desc">After KB + routing are set, go to <a href="{% url 'dashboard' %}">Dashboard</a> and click <strong>Run Now</strong> to test.</div>
+              <div class="aside-desc">After KB + routing are set, the system will automatically read recent mail and reply based on your settings.</div>
             </div>
           </div>
         </div>
@@ -635,6 +671,24 @@
           </button>
         </div>
         <div class="mini"><span id="kbEditorPill" class="pill">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm dialog (SMTP disconnect, Gmail disconnect, KB actions) -->
+  <div class="mp-modal setup-confirm-modal" id="setupConfirmModal" role="dialog" aria-modal="true" aria-labelledby="setupConfirmTitle" aria-hidden="true">
+    <div class="mp-modal-backdrop" id="setupConfirmBackdrop" aria-hidden="true"></div>
+    <div class="mp-modal-card">
+      <div class="mp-modal-h">
+        <div class="mp-modal-t" id="setupConfirmTitle">Confirm</div>
+        <button class="mp-modal-x" type="button" id="setupConfirmCloseX" aria-label="Close">Close</button>
+      </div>
+      <div class="mp-modal-b">
+        <p class="setup-confirm-msg" id="setupConfirmMessage"></p>
+        <div class="setup-confirm-actions">
+          <button class="btn btn-ghost" type="button" id="setupConfirmCancel">Cancel</button>
+          <button class="btn btn-purp" type="button" id="setupConfirmOk">OK</button>
+        </div>
       </div>
     </div>
   </div>
@@ -702,8 +756,74 @@
       navigator.clipboard?.writeText(t);
     }
 
+    let _setupConfirmResolve = null;
+    let _setupConfirmEscHandler = null;
+
+    function setupConfirmClose(result){
+      if(_setupConfirmEscHandler){
+        document.removeEventListener('keydown', _setupConfirmEscHandler);
+        _setupConfirmEscHandler = null;
+      }
+      const m = document.getElementById('setupConfirmModal');
+      if(m){
+        m.classList.remove('on');
+        m.setAttribute('aria-hidden', 'true');
+      }
+      document.body.style.overflow = '';
+      const fn = _setupConfirmResolve;
+      _setupConfirmResolve = null;
+      if(fn) fn(!!result);
+    }
+
+    function setupConfirmOpen(opts){
+      opts = opts || {};
+      return new Promise((resolve) => {
+        const m = document.getElementById('setupConfirmModal');
+        const t = document.getElementById('setupConfirmTitle');
+        const msg = document.getElementById('setupConfirmMessage');
+        const okBtn = document.getElementById('setupConfirmOk');
+        const cancelBtn = document.getElementById('setupConfirmCancel');
+        const bd = document.getElementById('setupConfirmBackdrop');
+        const xBtn = document.getElementById('setupConfirmCloseX');
+        if(!m || !t || !msg || !okBtn || !cancelBtn){
+          resolve(false);
+          return;
+        }
+        _setupConfirmResolve = resolve;
+        t.textContent = opts.title || 'Confirm';
+        msg.textContent = opts.message || '';
+        cancelBtn.textContent = opts.cancelLabel || 'Cancel';
+        okBtn.textContent = opts.confirmLabel || 'OK';
+        okBtn.className = 'btn ' + (opts.danger ? 'btn-danger' : 'btn-purp');
+        m.classList.add('on');
+        m.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        const onOk = () => setupConfirmClose(true);
+        const onNo = () => setupConfirmClose(false);
+        okBtn.onclick = onOk;
+        cancelBtn.onclick = onNo;
+        if(bd) bd.onclick = onNo;
+        if(xBtn) xBtn.onclick = onNo;
+        _setupConfirmEscHandler = (e) => {
+          if(e.key === 'Escape'){
+            e.preventDefault();
+            setupConfirmClose(false);
+          }
+        };
+        document.addEventListener('keydown', _setupConfirmEscHandler);
+        okBtn.focus();
+      });
+    }
+
     async function disconnectGmail(){
-      if(!confirm('Disconnect Gmail from this app?')) return;
+      const ok = await setupConfirmOpen({
+        title: 'Disconnect Gmail',
+        message: 'Disconnect Gmail from this app? You can connect again later.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        danger: true,
+      });
+      if(!ok) return;
       const res = await fetch('/api/gmail/disconnect', { method: 'POST' });
       const j = await res.json().catch(() => ({}));
       if(!res.ok || !j.ok){
@@ -981,31 +1101,82 @@
       };
     }
 
-    async function saveSmtp(){
-      const pill = document.getElementById('smtpStatus');
-      setPill(pill, 'Saving…', '');
-      const payload = _smtpSavePayload();
-      try{
-        const res = await fetch('/api/admin/config', {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json' },
-          body: JSON.stringify(payload),
+    function _smtpFieldErrIds(){
+      return { smtpHost:'errSmtpHost', smtpPort:'errSmtpPort', smtpUser:'errSmtpUser', smtpPass:'errSmtpPass', imapPort:'errImapPort' };
+    }
+
+    function _smtpClearFieldErrors(){
+      const ids = Object.values(_smtpFieldErrIds());
+      for(const id of ids){
+        const el = document.getElementById(id);
+        if(el) el.textContent = '';
+      }
+      ['smtpHost','smtpPort','smtpUser','smtpPass','imapPort'].forEach(fid => {
+        const inp = document.getElementById(fid);
+        if(inp) inp.classList.remove('field-invalid');
+      });
+    }
+
+    function _smtpSetFieldError(fieldId, message){
+      const errId = _smtpFieldErrIds()[fieldId];
+      const errEl = errId ? document.getElementById(errId) : null;
+      const inp = document.getElementById(fieldId);
+      if(errEl) errEl.textContent = message || '';
+      if(inp) inp.classList.toggle('field-invalid', !!message);
+    }
+
+    /** Returns true if all required SMTP/IMAP fields are valid. Sets per-field errors under inputs. */
+    function _smtpValidateRequiredFields(){
+      _smtpClearFieldErrors();
+      let ok = true;
+      const host = (document.getElementById('smtpHost')?.value || '').trim();
+      const user = (document.getElementById('smtpUser')?.value || '').trim();
+      const pw = (document.getElementById('smtpPass')?.value || '').trim();
+      const smtpPortRaw = String(document.getElementById('smtpPort')?.value || '').trim();
+      const imapPortRaw = String(document.getElementById('imapPort')?.value || '').trim();
+      const smtpPort = parseInt(smtpPortRaw, 10);
+      const imapPort = parseInt(imapPortRaw, 10);
+
+      if(!host){
+        _smtpSetFieldError('smtpHost', 'SMTP host is required.');
+        ok = false;
+      }
+      if(!user){
+        _smtpSetFieldError('smtpUser', 'SMTP Username is required.');
+        ok = false;
+      }
+      if(!pw){
+        _smtpSetFieldError('smtpPass', 'Password is required.');
+        ok = false;
+      }
+      if(!smtpPortRaw || !Number.isFinite(smtpPort) || smtpPort < 1 || smtpPort > 65535){
+        _smtpSetFieldError('smtpPort', 'Enter a valid SMTP port (1–65535).');
+        ok = false;
+      }
+      if(!imapPortRaw || !Number.isFinite(imapPort) || imapPort < 1 || imapPort > 65535){
+        _smtpSetFieldError('imapPort', 'Enter a valid IMAP port (1–65535).');
+        ok = false;
+      }
+      return ok;
+    }
+
+    function _smtpWireFieldErrorClearing(){
+      const pairs = [['smtpHost','errSmtpHost'],['smtpPort','errSmtpPort'],['smtpUser','errSmtpUser'],['smtpPass','errSmtpPass'],['imapPort','errImapPort']];
+      for(const [fid] of pairs){
+        const inp = document.getElementById(fid);
+        if(!inp) continue;
+        inp.addEventListener('input', () => {
+          _smtpSetFieldError(fid, '');
         });
-        const j = await res.json().catch(() => ({}));
-        if(!res.ok || !j.ok){
-          setPill(pill, (j.error || 'Save failed'), 'bad');
-          return;
-        }
-        setPill(pill, 'Saved mail settings (password hidden)', 'ok');
-        // Clear password field after save
-        document.getElementById('smtpPass').value = '';
-      }catch(err){
-        setPill(pill, 'Network error', 'bad');
       }
     }
 
     async function connectSmtpAndEnable(){
       const pill = document.getElementById('smtpStatus');
+      if(!_smtpValidateRequiredFields()){
+        setPill(pill, 'Please fix the highlighted fields.', 'bad');
+        return;
+      }
       setPill(pill, 'Saving…', '');
       try{
         const r0 = await fetch('/api/admin/config', {
@@ -1050,6 +1221,7 @@
           return;
         }
 
+        _smtpClearFieldErrors();
         setPill(pill, 'SMTP connected — automation ran (check Dashboard queue)', 'ok');
         const dbtn = document.getElementById('btnSmtpDisconnect');
         if(dbtn) dbtn.style.display = '';
@@ -1060,7 +1232,14 @@
     }
 
     async function disconnectSmtp(){
-      if(!confirm('Disconnect SMTP/IMAP and clear stored mail settings?')) return;
+      const ok = await setupConfirmOpen({
+        title: 'Disconnect SMTP',
+        message: 'Disconnect SMTP/IMAP and clear stored mail settings?',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Cancel',
+        danger: true,
+      });
+      if(!ok) return;
       const pill = document.getElementById('smtpStatus');
       setPill(pill, 'Disconnecting…', '');
       try{
@@ -1071,6 +1250,7 @@
           return;
         }
         setPill(pill, 'Disconnected', '');
+        _smtpClearFieldErrors();
         // Hide disconnect button
         const dbtn = document.getElementById('btnSmtpDisconnect');
         if(dbtn) dbtn.style.display = 'none';
@@ -1174,7 +1354,14 @@
     }
 
     async function clearKb(){
-      if(!confirm('Delete your Knowledge Base now? This cannot be undone.')) return;
+      const ok = await setupConfirmOpen({
+        title: 'Delete Knowledge Base',
+        message: 'Delete your Knowledge Base now? This cannot be undone.',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+        danger: true,
+      });
+      if(!ok) return;
       const pill = document.getElementById('kbClearStatus');
       setPill(pill, 'Deleting…', 'info');
       try{
@@ -1271,7 +1458,14 @@
     }
 
     async function saveKbEditor(){
-      if(!confirm('Replace your Knowledge Base with this JSON? This will delete the current KB.')) return;
+      const ok = await setupConfirmOpen({
+        title: 'Replace Knowledge Base',
+        message: 'Replace your Knowledge Base with this JSON? This will delete the current KB.',
+        confirmLabel: 'Replace',
+        cancelLabel: 'Cancel',
+        danger: true,
+      });
+      if(!ok) return;
       const pill = document.getElementById('kbEditorPill');
       setPill(pill, 'Saving…', 'info');
       const ta = document.getElementById('kbEditorText');
@@ -1392,5 +1586,7 @@
       const sslEl = document.getElementById('smtpSsl');
       if(tls && sslEl) sslEl.checked = false;
     });
+
+    _smtpWireFieldErrorClearing();
   </script>
 {% endblock %}

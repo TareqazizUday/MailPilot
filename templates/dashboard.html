@@ -153,11 +153,6 @@
         <span class="pnl-badge" id="qCnt">—</span>
       </div>
       <div class="ctrl-sec">
-        <button class="run-btn" id="btnRunNow" type="button" onclick="triggerPoll()">
-          <span class="sh" aria-hidden="true"></span>
-          <i class="fa-solid fa-play" id="runIco" aria-hidden="true"></i>
-          <span id="runTxt">Run Now</span>
-        </button>
         <div class="ctrl-row">
           <span id="pInfo">—</span>
           <span id="lRun">Last run: —</span>
@@ -302,7 +297,6 @@
         if(!j.ok){
           badge.textContent = 'Not connected';
           if(hint) hint.textContent = j.error || 'Could not verify Gmail.';
-          setEnabled(document.getElementById('btnRunNow'), false);
           if(pg) pg.style.display = 'none';
           return;
         }
@@ -336,7 +330,6 @@
           }
         }
 
-        setEnabled(document.getElementById('btnRunNow'), !!j.poll_ready);
         if(typeof window.refreshNavConnectionStatus === 'function'){
           window.refreshNavConnectionStatus(j);
         }
@@ -346,18 +339,8 @@
           badge.className = 'status-badge disconnected';
           badge.textContent = 'Unknown';
         }
-        setEnabled(document.getElementById('btnRunNow'), false);
       }
     }
-
-    async function triggerPoll(){
-      const res = await fetch('/api/trigger-poll', { method:'POST' });
-      const j = await res.json().catch(() => ({}));
-      if(!res.ok || !j.ok) alert(j.error || 'Could not start run');
-      await refreshStatus();
-      await refreshPending();
-    }
-    setEnabled(document.getElementById('btnRunNow'), false);
 
     function esc(s){
       const d = document.createElement('div');
@@ -535,7 +518,8 @@
     refreshStatus();
     refreshGmailConnection();
     refreshPending();
-    setInterval(() => { refreshStatus(); refreshGmailConnection(); refreshPending(); }, 8000);
+    // Avoid devserver connection churn; 20s is plenty for UI freshness.
+    setInterval(() => { refreshStatus(); refreshGmailConnection(); refreshPending(); }, 20000);
 
     maybeScrollFromView();
     {% if inbox_ready %}
