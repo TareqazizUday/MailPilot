@@ -94,7 +94,10 @@ def favicon(request):
 
 @require_GET
 def healthz(request):
+    from django.conf import settings as dj_settings
+
     ws = runtime.worker_state()
+    celery_on = bool(getattr(dj_settings, "CELERY_BROKER_URL", "") or "")
     return JsonResponse(
         {
             "ok": True,
@@ -102,6 +105,9 @@ def healthz(request):
             "last_run_at": ws.last_run_at,
             "last_result": ws.last_result,
             "last_error": ws.last_error,
+            "mail_poll_backend": runtime.mail_poll_backend(),
+            "mail_poll_interval_seconds": runtime.mail_poll_interval_seconds(),
+            "mail_poll_beat_seconds": getattr(dj_settings, "MAIL_POLL_BEAT_SECONDS", None) if celery_on else None,
         }
     )
 
@@ -708,7 +714,6 @@ def api_trigger_poll(request):
                 ws.running = True
                 ws.last_error = None
                 result = runtime.trigger_poll_fn(user=request.user)
-                ws.last_run_at = datetime.now(timezone.utc).isoformat()
                 ws.last_result = {
                     "scanned": result.scanned,
                     "relevant": result.relevant,
@@ -720,6 +725,7 @@ def api_trigger_poll(request):
             except Exception as e:
                 ws.last_error = str(e)
             finally:
+                ws.last_run_at = datetime.now(timezone.utc).isoformat()
                 ws.running = False
 
     threading.Thread(target=_run, daemon=True).start()
@@ -947,12 +953,6 @@ def api_pending(request):
     except Exception:
         pass
     return JsonResponse({"ok": True, "items": items})
-
-
-@require_GET
-def api_voice_intent(request):
-    """No-op endpoint to avoid noisy 404 polling from external clients/extensions."""
-    return JsonResponse({"ok": False, "error": "not_enabled"}, status=204)
 
 
 @csrf_exempt

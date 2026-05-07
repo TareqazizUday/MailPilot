@@ -4,6 +4,7 @@ import base64
 import email.utils
 import re
 from email.message import EmailMessage
+from email.utils import parseaddr
 from typing import Any, Dict, List, Tuple
 
 from email_automation.settings import Settings
@@ -49,6 +50,34 @@ class GmailClient:
             return raw.decode("utf-8", errors="replace")
         except Exception:
             return ""
+
+    def _owner_email_set(self) -> set[str]:
+        """Addresses we treat as 'our' outbound identity (do not auto-reply to ourselves)."""
+        out: set[str] = set()
+        for raw in (
+            self.settings.GMAIL_ADDRESS,
+            self.settings.SMTP_FROM_EMAIL,
+            self.settings.SMTP_USERNAME,
+            self.settings.IMAP_USERNAME,
+        ):
+            addr = (raw or "").strip().lower()
+            if addr and "@" in addr:
+                out.add(addr)
+        return out
+
+    def is_from_account_owner(self, from_header: str) -> bool:
+        """True if From is one of our configured mailbox addresses (not substring 'me' in address)."""
+        _, addr = parseaddr(from_header or "")
+        addr = (addr or "").strip().lower()
+        if not addr:
+            return False
+        owners = self._owner_email_set()
+        if owners and addr in owners:
+            return True
+        # Rare: header is literally "me" when Gmail UI omits address — treat as self only if no owners configured.
+        if not owners and (from_header or "").strip().lower() == "me":
+            return True
+        return False
 
     def _extract_text_body(self, payload: dict) -> str:
         """Prefer text/plain, fall back to stripped text/html."""
@@ -150,7 +179,7 @@ class GmailClient:
             from_v = self._header(headers, "From")
             subj = self._header(headers, "Subject")
             to_v = self._header(headers, "To")
-            is_from_me = "me" in (from_v.lower() if from_v else "")
+            is_from_me = self.is_from_account_owner(from_v)
             body_text = self._extract_text_body(payload)
             ui_msgs.append(
                 {

@@ -173,12 +173,6 @@ In the repo root:
 pip install -r requirements.txt
 ```
 
-If `pip` installs `playwright`, you may also need to install browsers:
-
-```powershell
-python -m playwright install
-```
-
 ---
 
 ## 7) Run migrations (creates Django tables)
@@ -200,11 +194,11 @@ python manage.py createsuperuser
 ### Basic (for internal/UAT)
 
 ```powershell
-python manage.py runserver 0.0.0.0:8000
+python manage.py runserver 0.0.0.0:8011
 ```
 
 Then open:
-- `http://<server-ip>:8000/`
+- `http://<server-ip>:8011/`
 
 ### Production (recommended)
 
@@ -221,7 +215,7 @@ If the client wants a fully dockerized app container too, add a Dockerfile + app
 
 ## 9) Post-deploy checks (must pass)
 
-- App loads in browser at your domain (or `http://<server-ip>:8000/` for UAT)
+- App loads in browser at your domain (or `http://<server-ip>:8011/` for UAT)
 - Login works
 - KB status is OK:
   - open `/setup` → Knowledge Base → upload JSON → ingest

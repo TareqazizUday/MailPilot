@@ -55,7 +55,7 @@ Fix:
 ## 5) “port is already allocated”
 
 Meaning:
-- Another process/service already uses port 5432 (or 8000).
+- Another process/service already uses port 5432 (or the HTTP port your app binds to, e.g. 8011).
 
 Fix:
 - Change host port mapping in `docker-compose.yml`, then match it in `.env`.

@@ -230,17 +230,24 @@ CACHES = {
     }
 }
 
+# In-process APScheduler uses this interval when CELERY_BROKER_URL is unset (seconds, min 15).
+_iv_raw = (os.environ.get("MAIL_POLL_INTERVAL_SECONDS") or os.environ.get("IMAP_POLL_SECONDS") or "60").strip()
+try:
+    MAIL_POLL_INTERVAL_SECONDS = max(15, min(int(_iv_raw or "60"), 86400))
+except ValueError:
+    MAIL_POLL_INTERVAL_SECONDS = 60
+
 # Celery (optional — when set, use `celery -A mailpilot worker` and `celery -A mailpilot beat`)
 CELERY_BROKER_URL = (os.environ.get("CELERY_BROKER_URL") or "").strip()
 CELERY_RESULT_BACKEND = (os.environ.get("CELERY_RESULT_BACKEND") or CELERY_BROKER_URL).strip()
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULE = {}
+MAIL_POLL_BEAT_SECONDS = max(15, int((os.environ.get("MAIL_POLL_BEAT_SECONDS") or "120").strip() or "120"))
 if CELERY_BROKER_URL:
-    _poll_sec = max(15, int(os.environ.get("MAIL_POLL_BEAT_SECONDS", "120") or "120"))
     CELERY_BEAT_SCHEDULE["poll-all-mail"] = {
         "task": "core.tasks.poll_all_users_mail",
-        "schedule": timedelta(seconds=_poll_sec),
+        "schedule": timedelta(seconds=MAIL_POLL_BEAT_SECONDS),
     }
 
 SESSION_COOKIE_HTTPONLY = True
@@ -255,6 +262,14 @@ else:
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Behind IIS / nginx reverse proxy: trust X-Forwarded-Host so request.get_host() matches the browser URL.
+_xfh = (os.environ.get("DJANGO_USE_X_FORWARDED_HOST") or "").strip().lower()
+if _xfh in ("0", "false", "no"):
+    USE_X_FORWARDED_HOST = False
+elif _xfh in ("1", "true", "yes"):
+    USE_X_FORWARDED_HOST = True
+else:
+    USE_X_FORWARDED_HOST = not DEBUG
 SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "").lower() in ("1", "true", "yes")
 SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0") or "0")
 SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "").lower() in (
@@ -271,7 +286,8 @@ def _norm_origin(o: str) -> str:
 
 _csrf_origins_raw = os.environ.get(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
-    "http://127.0.0.1:8000,http://localhost:8000",
+    "http://127.0.0.1,http://localhost,"
+    "http://127.0.0.1:8011,http://localhost:8011",
 )
 CSRF_TRUSTED_ORIGINS = [_norm_origin(o) for o in _csrf_origins_raw.split(",") if _norm_origin(o)]
 

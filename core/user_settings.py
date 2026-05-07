@@ -44,6 +44,33 @@ def _write_file_if_needed(path: str, content: str) -> None:
         f.write(content)
 
 
+def _merge_env_defaults_into_merged(merged: dict[str, Any], settings_json_keys: dict[str, Any]) -> dict[str, Any]:
+    """Fill LLM / Gmail / reply gaps from os.environ when the DB did not set them."""
+
+    def _secret_nonempty(val: Any) -> bool:
+        if val is None:
+            return False
+        if hasattr(val, "get_secret_value"):
+            return bool((val.get_secret_value() or "").strip())
+        return bool(str(val or "").strip())
+
+    if not _secret_nonempty(merged.get("LLM_API_KEY")):
+        for ek in ("OPENAI_API_KEY", "LLM_API_KEY"):
+            v = (os.environ.get(ek) or "").strip()
+            if v:
+                merged["LLM_API_KEY"] = SecretStr(v)
+                break
+    if not str(merged.get("GMAIL_ADDRESS") or "").strip():
+        ga = (os.environ.get("GMAIL_ADDRESS") or "").strip()
+        if ga:
+            merged["GMAIL_ADDRESS"] = ga
+    if "REPLY_MODE" not in settings_json_keys:
+        rm = (os.environ.get("REPLY_MODE") or "").strip()
+        if rm:
+            merged["REPLY_MODE"] = rm
+    return merged
+
+
 def sync_encrypted_files_to_disk(user_id: int, ms) -> None:
     """Write decrypted OAuth token and client secret JSON to user-scoped paths for libraries that expect files."""
     tp = token_path_for_user(user_id)
@@ -119,6 +146,7 @@ def build_effective_settings(user: User):
         merged["GOOGLE_TOKEN_FILE"] = token_path_for_user(user.id)
         merged["GOOGLE_CLIENT_SECRET_FILE"] = client_secret_path_for_user(user.id)
         merged = _derive_imap_from_smtp(merged)
+        merged = _merge_env_defaults_into_merged(merged, {})
         return Settings.model_validate(merged)
 
     sync_encrypted_files_to_disk(user.id, ms)
@@ -136,6 +164,7 @@ def build_effective_settings(user: User):
     merged["GOOGLE_TOKEN_FILE"] = token_path_for_user(user.id)
     merged["GOOGLE_CLIENT_SECRET_FILE"] = client_secret_path_for_user(user.id)
     merged = _derive_imap_from_smtp(merged)
+    merged = _merge_env_defaults_into_merged(merged, dict(ms.settings_json or {}))
 
     # Per-user VECTOR_DB_DSN can include schema or we scope by tenant_id in DSN — use same DSN, tenant in tables
     try:

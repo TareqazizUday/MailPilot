@@ -14,9 +14,9 @@ urlpatterns = [
     # Versioned API
     path("v1/", include("api.v1.urls")),
     # Legacy endpoints (keep working)
-    path("setup/credentials", legacy_views.api_setup_credentials, name="api_setup_credentials_legacy"),
-    path("gmail/oauth/start", legacy_views.oauth_start, name="oauth_start_legacy"),
-    path("gmail/oauth/callback", legacy_views.oauth_callback, name="oauth_callback_legacy"),
+    path("setup/credentials", legacy_views.api_setup_credentials, name="api_setup_credentials"),
+    path("gmail/oauth/start", legacy_views.oauth_start, name="oauth_start"),
+    path("gmail/oauth/callback", legacy_views.oauth_callback, name="oauth_callback"),
     path("gmail/connection-status", legacy_views.api_gmail_connection_status, name="api_gmail_connection_status_legacy"),
     path("gmail/disconnect", legacy_views.api_gmail_disconnect, name="api_gmail_disconnect_legacy"),
     path("gmail/inbox", legacy_views.api_gmail_inbox, name="api_gmail_inbox_legacy"),

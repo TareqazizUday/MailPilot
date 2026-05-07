@@ -1,6 +1,7 @@
-# PostgreSQL 16 with pgvector (CREATE EXTENSION vector) — use this instead of plain postgres:16.
-# If Windows native Postgres already uses 5432, stop it or change ports below and set DJANGO_DB_PORT.
-# See docs/kb-pgvector-setup.md
+# MailPilot DB — image pgvector/pgvector:pg16 (PostgreSQL 16 + pgvector in one image).
+# Container: mailpilot-db. Inside the container Postgres always listens on port 5432 (what Docker UI often labels "5432").
+# Host port 5434 -> 5432: required on this PC because Windows PostgreSQL already uses host 5432/5433 — otherwise Django hits the WRONG server (password errors).
+# To use host 5432 for MailPilot: stop the native "postgresql" Windows service, then change mapping to "5432:5432" and set DJANGO_DB_PORT=5432 in .env.
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -11,7 +12,7 @@ services:
       POSTGRES_USER: mailpilot_user
       POSTGRES_PASSWORD: mailpilot_password
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - mailpilot_pg_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro

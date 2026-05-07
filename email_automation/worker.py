@@ -5,7 +5,7 @@ import imaplib
 import re
 from datetime import datetime, timezone
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from core.state_store import StateStore
 from email_automation.kb.embedder import embed_texts
@@ -23,6 +23,17 @@ class PollResult:
     drafts: int
     ignored: int
     queued: int
+
+
+def _effective_relevance_threshold(settings: Settings) -> float:
+    """Match UI: 0 means 'accept any confidence'; do not use `or 0.35` because float(0) is falsy."""
+    raw = getattr(settings, "RELEVANCE_THRESHOLD", None)
+    if raw is None:
+        return 0.35
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return 0.35
 
 
 def _now_iso() -> str:
@@ -64,10 +75,27 @@ def _build_kb_context(*, settings: Settings, tenant_id: str, query_text: str, k:
     return "\n\n".join(parts[:k]).strip()
 
 
+def _gmail_latest_inbound_unprocessed(msgs: List[Dict[str, Any]], state_store: StateStore) -> Optional[Dict[str, Any]]:
+    """Newest peer message in the thread not yet processed (skips our own messages, e.g. after we replied)."""
+    for m in reversed(msgs or []):
+        mid = str(m.get("id") or "")
+        if not mid:
+            continue
+        if state_store.get_processed_meta(mid) is not None:
+            continue
+        if bool(m.get("is_from_me")):
+            continue
+        return m
+    return None
+
+
 def _should_consider_email(settings: Settings, *, from_email: str, subject: str, body: str) -> bool:
     # Cheap keyword prefilter to avoid expensive LLM calls on obvious noise.
     toks = [t.lower() for t in (settings.SERVICE_KEYWORDS or []) if str(t).strip()]
     if not toks:
+        return True
+    # Setup: add a single * or __all__ keyword to consider every inbound message (still LLM-gated).
+    if "*" in toks or "__all__" in toks:
         return True
     hay = (" ".join([from_email or "", subject or "", body or ""])).lower()
     return any(t in hay for t in toks)
@@ -100,8 +128,8 @@ def _send_reply_via_transport(
 def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any) -> PollResult:
     scanned = relevant = sent = drafts = ignored = queued = 0
 
-    # Gmail: look at recent inbox threads, handle latest inbound message per thread.
-    threads = gmail_client.list_inbox_thread_summaries(max_threads=20)
+    # Gmail: recent inbox threads; per thread, newest *inbound* message not yet handled (not only msgs[-1]).
+    threads = gmail_client.list_inbox_thread_summaries(max_threads=40)
     for t in threads:
         tid = str(t.get("thread_id") or "")
         if not tid:
@@ -110,17 +138,13 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
         msgs = det.get("messages") or []
         if not msgs:
             continue
-        last = msgs[-1]
+        last = _gmail_latest_inbound_unprocessed(msgs, state_store)
+        if last is None:
+            continue
         mid = str(last.get("id") or "")
         if not mid:
             continue
         scanned += 1
-        if state_store.get_processed_meta(mid) is not None:
-            continue
-        if bool(last.get("is_from_me")):
-            state_store.mark_processed(mid, {"action": "ignored", "reason": "from_me", "processed_at": _now_iso()})
-            ignored += 1
-            continue
 
         from_h = str(last.get("from") or "")
         from_email = _extract_from_email(from_h)
@@ -143,7 +167,8 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
         )
         conf = float(decision.get("confidence") or 0.0)
         is_rel = bool(decision.get("is_relevant"))
-        if is_rel and conf >= float(getattr(settings, "RELEVANCE_THRESHOLD", 0.35) or 0.35):
+        thr = _effective_relevance_threshold(settings)
+        if is_rel and conf >= thr:
             relevant += 1
             reply_subject = _clean_text(decision.get("reply_subject") or ("Re: " + subject))
             reply_body = str(decision.get("reply_body") or "").strip()
@@ -317,7 +342,8 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore) -> PollResult
             )
             conf = float(decision.get("confidence") or 0.0)
             is_rel = bool(decision.get("is_relevant"))
-            if is_rel and conf >= float(getattr(settings, "RELEVANCE_THRESHOLD", 0.35) or 0.35):
+            thr = _effective_relevance_threshold(settings)
+            if is_rel and conf >= thr:
                 relevant += 1
                 print(f"[mailpoll][imap] relevant uid={uid} conf={conf}")
                 reply_subject = _clean_text(decision.get("reply_subject") or ("Re: " + subject))

@@ -24,6 +24,13 @@ staticfiles/
 media/
 
 # Local data / tokens / creds (never commit)
+# Django DB is PostgreSQL via DJANGO_DB_*; ignore stray local SQLite files
+data/django.sqlite3
+data/*.sqlite3
+data/state.db
+*.sqlite3-wal
+*.sqlite3-shm
+
 .env
 .env.*
 *.env
@@ -35,3 +42,8 @@ data/users/**
 # Local tooling
 .idea/
 .vscode/
+
+# Cursor IDE / local DB dumps (not application source)
+.cursor/
+mailpilot_dump.sql
+mailpilot_backup.sql

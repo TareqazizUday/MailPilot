@@ -58,7 +58,6 @@ Suitable for **small deployments** or clients comfortable running **Docker**.
 |---------|---------|
 | `python manage.py migrate` | Apply Django migrations |
 | `python manage.py postgres_bootstrap` | (Optional) Create/align `DJANGO_DB_*` role and database using superuser credentials in `.env` |
-| `python manage.py migrate_sqlite_state_store` | (Optional) One-time import from legacy `data/state.db` if migrating from an old layout |
 
 ## Support contact
 

@@ -76,30 +76,46 @@ def decide_and_write_reply(
     client = OpenAI(api_key=key)
     model = _model_name()
 
-    kw = ", ".join([k for k in (service_keywords or []) if str(k).strip()][:40])
+    raw_kw = [str(k).strip() for k in (service_keywords or []) if str(k).strip()]
+    raw_kw = [k for k in raw_kw if k.lower() not in ("*", "__all__")]
+    kw = ", ".join(raw_kw[:40])
+    kb_has = bool((kb_context or "").strip())
     prompt = (
         "You are MailPilot, an email assistant.\n"
-        "Decide if this email is service-related AND can be answered using the provided KB context.\n"
-        "If not relevant, return is_relevant=false.\n"
-        "If relevant, write a helpful, concise reply grounded in the KB context.\n"
-        "Do not invent facts not present in the KB context.\n\n"
+        "Decide if this inbound email is service-related for this business (use SERVICE_KEYWORDS and the email text).\n"
+        "If KB_CONTEXT is non-empty: ground the reply in KB_CONTEXT; do not invent facts beyond KB + the email.\n"
+        "If KB_CONTEXT is empty: still decide relevance from the email + SERVICE_KEYWORDS; if relevant, write a "
+        "concise professional reply using only what the email states plus polite generic wording. "
+        "Do not invent prices, policies, or product details—offer to clarify or follow up if needed.\n"
+        "If the email is spam, marketing blasts, automated job alerts, or clearly unrelated, return is_relevant=false.\n\n"
         "Return ONLY valid JSON with keys: is_relevant, confidence, reply_subject, reply_body, reason.\n"
         "confidence must be a number from 0 to 1.\n\n"
-        f"SERVICE_KEYWORDS: {kw}\n\n"
+        f"SERVICE_KEYWORDS: {kw}\n"
+        f"KB_CONTEXT_PRESENT: {str(kb_has).lower()}\n\n"
         f"EMAIL_FROM: {mail_from}\n"
         f"EMAIL_SUBJECT: {mail_subject}\n"
         f"EMAIL_BODY:\n{mail_body}\n\n"
         f"KB_CONTEXT:\n{kb_context}\n"
     )
 
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "Return only JSON. No markdown."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
-    )
+    try:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Return only JSON. No markdown."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+        )
+    except Exception as e:
+        return {
+            "is_relevant": False,
+            "confidence": 0.0,
+            "reply_subject": "",
+            "reply_body": "",
+            "reason": f"llm_api_error:{e}",
+        }
+
     text = ""
     try:
         text = resp.choices[0].message.content or ""

@@ -6,9 +6,8 @@ from core.models import ProcessedMeta, QueueItem
 
 
 class StateStore:
-    """DB-backed store used by UI endpoints.
+    """DB-backed store used by UI endpoints (Django default database, e.g. PostgreSQL).
 
-    Previously this used a per-project SQLite file. It now uses the Django database.
     Rows are scoped by tenant_id (string user id).
     """
 

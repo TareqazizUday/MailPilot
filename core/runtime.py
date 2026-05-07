@@ -22,6 +22,8 @@ _CONFIG_SECRET_KEYS = frozenset({"SMTP_PASSWORD", "IMAP_PASSWORD", "LLM_API_KEY"
 _scheduler: Optional[BackgroundScheduler] = None
 _scheduler_started = False
 _warned_smtp_without_inbox = False
+_mail_poll_backend: str = "none"
+_mail_poll_interval_sec: Optional[int] = None
 
 
 def _strip_empty_secret_overrides(overrides: dict[str, Any]) -> dict[str, Any]:
@@ -94,6 +96,16 @@ def state_store():
 
 def worker_state() -> WorkerState:
     return _worker_state
+
+
+def mail_poll_backend() -> str:
+    """How automatic mail polling runs: apscheduler, celery, or none."""
+    return _mail_poll_backend
+
+
+def mail_poll_interval_seconds() -> Optional[int]:
+    """APScheduler interval when backend is apscheduler; None otherwise."""
+    return _mail_poll_interval_sec
 
 
 def settings_field_names() -> set[str]:
@@ -173,11 +185,22 @@ def trigger_poll_fn(user: Optional[User] = None, user_id: Optional[int] = None):
             return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
 
     effective = get_effective_settings(user)
+    g_ok = gmail_oauth_ready(effective)
     out_from = (effective.outbound_from_email() or "").strip()
-    if not out_from:
+    # Gmail send uses OAuth "me" when From is unset; do not block poll solely on missing SMTP_FROM.
+    if not out_from and not g_ok:
         return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
 
     st = state_store_for_user(user)
+
+    # Prefer Gmail API poll when OAuth token exists — matches users who connected Gmail in the UI
+    # but still have SEND_TRANSPORT=smtp + derived IMAP from .env (otherwise IMAP branch ran first and skipped Gmail).
+    if g_ok:
+        try:
+            gmail_client = GmailClient(settings=effective)
+            return poll_once(settings=effective, state_store=st, gmail_client=gmail_client)
+        except Exception as e:
+            log.warning("Gmail poll failed: %s", e)
 
     if effective.SEND_TRANSPORT == "smtp" and imap_inbox_ready(effective):
         try:
@@ -189,7 +212,7 @@ def trigger_poll_fn(user: Optional[User] = None, user_id: Optional[int] = None):
     if (
         effective.SEND_TRANSPORT == "smtp"
         and not imap_inbox_ready(effective)
-        and not ((effective.GMAIL_ADDRESS or "").strip() and gmail_oauth_ready(effective))
+        and not g_ok
         and not _warned_smtp_without_inbox
     ):
         _warned_smtp_without_inbox = True
@@ -197,13 +220,6 @@ def trigger_poll_fn(user: Optional[User] = None, user_id: Optional[int] = None):
             "SEND_TRANSPORT=smtp but no usable inbox: configure IMAP (host + user + password, "
             "same as SMTP) or connect Gmail OAuth. Worker cannot read mail until one of these works."
         )
-
-    if (effective.GMAIL_ADDRESS or "").strip() and gmail_oauth_ready(effective):
-        try:
-            gmail_client = GmailClient(settings=effective)
-            return poll_once(settings=effective, state_store=st, gmail_client=gmail_client)
-        except Exception as e:
-            log.warning("Gmail poll failed: %s", e)
 
     return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
 
@@ -238,7 +254,6 @@ def _scheduled_job():
                     except Exception as e:
                         log.warning("poll user %s failed: %s", uid, e)
                 result = total
-            ws.last_run_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             ws.last_result = {
                 "scanned": result.scanned,
                 "relevant": result.relevant,
@@ -250,22 +265,31 @@ def _scheduled_job():
         except Exception as e:
             ws.last_error = str(e)
         finally:
+            ws.last_run_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             ws.running = False
 
 
 def ensure_scheduler_started() -> None:
-    global _scheduler, _scheduler_started
+    global _scheduler, _scheduler_started, _mail_poll_backend, _mail_poll_interval_sec
     if _scheduler_started:
         return
     if "runserver" in sys.argv and os.environ.get("RUN_MAIN") != "true":
+        _mail_poll_backend = "none"
+        _mail_poll_interval_sec = None
         return
     if os.environ.get("CELERY_BROKER_URL"):
+        _mail_poll_backend = "celery"
+        _mail_poll_interval_sec = None
         log.info("CELERY_BROKER_URL set — in-process APScheduler disabled (use Celery beat).")
         return
     _ensure_imports()
     if _settings.WORKER_ONCE:
+        _mail_poll_backend = "none"
+        _mail_poll_interval_sec = None
         return
-    sec = max(15, _settings.IMAP_POLL_SECONDS)
+    from django.conf import settings as dj_settings
+
+    sec = max(15, int(getattr(dj_settings, "MAIL_POLL_INTERVAL_SECONDS", 60)))
     _scheduler = BackgroundScheduler(daemon=True)
     _scheduler.add_job(
         _scheduled_job,
@@ -277,4 +301,6 @@ def ensure_scheduler_started() -> None:
     )
     _scheduler.start()
     _scheduler_started = True
-    log.info("APScheduler started (interval=%ss)", sec)
+    _mail_poll_backend = "apscheduler"
+    _mail_poll_interval_sec = sec
+    log.info("APScheduler started (interval=%ss) — automatic inbox poll", sec)

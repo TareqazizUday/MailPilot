@@ -153,10 +153,14 @@
         <span class="pnl-badge" id="qCnt">—</span>
       </div>
       <div class="ctrl-sec">
+        <button type="button" class="run-btn" id="runPollBtn" onclick="runPollNow()">
+          <i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now
+        </button>
         <div class="ctrl-row">
           <span id="pInfo">—</span>
           <span id="lRun">Last run: —</span>
         </div>
+        <div class="small" id="autoPollNote" style="margin-top:10px;color:var(--txm);line-height:1.45;"></div>
       </div>
       <div class="pnl-hd" style="border-top:1px solid var(--bdr)">
         <span class="pnl-t">Queue</span>
@@ -285,6 +289,46 @@
       document.getElementById('lastError').textContent = j.last_error || '—';
       const lrEl = document.getElementById('lRun');
       if(lrEl) lrEl.textContent = 'Last run: ' + (j.last_run_at || '—');
+      const apn = document.getElementById('autoPollNote');
+      if(apn){
+        if(j.mail_poll_backend === 'apscheduler' && j.mail_poll_interval_seconds){
+          apn.textContent = 'Automatic inbox check every ' + j.mail_poll_interval_seconds + 's while the server is running (no need to click each time).';
+        } else if(j.mail_poll_backend === 'celery'){
+          apn.textContent = 'Automatic polling uses Celery every ' + (j.mail_poll_beat_seconds || '?') + 's — keep `celery worker` and `celery beat` running.';
+        } else {
+          apn.textContent = 'Automatic polling is off (Celery configured, WORKER_ONCE, or dev reloader parent). Use the button above or fix server config.';
+        }
+      }
+    }
+
+    async function runPollNow(){
+      const btn = document.getElementById('runPollBtn');
+      if(btn && btn.classList.contains('proc')) return;
+      if(btn){ btn.classList.add('proc'); btn.innerHTML = '<span class="sh"></span><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Starting…'; }
+      try{
+        const res = await fetch('/api/trigger-poll', { method: 'POST' });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          if(btn) btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ' + (j.error || ('HTTP ' + res.status));
+          setTimeout(() => { if(btn){ btn.classList.remove('proc'); btn.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now'; } }, 2500);
+          return;
+        }
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Polling…';
+        for(let i = 0; i < 12; i++){
+          await new Promise(r => setTimeout(r, 500));
+          await refreshStatus();
+          const le = document.getElementById('lastError')?.textContent || '';
+          const lr = document.getElementById('lastRunAt')?.textContent || '';
+          if(lr && lr !== '—') break;
+          if(le && le !== '—' && le.trim()) break;
+        }
+        await refreshPending();
+      }catch(e){
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Network error';
+        setTimeout(() => { if(btn){ btn.classList.remove('proc'); btn.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now'; } }, 2500);
+        return;
+      }
+      if(btn){ btn.classList.remove('proc'); btn.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now'; }
     }
 
     async function refreshGmailConnection(){
