@@ -49,6 +49,10 @@
     .rp-dt{font-size:10.5px;color:var(--txm);flex-shrink:0}
     .rp-body{flex:1;overflow-y:auto;padding:20px;font-size:13px;line-height:1.75;color:var(--tx2)}
     .rp-body pre{white-space:pre-wrap;word-break:break-word;font-family:var(--font);margin:0}
+    .rp-msg{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--bdr)}
+    .rp-msg:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+    .rp-msg--reply{margin-top:4px;padding:12px 14px;background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;border-bottom:1px solid var(--bdr)}
+    .rp-msg-lbl{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--grn-l);margin-bottom:8px}
 
     /* ── Controls Panel ── */
     .ctrl-sec{padding:12px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0}
@@ -56,6 +60,8 @@
     .run-btn:hover{transform:translateY(-1px);box-shadow:0 5px 20px var(--blue-glow)}
     .run-btn:active{transform:translateY(0)}
     .run-btn.proc{pointer-events:none;opacity:.8}
+    .run-btn.auto-on{background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 0 0 1px rgba(16,185,129,.25),0 4px 18px rgba(16,185,129,.2)}
+    .run-btn.auto-on:hover{box-shadow:0 0 0 1px rgba(16,185,129,.35),0 6px 22px rgba(16,185,129,.28)}
     .run-btn .sh{position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:shim 4s infinite}
     @keyframes shim{0%{left:-100%}100%{left:100%}}
     .ctrl-row{display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--txm);gap:10px}
@@ -221,6 +227,37 @@
       el.style.cursor = enabled ? "pointer" : "not-allowed";
     }
 
+    /** Auto poll state while Django server is running (from /healthz + connection-status). */
+    let _mailPoll = { autoOn: false, intervalSec: 60, pollReady: false, imapIdle: false };
+
+    function updatePollButtonUi(){
+      const btn = document.getElementById('runPollBtn');
+      if(!btn || btn.classList.contains('proc')) return;
+      const auto = _mailPoll.autoOn && _mailPoll.pollReady;
+      if(auto){
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.classList.add('auto-on');
+        const sec = _mailPoll.intervalSec || 60;
+        const rt = _mailPoll.imapIdle ? 'Real-time ON' : ('every ' + sec + 's');
+        btn.innerHTML = '<span class="sh"></span><i class="fa-solid fa-bolt" aria-hidden="true"></i> Auto poll · ' + rt;
+        return;
+      }
+      btn.classList.remove('auto-on');
+      if(_mailPoll.pollReady){
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now';
+        return;
+      }
+      btn.disabled = true;
+      btn.style.opacity = '0.55';
+      btn.style.cursor = 'not-allowed';
+      btn.innerHTML = '<i class="fa-solid fa-plug-circle-xmark" aria-hidden="true"></i> Connect mailbox on Setup';
+    }
+
     async function apiGetPending(){
       const res = await fetch('/api/pending');
       return await res.json();
@@ -289,16 +326,22 @@
       document.getElementById('lastError').textContent = j.last_error || '—';
       const lrEl = document.getElementById('lRun');
       if(lrEl) lrEl.textContent = 'Last run: ' + (j.last_run_at || '—');
+      _mailPoll.autoOn = (j.mail_poll_backend === 'apscheduler' || j.mail_poll_backend === 'celery');
+      _mailPoll.intervalSec = j.mail_poll_interval_seconds || j.mail_poll_beat_seconds || 60;
+      _mailPoll.imapIdle = (j.imap_idle_watchers || 0) > 0;
       const apn = document.getElementById('autoPollNote');
       if(apn){
-        if(j.mail_poll_backend === 'apscheduler' && j.mail_poll_interval_seconds){
-          apn.textContent = 'Automatic inbox check every ' + j.mail_poll_interval_seconds + 's while the server is running (no need to click each time).';
+        if(j.imap_idle_watchers > 0){
+          apn.textContent = 'Real-time IMAP: new mail triggers an immediate check (' + j.imap_idle_watchers + ' mailbox watcher). Fallback poll every ' + (j.mail_poll_interval_seconds || 60) + 's. Keyword match → AI reply (send mode).';
+        } else if(j.mail_poll_backend === 'apscheduler' && j.mail_poll_interval_seconds){
+          apn.textContent = 'While the server runs: inbox is checked every ' + j.mail_poll_interval_seconds + 's. New mail matching your keywords gets an AI reply automatically (REPLY_MODE=send). Click the button for an immediate check.';
         } else if(j.mail_poll_backend === 'celery'){
           apn.textContent = 'Automatic polling uses Celery every ' + (j.mail_poll_beat_seconds || '?') + 's — keep `celery worker` and `celery beat` running.';
         } else {
-          apn.textContent = 'Automatic polling is off (Celery configured, WORKER_ONCE, or dev reloader parent). Use the button above or fix server config.';
+          apn.textContent = 'Automatic polling is off until the app server is fully running. Use the button above or restart runserver.';
         }
       }
+      updatePollButtonUi();
     }
 
     async function runPollNow(){
@@ -310,7 +353,7 @@
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           if(btn) btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ' + (j.error || ('HTTP ' + res.status));
-          setTimeout(() => { if(btn){ btn.classList.remove('proc'); btn.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now'; } }, 2500);
+          setTimeout(() => { if(btn){ btn.classList.remove('proc'); updatePollButtonUi(); } }, 2500);
           return;
         }
         if(btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Polling…';
@@ -325,10 +368,10 @@
         await refreshPending();
       }catch(e){
         if(btn) btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Network error';
-        setTimeout(() => { if(btn){ btn.classList.remove('proc'); btn.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now'; } }, 2500);
+        setTimeout(() => { if(btn){ btn.classList.remove('proc'); updatePollButtonUi(); } }, 2500);
         return;
       }
-      if(btn){ btn.classList.remove('proc'); btn.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now'; }
+      if(btn){ btn.classList.remove('proc'); updatePollButtonUi(); }
     }
 
     async function refreshGmailConnection(){
@@ -373,6 +416,9 @@
             hint.textContent = (base + tokenErr).trim();
           }
         }
+
+        _mailPoll.pollReady = !!j.poll_ready;
+        updatePollButtonUi();
 
         if(typeof window.refreshNavConnectionStatus === 'function'){
           window.refreshNavConnectionStatus(j);
@@ -515,13 +561,18 @@
         rpD.textContent = dt;
 
         hint.textContent = '';
-        panel.innerHTML = msgs.map(m => {
+        const ordered = [...msgs].sort((a, b) => (a.internal_date || 0) - (b.internal_date || 0));
+        panel.innerHTML = ordered.map(m => {
           const rawBody = (m.body_text || '').trim();
           const fallback = (!rawBody && (m.snippet || '')) ? ('Preview: ' + m.snippet) : (rawBody || m.snippet || '(No content)');
-          const who = m.is_from_me ? 'You' : ((m.from || '').replace(/\s*<.*?>/, '').trim() || 'Contact');
+          const mine = !!m.is_from_me;
+          const who = mine ? 'You' : ((m.from || '').replace(/\s*<.*?>/, '').trim() || 'Contact');
           const whoEmail = m.from || '';
+          const cls = mine ? 'rp-msg rp-msg--reply' : 'rp-msg';
+          const lbl = mine ? '<div class="rp-msg-lbl">Your reply</div>' : '';
           return (
-            `<div style="margin-bottom: 14px;">
+            `<div class="${cls}">
+              ${lbl}
               <div class="small" style="display:flex; justify-content:space-between; gap:10px; margin-bottom:6px;">
                 <span><strong style="color:var(--tx); font-family:var(--font-head); font-weight:600;">${esc(who)}</strong> <span style="color:var(--txm);">· ${esc(whoEmail)}</span></span>
                 <span>${esc(fmtTs(m.internal_date))}</span>
@@ -559,11 +610,14 @@
       }catch(e){}
     }
 
-    refreshStatus();
-    refreshGmailConnection();
-    refreshPending();
-    // Avoid devserver connection churn; 20s is plenty for UI freshness.
-    setInterval(() => { refreshStatus(); refreshGmailConnection(); refreshPending(); }, 20000);
+    async function refreshDashboard(){
+      await refreshStatus();
+      await refreshGmailConnection();
+      await refreshPending();
+      if({% if inbox_ready %}true{% else %}false{% endif %}) loadInbox();
+    }
+    refreshDashboard();
+    setInterval(refreshDashboard, 30000);
 
     maybeScrollFromView();
     {% if inbox_ready %}

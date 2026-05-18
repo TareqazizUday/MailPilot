@@ -98,6 +98,13 @@ def healthz(request):
 
     ws = runtime.worker_state()
     celery_on = bool(getattr(dj_settings, "CELERY_BROKER_URL", "") or "")
+    idle_count = 0
+    try:
+        from core.imap_idle import imap_idle_active_count, imap_idle_enabled
+
+        idle_count = imap_idle_active_count() if imap_idle_enabled() else 0
+    except Exception:
+        idle_count = 0
     return JsonResponse(
         {
             "ok": True,
@@ -108,6 +115,10 @@ def healthz(request):
             "mail_poll_backend": runtime.mail_poll_backend(),
             "mail_poll_interval_seconds": runtime.mail_poll_interval_seconds(),
             "mail_poll_beat_seconds": getattr(dj_settings, "MAIL_POLL_BEAT_SECONDS", None) if celery_on else None,
+            "imap_idle_enabled": idle_count > 0 or (
+                (os.environ.get("IMAP_IDLE_ENABLED") or "true").strip().lower() in ("1", "true", "yes")
+            ),
+            "imap_idle_watchers": idle_count,
         }
     )
 
@@ -639,6 +650,51 @@ def api_gmail_disconnect(request):
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
+def _processed_at_ms(processed_at: str) -> int:
+    if not processed_at:
+        return int(datetime.now(timezone.utc).timestamp() * 1000)
+    try:
+        dt = datetime.fromisoformat(str(processed_at).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return int(dt.timestamp() * 1000)
+    except Exception:
+        return int(datetime.now(timezone.utc).timestamp() * 1000)
+
+
+def _sort_messages_chronological(messages: list) -> list:
+    return sorted(messages or [], key=lambda m: int(m.get("internal_date") or 0))
+
+
+def _append_stored_app_reply(messages: list, meta: dict | None, effective: Settings) -> list:
+    """Show MailPilot's auto-reply under the original when Sent sync is slow or unavailable."""
+    if not meta or meta.get("action") not in ("sent", "draft"):
+        return list(messages or [])
+    reply_body = (meta.get("reply_body") or "").strip()
+    if not reply_body:
+        return list(messages or [])
+    for m in messages or []:
+        if m.get("is_from_me") and (m.get("body_text") or "").strip():
+            return list(messages or [])
+    from_addr = (
+        effective.outbound_from_email() or effective.SMTP_USERNAME or effective.GMAIL_ADDRESS or "You"
+    ).strip()
+    base_id = (messages[0].get("id") if messages else "0")
+    synthetic = {
+        "id": f"app-reply-{base_id}",
+        "from": from_addr,
+        "subject": meta.get("reply_subject") or "",
+        "internal_date": _processed_at_ms(meta.get("processed_at") or ""),
+        "snippet": reply_body[:240],
+        "body_text": reply_body,
+        "is_from_me": True,
+        "is_app_reply": True,
+    }
+    out = list(messages or [])
+    out.append(synthetic)
+    return out
+
+
 @require_GET
 def api_gmail_inbox(request):
     if not check_api_access(request):
@@ -680,20 +736,30 @@ def api_gmail_thread_detail(request, thread_id: str):
             data = client.get_thread_for_ui(thread_id)
         else:
             return JsonResponse({"ok": False, "error": "not_connected"}, status=400)
-        for m in data.get("messages") or []:
+        messages = list(data.get("messages") or [])
+        inbound_meta = None
+        st = runtime.state_store_for_user(request.user)
+        for m in messages:
             mid = m.get("id")
             if not mid:
                 continue
-            meta = runtime.state_store_for_user(request.user).get_processed_meta(str(mid))
+            meta = st.get_processed_meta(str(mid))
             m["app_handled"] = meta is not None
             if meta:
                 m["app_action"] = meta.get("action")
                 m["app_reply_subject"] = meta.get("reply_subject")
+                m["app_reply_body"] = meta.get("reply_body")
                 m["app_processed_at"] = meta.get("processed_at")
+                if not m.get("is_from_me"):
+                    inbound_meta = meta
             else:
                 m["app_action"] = None
                 m["app_reply_subject"] = None
+                m["app_reply_body"] = None
                 m["app_processed_at"] = None
+        messages = _sort_messages_chronological(messages)
+        messages = _append_stored_app_reply(messages, inbound_meta, effective)
+        data["messages"] = messages
         return JsonResponse({"ok": True, **data})
     except Exception as e:
         logger.exception("api_gmail_thread_detail failed")

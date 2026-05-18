@@ -6,7 +6,7 @@ import re
 import socket
 from datetime import timezone
 from email.header import decode_header
-from email.utils import parsedate_to_datetime
+from email.utils import parseaddr, parsedate_to_datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from email_automation.settings import Settings
@@ -189,6 +189,191 @@ class ImapMailbox:
 
         return out
 
+    def _owner_emails(self) -> set[str]:
+        out: set[str] = set()
+        for raw in (
+            self.settings.outbound_from_email(),
+            self.settings.SMTP_USERNAME,
+            self.settings.IMAP_USERNAME,
+            self.settings.GMAIL_ADDRESS,
+        ):
+            v = (raw or "").strip().lower()
+            if v and "@" in v:
+                out.add(v)
+        return out
+
+    def _is_from_me_header(self, from_header: str) -> bool:
+        _, addr = parseaddr(from_header or "")
+        return (addr or "").strip().lower() in self._owner_emails()
+
+    @staticmethod
+    def _normalize_msg_id(value: str) -> str:
+        v = (value or "").strip().lower()
+        if v.startswith("<") and v.endswith(">"):
+            return v[1:-1]
+        return v
+
+    def _subject_replies_to(self, reply_subj: str, original_subj: str) -> bool:
+        def _norm(s: str) -> str:
+            s = (s or "").strip()
+            while True:
+                m = re.match(r"^(re|fwd):\s*", s, flags=re.I)
+                if not m:
+                    break
+                s = s[m.end() :].strip()
+            return s.lower()
+
+        a = _norm(reply_subj)
+        b = _norm(original_subj)
+        return bool(a and b and a == b)
+
+    def _extract_body_text(self, msg: email.message.Message) -> str:
+        def decode_part_payload(part: email.message.Message) -> str:
+            try:
+                payload = part.get_payload(decode=True)
+                if payload is None:
+                    return ""
+                charset = part.get_content_charset() or "utf-8"
+                return payload.decode(charset, errors="replace")
+            except Exception:
+                return ""
+
+        body_text = ""
+        if msg.is_multipart():
+            plain_chunks: List[str] = []
+            html_chunks: List[str] = []
+            for part in msg.walk():
+                if part.is_multipart():
+                    continue
+                ctype = (part.get_content_type() or "").lower()
+                disp = str(part.get("Content-Disposition") or "").lower()
+                if "attachment" in disp:
+                    continue
+                if ctype == "text/plain":
+                    plain_chunks.append(decode_part_payload(part))
+                elif ctype == "text/html":
+                    html_chunks.append(decode_part_payload(part))
+            if plain_chunks:
+                body_text = "\n".join([c for c in plain_chunks if c])
+            elif html_chunks:
+                html = "\n".join([c for c in html_chunks if c])
+                body_text = re.sub(r"<[^>]+>", "", html)
+        else:
+            ctype = (msg.get_content_type() or "").lower()
+            if ctype == "text/plain":
+                body_text = decode_part_payload(msg)
+            elif ctype == "text/html":
+                html = decode_part_payload(msg)
+                body_text = re.sub(r"<[^>]+>", "", html)
+        return (body_text or "").strip()
+
+    def _ui_message_from_rfc822(self, raw_bytes: bytes, *, uid: str, is_from_me: Optional[bool] = None) -> Dict[str, Any]:
+        msg = email.message_from_bytes(raw_bytes)
+        from_decoded = self._decode_mime_words(msg.get("From", "") or "")
+        subject_decoded = self._decode_mime_words(msg.get("Subject", "") or "")
+        date_raw = msg.get("Date", "") or ""
+        dt = None
+        try:
+            dt = parsedate_to_datetime(date_raw)
+        except Exception:
+            dt = None
+        internal_ms = self._to_epoch_ms(dt)
+        body_text = self._extract_body_text(msg)
+        snippet = (body_text[:240] or "").strip() if body_text else ""
+        if is_from_me is None:
+            is_from_me = self._is_from_me_header(from_decoded)
+        return {
+            "id": uid,
+            "from": from_decoded,
+            "subject": subject_decoded,
+            "internal_date": internal_ms,
+            "snippet": snippet,
+            "body_text": body_text,
+            "is_from_me": bool(is_from_me),
+        }
+
+    def _sent_mailbox_names(self) -> List[str]:
+        return ["Sent", "Sent Items", "INBOX.Sent", "[Gmail]/Sent Mail", "Sent Messages"]
+
+    def _find_sent_replies(self, conn: imaplib.IMAP4, original: email.message.Message) -> List[Dict[str, Any]]:
+        """Load outbound replies from Sent that belong to this inbox message."""
+        orig_mid = self._normalize_msg_id(original.get("Message-ID") or "")
+        orig_subj = self._decode_mime_words(original.get("Subject") or "")
+        owners = self._owner_emails()
+        found: List[Dict[str, Any]] = []
+        seen_uids: set[str] = set()
+
+        for folder in self._sent_mailbox_names():
+            try:
+                typ, _ = conn.select(folder, readonly=True)
+                if typ != "OK":
+                    continue
+            except Exception:
+                continue
+
+            typ, data = conn.uid("search", None, "ALL")
+            if typ != "OK" or not data or not data[0]:
+                continue
+            uids = data[0].decode("utf-8", errors="ignore").split()
+            for uid in reversed(uids[-30:]):
+                if not uid or uid in seen_uids:
+                    continue
+                try:
+                    typ, data = conn.uid(
+                        "fetch",
+                        uid,
+                        "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE IN-REPLY-TO REFERENCES)])",
+                    )
+                except Exception:
+                    continue
+                if typ != "OK" or not data:
+                    continue
+
+                header_bytes = b""
+                for item in data:
+                    if isinstance(item, tuple):
+                        header_bytes = item[1] or b""
+                        break
+                if not header_bytes:
+                    continue
+
+                hdr = email.message_from_bytes(header_bytes)
+                _, from_addr = parseaddr(self._decode_mime_words(hdr.get("From") or ""))
+                from_addr = (from_addr or "").strip().lower()
+                if owners and from_addr not in owners:
+                    continue
+
+                in_reply = self._normalize_msg_id(hdr.get("In-Reply-To") or "")
+                refs = (hdr.get("References") or "").lower()
+                mid_match = bool(orig_mid) and (orig_mid == in_reply or orig_mid in refs)
+                subj_match = self._subject_replies_to(hdr.get("Subject") or "", orig_subj)
+                if not mid_match and not subj_match:
+                    continue
+
+                try:
+                    typ, full = conn.uid("fetch", uid, "(RFC822)")
+                except Exception:
+                    continue
+                if typ != "OK" or not full:
+                    continue
+                raw_bytes = b""
+                for item in full:
+                    if isinstance(item, tuple):
+                        raw_bytes = item[1] or b""
+                        break
+                if not raw_bytes:
+                    continue
+
+                seen_uids.add(uid)
+                ui = self._ui_message_from_rfc822(raw_bytes, uid=f"sent-{uid}", is_from_me=True)
+                found.append(ui)
+
+        try:
+            self._select_mailbox(conn)
+        except Exception:
+            pass
+        return found
+
     def get_thread_for_ui(self, uid: int) -> Dict[str, Any]:
         conn = self._connect()
         self._select_mailbox(conn)
@@ -215,79 +400,14 @@ class ImapMailbox:
                 break
 
         msg = email.message_from_bytes(raw_bytes)
-        from_raw = msg.get("From", "") or ""
-        subject_raw = msg.get("Subject", "") or ""
-        date_raw = msg.get("Date", "") or ""
-
-        from_decoded = self._decode_mime_words(from_raw)
-        subject_decoded = self._decode_mime_words(subject_raw)
-
-        dt = None
-        try:
-            dt = parsedate_to_datetime(date_raw)
-        except Exception:
-            dt = None
-        internal_ms = self._to_epoch_ms(dt)
-
-        body_text = ""
-
-        def decode_part_payload(part):
-            try:
-                payload = part.get_payload(decode=True)
-                if payload is None:
-                    return ""
-                charset = part.get_content_charset() or "utf-8"
-                return payload.decode(charset, errors="replace")
-            except Exception:
-                return ""
-
-        if msg.is_multipart():
-            # Prefer text/plain parts
-            plain_chunks: List[str] = []
-            html_chunks: List[str] = []
-            for part in msg.walk():
-                if part.is_multipart():
-                    continue
-                ctype = (part.get_content_type() or "").lower()
-                disp = str(part.get("Content-Disposition") or "").lower()
-                if "attachment" in disp:
-                    continue
-                if ctype == "text/plain":
-                    plain_chunks.append(decode_part_payload(part))
-                elif ctype == "text/html":
-                    html_chunks.append(decode_part_payload(part))
-
-            if plain_chunks:
-                body_text = "\n".join([c for c in plain_chunks if c])
-            elif html_chunks:
-                # Minimal html->text.
-                html = "\n".join([c for c in html_chunks if c])
-                body_text = re.sub(r"<[^>]+>", "", html)
-        else:
-            # Single part
-            ctype = (msg.get_content_type() or "").lower()
-            if ctype == "text/plain":
-                body_text = decode_part_payload(msg)
-            elif ctype == "text/html":
-                html = decode_part_payload(msg)
-                body_text = re.sub(r"<[^>]+>", "", html)
-
-        body_text = (body_text or "").strip()
-        snippet = (body_text[:240] or "").strip() if body_text else ""
+        inbound = self._ui_message_from_rfc822(raw_bytes, uid=uid_str, is_from_me=False)
+        replies = self._find_sent_replies(conn, msg)
+        messages = [inbound] + replies
+        messages.sort(key=lambda m: int(m.get("internal_date") or 0))
 
         return {
             "thread_id": uid_str,
-            "messages": [
-                {
-                    "id": uid_str,
-                    "from": from_decoded,
-                    "subject": subject_decoded,
-                    "internal_date": internal_ms,
-                    "snippet": snippet,
-                    "body_text": body_text,
-                    "is_from_me": False,
-                }
-            ],
+            "messages": messages,
         }
 
     def close(self) -> None:
