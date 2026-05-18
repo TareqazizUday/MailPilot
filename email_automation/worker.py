@@ -198,6 +198,7 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
                         "action": "sent",
                         "confidence": conf,
                         "reply_subject": reply_subject,
+                        "reply_body": reply_body,
                         "processed_at": _now_iso(),
                     },
                 )
@@ -209,6 +210,7 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
                         "action": "draft",
                         "confidence": conf,
                         "reply_subject": reply_subject,
+                        "reply_body": reply_body,
                         "processed_at": _now_iso(),
                     },
                 )
@@ -227,7 +229,7 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
     return PollResult(scanned=scanned, relevant=relevant, sent=sent, drafts=drafts, ignored=ignored, queued=queued)
 
 
-def poll_once_imap(*, settings: Settings, state_store: StateStore) -> PollResult:
+def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = False) -> PollResult:
     scanned = relevant = sent = drafts = ignored = queued = 0
 
     host = (settings.IMAP_HOST or "").strip()
@@ -262,16 +264,22 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore) -> PollResult
             print("[mailpoll][imap] select failed")
             return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
 
-        # Use ALL (not only UNSEEN). Users often open mail in the UI first,
-        # which can mark it Seen before the worker runs.
-        typ, data = conn.uid("search", None, "ALL")
+        # Fast path (IMAP IDLE): only UNSEEN — quick reply for new mail.
+        # Full path (interval poll): ALL, newest first — catches mail opened in UI before worker runs.
+        if fast:
+            typ, data = conn.uid("search", None, "UNSEEN")
+            search_label = "UNSEEN"
+            cap = 10
+        else:
+            typ, data = conn.uid("search", None, "ALL")
+            search_label = "ALL"
+            cap = 20
         if typ != "OK" or not data or not data[0]:
-            print("[mailpoll][imap] search ALL returned empty")
+            print(f"[mailpoll][imap] search {search_label} returned empty")
             return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
         all_uids = data[0].decode("utf-8", errors="ignore").split()
-        # Process newest first, cap to avoid long runs
-        uids = list(reversed(all_uids))[:20]
-        print(f"[mailpoll][imap] uids_total={len(all_uids)} processing={len(uids)}")
+        uids = list(reversed(all_uids))[:cap]
+        print(f"[mailpoll][imap] search={search_label} uids_total={len(all_uids)} processing={len(uids)} fast={fast}")
 
         for uid in uids:
             msg_id = f"imap:{uid}"
@@ -376,6 +384,7 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore) -> PollResult
                                 "action": "sent",
                                 "confidence": conf,
                                 "reply_subject": reply_subject,
+                                "reply_body": reply_body,
                                 "processed_at": _now_iso(),
                             },
                         )
@@ -417,6 +426,7 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore) -> PollResult
                             "action": "draft",
                             "confidence": conf,
                             "reply_subject": reply_subject,
+                            "reply_body": reply_body,
                             "processed_at": _now_iso(),
                         },
                     )

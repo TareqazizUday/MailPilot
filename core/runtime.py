@@ -170,7 +170,7 @@ def get_effective_settings(user: Optional[User] = None):
         return _settings
 
 
-def trigger_poll_fn(user: Optional[User] = None, user_id: Optional[int] = None):
+def trigger_poll_fn(user: Optional[User] = None, user_id: Optional[int] = None, *, fast: bool = False):
     from email_automation.gmail_auth import gmail_oauth_ready
     from email_automation.gmail_client import GmailClient
     from email_automation.imap_mailbox import imap_inbox_ready
@@ -204,7 +204,7 @@ def trigger_poll_fn(user: Optional[User] = None, user_id: Optional[int] = None):
 
     if effective.SEND_TRANSPORT == "smtp" and imap_inbox_ready(effective):
         try:
-            return poll_once_imap(settings=effective, state_store=st)
+            return poll_once_imap(settings=effective, state_store=st, fast=fast)
         except Exception as e:
             log.warning("IMAP poll failed: %s", e)
 
@@ -225,6 +225,8 @@ def trigger_poll_fn(user: Optional[User] = None, user_id: Optional[int] = None):
 
 
 def _scheduled_job():
+    from email_automation.worker import PollResult
+
     ws = worker_state()
     with ws.lock:
         ws.running = True
@@ -287,9 +289,11 @@ def ensure_scheduler_started() -> None:
         _mail_poll_backend = "none"
         _mail_poll_interval_sec = None
         return
+    from datetime import datetime, timezone
+
     from django.conf import settings as dj_settings
 
-    sec = max(15, int(getattr(dj_settings, "MAIL_POLL_INTERVAL_SECONDS", 60)))
+    sec = max(10, int(getattr(dj_settings, "MAIL_POLL_INTERVAL_SECONDS", 60)))
     _scheduler = BackgroundScheduler(daemon=True)
     _scheduler.add_job(
         _scheduled_job,
@@ -298,9 +302,16 @@ def ensure_scheduler_started() -> None:
         id="mail_poll_job",
         max_instances=1,
         replace_existing=True,
+        next_run_time=datetime.now(timezone.utc),
     )
     _scheduler.start()
     _scheduler_started = True
     _mail_poll_backend = "apscheduler"
     _mail_poll_interval_sec = sec
     log.info("APScheduler started (interval=%ss) — automatic inbox poll", sec)
+    try:
+        from core.imap_idle import ensure_imap_idle_watchers
+
+        ensure_imap_idle_watchers()
+    except Exception as e:
+        log.warning("IMAP IDLE watchers failed to start: %s", e)

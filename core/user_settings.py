@@ -68,6 +68,10 @@ def _merge_env_defaults_into_merged(merged: dict[str, Any], settings_json_keys: 
         rm = (os.environ.get("REPLY_MODE") or "").strip()
         if rm:
             merged["REPLY_MODE"] = rm
+    if not str(merged.get("OAUTH_REDIRECT_URI") or "").strip():
+        uri = (os.environ.get("OAUTH_REDIRECT_URI") or "").strip()
+        if uri:
+            merged["OAUTH_REDIRECT_URI"] = uri
     return merged
 
 
