@@ -8,12 +8,13 @@ $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
 if (-not $isAdmin) {
   $self = $MyInvocation.MyCommand.Path
   Write-Host "Requesting Administrator approval to restart MailPilot on port 8011..." -ForegroundColor Yellow
-  Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList @(
+  $proc = Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList @(
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
     "-File", "`"$self`""
-  ) -Wait
-  exit $LASTEXITCODE
+  ) -Wait -PassThru
+  if ($proc) { exit $proc.ExitCode }
+  exit 1
 }
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path

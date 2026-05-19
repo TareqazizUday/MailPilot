@@ -196,6 +196,7 @@ _default_from = (os.environ.get("DJANGO_DEFAULT_FROM_EMAIL") or "").strip()
 DEFAULT_FROM_EMAIL = _default_from or "MailPilot <noreply@localhost>"
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 EMAIL_TIMEOUT = 25
+CONTACT_TEAM_EMAIL = (os.environ.get("CONTACT_TEAM_EMAIL") or "team@timerni.co.uk").strip()
 
 _SMTP = _smtp_from_django_env() or _smtp_from_mail_env() or _smtp_from_app_config(_APP_CFG)
 if _SMTP:

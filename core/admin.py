@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from core.models import AuditLog, PasswordResetOTP, UserMailSettings, UserProfile
+from core.models import AuditLog, ContactSubmission, PasswordResetOTP, UserMailSettings, UserProfile
 
 
 admin.site.site_header = "MailPilot Admin"
@@ -21,6 +21,24 @@ class UserProfileAdmin(admin.ModelAdmin):
 class UserMailSettingsAdmin(admin.ModelAdmin):
     list_display = ("user", "updated_at")
     raw_id_fields = ("user",)
+
+
+@admin.register(ContactSubmission)
+class ContactSubmissionAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "name", "email", "phone", "notified_team", "notified_user")
+    list_filter = ("notified_team", "notified_user", "created_at")
+    search_fields = ("name", "email", "phone", "message")
+    readonly_fields = (
+        "created_at",
+        "name",
+        "email",
+        "phone",
+        "message",
+        "ip_address",
+        "notified_team",
+        "notified_user",
+    )
+    ordering = ("-created_at",)
 
 
 @admin.register(AuditLog)

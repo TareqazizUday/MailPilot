@@ -1,0 +1,12 @@
+Thanks for contacting MailPilot
+
+Hello {{ name }},
+
+We received your message and will reply within one business day.
+
+Your message:
+{{ message }}
+
+If you did not submit this form, you can ignore this email.
+
+— The MailPilot team

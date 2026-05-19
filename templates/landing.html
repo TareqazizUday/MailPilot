@@ -84,6 +84,14 @@
       backdrop-filter: blur(18px);
       background: rgba(6,8,24,0.7);
       border-bottom: 1px solid var(--glass-border);
+      transition: padding 0.35s ease, background 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+    }
+    nav.is-scrolled {
+      padding-top: 12px;
+      padding-bottom: 12px;
+      background: rgba(6,8,24,0.92);
+      border-bottom-color: rgba(79,110,247,0.2);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
     }
     .nav-logo {
       display: flex; align-items: center; gap: 10px;
@@ -193,6 +201,11 @@
       font-weight: 900; line-height: 1.08; letter-spacing: -2px;
       animation: fadeUp 0.9s 0.1s ease both;
     }
+    h1 .gradient,
+    .section-title span[style*="linear-gradient"] {
+      background-size: 200% auto;
+      animation: gradientFlow 5s ease infinite;
+    }
     h1 .gradient {
       background: linear-gradient(135deg, #4f6ef7 0%, #a78bfa 50%, #38bdf8 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
@@ -250,9 +263,18 @@
       display: flex; align-items: center; gap: 14px;
       background: rgba(255,255,255,0.04); border-radius: 12px;
       padding: 12px 16px; border: 1px solid rgba(255,255,255,0.06);
-      transition: background 0.2s;
+      transition: background 0.2s, transform 0.25s ease, box-shadow 0.25s ease;
+      animation: emailSlide 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
-    .email-item:hover { background: rgba(255,255,255,0.07); }
+    .email-item:nth-child(1) { animation-delay: 0.55s; }
+    .email-item:nth-child(2) { animation-delay: 0.68s; }
+    .email-item:nth-child(3) { animation-delay: 0.81s; }
+    .email-item:nth-child(4) { animation-delay: 0.94s; }
+    .email-item:hover {
+      background: rgba(255,255,255,0.07);
+      transform: translateX(4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
     .email-avatar {
       width: 36px; height: 36px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
@@ -328,6 +350,11 @@
       width: 52px; height: 52px; border-radius: 14px;
       display: flex; align-items: center; justify-content: center;
       font-size: 1.5rem; margin-bottom: 20px;
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
+    }
+    .feat-card:hover .feat-icon {
+      transform: scale(1.08) rotate(-4deg);
+      box-shadow: 0 8px 24px rgba(79,110,247,0.25);
     }
     .feat-icon i { color: var(--card-accent, var(--accent)); }
     .section-tag i { margin-right: 6px; color: var(--accent3); }
@@ -358,6 +385,11 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 1.1rem; font-weight: 800; margin: 0 auto 20px;
       box-shadow: 0 8px 24px rgba(79,110,247,0.4);
+      transition: transform 0.35s ease, box-shadow 0.35s ease;
+    }
+    .step:hover .step-num {
+      transform: scale(1.08);
+      box-shadow: 0 12px 32px rgba(79,110,247,0.55);
     }
     .step-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
     .step-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
@@ -455,7 +487,6 @@
     .pricing-head-copy .pricing-intro { margin-left: auto; margin-right: auto; }
     .pricing-head-copy .pricing-intro { text-align: center; }
     .pricing-card-soon {
-      position: absolute; top: 14px; right: 14px; z-index: 3;
       display: inline-flex; align-items: center; gap: 5px;
       padding: 5px 10px; border-radius: 50px;
       background: rgba(251,191,36,0.14); border: 1px solid rgba(251,191,36,0.4);
@@ -466,7 +497,6 @@
     }
     .pricing-card-soon i { font-size: 0.7rem; opacity: 0.95; }
     .pricing-card-free {
-      position: absolute; top: 14px; right: 14px; z-index: 3;
       display: inline-flex; align-items: center; gap: 6px;
       padding: 5px 12px; border-radius: 50px;
       background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(74,222,128,0.1));
@@ -498,8 +528,24 @@
       background: linear-gradient(135deg, #10b981, #4ade80);
       box-shadow: 0 4px 14px rgba(16,185,129,0.45);
     }
-    .pricing-card .pricing-tier { padding-right: 92px; }
-    .pricing-card[data-plan="starter"] .pricing-tier { padding-right: 72px; }
+    .pricing-tier-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+      min-width: 0;
+    }
+    .pricing-tier-row .pricing-tier {
+      margin-bottom: 0;
+      min-width: 0;
+    }
+    .pricing-tier-row .pricing-card-free,
+    .pricing-tier-row .pricing-card-soon {
+      position: static;
+      flex-shrink: 0;
+      margin: 0;
+    }
     .pricing-soon-inline {
       color: #fde68a; font-size: 0.78em; font-weight: 700; white-space: nowrap;
     }
@@ -532,6 +578,8 @@
       gap: 22px; margin-top: 48px; text-align: left;
       max-width: 1120px; margin-left: auto; margin-right: auto;
       align-items: stretch;
+      overflow: visible;
+      padding-top: 14px;
     }
     .pricing-card {
       background: linear-gradient(165deg, rgba(13,18,48,0.65), rgba(10,14,36,0.5));
@@ -558,6 +606,7 @@
       background: linear-gradient(165deg, rgba(79,110,247,0.16), rgba(13,18,48,0.78));
       box-shadow: 0 8px 44px rgba(79,110,247,0.28), 0 0 0 2px rgba(167,139,250,0.35);
       transform: translateY(-6px);
+      animation: cardGlow 3s ease-in-out infinite;
     }
     .pricing-card.is-active:hover {
       box-shadow: 0 12px 52px rgba(79,110,247,0.32), 0 0 0 2px rgba(167,139,250,0.4);
@@ -574,14 +623,44 @@
       background-size: 13px 13px;
       z-index: 2;
     }
-    .pricing-card.is-active .pricing-tier { padding-left: 34px; }
+    .pricing-card.is-active .pricing-tier-row { padding-left: 34px; }
     .pricing-badge {
-      position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       background: linear-gradient(135deg, #4f6ef7, #a78bfa);
-      color: #fff; font-size: 0.68rem; font-weight: 800;
-      letter-spacing: 0.06em; text-transform: uppercase;
-      padding: 5px 14px; border-radius: 50px;
+      color: #fff;
+      font-size: clamp(0.58rem, 1.8vw, 0.68rem);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 50px;
       white-space: nowrap;
+      box-shadow: 0 6px 20px rgba(79,110,247,0.35);
+      pointer-events: none;
+    }
+    .pricing-card-topbar {
+      position: absolute;
+      top: 0;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translateY(-50%);
+      z-index: 5;
+      pointer-events: none;
+    }
+    .pricing-card-topbar .pricing-badge {
+      animation: badgePop 0.7s cubic-bezier(0.22, 1, 0.36, 1) both, badgeGlow 2.8s ease-in-out 0.7s infinite;
+    }
+    .pricing-card.has-badge {
+      padding-top: 38px;
+    }
+    .pricing-card.has-badge.is-active::before {
+      top: 12px;
+      left: 12px;
     }
     .pricing-tier { font-size: 0.82rem; font-weight: 700; color: #a5b4fc; margin-bottom: 6px; }
     .pricing-price {
@@ -620,13 +699,312 @@
     }
     .pricing-cta.secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
     @media (max-width: 992px) {
-      .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+      .pricing-grid { grid-template-columns: 1fr; max-width: min(440px, 100%); }
       .pricing-head-row { justify-content: center; text-align: center; }
+    }
+
+    /* ── CONTACT FORM ── */
+    #contact {
+      position: relative; z-index: 1;
+      padding: 80px 7%;
+      scroll-margin-top: 88px;
+      text-align: center;
+    }
+    #contact::before {
+      content: '';
+      position: absolute;
+      width: 520px; height: 520px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(79,110,247,0.14), transparent 70%);
+      top: 10%; left: 50%; transform: translateX(-50%);
+      pointer-events: none;
+    }
+    .contact-wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      position: relative;
+      text-align: left;
+    }
+    .contact-head {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .contact-head .section-tag { margin-bottom: 12px; }
+    .contact-head .section-title { margin-bottom: 10px; }
+    .contact-intro {
+      color: var(--muted);
+      font-size: 1.02rem;
+      line-height: 1.65;
+      margin: 0 auto;
+      max-width: 560px;
+    }
+    .contact-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      align-items: stretch;
+    }
+    .contact-aside {
+      padding: 0;
+      border-radius: 22px;
+      border: 1px solid rgba(79,110,247,0.22);
+      background: linear-gradient(160deg, rgba(79,110,247,0.08), rgba(10,14,36,0.5));
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 48px rgba(0,0,0,0.28);
+      height: 100%;
+      min-height: 100%;
+    }
+    .contact-aside-visual {
+      position: relative;
+      margin: 0;
+      padding: 0;
+      line-height: 0;
+      overflow: hidden;
+      border-bottom: 1px solid rgba(79,110,247,0.18);
+    }
+    .contact-aside-visual::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 55%, rgba(10,14,36,0.85) 100%);
+      pointer-events: none;
+    }
+    .contact-aside-visual img {
+      width: 100%;
+      height: auto;
+      min-height: 200px;
+      object-fit: cover;
+      display: block;
+      transform: scale(1.02);
+      transition: transform 0.5s ease;
+    }
+    .contact-aside:hover .contact-aside-visual img {
+      transform: scale(1.05);
+    }
+    .contact-aside-body {
+      padding: 22px 24px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+    }
+    .contact-aside h3 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .contact-aside p {
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+    .contact-perks {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .contact-perks li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.86rem;
+      color: rgba(226,232,240,0.92);
+      line-height: 1.45;
+    }
+    .contact-perks i {
+      width: 34px; height: 34px; flex-shrink: 0;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(79,110,247,0.18);
+      border: 1px solid rgba(79,110,247,0.35);
+      color: #a5b4fc;
+      font-size: 0.85rem;
+    }
+    .contact-form-card {
+      text-align: left;
+      position: relative;
+      border-radius: 24px;
+      padding: 2px;
+      background: linear-gradient(135deg, rgba(79,110,247,0.55), rgba(167,139,250,0.35), rgba(56,189,248,0.25));
+      box-shadow: 0 28px 60px rgba(0,0,0,0.35), 0 0 80px rgba(79,110,247,0.08);
+      height: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .contact-form-inner {
+      background: linear-gradient(165deg, rgba(13,18,48,0.94), rgba(8,12,32,0.88));
+      border-radius: 22px;
+      padding: 28px 26px 26px;
+      backdrop-filter: blur(14px);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .contact-form-inner form {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .contact-form-inner form .fg:last-of-type {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .contact-form-inner form .fg:last-of-type .contact-input-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .contact-form-inner form .fg:last-of-type textarea.fi {
+      flex: 1;
+      min-height: 108px;
+    }
+    .contact-form-inner .btn-primary {
+      margin-top: auto;
+    }
+    .contact-form-title {
+      margin: 0 0 6px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .contact-form-sub {
+      margin: 0 0 22px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .contact-form-card .fg { margin-bottom: 14px; }
+    .contact-form-card .fl {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .contact-form-card .fl .opt {
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0;
+      color: #64748b;
+      font-size: 0.68rem;
+    }
+    .contact-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .contact-input-wrap:has(textarea) {
+      align-items: flex-start;
+    }
+    .contact-input-wrap:has(textarea) > i {
+      top: 14px;
+    }
+    .contact-input-wrap > i {
+      position: absolute;
+      left: 14px;
+      font-size: 0.88rem;
+      color: #64748b;
+      pointer-events: none;
+      transition: color 0.2s;
+    }
+    .contact-form-card .fi {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 13px 14px 13px 42px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.32);
+      color: var(--text);
+      font-size: 0.92rem;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .contact-form-card .fi::placeholder { color: #64748b; }
+    .contact-form-card .fi:hover {
+      border-color: rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.38);
+    }
+    .contact-form-card .fi:focus {
+      outline: none;
+      border-color: rgba(79,110,247,0.6);
+      box-shadow: 0 0 0 3px rgba(79,110,247,0.22);
+      background: rgba(0,0,0,0.42);
+    }
+    .contact-form-card .fi:focus + i,
+    .contact-input-wrap:focus-within > i { color: #a5b4fc; }
+    .contact-form-card textarea.fi {
+      min-height: 108px;
+      resize: vertical;
+      padding-top: 13px;
+    }
+    .contact-row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .contact-form-card .btn-primary {
+      width: 100%;
+      margin-top: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 20px;
+    }
+    .contact-form-card .btn-primary i { font-size: 0.9rem; }
+    .contact-privacy {
+      margin: 12px 0 0;
+      font-size: 0.75rem;
+      color: #64748b;
+      text-align: center;
+      line-height: 1.45;
+    }
+    .contact-alert {
+      margin-bottom: 18px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      line-height: 1.45;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .contact-alert i { margin-top: 2px; flex-shrink: 0; }
+    .contact-alert.ok {
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(74,222,128,0.35);
+      color: #6ee7b7;
+    }
+    .contact-alert.err {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(248,113,113,0.35);
+      color: #fca5a5;
+    }
+    @media (max-width: 860px) {
+      .contact-panel { grid-template-columns: 1fr; }
+      .contact-row2 { grid-template-columns: 1fr; }
     }
 
     /* ── CTA ── */
     #cta {
-      position: relative; z-index: 1; padding: 100px 7%; text-align: center;
+      position: relative; z-index: 1; padding: 48px 7% 56px; text-align: center;
     }
     .cta-box {
       background: linear-gradient(135deg, rgba(79,110,247,0.12), rgba(167,139,250,0.12));
@@ -639,9 +1017,138 @@
       width: 400px; height: 400px; border-radius: 50%;
       background: radial-gradient(circle, rgba(79,110,247,0.12), transparent);
       top: -100px; right: -100px; pointer-events: none;
+      animation: ctaOrb 8s ease-in-out infinite;
     }
-    .cta-title { font-size: clamp(1.8rem, 3.5vw, 2.6rem); font-weight: 900; letter-spacing: -1px; }
+    .cta-box::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%);
+      background-size: 200% 100%;
+      animation: shimmerSweep 6s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .cta-title {
+      font-size: clamp(1.35rem, 2.6vw, 2.6rem);
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    .cta-title .cta-accent {
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
     .cta-sub { color: var(--muted); font-size: 1.05rem; margin: 16px auto 40px; max-width: 500px; }
+
+    /* ── FAQ ── */
+    #faq {
+      position: relative; z-index: 1;
+      padding: 24px 7% 88px;
+      scroll-margin-top: 88px;
+    }
+    .faq-wrap {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .faq-head {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .faq-head .section-tag { margin-bottom: 12px; }
+    .faq-head .section-title { margin-bottom: 10px; }
+    .faq-intro {
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.65;
+      margin: 0 auto;
+      max-width: 520px;
+    }
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .faq-item {
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(165deg, rgba(13,18,48,0.65), rgba(10,14,36,0.45));
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .faq-item:hover {
+      border-color: rgba(79,110,247,0.28);
+    }
+    .faq-item[open] {
+      border-color: rgba(79,110,247,0.45);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.28), 0 0 0 1px rgba(79,110,247,0.12);
+    }
+    .faq-item summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.4;
+      user-select: none;
+    }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item summary::marker { content: ''; }
+    .faq-q {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+    .faq-q i {
+      width: 32px; height: 32px; flex-shrink: 0;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(79,110,247,0.16);
+      border: 1px solid rgba(79,110,247,0.3);
+      color: #a5b4fc;
+      font-size: 0.8rem;
+      margin-top: 1px;
+    }
+    .faq-chevron {
+      width: 28px; height: 28px; flex-shrink: 0;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.05);
+      color: var(--muted);
+      font-size: 0.75rem;
+      transition: transform 0.25s, background 0.25s, color 0.25s;
+    }
+    .faq-item[open] .faq-chevron {
+      transform: rotate(180deg);
+      background: rgba(79,110,247,0.2);
+      color: #c7d2fe;
+    }
+    .faq-a {
+      padding: 0 20px 18px 64px;
+      font-size: 0.9rem;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+    .faq-a a {
+      color: #a5b4fc;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .faq-a a:hover { color: #c7d2fe; }
+    @media (max-width: 600px) {
+      .faq-a { padding-left: 20px; padding-top: 0; }
+    }
 
     {% include "components/footer_css.html" %}
 
@@ -658,21 +1165,193 @@
       0%,100% { transform: perspective(1000px) rotateX(6deg) translateY(0); }
       50%     { transform: perspective(1000px) rotateX(6deg) translateY(-12px); }
     }
+    @keyframes gradientFlow {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    @keyframes emailSlide {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes badgePop {
+      from { opacity: 0; transform: translateY(8px) scale(0.85); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes badgeGlow {
+      0%, 100% { box-shadow: 0 6px 20px rgba(79,110,247,0.35); }
+      50% { box-shadow: 0 8px 28px rgba(167,139,250,0.55), 0 0 24px rgba(79,110,247,0.25); }
+    }
+    @keyframes cardGlow {
+      0%, 100% { box-shadow: 0 8px 44px rgba(79,110,247,0.28), 0 0 0 2px rgba(167,139,250,0.35); }
+      50% { box-shadow: 0 12px 52px rgba(79,110,247,0.38), 0 0 0 2px rgba(167,139,250,0.5); }
+    }
+    @keyframes ctaOrb {
+      0%, 100% { transform: translate(0, 0) scale(1); opacity: 1; }
+      50% { transform: translate(-30px, 20px) scale(1.15); opacity: 0.85; }
+    }
+    @keyframes shimmerSweep {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    @keyframes orbDrift1 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(40px, 30px); }
+    }
+    @keyframes orbDrift2 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-35px, -25px); }
+    }
+    @keyframes orbDrift3 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(25px, -40px); }
+    }
+    @keyframes statPop {
+      from { opacity: 0; transform: scale(0.6); }
+      to { opacity: 1; transform: scale(1); }
+    }
     .floating { animation: float 4s ease-in-out infinite; }
+
+    /* Scroll reveal */
+    .scroll-reveal {
+      opacity: 0;
+      transform: translateY(36px);
+      transition:
+        opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+      transition-delay: var(--reveal-delay, 0s);
+      will-change: opacity, transform;
+    }
+    .scroll-reveal.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .pricing-card.scroll-reveal.is-visible.is-active {
+      transform: translateY(-6px);
+    }
+    .pricing-card.scroll-reveal.is-visible:not(.is-active):hover {
+      transform: translateY(-4px);
+    }
+    .stat-item.scroll-reveal.is-visible .stat-num {
+      animation: statPop 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation-delay: var(--reveal-delay, 0s);
+    }
+    .testimonial-card.scroll-reveal.is-visible {
+      transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                  border-color 0.25s, box-shadow 0.25s;
+    }
 
     /* ── GLOW ORBS ── */
     .orb {
       position: fixed; border-radius: 50%; filter: blur(100px);
       pointer-events: none; z-index: 0;
     }
-    .orb1 { width: 600px; height: 600px; background: rgba(79,110,247,0.12); top: -200px; left: -200px; }
-    .orb2 { width: 500px; height: 500px; background: rgba(167,139,250,0.10); bottom: 10%; right: -150px; }
-    .orb3 { width: 400px; height: 400px; background: rgba(56,189,248,0.07); top: 50%; left: 40%; }
+    .orb1 {
+      width: 600px; height: 600px; background: rgba(79,110,247,0.12);
+      top: -200px; left: -200px;
+      animation: orbDrift1 18s ease-in-out infinite;
+    }
+    .orb2 {
+      width: 500px; height: 500px; background: rgba(167,139,250,0.10);
+      bottom: 10%; right: -150px;
+      animation: orbDrift2 22s ease-in-out infinite;
+    }
+    .orb3 {
+      width: 400px; height: 400px; background: rgba(56,189,248,0.07);
+      top: 50%; left: 40%;
+      animation: orbDrift3 20s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .floating,
+      .orb1, .orb2, .orb3,
+      h1 .gradient,
+      .section-title span[style*="linear-gradient"],
+      .pricing-badge,
+      .pricing-card.is-active,
+      .cta-box::before,
+      .cta-box::after,
+      .hero-card .email-item {
+        animation: none !important;
+      }
+      .scroll-reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+    }
+
+    /* ── RESPONSIVE (all sections) ── */
+    @media (max-width: 1100px) {
+      .pricing-grid {
+        grid-template-columns: 1fr;
+        max-width: min(480px, 100%);
+        gap: 28px;
+      }
+    }
 
     @media (max-width: 768px) {
+      nav { padding: 14px 5%; }
       .nav-links { display: none; }
+      #hero { padding: 100px 5% 60px; min-height: auto; }
+      .hero-visual { margin-top: 48px; max-width: 100%; }
+      .hero-card { padding: 20px 16px; transform: none; }
+      .hero-card:hover { transform: none; }
+      .floating,
+      .orb1, .orb2, .orb3 { animation: none; }
+      .pricing-card.is-active { animation: none; }
+      .stats-bar { margin: 0 5% 56px; flex-direction: column; }
+      .stat-item {
+        min-width: 0;
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--glass-border);
+      }
+      .stat-item:last-child { border-bottom: none; }
+      #features, #how-it-works, #testimonials, #pricing, #contact, #faq, #cta {
+        padding-left: 5%;
+        padding-right: 5%;
+      }
+      #features, #how-it-works, #testimonials, #pricing, #contact, #faq {
+        padding-top: 56px;
+        padding-bottom: 56px;
+      }
+      #cta { padding-bottom: 72px; }
+      .features-grid { margin-top: 40px; gap: 16px; }
       .step::after { display: none; }
       .steps { gap: 32px; }
+      .step { max-width: 100%; min-width: 0; }
+      .testimonials-grid { margin-top: 32px; }
+      .trust-strip { gap: 10px 16px; margin-top: 28px; }
+      .pricing-grid { margin-top: 36px; }
+      .pricing-card { padding: 24px 18px 22px; }
+      .pricing-card.is-active { transform: none; }
+      .pricing-card.is-active:hover { transform: none; }
+      .pricing-price { font-size: 2rem; }
+      .contact-panel { grid-template-columns: 1fr; gap: 20px; }
+      .contact-row2 { grid-template-columns: 1fr; }
+      .cta-box { padding: 48px 24px; }
+      .cta-title { font-size: clamp(1.15rem, 4.2vw, 1.75rem); letter-spacing: -0.35px; }
+      .app-actions { gap: 8px; }
+      .conn-badge span:last-child { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      nav { padding: 12px 4%; }
+      h1 { letter-spacing: -1px; }
+      .hero-sub { font-size: 1rem; }
+      .btn-primary, .btn-secondary { width: 100%; justify-content: center; text-align: center; }
+      .hero-btns { flex-direction: column; width: 100%; max-width: 320px; margin-left: auto; margin-right: auto; }
+      .section-title { font-size: clamp(1.45rem, 7vw, 1.85rem); }
+      .pricing-badge { padding: 5px 10px; font-size: 0.56rem; letter-spacing: 0.04em; }
+      .pricing-card.has-badge { padding-top: 44px; }
+      .pricing-card.is-active .pricing-tier-row { padding-left: 0; padding-top: 28px; }
+      .pricing-tier-row { flex-wrap: wrap; row-gap: 6px; }
+      .pricing-card.has-badge.is-active::before { top: 36px; }
+      .pricing-card-soon { font-size: 0.56rem; padding: 4px 7px; }
+      .faq-item summary { padding: 14px 16px; font-size: 0.88rem; }
+      .faq-a { padding: 0 16px 14px 16px; }
     }
   </style>
 </head>
@@ -1004,8 +1683,10 @@
 
   <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
     <article class="pricing-card" role="option" tabindex="0" data-plan="starter" aria-pressed="false" aria-label="Starter plan">
-      <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
-      <div class="pricing-tier">Starter</div>
+      <div class="pricing-tier-row">
+        <div class="pricing-tier">Starter</div>
+        <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
+      </div>
       <div class="pricing-price">$0<span>/mo</span></div>
       <p class="pricing-period">1 mo trial · then free tier</p>
       <p class="pricing-desc">Try MailPilot with a full month to connect your inbox, test AI replies, and see relevance filtering in action.</p>
@@ -1020,9 +1701,13 @@
     </article>
 
     <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
-      <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
-      <span class="pricing-badge">50% launch offer</span>
-      <div class="pricing-tier">Pro</div>
+      <div class="pricing-card-topbar">
+        <span class="pricing-badge">50% launch offer</span>
+      </div>
+      <div class="pricing-tier-row">
+        <div class="pricing-tier">Pro</div>
+        <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+      </div>
       <div class="pricing-price-row">
         <span class="pricing-was">$40</span>
         <div class="pricing-price">$20<span>/mo</span></div>
@@ -1044,9 +1729,13 @@
     </article>
 
     <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
-      <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
-      <span class="pricing-badge">Most popular</span>
-      <div class="pricing-tier">Custom</div>
+      <div class="pricing-card-topbar">
+        <span class="pricing-badge">Most popular</span>
+      </div>
+      <div class="pricing-tier-row">
+        <div class="pricing-tier">Custom</div>
+        <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+      </div>
       <div class="pricing-price">You choose</div>
       <p class="pricing-period">Set price &amp; send volume</p>
       <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
@@ -1065,13 +1754,164 @@
   </div>
 </section>
 
+<!-- CONTACT -->
+<section id="contact" aria-labelledby="contact-heading">
+  <div class="contact-wrap">
+    <div class="contact-head">
+      <div class="section-tag">Get in touch</div>
+      <h2 class="section-title" id="contact-heading">Questions before you <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">sign up?</span></h2>
+      <p class="contact-intro">Share your inbox goals—we typically reply within one business day. Or start your free trial below.</p>
+    </div>
+
+    {% if contact_sent %}
+    <div class="contact-alert ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Thanks — we received your message and will reply soon.</span></div>
+    {% elif contact_error %}
+    <div class="contact-alert err" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>{% if contact_error == "mail" %}Your message was saved, but we could not send email right now. Please try again or email team@timerni.co.uk directly.{% else %}Please enter your name, a valid email, and a message.{% endif %}</span></div>
+    {% endif %}
+
+    <div class="contact-panel">
+      <aside class="contact-aside" aria-label="Why contact us">
+        <figure class="contact-aside-visual">
+          <img
+            src="{% static 'img/contact-illustration.svg' %}"
+            width="480"
+            height="320"
+            alt="MailPilot inbox dashboard with automated email replies"
+            loading="lazy"
+            decoding="async"
+          />
+        </figure>
+        <div class="contact-aside-body">
+          <h3>We help you launch faster</h3>
+          <p>Ask about Gmail vs IMAP, send limits, knowledge base setup, or team onboarding—we will point you to the right plan.</p>
+          <ul class="contact-perks">
+            <li><i class="fa-solid fa-bolt" aria-hidden="true"></i><span>Free trial guidance &amp; inbox connection tips</span></li>
+            <li><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>Credentials encrypted per account</span></li>
+            <li><i class="fa-solid fa-headset" aria-hidden="true"></i><span>Custom volume pricing for agencies</span></li>
+          </ul>
+        </div>
+      </aside>
+      <div class="contact-form-card">
+        <div class="contact-form-inner">
+          <h3 class="contact-form-title">Send us a message</h3>
+          <p class="contact-form-sub">Required fields unless marked optional.</p>
+          <form method="post" action="{% url 'landing_contact' %}" novalidate>
+            {% csrf_token %}
+            <div class="fg">
+              <label class="fl" for="contact-name">Full name</label>
+              <div class="contact-input-wrap">
+                <input class="fi" id="contact-name" name="name" type="text" autocomplete="name" required maxlength="120" placeholder="Your name" />
+                <i class="fa-solid fa-user" aria-hidden="true"></i>
+              </div>
+            </div>
+            <div class="contact-row2">
+              <div class="fg">
+                <label class="fl" for="contact-email">Email</label>
+                <div class="contact-input-wrap">
+                  <input class="fi" id="contact-email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@company.com" />
+                  <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+                </div>
+              </div>
+              <div class="fg">
+                <label class="fl" for="contact-phone">Phone <span class="opt">(optional)</span></label>
+                <div class="contact-input-wrap">
+                  <input class="fi" id="contact-phone" name="phone" type="tel" autocomplete="tel" maxlength="32" placeholder="+1 555 000 0000" />
+                  <i class="fa-solid fa-phone" aria-hidden="true"></i>
+                </div>
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl" for="contact-message">Message</label>
+              <div class="contact-input-wrap">
+                <textarea class="fi" id="contact-message" name="message" rows="4" maxlength="2000" required placeholder="Inbox size, Gmail or IMAP, team seats…"></textarea>
+                <i class="fa-solid fa-message" aria-hidden="true"></i>
+              </div>
+            </div>
+            <button class="btn-primary" type="submit"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send message</button>
+            <p class="contact-privacy">We use your details only to respond to this inquiry.</p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- CTA -->
 <section id="cta">
   <div class="cta-box">
-    <h2 class="cta-title">Ready to put your<br/><span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">inbox on autopilot?</span></h2>
+    <h2 class="cta-title">Ready to put your <span class="cta-accent">inbox on autopilot?</span></h2>
     <p class="cta-sub">Sign up, connect your Gmail or IMAP account, and let MailPilot handle the rest.</p>
     <div class="hero-btns">
       <a href="{% url 'signup' %}" class="btn-primary">Create Free Account</a>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" aria-labelledby="faq-heading">
+  <div class="faq-wrap">
+    <div class="faq-head">
+      <div class="section-tag">FAQ</div>
+      <h2 class="section-title" id="faq-heading">Common <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">questions</span></h2>
+      <p class="faq-intro">Quick answers about setup, routing, knowledge base, and billing. Still stuck? Use the <a href="#contact" style="color:#a5b4fc;">contact form</a> on this page.</p>
+    </div>
+
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>
+          <span class="faq-q"><i class="fa-solid fa-envelope" aria-hidden="true"></i><span>What does MailPilot do?</span></span>
+          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+        </summary>
+        <p class="faq-a">MailPilot connects to your Gmail or IMAP inbox, filters incoming mail with keywords and AI relevance, grounds replies in your knowledge base, and can send or draft responses automatically.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>
+          <span class="faq-q"><i class="fa-solid fa-filter" aria-hidden="true"></i><span>Does it reply to every email?</span></span>
+          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+        </summary>
+        <p class="faq-a">No. You set <strong>keywords</strong> and a <strong>relevance threshold</strong> so only service-related messages are handled. Unrelated mail is ignored. Start with <strong>draft</strong> mode to review before enabling auto-send.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>
+          <span class="faq-q"><i class="fa-brands fa-google" aria-hidden="true"></i><span>Gmail or SMTP/IMAP—which should I use?</span></span>
+          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+        </summary>
+        <p class="faq-a"><strong>Gmail OAuth</strong> is the fastest setup for Google Workspace or personal Gmail. Use <strong>SMTP + IMAP</strong> for other providers. You can test the connection in Setup before going live.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>
+          <span class="faq-q"><i class="fa-solid fa-brain" aria-hidden="true"></i><span>How does the knowledge base work?</span></span>
+          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+        </summary>
+        <p class="faq-a">Upload JSON or text, or crawl your website. MailPilot chunks content, stores embeddings in PostgreSQL with pgvector, and pulls the best matches into each AI reply.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>
+          <span class="faq-q"><i class="fa-solid fa-gift" aria-hidden="true"></i><span>Is there a free trial?</span></span>
+          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+        </summary>
+        <p class="faq-a">Yes. The <strong>Starter</strong> plan includes a one-month trial with a monthly send limit so you can connect an inbox and test relevance filtering before paid plans launch.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>
+          <span class="faq-q"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>How is my data protected?</span></span>
+          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+        </summary>
+        <p class="faq-a">Credentials and API keys are stored encrypted per account. See our <a href="{% url 'privacy' %}">Privacy Policy</a> for more detail.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>
+          <span class="faq-q"><i class="fa-solid fa-credit-card" aria-hidden="true"></i><span>When will paid plans be available?</span></span>
+          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+        </summary>
+        <p class="faq-a">Pro and Custom plans are marked <strong>Coming soon</strong> on pricing. Sign up for the free trial now; contact us for agency or high-volume pricing.</p>
+      </details>
     </div>
   </div>
 </section>
@@ -1170,22 +2010,59 @@ if(card) {
   });
 }
 
-// Scroll-reveal
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if(e.isIntersecting) {
-      e.target.style.opacity = '1';
-      e.target.style.transform = 'translateY(0)';
-    }
-  });
-}, { threshold: 0.12 });
+// Nav shrink on scroll
+(function () {
+  const nav = document.querySelector('nav');
+  if (!nav) return;
+  const onScroll = () => nav.classList.toggle('is-scrolled', window.scrollY > 24);
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+})();
 
-document.querySelectorAll('.feat-card, .step, .stat-item, .testimonial-card, .pricing-card').forEach(el => {
-  el.style.opacity = '0';
-  el.style.transform = 'translateY(30px)';
-  el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-  observer.observe(el);
-});
+// Scroll-reveal with stagger
+(function () {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const selector = [
+    '.section-tag', '.section-title', '.section-sub',
+    '.testimonials-intro', '.pricing-intro', '.pricing-demo-note',
+    '.contact-intro', '.faq-intro', '.pricing-head-row',
+    '.feat-card', '.step', '.stat-item', '.testimonial-card',
+    '.pricing-card', '.trust-strip', '.contact-aside', '.contact-form-card',
+    '.cta-box', '.faq-item'
+  ].join(',');
+
+  const staggerGroups = {
+    '.feat-card': 0.09,
+    '.step': 0.1,
+    '.stat-item': 0.12,
+    '.testimonial-card': 0.1,
+    '.pricing-card': 0.12,
+    '.faq-item': 0.07
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll(selector).forEach((el) => {
+    el.classList.add('scroll-reveal');
+    const groupKey = Object.keys(staggerGroups).find((sel) => el.matches(sel));
+    if (groupKey) {
+      const parent = el.parentElement;
+      const siblings = parent ? [...parent.querySelectorAll(groupKey)] : [el];
+      const idx = siblings.indexOf(el);
+      if (idx >= 0) {
+        el.style.setProperty('--reveal-delay', `${idx * staggerGroups[groupKey]}s`);
+      }
+    }
+    observer.observe(el);
+  });
+})();
 
 // Pricing plan selection (click to activate)
 (function () {
@@ -1216,6 +2093,20 @@ document.querySelectorAll('.feat-card, .step, .stat-item, .testimonial-card, .pr
     });
     card.querySelectorAll('.pricing-cta').forEach((btn) => {
       btn.addEventListener('click', (e) => e.stopPropagation());
+    });
+  });
+})();
+
+// FAQ: one open at a time (optional accordion)
+(function () {
+  const items = document.querySelectorAll('#faq .faq-item');
+  if (!items.length) return;
+  items.forEach((item) => {
+    item.addEventListener('toggle', () => {
+      if (!item.open) return;
+      items.forEach((other) => {
+        if (other !== item) other.open = false;
+      });
     });
   });
 })();

@@ -14,6 +14,7 @@ urlpatterns = [
     path("reviews", views.reviews_page, name="reviews"),
     path("pricing", views.pricing_page, name="pricing"),
     path("", views.landing_page, name="home"),
+    path("contact", views.landing_contact, name="landing_contact"),
     path("login", auth_views.login_view, name="login"),
     path("signup", auth_views.signup_view, name="signup"),
     path("logout", auth_views.logout_view, name="logout"),

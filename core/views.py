@@ -11,11 +11,14 @@ from urllib.parse import quote, urljoin
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from django.http import HttpResponse, JsonResponse
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_GET, require_http_methods
+from django_ratelimit.decorators import ratelimit
 from google_auth_oauthlib.flow import Flow
 from werkzeug.utils import secure_filename
 
@@ -39,6 +42,8 @@ from email_automation.smtp_client import SMTPClient
 
 from core import runtime
 from core.audit import log_audit
+from core.contact_mail import send_contact_submission_emails
+from core.models import ContactSubmission
 
 logger = logging.getLogger("mailpilot.views")
 
@@ -199,6 +204,8 @@ def _seo_landing_context(request) -> dict[str, Any]:
 def landing_page(request):
     """Public marketing home (also available to authenticated users)."""
     ctx = _seo_landing_context(request)
+    ctx["contact_sent"] = request.GET.get("contact") == "sent"
+    ctx["contact_error"] = (request.GET.get("contact_error") or "").strip()
     if request.user.is_authenticated:
         from core.user_settings import migrate_legacy_file_config_if_needed
 
@@ -207,6 +214,52 @@ def landing_page(request):
         cfg = _user_settings_dict(request)
         ctx["connected"] = _mailbox_connected_for_ui(effective, cfg)
     return render(request, "landing.html", ctx)
+
+
+def _client_ip(request: HttpRequest) -> str | None:
+    xff = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
+    if xff:
+        return xff.split(",")[0].strip()[:45] or None
+    raw = request.META.get("REMOTE_ADDR")
+    return str(raw).strip()[:45] if raw else None
+
+
+@csrf_protect
+@ratelimit(key="ip", rate="10/h", method="POST", block=True)
+@require_http_methods(["POST"])
+def landing_contact(request):
+    """Public contact form on the landing page."""
+    name = (request.POST.get("name") or "").strip()[:120]
+    email = (request.POST.get("email") or "").strip()[:254]
+    phone = (request.POST.get("phone") or "").strip()[:32]
+    message = (request.POST.get("message") or "").strip()[:2000]
+    home = reverse("home")
+    if not name or not message:
+        return redirect(f"{home}?contact_error=invalid#contact")
+    try:
+        validate_email(email)
+    except ValidationError:
+        return redirect(f"{home}?contact_error=invalid#contact")
+
+    submission = ContactSubmission.objects.create(
+        name=name,
+        email=email,
+        phone=phone,
+        message=message,
+        ip_address=_client_ip(request),
+    )
+    log_audit(request, "landing_contact", f"id={submission.pk} email={email!r}")
+    logger.info("Landing contact submission id=%s email=%s", submission.pk, email)
+
+    team_ok, user_ok = send_contact_submission_emails(submission)
+    submission.notified_team = team_ok
+    submission.notified_user = user_ok
+    submission.save(update_fields=["notified_team", "notified_user"])
+
+    if not team_ok and not user_ok:
+        return redirect(f"{home}?contact_error=mail#contact")
+
+    return redirect(f"{home}?contact=sent#contact")
 
 
 @require_GET

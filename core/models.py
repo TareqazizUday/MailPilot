@@ -55,6 +55,26 @@ class PasswordResetOTP(models.Model):
         return f"PasswordResetOTP({self.email})"
 
 
+class ContactSubmission(models.Model):
+    """Landing page contact form submissions."""
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    name = models.CharField(max_length=120)
+    email = models.EmailField(max_length=254)
+    phone = models.CharField(max_length=32, blank=True, default="")
+    message = models.TextField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    notified_team = models.BooleanField(default=False)
+    notified_user = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "core_contactsubmission"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Contact({self.email}, {self.created_at:%Y-%m-%d})"
+
+
 class AuditLog(models.Model):
     """Security-relevant events (no PII in message)."""
 
