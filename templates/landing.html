@@ -465,7 +465,41 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.2);
     }
     .pricing-card-soon i { font-size: 0.7rem; opacity: 0.95; }
+    .pricing-card-free {
+      position: absolute; top: 14px; right: 14px; z-index: 3;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 50px;
+      background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(74,222,128,0.1));
+      border: 1px solid rgba(74,222,128,0.45);
+      color: #6ee7b7;
+      font-size: 0.62rem; font-weight: 800;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      line-height: 1; pointer-events: none;
+      box-shadow: 0 4px 18px rgba(16,185,129,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .pricing-card-free i {
+      font-size: 0.72rem; color: #4ade80;
+      filter: drop-shadow(0 0 6px rgba(74,222,128,0.45));
+    }
+    .pricing-card[data-plan="starter"] {
+      border-color: rgba(74,222,128,0.22);
+      background: linear-gradient(165deg, rgba(16,185,129,0.06), rgba(10,14,36,0.52));
+    }
+    .pricing-card[data-plan="starter"]:hover {
+      border-color: rgba(74,222,128,0.42);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.35), 0 8px 32px rgba(16,185,129,0.12);
+    }
+    .pricing-card[data-plan="starter"].is-active {
+      border-color: rgba(74,222,128,0.55);
+      background: linear-gradient(165deg, rgba(16,185,129,0.14), rgba(13,18,48,0.78));
+      box-shadow: 0 8px 44px rgba(16,185,129,0.22), 0 0 0 2px rgba(74,222,128,0.28);
+    }
+    .pricing-card[data-plan="starter"].is-active::before {
+      background: linear-gradient(135deg, #10b981, #4ade80);
+      box-shadow: 0 4px 14px rgba(16,185,129,0.45);
+    }
     .pricing-card .pricing-tier { padding-right: 92px; }
+    .pricing-card[data-plan="starter"] .pricing-tier { padding-right: 72px; }
     .pricing-soon-inline {
       color: #fde68a; font-size: 0.78em; font-weight: 700; white-space: nowrap;
     }
@@ -970,7 +1004,7 @@
 
   <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
     <article class="pricing-card" role="option" tabindex="0" data-plan="starter" aria-pressed="false" aria-label="Starter plan">
-      <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+      <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
       <div class="pricing-tier">Starter</div>
       <div class="pricing-price">$0<span>/mo</span></div>
       <p class="pricing-period">1 mo trial · then free tier</p>
