@@ -23,14 +23,49 @@
     .msg-si i{color:var(--txm);font-size:11px}
     .msg-si input{background:transparent;border:none;outline:none;color:var(--tx);font-size:12px;font-family:var(--font);width:100%}
     .msg-si input::placeholder{color:var(--txm)}
-    .msg-list{flex:1;overflow-y:auto}
-    .msg-it{padding:11px 14px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:all .15s;position:relative;background:transparent;text-align:left;width:100%}
-    .msg-it:hover{background:var(--card-h)}
-    .msg-it.sel{background:var(--blue-soft);border-left:2px solid var(--blue)}
-    .msg-it.unr::after{content:'';position:absolute;right:12px;top:16px;width:5px;height:5px;border-radius:50%;background:var(--blue)}
+    .msg-list{
+      flex:1;overflow-y:auto;
+      padding:10px 12px 12px;
+      display:flex;flex-direction:column;gap:8px;
+    }
+    .msg-it{
+      padding:11px 12px;
+      border:1px solid var(--bdr);
+      border-radius:8px;
+      cursor:pointer;
+      transition:border-color .15s, background .15s, box-shadow .15s;
+      position:relative;
+      text-align:left;width:100%;
+    }
+    .msg-it.msg-seen{
+      background:rgba(16,185,129,0.09);
+      border-color:rgba(16,185,129,0.22);
+    }
+    .msg-it.msg-seen:hover{
+      background:rgba(16,185,129,0.15);
+      border-color:rgba(16,185,129,0.38);
+    }
+    .msg-it.unr{
+      background:rgba(248,113,113,0.1);
+      border-color:rgba(248,113,113,0.28);
+    }
+    .msg-it.unr:hover{
+      background:rgba(248,113,113,0.16);
+      border-color:rgba(248,113,113,0.42);
+    }
+    .msg-it.sel{
+      background:var(--blue-soft) !important;
+      border-color:var(--blue) !important;
+      box-shadow:0 0 0 2px var(--blue-soft);
+    }
+    .msg-it.unr::after{
+      content:'';position:absolute;right:12px;top:14px;
+      width:5px;height:5px;border-radius:50%;background:var(--red);
+    }
     .msg-fr{font-size:12px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px;color:var(--tx)}
     .msg-sj{font-size:11.5px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
     .msg-tm{font-size:10px;color:var(--txm)}
+    .msg-empty{padding:14px 10px;text-align:center;font-size:12px;color:var(--txm);line-height:1.45}
 
     /* ── Reading Pane ── */
     .rp-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--txm);gap:8px;padding:18px}
@@ -112,7 +147,7 @@
       <div class="msg-search">
         <div class="msg-si">
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-          <input type="text" placeholder="Search messages..." id="msgQ" oninput="filterMsg()" autocomplete="off">
+          <input type="text" placeholder="Search messages..." id="msgQ" autocomplete="off" aria-label="Search messages">
         </div>
       </div>
       <div id="messages-title" style="display:none;">Messages</div>
@@ -189,29 +224,53 @@
   <script>
     // UI helpers for the “hubbuhu” dashboard layout
     let _allThreadRows = [];
+    function threadSearchHaystack(t){
+      const from = (t.from || '').trim();
+      const sj = (t.subject || '').trim();
+      const sn = (t.snippet || '').trim();
+      const tm = fmtTs(t.internal_date);
+      const emailMatch = from.match(/<([^>]+)>/);
+      const emailOnly = emailMatch ? emailMatch[1].trim() : '';
+      const nameOnly = from.replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
+      return (from + ' ' + nameOnly + ' ' + emailOnly + ' ' + sj + ' ' + sn + ' ' + tm)
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    function threadMatchesQuery(haystack, q){
+      if(!q) return true;
+      const terms = q.split(/\s+/).filter(Boolean);
+      if(!terms.length) return true;
+      return terms.every(term => haystack.includes(term));
+    }
     function renderThreadRows(rows){
       _allThreadRows = rows || [];
       filterMsg();
-      const cnt = document.getElementById('msgCnt');
-      if(cnt) cnt.textContent = String(_allThreadRows.length);
     }
     function filterMsg(){
-      const q = (document.getElementById('msgQ')?.value || '').toLowerCase().trim();
+      const q = (document.getElementById('msgQ')?.value || '').toLowerCase().trim().replace(/\s+/g, ' ');
       const list = document.getElementById('threadList');
       if(!list) return;
-      const shown = !_allThreadRows.length ? [] : _allThreadRows.filter(r => {
-        if(!q) return true;
-        return (r._search || '').includes(q);
-      });
-      list.innerHTML = shown.map(r => r.html).join('');
-      // re-bind click handlers after render
-      list.querySelectorAll('.msg-it').forEach(el => {
-        el.addEventListener('click', () => {
-          const tid = el.getAttribute('data-tid');
-          selectThread(tid, { focusEl: el });
-        });
-      });
-      // selection highlight
+      const shown = _allThreadRows.filter(r => threadMatchesQuery(r._search || '', q));
+      const cnt = document.getElementById('msgCnt');
+      if(cnt){
+        cnt.textContent = q && _allThreadRows.length
+          ? (shown.length + ' / ' + _allThreadRows.length)
+          : String(_allThreadRows.length);
+      }
+      const hint = document.getElementById('inboxListHint');
+      if(hint && _allThreadRows.length){
+        hint.textContent = q
+          ? (shown.length ? (shown.length + ' of ' + _allThreadRows.length + ' match') : 'No messages match your search')
+          : (_allThreadRows.length + ' messages');
+      }
+      if(!shown.length){
+        list.innerHTML = q && _allThreadRows.length
+          ? '<p class="msg-empty">No messages match &ldquo;' + esc(q) + '&rdquo;</p>'
+          : '';
+      }else{
+        list.innerHTML = shown.map(r => r.html).join('');
+      }
       if(activeTid){
         list.querySelectorAll('.msg-it').forEach(el => {
           const on = el.getAttribute('data-tid') === activeTid;
@@ -219,6 +278,7 @@
         });
       }
     }
+    window.filterMsg = filterMsg;
 
     function setEnabled(el, enabled){
       if(!el) return;
@@ -282,7 +342,7 @@
         if(items.length === 0){
           body.innerHTML = '<tr><td colspan="4" class="small" style="padding: 12px 11px;">Nothing waiting</td></tr>';
           info.textContent = '0';
-          if(hint) hint.textContent = 'When a reply needs approval, it will show here.';
+          if(hint) hint.textContent = 'Recent automation activity (sent, errors, or completed).';
           const qc = document.getElementById('qCnt'); if(qc) qc.textContent = '0';
           const pi = document.getElementById('pInfo'); if(pi) pi.textContent = '0 items in queue';
           return;
@@ -308,7 +368,7 @@
         if(hint){
           hint.textContent = activeCount > 0
             ? 'These need a decision before sending.'
-            : 'No approval needed. Below is recent activity (sent / queued / ignored).';
+            : 'Below is recent activity (sent / queued / ignored). Draft mode saves replies in the thread view.';
         }
         const qc = document.getElementById('qCnt'); if(qc) qc.textContent = String(activeCount);
         const pi = document.getElementById('pInfo');
@@ -465,7 +525,6 @@
       const hint = document.getElementById('inboxListHint');
       const list = document.getElementById('threadList');
       if(!hint || !list) return;
-      list.innerHTML = '';
       hint.textContent = 'Loading your inbox…';
       try{
         const res = await fetch('/api/gmail/inbox');
@@ -487,13 +546,13 @@
           const tm = fmtTs(t.internal_date);
           const sn = (t.snippet || '').trim();
           const html = (
-            `<button type="button" class="msg-it${t.unread ? ' unr' : ''}" data-tid="${attrEsc(t.thread_id)}" role="option" aria-selected="false">
+            `<button type="button" class="msg-it${t.unread ? ' unr' : ' msg-seen'}" data-tid="${attrEsc(t.thread_id)}" role="option" aria-selected="false">
               <div class="msg-fr">${esc(from || '—')}</div>
               <div class="msg-sj">${esc(sj || '(No subject)')}</div>
               <div class="msg-tm">${esc(tm)}</div>
             </button>`
           );
-          return { html, _search: (from + ' ' + sj + ' ' + sn).toLowerCase(), thread_id: t.thread_id };
+          return { html, _search: threadSearchHaystack(t), thread_id: t.thread_id };
         }));
 
         const wanted = threadIdFromHash();
@@ -620,6 +679,16 @@
     setInterval(refreshDashboard, 30000);
 
     maybeScrollFromView();
+    document.getElementById('msgQ')?.addEventListener('input', filterMsg);
+    const threadListEl = document.getElementById('threadList');
+    if(threadListEl && !threadListEl.dataset.clickBound){
+      threadListEl.dataset.clickBound = '1';
+      threadListEl.addEventListener('click', (e) => {
+        const el = e.target.closest('.msg-it');
+        if(!el) return;
+        selectThread(el.getAttribute('data-tid'), { focusEl: el });
+      });
+    }
     {% if inbox_ready %}
       loadInbox();
       // Auto-refresh inbox without page reload.

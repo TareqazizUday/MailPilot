@@ -198,6 +198,26 @@ def documents_from_json_upload(data: Any, *, source_name: str) -> list[KBDocumen
     return out
 
 
+def documents_from_text_upload(text: str, *, source_name: str) -> list[KBDocument]:
+    """Turn a plain-text upload into one KB document."""
+    body = (text or "").strip()
+    if not body:
+        return []
+    base = (source_name or "upload.txt").strip()
+    title = re.sub(r"\.(txt|text|md)$", "", base, flags=re.IGNORECASE).strip() or base
+    did = stable_doc_id(source=source_name, url="", title=title, text=body)
+    return [
+        KBDocument(
+            doc_id=did,
+            source=source_name,
+            url="",
+            title=title,
+            text=body,
+            metadata={"source_name": source_name, "format": "text"},
+        )
+    ]
+
+
 def documents_to_json(docs: list[KBDocument]) -> str:
     return json.dumps([d.__dict__ for d in docs], ensure_ascii=False, indent=2)
 

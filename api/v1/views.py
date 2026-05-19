@@ -122,6 +122,17 @@ def kb_upload_json(request):
 
 
 @extend_schema(
+    request=sz.KBUploadTextRequestSerializer,
+    responses=sz.KBUploadJsonResponseSerializer,
+)
+@api_view(["POST"])
+@authentication_classes(_AUTH)
+@permission_classes(_PERM)
+def kb_upload_text(request):
+    return _call_legacy_json(legacy_views.api_kb_upload_text, request)
+
+
+@extend_schema(
     request=sz.KBCrawlRequestSerializer,
     responses=sz.KBCrawlResponseSerializer,
 )
