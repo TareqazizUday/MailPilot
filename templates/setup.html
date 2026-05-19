@@ -119,6 +119,54 @@
     label.pill input{margin:0 !important;}
     label.pill:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.06);}
 
+    .crawl-progress-wrap{
+      margin-top:12px;
+      display:none;
+    }
+    .crawl-progress-wrap.is-active{display:block;}
+    .crawl-progress-meta{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:6px;
+      font-size:0.78rem;
+      font-weight:700;
+      color:rgba(226,232,240,0.92);
+    }
+    .crawl-progress-pct{
+      font-variant-numeric:tabular-nums;
+      color:#a5b4fc;
+    }
+    .crawl-progress-track{
+      height:8px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.08);
+      overflow:hidden;
+    }
+    .crawl-progress-fill{
+      height:100%;
+      width:0%;
+      border-radius:999px;
+      background:linear-gradient(90deg,#4f6ef7,#a78bfa);
+      transition:width 0.35s ease;
+    }
+    .crawl-progress-wrap.is-done .crawl-progress-fill{
+      background:linear-gradient(90deg,#22c55e,#4ade80);
+    }
+    .crawl-progress-wrap.is-error .crawl-progress-fill{
+      background:linear-gradient(90deg,#ef4444,#f87171);
+      width:100% !important;
+    }
+    .crawl-progress-detail{
+      margin-top:6px;
+      font-size:0.72rem;
+      color:rgba(148,163,184,0.88);
+      line-height:1.4;
+      word-break:break-all;
+    }
+
     /* Collapsible long error/details inside pills */
     .pill .vm{
       display:inline-flex;
@@ -648,10 +696,30 @@
 
           <div class="fg">
             <label class="fl" for="crawlUrl">Crawl website URL</label>
-            <input class="fi" id="crawlUrl" placeholder="https://yourdomain.com" />
-            <button class="btn btn-purp btn-block" style="margin-top:10px;" type="button" onclick="startCrawl()">
+            <input class="fi" id="crawlUrl" placeholder="https://yourdomain.com" autocomplete="url" />
+            <button class="btn btn-purp btn-block" style="margin-top:10px;" type="button" id="crawlStartBtn" onclick="startCrawl()">
               <i class="fa-solid fa-spider" aria-hidden="true"></i> Start Crawl & Ingest
             </button>
+            <div id="crawlProgressWrap" class="crawl-progress-wrap" aria-live="polite">
+              <div class="crawl-progress-meta">
+                <span id="crawlProgressLabel">Preparing…</span>
+                <span id="crawlProgressPct" class="crawl-progress-pct">0%</span>
+              </div>
+              <div
+                id="crawlProgressTrack"
+                class="crawl-progress-track"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <div id="crawlProgressBar" class="crawl-progress-fill"></div>
+              </div>
+              <div id="crawlProgressDetail" class="crawl-progress-detail mini"></div>
+            </div>
+            <div class="mini" style="margin-top:6px;color:var(--txm);font-size:11px;line-height:1.45;">
+              Per-user scrape → website_crawl.json + pgvector. Edit in <strong>Edit KB JSON</strong>.
+            </div>
             <div class="mini"><span id="crawlStatus" class="pill">—</span></div>
           </div>
             </div>
@@ -675,8 +743,13 @@
         <button class="mp-modal-x" type="button" onclick="closeKbEditor()">Close</button>
       </div>
       <div class="mp-modal-b">
-        <div class="mini" style="margin-top:0;">
-          Tip: edit the JSON then click <strong>Save &amp; Replace KB</strong>. This will delete your current KB and re-ingest from the edited JSON.
+        <div class="mini" style="margin-top:0;line-height:1.5;">
+          Bundle: <strong>website_crawl</strong> (pages + stats) and <strong>documents</strong> (uploads). Save replaces your KB and re-ingests.
+        </div>
+        <div class="kb-format-toggle" role="group" aria-label="Editor view" style="margin:10px 0;">
+          <button type="button" class="kb-format-btn on" id="kbViewBundle" onclick="setKbEditorView('bundle')">Full bundle</button>
+          <button type="button" class="kb-format-btn" id="kbViewCrawl" onclick="setKbEditorView('crawl')">Crawl only</button>
+          <button type="button" class="kb-format-btn" id="kbViewDocs" onclick="setKbEditorView('documents')">Documents only</button>
         </div>
         <textarea class="kb-editor" id="kbEditorText" spellcheck="false"></textarea>
         <div class="kb-editor-actions">
@@ -1444,7 +1517,9 @@
         }
         const docs = j.deleted_documents ?? 0;
         const chunks = j.deleted_chunks ?? 0;
-        setPill(pill, `Deleted ${docs} docs · ${chunks} chunks`, 'ok');
+        const crawlNote = j.deleted_crawl_file ? ' · crawl data removed' : '';
+        setPill(pill, `Deleted ${docs} docs · ${chunks} chunks${crawlNote}`, 'ok');
+        if(typeof _kbBundleCache !== 'undefined') _kbBundleCache = null;
 
         // Reset uploader visuals (optional)
         const up = document.getElementById('kbUp');
@@ -1474,20 +1549,65 @@
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     }
 
+    let _kbBundleCache = null;
+    let _kbEditorView = 'bundle';
+
+    function setKbEditorView(mode){
+      _kbEditorView = mode || 'bundle';
+      ['bundle','crawl','documents'].forEach(m => {
+        const btn = document.getElementById('kbView' + (m === 'bundle' ? 'Bundle' : m === 'crawl' ? 'Crawl' : 'Docs'));
+        if(btn) btn.classList.toggle('on', _kbEditorView === m);
+      });
+      const ta = document.getElementById('kbEditorText');
+      if(!ta || !_kbBundleCache) return;
+      let show;
+      if(_kbEditorView === 'crawl') show = _kbBundleCache.website_crawl || { note: 'No website_crawl data yet — run Crawl & Ingest first.' };
+      else if(_kbEditorView === 'documents') show = { documents: _kbBundleCache.documents || [] };
+      else show = _kbBundleCache;
+      ta.value = JSON.stringify(show, null, 2);
+    }
+    window.setKbEditorView = setKbEditorView;
+
+    function _editorPayloadFromView(){
+      const ta = document.getElementById('kbEditorText');
+      const raw = (ta?.value || '').trim();
+      if(!raw) return null;
+      let parsed;
+      try{ parsed = JSON.parse(raw); }catch(e){ return null; }
+      if(_kbEditorView === 'bundle') return parsed;
+      if(_kbEditorView === 'crawl'){
+        const base = _kbBundleCache ? JSON.parse(JSON.stringify(_kbBundleCache)) : {
+          schema_version: '1.0',
+          export_type: 'mailpilot_kb_bundle',
+          documents: [],
+        };
+        base.website_crawl = parsed;
+        return base;
+      }
+      const base = _kbBundleCache ? JSON.parse(JSON.stringify(_kbBundleCache)) : {
+        schema_version: '1.0',
+        export_type: 'mailpilot_kb_bundle',
+        website_crawl: null,
+      };
+      base.documents = parsed.documents || parsed;
+      return base;
+    }
+
     async function downloadKbJson(){
       const pill = document.getElementById('kbEditStatus');
       setPill(pill, 'Downloading…', 'info');
       try{
-        const res = await fetch('/api/kb/export-json');
+        const res = await fetch('/api/kb/export-bundle');
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Download failed'), 'bad');
           return;
         }
-        const docs = j.documents || [];
-        const payload = { documents: docs.map(d => ({ title: d.title || '', url: d.url || '', text: d.text || '' })) };
-        _downloadBlob('mailpilot_kb.json', JSON.stringify(payload, null, 2), 'application/json');
-        setPill(pill, `Downloaded ${docs.length} docs`, 'ok');
+        _kbBundleCache = j;
+        _downloadBlob('mailpilot_kb_bundle.json', JSON.stringify(j, null, 2), 'application/json');
+        const nDocs = (j.documents || []).length;
+        const nPages = (j.website_crawl && j.website_crawl.pages) ? j.website_crawl.pages.length : 0;
+        setPill(pill, `Downloaded bundle · ${nPages} crawl pages · ${nDocs} docs`, 'ok');
       }catch(err){
         setPill(pill, 'Network error', 'bad');
       }
@@ -1511,17 +1631,18 @@
       const pill = document.getElementById('kbEditorPill');
       setPill(pill, 'Loading…', 'info');
       try{
-        const res = await fetch('/api/kb/export-json');
+        const res = await fetch('/api/kb/export-bundle');
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Load failed'), 'bad');
           return;
         }
-        const docs = j.documents || [];
-        const payload = { documents: docs.map(d => ({ title: d.title || '', url: d.url || '', text: d.text || '' })) };
-        const ta = document.getElementById('kbEditorText');
-        if(ta) ta.value = JSON.stringify(payload, null, 2);
-        setPill(pill, `Loaded ${docs.length} docs`, 'ok');
+        _kbBundleCache = j;
+        _kbEditorView = 'bundle';
+        setKbEditorView('bundle');
+        const nDocs = (j.documents || []).length;
+        const nPages = (j.website_crawl && j.website_crawl.pages) ? j.website_crawl.pages.length : 0;
+        setPill(pill, `Loaded bundle · ${nPages} pages · ${nDocs} docs`, 'ok');
       }catch(err){
         setPill(pill, 'Network error', 'bad');
       }
@@ -1538,18 +1659,14 @@
       if(!ok) return;
       const pill = document.getElementById('kbEditorPill');
       setPill(pill, 'Saving…', 'info');
-      const ta = document.getElementById('kbEditorText');
-      const raw = (ta?.value || '').trim();
-      if(!raw){
-        setPill(pill, 'JSON is empty', 'bad');
+      const payload = _editorPayloadFromView();
+      if(!payload){
+        setPill(pill, 'Invalid or empty JSON', 'bad');
         return;
       }
-      let payload;
-      try{
-        payload = JSON.parse(raw);
-      }catch(e){
-        setPill(pill, 'Invalid JSON', 'bad');
-        return;
+      if(!payload.export_type){
+        payload.export_type = 'mailpilot_kb_bundle';
+        payload.schema_version = payload.schema_version || '1.0';
       }
       try{
         const res = await fetch('/api/kb/replace-json', {
@@ -1605,14 +1722,127 @@
     }
     window.uploadKbFile = uploadKbFile;
 
+    function setCrawlProgressVisible(show){
+      const wrap = document.getElementById('crawlProgressWrap');
+      if(!wrap) return;
+      wrap.classList.toggle('is-active', !!show);
+      wrap.classList.remove('is-done', 'is-error');
+    }
+
+    function updateCrawlProgress(progress, opts){
+      const wrap = document.getElementById('crawlProgressWrap');
+      const label = document.getElementById('crawlProgressLabel');
+      const pctEl = document.getElementById('crawlProgressPct');
+      const bar = document.getElementById('crawlProgressBar');
+      const track = document.getElementById('crawlProgressTrack');
+      const detail = document.getElementById('crawlProgressDetail');
+      if(!wrap || !bar) return;
+
+      const p = progress || {};
+      const pct = Math.max(0, Math.min(100, Number(p.percent) || 0));
+      const phase = (p.phase || '').toLowerCase();
+      const msg = (p.message || '').trim();
+      const pagesFetched = p.pages_fetched;
+      const maxPages = p.max_pages;
+      const currentUrl = (p.current_url || '').trim();
+
+      wrap.classList.add('is-active');
+      if(opts && opts.done) wrap.classList.add('is-done');
+      if(opts && opts.error) wrap.classList.add('is-error');
+
+      bar.style.width = pct + '%';
+      if(track){
+        track.setAttribute('aria-valuenow', String(Math.round(pct)));
+      }
+      if(pctEl) pctEl.textContent = Math.round(pct) + '%';
+
+      let labelText = msg || 'Scraping website…';
+      if(phase === 'crawling' && pagesFetched != null && maxPages != null){
+        labelText = `Scraping pages (${pagesFetched}/${maxPages})`;
+      } else if(phase === 'exporting'){
+        labelText = msg || 'Processing content…';
+      } else if(phase === 'ingesting'){
+        labelText = msg || 'Saving to knowledge base…';
+      } else if(phase === 'done' || (opts && opts.done)){
+        labelText = 'Complete';
+      } else if(phase === 'error' || (opts && opts.error)){
+        labelText = 'Failed';
+      }
+      if(label) label.textContent = labelText;
+
+      if(detail){
+        if(currentUrl){
+          detail.textContent = currentUrl;
+          detail.style.display = '';
+        } else {
+          detail.textContent = '';
+          detail.style.display = 'none';
+        }
+      }
+    }
+
+    function resetCrawlProgress(){
+      setCrawlProgressVisible(false);
+      updateCrawlProgress({ phase: 'starting', percent: 0, message: 'Starting…' });
+    }
+
+    async function pollCrawlStatus(pill, attemptsLeft){
+      if(attemptsLeft <= 0){
+        setPill(pill, 'Crawl still running — refresh KB status later', 'info');
+        return;
+      }
+      try{
+        const res = await fetch('/api/kb/crawl/status');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(pill, (j.error || 'Status check failed'), 'bad');
+          updateCrawlProgress({ phase: 'error', percent: 0, message: j.error || 'Status failed' }, { error: true });
+          return;
+        }
+        if(j.running){
+          if(j.progress) updateCrawlProgress(j.progress);
+          else updateCrawlProgress({ phase: 'crawling', percent: 5, message: 'Crawling site…' });
+          setPill(pill, (j.progress && j.progress.message) || 'Crawling site…', 'info');
+          setTimeout(() => pollCrawlStatus(pill, attemptsLeft - 1), 1500);
+          return;
+        }
+        const crawlBtn = document.getElementById('crawlStartBtn');
+        if(crawlBtn){ crawlBtn.disabled = false; crawlBtn.style.opacity = '1'; }
+        if(j.error){
+          updateCrawlProgress({ phase: 'error', percent: 0, message: j.error }, { error: true });
+          setPill(pill, j.error, 'bad');
+          return;
+        }
+        updateCrawlProgress(j.progress || { phase: 'done', percent: 100, message: 'Complete' }, { done: true });
+        const r = j.result || {};
+        const pages = r.pages_included ?? (j.stats && j.stats.pages_included) ?? '?';
+        const chunks = r.chunks ?? '?';
+        setPill(pill, `Done: ${pages} pages · ${chunks} chunks ingested`, 'ok');
+        await refreshKbStatus();
+      }catch(err){
+        setPill(pill, 'Network error', 'bad');
+        updateCrawlProgress({ phase: 'error', percent: 0, message: 'Network error' }, { error: true });
+        const crawlBtn = document.getElementById('crawlStartBtn');
+        if(crawlBtn){ crawlBtn.disabled = false; crawlBtn.style.opacity = '1'; }
+      }
+    }
+
     async function startCrawl(){
       const pill = document.getElementById('crawlStatus');
+      const btn = document.getElementById('crawlStartBtn');
       const url = (document.getElementById('crawlUrl').value || '').trim();
       if(!url){
         setPill(pill, 'Enter a start URL', 'bad');
         return;
       }
-      setPill(pill, 'Starting crawl…', '');
+      if(!/^https?:\/\//i.test(url)){
+        setPill(pill, 'URL must start with http:// or https://', 'bad');
+        return;
+      }
+      setPill(pill, 'Starting crawl…', 'info');
+      setCrawlProgressVisible(true);
+      updateCrawlProgress({ phase: 'starting', percent: 0, message: 'Starting crawl…' });
+      if(btn){ btn.disabled = true; btn.style.opacity = '0.65'; }
       const fd = new FormData();
       fd.append('start_url', url);
       try{
@@ -1620,17 +1850,20 @@
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Crawl failed'), 'bad');
+          updateCrawlProgress({ phase: 'error', percent: 0, message: j.error || 'Crawl failed' }, { error: true });
+          if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
           return;
         }
-        setPill(pill, 'Crawl started (runs in background). Refresh KB status soon.', 'ok');
+        setPill(pill, 'Crawling…', 'info');
+        updateCrawlProgress({ phase: 'crawling', percent: 5, message: 'Crawling site…' });
+        pollCrawlStatus(pill, 120);
       }catch(err){
         setPill(pill, 'Network error', 'bad');
+        updateCrawlProgress({ phase: 'error', percent: 0, message: 'Network error' }, { error: true });
+        if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
       }
-      // Poll KB status a few times.
-      setTimeout(() => refreshKbStatus(), 2500);
-      setTimeout(() => refreshKbStatus(), 8000);
-      setTimeout(() => refreshKbStatus(), 15000);
     }
+    window.startCrawl = startCrawl;
 
     loadConfig();
     refreshKbStatus();

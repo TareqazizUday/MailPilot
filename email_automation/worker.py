@@ -89,6 +89,34 @@ def _gmail_latest_inbound_unprocessed(msgs: List[Dict[str, Any]], state_store: S
     return None
 
 
+def _mark_keyword_rejected(
+    state_store: StateStore,
+    *,
+    message_id: str,
+    from_email: str,
+    subject: str,
+) -> None:
+    processed_at = _now_iso()
+    state_store.mark_processed(
+        message_id,
+        {
+            "action": "ignored",
+            "reason": "keyword_prefilter",
+            "processed_at": processed_at,
+        },
+    )
+    state_store.upsert_queue_item(
+        message_id,
+        status="reject",
+        details={
+            "id": message_id,
+            "from_email": from_email,
+            "subject": subject,
+            "reason": "keyword_prefilter",
+        },
+    )
+
+
 def _should_consider_email(settings: Settings, *, from_email: str, subject: str, body: str) -> bool:
     # Cheap keyword prefilter to avoid expensive LLM calls on obvious noise.
     toks = [t.lower() for t in (settings.SERVICE_KEYWORDS or []) if str(t).strip()]
@@ -151,7 +179,7 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
         subject = _clean_text(str(last.get("subject") or ""))
         body = str(last.get("body_text") or last.get("snippet") or "").strip()
         if not _should_consider_email(settings, from_email=from_email, subject=subject, body=body):
-            state_store.mark_processed(mid, {"action": "ignored", "reason": "keyword_prefilter", "processed_at": _now_iso()})
+            _mark_keyword_rejected(state_store, message_id=mid, from_email=from_email, subject=subject)
             ignored += 1
             continue
 
@@ -333,7 +361,9 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
             body_text = (body_text or "").strip()
 
             if not _should_consider_email(settings, from_email=from_email, subject=subject, body=body_text):
-                state_store.mark_processed(msg_id, {"action": "ignored", "reason": "keyword_prefilter", "processed_at": _now_iso()})
+                _mark_keyword_rejected(
+                    state_store, message_id=msg_id, from_email=from_email, subject=subject
+                )
                 ignored += 1
                 print(f"[mailpoll][imap] ignored uid={uid} reason=keyword_prefilter")
                 continue

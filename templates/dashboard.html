@@ -62,7 +62,16 @@
       content:'';position:absolute;right:12px;top:14px;
       width:5px;height:5px;border-radius:50%;background:var(--red);
     }
-    .msg-fr{font-size:12px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px;color:var(--tx)}
+    .msg-st-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:2px;}
+    .msg-fr{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx);flex:1;min-width:0;padding-right:0}
+    .msg-st{
+      flex-shrink:0;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;
+      text-transform:uppercase;letter-spacing:.04em;line-height:1.2;
+    }
+    .msg-st--reject{background:rgba(248,113,113,.12);color:#fca5a5;border:1px solid rgba(248,113,113,.28)}
+    .msg-st--sent{background:rgba(16,185,129,.1);color:#6ee7b7;border:1px solid rgba(16,185,129,.22)}
+    .msg-st--draft{background:rgba(99,102,241,.1);color:#a5b4fc;border:1px solid rgba(99,102,241,.2)}
+    .msg-it.unr .msg-st-row .msg-fr{padding-right:12px}
     .msg-sj{font-size:11.5px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
     .msg-tm{font-size:10px;color:var(--txm)}
     .msg-empty{padding:14px 10px;text-align:center;font-size:12px;color:var(--txm);line-height:1.45}
@@ -116,6 +125,7 @@
     .sb{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}
     .sb.pe{background:rgba(99,102,241,.08);color:var(--info);border:1px solid rgba(99,102,241,.15)}
     .sb.dn{background:rgba(16,185,129,.08);color:var(--grn-l);border:1px solid rgba(16,185,129,.15)}
+    .sb.rj{background:rgba(248,113,113,.08);color:var(--red);border:1px solid rgba(248,113,113,.15)}
 
   </style>
 {% endblock %}
@@ -337,7 +347,7 @@
         const body = document.getElementById('pendingBody');
         const activeCount = items.filter(it => {
           const s = (it.status || 'pending').toLowerCase();
-          return s !== 'completed' && s !== 'done';
+          return s !== 'completed' && s !== 'done' && s !== 'reject';
         }).length;
         if(items.length === 0){
           body.innerHTML = '<tr><td colspan="4" class="small" style="padding: 12px 11px;">Nothing waiting</td></tr>';
@@ -348,10 +358,11 @@
           return;
         }
         body.innerHTML = items.map(it => {
-          const status = (it.status || 'pending');
+          const status = (it.status || 'pending').toLowerCase();
           const isDone = status === 'completed' || status === 'done';
-          const cls = isDone ? 'dn' : 'pe';
-          const label = status[0].toUpperCase() + status.slice(1);
+          const isReject = status === 'reject';
+          const cls = isDone ? 'dn' : (isReject ? 'rj' : 'pe');
+          const label = isReject ? 'Reject' : (status[0].toUpperCase() + status.slice(1));
           const reason = (it.reason || '').toLowerCase();
           const rbClass = reason.includes('approval') ? 'ap' : (reason.includes('risk') || reason.includes('keyword')) ? 'rk' : 'ar';
           const rbLabel = it.reason || 'auto_reply';
@@ -544,10 +555,17 @@
           const from = (t.from || '').trim();
           const sj = (t.subject || '').trim();
           const tm = fmtTs(t.internal_date);
-          const sn = (t.snippet || '').trim();
+          const st = (t.message_status || '').toLowerCase();
+          let stBadge = '';
+          if(st === 'reject') stBadge = '<span class="msg-st msg-st--reject">Reject</span>';
+          else if(st === 'sent') stBadge = '<span class="msg-st msg-st--sent">Sent</span>';
+          else if(st === 'draft') stBadge = '<span class="msg-st msg-st--draft">Draft</span>';
           const html = (
             `<button type="button" class="msg-it${t.unread ? ' unr' : ' msg-seen'}" data-tid="${attrEsc(t.thread_id)}" role="option" aria-selected="false">
-              <div class="msg-fr">${esc(from || '—')}</div>
+              <div class="msg-st-row">
+                <div class="msg-fr">${esc(from || '—')}</div>
+                ${stBadge}
+              </div>
               <div class="msg-sj">${esc(sj || '(No subject)')}</div>
               <div class="msg-tm">${esc(tm)}</div>
             </button>`

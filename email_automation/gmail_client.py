@@ -138,6 +138,14 @@ class GmailClient:
             if not msgs:
                 continue
             last = msgs[-1]
+            inbound = last
+            for m in reversed(msgs):
+                payload_m = m.get("payload") or {}
+                headers_m = payload_m.get("headers") or []
+                from_m = self._header(headers_m, "From")
+                if not self.is_from_account_owner(from_m):
+                    inbound = m
+                    break
             payload = last.get("payload") or {}
             headers = payload.get("headers") or []
             from_v = self._header(headers, "From")
@@ -151,6 +159,7 @@ class GmailClient:
             out.append(
                 {
                     "thread_id": tid,
+                    "message_id": str(inbound.get("id") or ""),
                     "from": from_v,
                     "subject": subj,
                     "internal_date": internal_ms,

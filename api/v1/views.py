@@ -143,6 +143,46 @@ def kb_crawl(request):
     return _call_legacy_json(legacy_views.api_kb_crawl, request)
 
 
+@extend_schema(responses=sz.KBCrawlResponseSerializer)
+@api_view(["GET"])
+@authentication_classes(_AUTH)
+@permission_classes(_PERM)
+def kb_crawl_status(request):
+    return _call_legacy_json(legacy_views.api_kb_crawl_status, request)
+
+
+@extend_schema(responses=sz.KBUploadJsonResponseSerializer)
+@api_view(["GET"])
+@authentication_classes(_AUTH)
+@permission_classes(_PERM)
+def kb_export_bundle(request):
+    return _call_legacy_json(legacy_views.api_kb_export_bundle, request)
+
+
+@extend_schema(responses=sz.KBUploadJsonResponseSerializer)
+@api_view(["POST"])
+@authentication_classes(_AUTH)
+@permission_classes(_PERM)
+def kb_clear(request):
+    return _call_legacy_json(legacy_views.api_kb_clear, request)
+
+
+@extend_schema(responses=sz.KBUploadJsonResponseSerializer)
+@api_view(["GET"])
+@authentication_classes(_AUTH)
+@permission_classes(_PERM)
+def kb_export_json(request):
+    return _call_legacy_json(legacy_views.api_kb_export_json, request)
+
+
+@extend_schema(request=OpenApiTypes.OBJECT, responses=sz.KBUploadJsonResponseSerializer)
+@api_view(["POST"])
+@authentication_classes(_AUTH)
+@permission_classes(_PERM)
+def kb_replace_json(request):
+    return _call_legacy_json(legacy_views.api_kb_replace_json, request)
+
+
 @extend_schema(responses=sz.PendingResponseSerializer)
 @api_view(["GET"])
 @authentication_classes(_AUTH)
