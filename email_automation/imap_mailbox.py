@@ -179,6 +179,7 @@ class ImapMailbox:
             out.append(
                 {
                     "thread_id": str(uid),  # IMAP UID
+                    "message_id": f"imap:{uid}",
                     "from": from_decoded,
                     "subject": subject_decoded,
                     "internal_date": internal_ms,

@@ -27,6 +27,11 @@ urlpatterns = [
     path("kb/upload-json", views.kb_upload_json, name="v1_kb_upload_json"),
     path("kb/upload-text", views.kb_upload_text, name="v1_kb_upload_text"),
     path("kb/crawl", views.kb_crawl, name="v1_kb_crawl"),
+    path("kb/crawl/status", views.kb_crawl_status, name="v1_kb_crawl_status"),
+    path("kb/export-bundle", views.kb_export_bundle, name="v1_kb_export_bundle"),
+    path("kb/clear", views.kb_clear, name="v1_kb_clear"),
+    path("kb/export-json", views.kb_export_json, name="v1_kb_export_json"),
+    path("kb/replace-json", views.kb_replace_json, name="v1_kb_replace_json"),
     # Admin / config
     path("admin/config", views.admin_config, name="v1_admin_config"),
     # SMTP / IMAP

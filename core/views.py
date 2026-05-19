@@ -26,7 +26,6 @@ from core.access import check_api_access
 from email_automation.gmail_auth import gmail_oauth_ready, gmail_oauth_try
 from email_automation.gmail_client import GmailClient
 from email_automation.imap_mailbox import ImapMailbox, imap_inbox_ready
-from email_automation.kb.crawler import crawl_site
 from email_automation.kb.embedder import embed_texts
 from email_automation.kb.extract import (
     KBDocument,
@@ -37,15 +36,30 @@ from email_automation.kb.extract import (
     stable_doc_id,
 )
 from email_automation.kb.store import VectorStore, is_vector_db_configured
+from scraper import (
+    build_kb_export_bundle,
+    build_website_crawl_export,
+    crawl_site,
+    documents_from_crawl_export,
+    documents_from_kb_bundle,
+    is_kb_bundle,
+    delete_website_crawl_file,
+    load_website_crawl_file,
+    save_website_crawl_file,
+)
 from email_automation.settings import Settings
 from email_automation.smtp_client import SMTPClient
 
 from core import runtime
 from core.audit import log_audit
+from core.user_settings import user_data_dir
 from core.contact_mail import send_contact_submission_emails
 from core.models import ContactSubmission
 
 logger = logging.getLogger("mailpilot.views")
+
+_crawl_jobs_lock = threading.Lock()
+_crawl_jobs: dict[int, dict[str, Any]] = {}
 
 
 def _get_vector_store_for_user(user) -> VectorStore:
@@ -755,6 +769,36 @@ def _append_stored_app_reply(messages: list, meta: dict | None, effective: Setti
     return out
 
 
+def _inbox_message_status(meta: dict[str, Any] | None) -> str | None:
+    """Map processed-meta to a short UI status for the Messages list."""
+    if not meta:
+        return None
+    action = (meta.get("action") or "").lower()
+    reason = (meta.get("reason") or "").lower()
+    if action == "ignored" and reason == "keyword_prefilter":
+        return "reject"
+    if action == "sent":
+        return "sent"
+    if action == "draft":
+        return "draft"
+    return None
+
+
+def _annotate_inbox_threads(threads: list[dict[str, Any]], user) -> list[dict[str, Any]]:
+    st = runtime.state_store_for_user(user)
+    for t in threads:
+        mid = str(t.get("message_id") or "").strip()
+        if not mid and t.get("thread_id") is not None:
+            mid = f"imap:{t.get('thread_id')}"
+        meta = st.get_processed_meta(mid) if mid else None
+        status = _inbox_message_status(meta)
+        if status:
+            t["message_status"] = status
+        else:
+            t.pop("message_status", None)
+    return threads
+
+
 @require_GET
 def api_gmail_inbox(request):
     if not check_api_access(request):
@@ -765,11 +809,11 @@ def api_gmail_inbox(request):
         use_imap_list = _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
         if use_imap_list:
             mb = ImapMailbox(settings=effective)
-            threads = mb.list_inbox_summaries(max_threads=40)
+            threads = _annotate_inbox_threads(mb.list_inbox_summaries(max_threads=40), request.user)
             return JsonResponse({"ok": True, "threads": threads, "source": "imap"})
         if g_ok:
             client = GmailClient(settings=effective)
-            threads = client.list_inbox_thread_summaries(max_threads=40)
+            threads = _annotate_inbox_threads(client.list_inbox_thread_summaries(max_threads=40), request.user)
             return JsonResponse({"ok": True, "threads": threads, "source": "gmail"})
         return JsonResponse({"ok": False, "error": "not_connected"}, status=400)
     except Exception as e:
@@ -901,6 +945,44 @@ def _ingest_documents(docs: list[KBDocument], user) -> dict[str, Any]:
     return {"documents": len(docs), "chunks": total_chunks}
 
 
+def _website_crawl_path(user) -> Any:
+    return user_data_dir(user.id) / "website_crawl.json"
+
+
+def _set_crawl_job(user_id: int, state: dict[str, Any]) -> None:
+    with _crawl_jobs_lock:
+        _crawl_jobs[user_id] = state
+
+
+def _patch_crawl_job(user_id: int, **updates: Any) -> None:
+    with _crawl_jobs_lock:
+        job = dict(_crawl_jobs.get(user_id) or {})
+        if "progress" in updates and isinstance(updates["progress"], dict):
+            prog = dict(job.get("progress") or {})
+            prog.update(updates["progress"])
+            updates = {**updates, "progress": prog}
+        job.update(updates)
+        _crawl_jobs[user_id] = job
+
+
+def _get_crawl_job(user_id: int) -> dict[str, Any]:
+    with _crawl_jobs_lock:
+        return dict(_crawl_jobs.get(user_id) or {})
+
+
+def _build_kb_bundle_for_user(user) -> dict[str, Any]:
+    effective = runtime.get_effective_settings(user)
+    website_crawl = load_website_crawl_file(_website_crawl_path(user))
+    vector_documents: list[dict[str, Any]] = []
+    if is_vector_db_configured(effective):
+        vs = _get_vector_store_for_user(user)
+        vector_documents = vs.export_documents(limit=200)
+    return build_kb_export_bundle(
+        vector_documents=vector_documents,
+        website_crawl=website_crawl,
+    )
+
+
 @csrf_exempt
 def api_kb_upload_json(request):
     if request.method != "POST":
@@ -962,47 +1044,144 @@ def api_kb_crawl(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
 
-    start_url = (request.POST.get("start_url") or "").strip()
-    if not start_url and request.body and "application/json" in (request.content_type or ""):
+    body: dict[str, Any] = {}
+    if request.body and "application/json" in (request.content_type or ""):
         try:
-            body = json.loads(request.body.decode("utf-8"))
-            start_url = (body.get("start_url") or "").strip()
+            body = json.loads(request.body.decode("utf-8")) or {}
         except Exception:
-            pass
+            body = {}
+
+    start_url = (request.POST.get("start_url") or body.get("start_url") or "").strip()
     if not start_url:
         return JsonResponse({"ok": False, "error": "Missing start_url"}, status=400)
 
-    job_state = {"running": True, "error": None, "result": None}
-    uid = request.user
+    effective = runtime.get_effective_settings(request.user)
+    if not is_vector_db_configured(effective):
+        return JsonResponse(
+            {"ok": False, "error": "kb_not_configured", "configured": False},
+            status=400,
+        )
+
+    user = request.user
+    uid = user.id
+    started_at = datetime.now(timezone.utc).isoformat()
+    _set_crawl_job(
+        uid,
+        {
+            "running": True,
+            "error": None,
+            "result": None,
+            "start_url": start_url,
+            "started_at": started_at,
+            "finished_at": None,
+            "progress": {
+                "phase": "starting",
+                "percent": 0,
+                "message": "Starting crawl…",
+                "pages_fetched": 0,
+                "max_pages": 80,
+            },
+        },
+    )
 
     def _run():
+        result: dict[str, Any] | None = None
+        err: str | None = None
+        export_stats: dict[str, Any] = {}
+
+        def _on_crawl_progress(data: dict[str, Any]) -> None:
+            _patch_crawl_job(uid, running=True, progress=data)
+
         try:
-            pages = crawl_site(start_url=start_url, max_pages=40, max_depth=2)
-            docs: list[KBDocument] = []
-            for p in pages:
-                text, title = html_to_text(p.html)
-                if not text:
-                    continue
-                doc_id = stable_doc_id(source="website", url=p.url, title=title or p.url, text=text)
-                docs.append(
-                    KBDocument(
-                        doc_id=doc_id,
-                        source="website",
-                        url=p.url,
-                        title=title or p.url,
-                        text=text,
-                        metadata={"fetched_at": p.fetched_at, "start_url": start_url},
-                    )
-                )
-            res = _ingest_documents(docs, uid)
-            job_state["result"] = res
+            pages = crawl_site(start_url=start_url, on_progress=_on_crawl_progress)
+            _patch_crawl_job(
+                uid,
+                running=True,
+                progress={
+                    "phase": "exporting",
+                    "percent": 75,
+                    "message": "Deduplicating and building knowledge text…",
+                    "pages_fetched": len(pages),
+                },
+            )
+            export_payload = build_website_crawl_export(pages, start_url=start_url)
+            export_stats = (export_payload.get("crawl") or {}).get("stats") or {}
+            save_website_crawl_file(_website_crawl_path(user), export_payload)
+            _patch_crawl_job(
+                uid,
+                running=True,
+                progress={
+                    "phase": "ingesting",
+                    "percent": 88,
+                    "message": "Embedding into knowledge base…",
+                    "pages_fetched": export_stats.get("pages_included", len(pages)),
+                },
+            )
+            docs = documents_from_crawl_export(export_payload)
+            ingest_res = _ingest_documents(docs, user)
+            result = {
+                **ingest_res,
+                "pages_fetched": export_stats.get("pages_fetched", len(pages)),
+                "pages_included": export_stats.get("pages_included", 0),
+                "paragraphs_deduplicated": export_stats.get("paragraphs_deduplicated", 0),
+                "knowledge_char_count": export_stats.get("knowledge_char_count", 0),
+                "start_url": start_url,
+            }
         except Exception as e:
-            job_state["error"] = str(e)
-        finally:
-            job_state["running"] = False
+            logger.exception("kb crawl failed user_id=%s", uid)
+            err = str(e)
+        finished_at = datetime.now(timezone.utc).isoformat()
+        final_progress = (
+            {
+                "phase": "done",
+                "percent": 100,
+                "message": "Crawl complete",
+                "pages_fetched": (result or {}).get("pages_included")
+                or export_stats.get("pages_included", 0),
+            }
+            if not err
+            else {
+                "phase": "error",
+                "percent": 0,
+                "message": err,
+            }
+        )
+        _set_crawl_job(
+            uid,
+            {
+                "running": False,
+                "error": err,
+                "result": result,
+                "start_url": start_url,
+                "started_at": started_at,
+                "finished_at": finished_at,
+                "stats": export_stats,
+                "progress": final_progress,
+            },
+        )
 
     threading.Thread(target=_run, daemon=True).start()
-    return JsonResponse({"ok": True, "started": True})
+    return JsonResponse({"ok": True, "started": True, "start_url": start_url})
+
+
+@require_GET
+def api_kb_crawl_status(request):
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    job = _get_crawl_job(request.user.id)
+    return JsonResponse(
+        {
+            "ok": True,
+            "running": bool(job.get("running")),
+            "error": job.get("error"),
+            "result": job.get("result"),
+            "start_url": job.get("start_url"),
+            "started_at": job.get("started_at"),
+            "finished_at": job.get("finished_at"),
+            "stats": job.get("stats"),
+            "progress": job.get("progress"),
+        }
+    )
 
 
 @csrf_exempt
@@ -1013,11 +1192,12 @@ def api_kb_clear(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     try:
         effective = runtime.get_effective_settings(request.user)
-        if not is_vector_db_configured(effective):
-            return JsonResponse({"ok": True, "deleted_documents": 0, "deleted_chunks": 0})
-        vs = _get_vector_store_for_user(request.user)
-        res = vs.clear()
-        return JsonResponse({"ok": True, **res})
+        crawl_deleted = delete_website_crawl_file(_website_crawl_path(request.user))
+        res: dict[str, Any] = {"deleted_documents": 0, "deleted_chunks": 0}
+        if is_vector_db_configured(effective):
+            vs = _get_vector_store_for_user(request.user)
+            res = vs.clear()
+        return JsonResponse({"ok": True, **res, "deleted_crawl_file": crawl_deleted})
     except Exception as e:
         logger.exception("kb clear failed")
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -1039,11 +1219,24 @@ def api_kb_export_json(request):
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
+@require_GET
+def api_kb_export_bundle(request):
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        bundle = _build_kb_bundle_for_user(request.user)
+        return JsonResponse({"ok": True, **bundle})
+    except Exception as e:
+        logger.exception("kb export-bundle failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
 @csrf_exempt
 def api_kb_replace_json(request):
     """
     Replace (clear then ingest) KB from JSON payload.
     Body can be:
+      - mailpilot_kb_bundle (website_crawl + documents)
       - {"documents": [{title,url,text,...}, ...]}
       - a list of {title,url,text}
       - any dict JSON (flattened into one document)
@@ -1071,7 +1264,15 @@ def api_kb_replace_json(request):
             )
         vs = _get_vector_store_for_user(request.user)
         cleared = vs.clear()
-        docs = documents_from_json_upload(payload, source_name="kb_edit.json")
+        if is_kb_bundle(payload):
+            wc = payload.get("website_crawl")
+            if isinstance(wc, dict) and wc.get("knowledge"):
+                save_website_crawl_file(_website_crawl_path(request.user), wc)
+            docs = documents_from_kb_bundle(payload)
+        else:
+            docs = documents_from_json_upload(payload, source_name="kb_edit.json")
+        if not docs:
+            return JsonResponse({"ok": False, "error": "no_documents_to_ingest"}, status=400)
         res = _ingest_documents(docs, request.user)
         return JsonResponse({"ok": True, **cleared, **res})
     except Exception as e:
