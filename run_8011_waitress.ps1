@@ -13,5 +13,6 @@ if (-not (Test-Path -LiteralPath $py)) {
   throw "Python not found. Create a venv at .venv or venv under: $root"
 }
 
-& $py -m waitress --listen=0.0.0.0:8011 mailpilot.wsgi:application
+# Bind loopback only; IIS (web.config) reverse-proxies to 127.0.0.1:8011.
+& $py -m waitress --listen=127.0.0.1:8011 mailpilot.wsgi:application
 

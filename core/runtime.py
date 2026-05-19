@@ -22,6 +22,7 @@ _CONFIG_SECRET_KEYS = frozenset({"SMTP_PASSWORD", "IMAP_PASSWORD", "LLM_API_KEY"
 _scheduler: Optional[BackgroundScheduler] = None
 _scheduler_started = False
 _warned_smtp_without_inbox = False
+_gmail_invalid_grant_seen: set[int | None] = set()
 _mail_poll_backend: str = "none"
 _mail_poll_interval_sec: Optional[int] = None
 
@@ -200,7 +201,20 @@ def trigger_poll_fn(user: Optional[User] = None, user_id: Optional[int] = None, 
             gmail_client = GmailClient(settings=effective)
             return poll_once(settings=effective, state_store=st, gmail_client=gmail_client)
         except Exception as e:
-            log.warning("Gmail poll failed: %s", e)
+            from email_automation.gmail_auth import invalidate_gmail_oauth, is_invalid_grant_error
+
+            uid = getattr(user, "id", None) if user is not None else None
+            if is_invalid_grant_error(e):
+                if uid not in _gmail_invalid_grant_seen:
+                    _gmail_invalid_grant_seen.add(uid)
+                    invalidate_gmail_oauth(effective, user=user)
+                    log.warning(
+                        "Gmail OAuth token expired or revoked (user_id=%s). "
+                        "Reconnect Gmail in Setup/Settings — stale token removed.",
+                        uid,
+                    )
+            else:
+                log.warning("Gmail poll failed: %s", e)
 
     if effective.SEND_TRANSPORT == "smtp" and imap_inbox_ready(effective):
         try:

@@ -14,9 +14,16 @@ class CoreConfig(AppConfig):
     verbose_name = "Mailpilot core"
 
     def ready(self) -> None:
-        try:
-            from core import runtime  # noqa: F401
+        # Defer scheduler/IMAP startup until Django finishes AppConfig.ready() — avoids
+        # RuntimeWarning: Accessing the database during app initialization.
+        import threading
 
-            runtime.ensure_scheduler_started()
-        except Exception:
-            log.exception("Mailpilot runtime init failed")
+        def _start_runtime() -> None:
+            try:
+                from core import runtime
+
+                runtime.ensure_scheduler_started()
+            except Exception:
+                log.exception("Mailpilot runtime init failed")
+
+        threading.Thread(target=_start_runtime, daemon=True, name="mailpilot-runtime-init").start()
