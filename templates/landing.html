@@ -444,9 +444,53 @@
     #pricing {
       position: relative; z-index: 1; padding: 80px 7%; text-align: center;
     }
+    .pricing-head-row {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; flex-wrap: wrap; max-width: 1120px; margin: 0 auto;
+      text-align: left;
+    }
+    .pricing-head-copy { flex: 1; min-width: 240px; text-align: center; }
+    .pricing-head-copy .section-tag,
+    .pricing-head-copy .section-title,
+    .pricing-head-copy .pricing-intro { margin-left: auto; margin-right: auto; }
+    .pricing-head-copy .pricing-intro { text-align: center; }
+    .pricing-card-soon {
+      position: absolute; top: 14px; right: 14px; z-index: 3;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 10px; border-radius: 50px;
+      background: rgba(251,191,36,0.14); border: 1px solid rgba(251,191,36,0.4);
+      color: #fde68a; font-size: 0.62rem; font-weight: 800;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      line-height: 1; pointer-events: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+    }
+    .pricing-card-soon i { font-size: 0.7rem; opacity: 0.95; }
+    .pricing-card .pricing-tier { padding-right: 92px; }
+    .pricing-soon-inline {
+      color: #fde68a; font-size: 0.78em; font-weight: 700; white-space: nowrap;
+    }
+    .pricing-demo-note {
+      font-size: 0.8rem; color: rgba(148,163,184,0.85); margin-top: 10px;
+      max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.5;
+    }
     .pricing-intro {
       color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
       margin-left: auto; margin-right: auto; line-height: 1.65;
+    }
+    .pricing-price-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .pricing-was {
+      font-size: 1.15rem; font-weight: 700; color: var(--muted);
+      text-decoration: line-through; opacity: 0.75;
+    }
+    .pricing-save {
+      font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em;
+      text-transform: uppercase; color: #4ade80;
+      background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.28);
+      padding: 4px 10px; border-radius: 50px;
+    }
+    .pricing-card .pricing-cta {
+      position: relative; z-index: 2;
+      pointer-events: auto;
     }
     .pricing-grid {
       display: grid;
@@ -461,22 +505,42 @@
       border-radius: 22px; padding: 28px 24px 26px;
       backdrop-filter: blur(12px);
       display: flex; flex-direction: column;
-      transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s, background 0.25s;
       position: relative;
+      cursor: pointer;
+      user-select: none;
+      outline: none;
     }
     .pricing-card:hover {
       border-color: rgba(79,110,247,0.35);
       box-shadow: 0 24px 48px rgba(0,0,0,0.35);
       transform: translateY(-4px);
     }
-    .pricing-card.featured {
-      border-color: rgba(79,110,247,0.45);
-      background: linear-gradient(165deg, rgba(79,110,247,0.14), rgba(13,18,48,0.75));
-      box-shadow: 0 4px 40px rgba(79,110,247,0.15);
+    .pricing-card:focus-visible {
+      box-shadow: 0 0 0 3px rgba(79,110,247,0.35), 0 24px 48px rgba(0,0,0,0.35);
     }
-    .pricing-card.featured:hover {
-      box-shadow: 0 28px 56px rgba(79,110,247,0.22);
+    .pricing-card.is-active {
+      border-color: rgba(79,110,247,0.65);
+      background: linear-gradient(165deg, rgba(79,110,247,0.16), rgba(13,18,48,0.78));
+      box-shadow: 0 8px 44px rgba(79,110,247,0.28), 0 0 0 2px rgba(167,139,250,0.35);
+      transform: translateY(-6px);
     }
+    .pricing-card.is-active:hover {
+      box-shadow: 0 12px 52px rgba(79,110,247,0.32), 0 0 0 2px rgba(167,139,250,0.4);
+    }
+    .pricing-card.is-active::before {
+      content: '';
+      position: absolute; top: 14px; left: 14px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      box-shadow: 0 4px 14px rgba(79,110,247,0.45);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L19 7'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 13px 13px;
+      z-index: 2;
+    }
+    .pricing-card.is-active .pricing-tier { padding-left: 34px; }
     .pricing-badge {
       position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
       background: linear-gradient(135deg, #4f6ef7, #a78bfa);
@@ -523,6 +587,7 @@
     .pricing-cta.secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
     @media (max-width: 992px) {
       .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+      .pricing-head-row { justify-content: center; text-align: center; }
     }
 
     /* ── CTA ── */
@@ -801,37 +866,37 @@
 <section id="how-it-works">
   <div class="section-tag"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Workflow</div>
   <h2 class="section-title">How MailPilot <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">works</span></h2>
-  <p class="section-sub">Six automated steps from inbox to intelligent reply.</p>
+  <p class="section-sub">Six steps matching the live automation pipeline—from inbox poll to reply and per-user state.</p>
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>
-      <div class="step-title">Poll Inbox</div>
-      <div class="step-desc">Gmail API or IMAP scans for new unread emails on schedule.</div>
+      <div class="step-title">Poll inbox</div>
+      <div class="step-desc">Gmail API (recent threads) or IMAP INBOX on a schedule, manual “Run poll”, or IMAP IDLE for faster SMTP inboxes.</div>
     </div>
     <div class="step">
       <div class="step-num">2</div>
-      <div class="step-title">Relevance Check</div>
-      <div class="step-desc">LLM scores each email — skip newsletters, flag actionable ones.</div>
+      <div class="step-title">Keyword prefilter</div>
+      <div class="step-desc">Optional SERVICE_KEYWORDS filter runs first—non-matching mail is skipped before any LLM call.</div>
     </div>
     <div class="step">
       <div class="step-num">3</div>
-      <div class="step-title">RAG Lookup</div>
-      <div class="step-desc">Query pgvector knowledge base for context specific to the email.</div>
+      <div class="step-title">RAG lookup</div>
+      <div class="step-desc">If your KB is configured: embed subject+body and pull top chunks from Postgres pgvector (JSON upload).</div>
     </div>
     <div class="step">
       <div class="step-num">4</div>
-      <div class="step-title">Draft Reply</div>
-      <div class="step-desc">LLM generates a grounded, professional reply using KB context.</div>
+      <div class="step-title">AI relevance &amp; reply</div>
+      <div class="step-desc">One LLM call returns relevance, confidence, and reply text; must pass your RELEVANCE_THRESHOLD.</div>
     </div>
     <div class="step">
       <div class="step-num">5</div>
-      <div class="step-title">Safety Queue</div>
-      <div class="step-desc">Reply held in queue for review or auto-approved by policy.</div>
+      <div class="step-title">Draft or auto-send</div>
+      <div class="step-desc">REPLY_MODE=draft saves the reply for dashboard review; send delivers immediately via Gmail API or SMTP.</div>
     </div>
     <div class="step">
       <div class="step-num">6</div>
-      <div class="step-title">Send & Log</div>
-      <div class="step-desc">Email sent via Gmail/SMTP. State updated. Full audit logged.</div>
+      <div class="step-title">State &amp; queue</div>
+      <div class="step-desc">Per-user processed state avoids duplicates; the dashboard queue shows sent, draft, and ignored activity (account audit in admin).</div>
     </div>
   </div>
 </section>
@@ -892,56 +957,76 @@
   </div>
 </section>
 
-<!-- PRICING -->
+<!-- PRICING (demo — billing coming soon) -->
 <section id="pricing" aria-labelledby="pricing-heading">
-  <div class="section-tag">Pricing</div>
-  <h2 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h2>
-  <p class="pricing-intro">Start free, scale when volume grows. All plans include secure sign-in and tenant-isolated data—adjust numbers to match your real billing when you launch.</p>
+  <div class="pricing-head-row">
+    <div class="pricing-head-copy">
+      <div class="section-tag">Pricing</div>
+      <h2 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h2>
+      <p class="pricing-intro">Demo pricing preview—choose a send volume that fits your inbox. Paid checkout launches soon.</p>
+      <p class="pricing-demo-note">Limits count automated <strong>sent</strong> replies per month (draft-only mode does not use send quota).</p>
+    </div>
+  </div>
 
-  <div class="pricing-grid">
-    <article class="pricing-card">
+  <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
+    <article class="pricing-card" role="option" tabindex="0" data-plan="starter" aria-pressed="false" aria-label="Starter plan">
+      <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
       <div class="pricing-tier">Starter</div>
       <div class="pricing-price">$0<span>/mo</span></div>
-      <p class="pricing-period">For individuals &amp; trials</p>
-      <p class="pricing-desc">One mailbox, core automation, and enough AI to prove value before you commit.</p>
+      <p class="pricing-period">1 mo trial · then free tier</p>
+      <p class="pricing-desc">Try MailPilot with a full month to connect your inbox, test AI replies, and see relevance filtering in action.</p>
       <ul class="pricing-features">
+        <li><strong>1 mo</strong> trial access</li>
+        <li><strong>20 sent emails</strong> per month</li>
         <li>1 connected inbox (Gmail or IMAP)</li>
-        <li>Basic relevance scoring &amp; queue</li>
-        <li>Limited AI replies per month</li>
-        <li>Dashboard &amp; audit log (self)</li>
+        <li>Keyword filter + LLM relevance</li>
+        <li>Dashboard queue &amp; draft mode</li>
       </ul>
-      <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free</a>
+      <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free trial</a>
     </article>
 
-    <article class="pricing-card featured">
-      <span class="pricing-badge">Most popular</span>
+    <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
+      <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+      <span class="pricing-badge">50% launch offer</span>
       <div class="pricing-tier">Pro</div>
-      <div class="pricing-price">$49<span>/mo</span></div>
+      <div class="pricing-price-row">
+        <span class="pricing-was">$40</span>
+        <div class="pricing-price">$20<span>/mo</span></div>
+        <span class="pricing-save">Save 50%</span>
+      </div>
       <p class="pricing-period">Billed monthly · cancel anytime</p>
-      <p class="pricing-desc">Full RAG knowledge base, higher limits, and background workers for reliable polling.</p>
+      <p class="pricing-desc">Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits.</p>
       <ul class="pricing-features">
-        <li>Up to 3 mailboxes</li>
-        <li>pgvector RAG &amp; document ingestion</li>
-        <li>Higher AI &amp; send volume</li>
-        <li>Celery-ready job queue (with Redis)</li>
-        <li>Priority email support</li>
+        <li><strong>1,000 sent emails</strong> per month</li>
+        <li>pgvector RAG (JSON &amp; text upload)</li>
+        <li>Gmail OAuth + SMTP/IMAP</li>
+        <li>APScheduler or Celery polling</li>
+        <li>Per-user encrypted credentials</li>
+        <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
+        <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
+        <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
       </ul>
       <a href="{% url 'signup' %}" class="pricing-cta primary">Get Pro</a>
     </article>
 
-    <article class="pricing-card">
-      <div class="pricing-tier">Business</div>
-      <div class="pricing-price">Custom</div>
-      <p class="pricing-period">Teams &amp; compliance</p>
-      <p class="pricing-desc">Volume, SSO, SLAs, and deployment options for teams that need a contract.</p>
+    <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
+      <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+      <span class="pricing-badge">Most popular</span>
+      <div class="pricing-tier">Custom</div>
+      <div class="pricing-price">You choose</div>
+      <p class="pricing-period">Set price &amp; send volume</p>
+      <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
       <ul class="pricing-features">
-        <li>Unlimited mailboxes (fair use)</li>
-        <li>Team seats &amp; admin controls</li>
-        <li>Advanced audit &amp; retention</li>
-        <li>Dedicated onboarding &amp; SLAs</li>
-        <li>Optional private / VPC deployment</li>
+        <li><strong>2,000 sends</strong> (4 Gmail/SMTP) → <strong>$30/mo</strong></li>
+        <li><strong>3,000 sends</strong> (6 Gmail/SMTP) → <strong>$40/mo</strong></li>
+        <li>Or define your own tier (e.g. $50 → 5,000 sends)</li>
+        <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
+        <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
+        <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
+        <li>Annual billing option</li>
+        <li>Priority onboarding &amp; team seats</li>
       </ul>
-      <a href="{% url 'signup' %}" class="pricing-cta secondary">Contact sales</a>
+      <a href="{% url 'signup' %}" class="pricing-cta secondary">Build custom plan</a>
     </article>
   </div>
 </section>
@@ -1067,6 +1152,39 @@ document.querySelectorAll('.feat-card, .step, .stat-item, .testimonial-card, .pr
   el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
   observer.observe(el);
 });
+
+// Pricing plan selection (click to activate)
+(function () {
+  const grid = document.querySelector('#pricing .pricing-grid');
+  if (!grid) return;
+  const cards = Array.from(grid.querySelectorAll('.pricing-card[data-plan]'));
+  if (!cards.length) return;
+
+  function activate(card) {
+    cards.forEach((c) => {
+      const on = c === card;
+      c.classList.toggle('is-active', on);
+      c.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  cards.forEach((card) => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.pricing-cta')) return;
+      activate(card);
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.target.closest('.pricing-cta')) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        activate(card);
+      }
+    });
+    card.querySelectorAll('.pricing-cta').forEach((btn) => {
+      btn.addEventListener('click', (e) => e.stopPropagation());
+    });
+  });
+})();
 </script>
 </body>
 </html>

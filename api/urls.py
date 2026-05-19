@@ -28,6 +28,7 @@ urlpatterns = [
     path("trigger-poll", legacy_views.api_trigger_poll, name="api_trigger_poll_legacy"),
     path("kb/status", legacy_views.api_kb_status, name="api_kb_status_legacy"),
     path("kb/upload-json", legacy_views.api_kb_upload_json, name="api_kb_upload_json_legacy"),
+    path("kb/upload-text", legacy_views.api_kb_upload_text, name="api_kb_upload_text_legacy"),
     path("kb/crawl", legacy_views.api_kb_crawl, name="api_kb_crawl_legacy"),
     path("kb/clear", legacy_views.api_kb_clear, name="api_kb_clear_legacy"),
     path("kb/export-json", legacy_views.api_kb_export_json, name="api_kb_export_json_legacy"),

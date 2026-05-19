@@ -60,6 +60,10 @@ class KBUploadJsonRequestSerializer(serializers.Serializer):
     json_file = serializers.FileField()
 
 
+class KBUploadTextRequestSerializer(serializers.Serializer):
+    text_file = serializers.FileField()
+
+
 class KBUploadJsonResponseSerializer(serializers.Serializer):
     ok = serializers.BooleanField()
     documents = serializers.IntegerField(required=False)

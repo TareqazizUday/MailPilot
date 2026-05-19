@@ -25,6 +25,7 @@ urlpatterns = [
     # Knowledge base
     path("kb/status", views.kb_status, name="v1_kb_status"),
     path("kb/upload-json", views.kb_upload_json, name="v1_kb_upload_json"),
+    path("kb/upload-text", views.kb_upload_text, name="v1_kb_upload_text"),
     path("kb/crawl", views.kb_crawl, name="v1_kb_crawl"),
     # Admin / config
     path("admin/config", views.admin_config, name="v1_admin_config"),

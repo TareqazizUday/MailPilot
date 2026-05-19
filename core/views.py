@@ -25,7 +25,14 @@ from email_automation.gmail_client import GmailClient
 from email_automation.imap_mailbox import ImapMailbox, imap_inbox_ready
 from email_automation.kb.crawler import crawl_site
 from email_automation.kb.embedder import embed_texts
-from email_automation.kb.extract import KBDocument, chunk_text, documents_from_json_upload, html_to_text, stable_doc_id
+from email_automation.kb.extract import (
+    KBDocument,
+    chunk_text,
+    documents_from_json_upload,
+    documents_from_text_upload,
+    html_to_text,
+    stable_doc_id,
+)
 from email_automation.kb.store import VectorStore, is_vector_db_configured
 from email_automation.settings import Settings
 from email_automation.smtp_client import SMTPClient
@@ -861,6 +868,37 @@ def api_kb_upload_json(request):
         return JsonResponse({"ok": True, **res})
     except Exception as e:
         logger.exception("kb upload-json failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@csrf_exempt
+def api_kb_upload_text(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    f = request.FILES.get("text_file")
+    if f is None or not getattr(f, "name", ""):
+        return JsonResponse({"ok": False, "error": "Missing text_file"}, status=400)
+    name = secure_filename(f.name) or "upload.txt"
+    lower = name.lower()
+    if not (lower.endswith(".txt") or lower.endswith(".text") or lower.endswith(".md")):
+        return JsonResponse(
+            {"ok": False, "error": "Expected a .txt, .text, or .md file"},
+            status=400,
+        )
+    try:
+        raw = f.read().decode("utf-8", errors="replace")
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": f"Could not read file: {e}"}, status=400)
+    try:
+        docs = documents_from_text_upload(raw, source_name=name)
+        if not docs:
+            return JsonResponse({"ok": False, "error": "Text file is empty"}, status=400)
+        res = _ingest_documents(docs, request.user)
+        return JsonResponse({"ok": True, **res})
+    except Exception as e:
+        logger.exception("kb upload-text failed")
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 

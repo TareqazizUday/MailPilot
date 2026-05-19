@@ -254,10 +254,19 @@
       font-size:18px;
     }
 
-    /* KB JSON uploader (match Client Secret uploader) */
+    /* KB file uploader (match Client Secret uploader) */
     .kb-up{margin-top:8px;}
     .kb-up .fu{min-height:96px;}
     .kb-up .fu p{font-size:0.84rem;}
+    .kb-format-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
+    .kb-format-toggle{display:inline-flex;border:1px solid var(--glass-border);border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.02);}
+    .kb-format-btn{
+      border:none;background:transparent;color:var(--muted);
+      padding:8px 14px;font-size:0.78rem;font-weight:800;cursor:pointer;
+      font-family:'Inter',sans-serif;transition:background .2s,color .2s;
+    }
+    .kb-format-btn.on{background:rgba(79,110,247,0.18);color:var(--text);}
+    .kb-format-btn:hover:not(.on){background:rgba(255,255,255,0.04);color:var(--text);}
 
     /* Minimal modal for KB editor */
     .mp-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:50;padding:18px;}
@@ -591,7 +600,7 @@
           </div>
           <div class="oauth-box" style="margin-top:0;">
             <div class="oauth-h"><i class="fa-solid fa-brain" aria-hidden="true"></i> Build knowledge for “perfect replies”</div>
-            <p class="oauth-txt" style="margin:0;">Upload structured JSON or crawl your website so replies can be grounded in your real service info.</p>
+            <p class="oauth-txt" style="margin:0;">Upload JSON or plain text (.txt) knowledge, or crawl your website so replies can be grounded in your real service info.</p>
           </div>
 
           <div class="oauth-box">
@@ -616,17 +625,23 @@
           <div class="mini"><span id="kbEditStatus" class="pill">—</span></div>
 
           <div class="fg" style="margin-top:14px;">
-            <label class="fl">Upload JSON knowledge</label>
+            <div class="kb-format-row">
+              <label class="fl" style="margin:0;" id="kbUploadLabel">Upload knowledge</label>
+              <div class="kb-format-toggle" role="group" aria-label="Knowledge file format">
+                <button type="button" class="kb-format-btn on" id="kbFmtJson" onclick="setKbUploadMode('json')">JSON</button>
+                <button type="button" class="kb-format-btn" id="kbFmtText" onclick="setKbUploadMode('text')">Text</button>
+              </div>
+            </div>
             <div class="kb-up">
-              <div class="fu" id="kbUp" onclick="document.getElementById('kbJsonFile').click()">
+              <div class="fu" id="kbUp" onclick="document.getElementById('kbUploadFile').click()">
                 <i class="fa-solid fa-upload" id="kbUpIco" aria-hidden="true"></i>
-                <p id="kbUpTxt">Click to choose a <span>.json</span> file</p>
+                <p id="kbUpTxt">Click to choose a <span class="kb-ext-hint">.json</span> file</p>
                 <div class="ht" id="kbUpHt">JSON only · Max size depends on server</div>
               </div>
-              <input class="fi" type="file" id="kbJsonFile" accept="application/json" style="display:none" />
+              <input class="fi" type="file" id="kbUploadFile" accept=".json,application/json" style="display:none" />
             </div>
-            <button class="btn btn-purp btn-block" style="margin-top:10px;" type="button" onclick="uploadKbJson()">
-              <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload & Ingest JSON
+            <button class="btn btn-purp btn-block" style="margin-top:10px;" type="button" id="kbUploadBtn" onclick="uploadKbFile()">
+              <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload &amp; Ingest JSON
             </button>
             <div class="mini"><span id="kbUploadStatus" class="pill">—</span></div>
           </div>
@@ -722,9 +737,57 @@
       });
     })();
 
+    let _kbUploadMode = 'json';
+
+    function _kbAllowedExt(mode){
+      return mode === 'text' ? ['.txt', '.text', '.md'] : ['.json'];
+    }
+
+    function _kbFileMatchesMode(file, mode){
+      if(!file || !file.name) return false;
+      const n = file.name.toLowerCase();
+      return _kbAllowedExt(mode).some(ext => n.endsWith(ext));
+    }
+
+    function setKbUploadMode(mode){
+      const m = (mode === 'text') ? 'text' : 'json';
+      _kbUploadMode = m;
+      const btnJson = document.getElementById('kbFmtJson');
+      const btnText = document.getElementById('kbFmtText');
+      if(btnJson) btnJson.classList.toggle('on', m === 'json');
+      if(btnText) btnText.classList.toggle('on', m === 'text');
+
+      const fi = document.getElementById('kbUploadFile');
+      const hint = document.querySelector('#kbUpTxt .kb-ext-hint');
+      const ht = document.getElementById('kbUpHt');
+      const uploadBtn = document.getElementById('kbUploadBtn');
+      const up = document.getElementById('kbUp');
+
+      if(m === 'text'){
+        if(fi) fi.accept = '.txt,.text,.md,text/plain';
+        if(hint) hint.textContent = '.txt';
+        if(ht) ht.textContent = 'Plain text (.txt, .text, .md) · Max size depends on server';
+        if(uploadBtn) uploadBtn.innerHTML = '<i class="fa-solid fa-upload" aria-hidden="true"></i> Upload &amp; Ingest Text';
+      }else{
+        if(fi) fi.accept = '.json,application/json';
+        if(hint) hint.textContent = '.json';
+        if(ht) ht.textContent = 'JSON only · Max size depends on server';
+        if(uploadBtn) uploadBtn.innerHTML = '<i class="fa-solid fa-upload" aria-hidden="true"></i> Upload &amp; Ingest JSON';
+      }
+
+      if(fi) fi.value = '';
+      if(up){
+        up.classList.remove('ok');
+        const ico = document.getElementById('kbUpIco'); if(ico) ico.className = 'fa-solid fa-upload';
+        const txt = document.getElementById('kbUpTxt');
+        if(txt) txt.innerHTML = 'Click to choose a <span class="kb-ext-hint">' + (m === 'text' ? '.txt' : '.json') + '</span> file';
+      }
+    }
+    window.setKbUploadMode = setKbUploadMode;
+
     (function(){
       const up = document.getElementById('kbUp');
-      const fi = document.getElementById('kbJsonFile');
+      const fi = document.getElementById('kbUploadFile');
       if(!up || !fi) return;
 
       function setName(name){
@@ -735,7 +798,15 @@
       }
 
       fi.addEventListener('change', () => {
-        if(fi.files && fi.files[0]) setName(fi.files[0].name);
+        const f = fi.files && fi.files[0];
+        if(!f) return;
+        if(!_kbFileMatchesMode(f, _kbUploadMode)){
+          fi.value = '';
+          const pill = document.getElementById('kbUploadStatus');
+          setPill(pill, _kbUploadMode === 'text' ? 'Choose a .txt file' : 'Choose a .json file', 'bad');
+          return;
+        }
+        setName(f.name);
       });
       up.addEventListener('dragover', (e) => { e.preventDefault(); up.classList.add('over'); });
       up.addEventListener('dragleave', () => up.classList.remove('over'));
@@ -744,7 +815,7 @@
         up.classList.remove('over');
         const f = e.dataTransfer.files && e.dataTransfer.files[0];
         if(!f) return;
-        if(!f.name.toLowerCase().endsWith('.json')) return;
+        if(!_kbFileMatchesMode(f, _kbUploadMode)) return;
         fi.files = e.dataTransfer.files;
         setName(f.name);
       });
@@ -1380,10 +1451,9 @@
         if(up){
           up.classList.remove('ok');
           const ico = document.getElementById('kbUpIco'); if(ico) ico.className = 'fa-solid fa-upload';
-          const txt = document.getElementById('kbUpTxt'); if(txt) txt.innerHTML = 'Click to choose a <span>.json</span> file';
-          const ht  = document.getElementById('kbUpHt'); if(ht) ht.textContent = 'JSON only · Max size depends on server';
+          setKbUploadMode(_kbUploadMode);
         }
-        const fi = document.getElementById('kbJsonFile');
+        const fi = document.getElementById('kbUploadFile');
         if(fi) fi.value = '';
       }catch(err){
         setPill(pill, 'Network error', 'bad');
@@ -1500,18 +1570,28 @@
     }
     window.saveKbEditor = saveKbEditor;
 
-    async function uploadKbJson(){
+    async function uploadKbFile(){
       const pill = document.getElementById('kbUploadStatus');
-      const f = document.getElementById('kbJsonFile')?.files?.[0];
+      const f = document.getElementById('kbUploadFile')?.files?.[0];
+      const mode = _kbUploadMode;
       if(!f){
-        setPill(pill, 'Select a JSON file first', 'bad');
+        setPill(pill, mode === 'text' ? 'Select a text file first' : 'Select a JSON file first', 'bad');
+        return;
+      }
+      if(!_kbFileMatchesMode(f, mode)){
+        setPill(pill, mode === 'text' ? 'Expected a .txt, .text, or .md file' : 'Expected a .json file', 'bad');
         return;
       }
       setPill(pill, 'Uploading…', '');
       const fd = new FormData();
-      fd.append('json_file', f, f.name);
+      const url = mode === 'text' ? '/api/kb/upload-text' : '/api/kb/upload-json';
+      if(mode === 'text'){
+        fd.append('text_file', f, f.name);
+      }else{
+        fd.append('json_file', f, f.name);
+      }
       try{
-        const res = await fetch('/api/kb/upload-json', { method:'POST', body: fd });
+        const res = await fetch(url, { method:'POST', body: fd });
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Upload failed'), 'bad');
@@ -1523,6 +1603,7 @@
       }
       await refreshKbStatus();
     }
+    window.uploadKbFile = uploadKbFile;
 
     async function startCrawl(){
       const pill = document.getElementById('crawlStatus');
