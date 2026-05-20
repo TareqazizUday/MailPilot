@@ -41,13 +41,13 @@
       border-bottom: 1px solid var(--glass-border);
     }
     .nav-logo {
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; gap: 6px;
       font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px;
       background: linear-gradient(135deg, #4f6ef7, #a78bfa);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       text-decoration: none;
     }
-    .nav-logo .brand-logo-img { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; display: block; }
+    .nav-logo .brand-logo-mark { flex-shrink: 0; }
     .nav-links { display: flex; gap: 32px; list-style: none; }
     .nav-links a { color: var(--muted); font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: color 0.2s; }
     .nav-links a:hover { color: var(--text); }
@@ -138,8 +138,7 @@
 
   <nav aria-label="Primary">
     <a href="{% url 'home' %}" class="nav-logo" aria-label="MailPilot home">
-      {% include "components/brand_logo.html" with logo_w=32 logo_h=32 %}
-      MailPilot
+      {% include "components/brand_logo.html" with logo_w=32 logo_h=32 %}<span class="nav-logo-text">MailPilot</span>
     </a>
     <ul class="nav-links">
       <li><a href="{% url 'features' %}">Features</a></li>

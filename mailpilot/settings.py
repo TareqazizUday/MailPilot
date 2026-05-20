@@ -232,7 +232,7 @@ CACHES = {
 }
 
 # In-process APScheduler fallback poll when CELERY_BROKER_URL is unset (seconds, min 10).
-_iv_raw = (os.environ.get("MAIL_POLL_INTERVAL_SECONDS") or os.environ.get("IMAP_POLL_SECONDS") or "60").strip()
+_iv_raw = (os.environ.get("IMAP_POLL_SECONDS") or os.environ.get("MAIL_POLL_INTERVAL_SECONDS") or "60").strip()
 try:
     MAIL_POLL_INTERVAL_SECONDS = max(10, min(int(_iv_raw or "60"), 86400))
 except ValueError:

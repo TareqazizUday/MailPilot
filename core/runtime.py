@@ -25,6 +25,8 @@ _warned_smtp_without_inbox = False
 _gmail_invalid_grant_seen: set[int | None] = set()
 _mail_poll_backend: str = "none"
 _mail_poll_interval_sec: Optional[int] = None
+_user_poll_locks: dict[int, threading.Lock] = {}
+_user_poll_locks_guard = threading.Lock()
 
 
 def _strip_empty_secret_overrides(overrides: dict[str, Any]) -> dict[str, Any]:
@@ -106,6 +108,10 @@ def mail_poll_backend() -> str:
 
 def mail_poll_interval_seconds() -> Optional[int]:
     """APScheduler interval when backend is apscheduler; None otherwise."""
+    if _mail_poll_backend == "apscheduler":
+        from django.conf import settings as dj_settings
+
+        return int(getattr(dj_settings, "MAIL_POLL_INTERVAL_SECONDS", _mail_poll_interval_sec or 60))
     return _mail_poll_interval_sec
 
 
@@ -171,7 +177,36 @@ def get_effective_settings(user: Optional[User] = None):
         return _settings
 
 
+def _poll_lock_for_user(user: Optional[User]) -> threading.Lock:
+    """One poll at a time per user (APScheduler + IMAP IDLE + manual API)."""
+    uid = int(user.id) if user is not None and getattr(user, "id", None) is not None else 0
+    with _user_poll_locks_guard:
+        lock = _user_poll_locks.get(uid)
+        if lock is None:
+            lock = threading.Lock()
+            _user_poll_locks[uid] = lock
+        return lock
+
+
 def trigger_poll_fn(user: Optional[User] = None, user_id: Optional[int] = None, *, fast: bool = False):
+    from email_automation.worker import PollResult
+
+    if user_id is not None and user is None:
+        from django.contrib.auth.models import User
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
+
+    lock = _poll_lock_for_user(user)
+    with lock:
+        return _trigger_poll_fn_locked(user=user, user_id=user_id, fast=fast)
+
+
+def _trigger_poll_fn_locked(
+    user: Optional[User] = None, user_id: Optional[int] = None, *, fast: bool = False
+):
     from email_automation.gmail_auth import gmail_oauth_ready
     from email_automation.gmail_client import GmailClient
     from email_automation.imap_mailbox import imap_inbox_ready

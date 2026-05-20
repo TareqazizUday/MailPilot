@@ -42,13 +42,13 @@
       border-bottom: 1px solid var(--glass-border);
     }
     .nav-logo {
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; gap: 6px;
       font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px;
       background: linear-gradient(135deg, #4f6ef7, #a78bfa);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       text-decoration: none;
     }
-    .nav-logo .brand-logo-img { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; display: block; }
+    .nav-logo .brand-logo-mark { flex-shrink: 0; }
     .nav-links { display: flex; gap: 32px; list-style: none; }
     .nav-links a { color: var(--muted); font-size: 0.9rem; font-weight: 500; text-decoration: none; transition: color 0.2s; }
     .nav-links a:hover { color: var(--text); }
@@ -82,59 +82,239 @@
     .acct-logout{color:#fecaca;}
     .acct-logout i{color:#f87171;}
 
-    main { position: relative; z-index: 1; padding: 120px 7% 20px; }
-    .page-head { max-width: 1120px; margin: 0 auto 18px; }
-    .tag {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px; border-radius: 999px;
-      border: 1px solid rgba(79,110,247,0.35);
-      background: rgba(79,110,247,0.10);
-      color: #a5b4fc;
-      font-size: 0.78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    main { position: relative; z-index: 1; padding: 120px 7% 40px; text-align: center; }
+    .section-tag {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: #a78bfa; margin-bottom: 14px;
     }
-    h1 { margin-top: 14px; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -1px; }
-    .sub { margin-top: 10px; color: rgba(148,163,184,0.90); line-height: 1.7; max-width: 760px; }
-
-    .pricing-grid { max-width: 1120px; margin: 26px auto 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800;
+      letter-spacing: -1px; line-height: 1.2;
+    }
+    .pricing-head-row {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; flex-wrap: wrap; max-width: 1120px; margin: 0 auto;
+      text-align: left;
+    }
+    .pricing-head-copy { flex: 1; min-width: 240px; text-align: center; }
+    .pricing-head-copy .section-tag,
+    .pricing-head-copy .section-title,
+    .pricing-head-copy .pricing-intro,
+    .pricing-head-copy .pricing-demo-note { margin-left: auto; margin-right: auto; }
+    .pricing-head-copy .pricing-intro,
+    .pricing-head-copy .pricing-demo-note { text-align: center; }
+    .pricing-intro {
+      color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
+      line-height: 1.65;
+    }
+    .pricing-demo-note {
+      font-size: 0.8rem; color: rgba(148,163,184,0.85); margin-top: 10px;
+      max-width: 520px; line-height: 1.5;
+    }
+    .pricing-card-soon {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 10px; border-radius: 50px;
+      background: rgba(251,191,36,0.14); border: 1px solid rgba(251,191,36,0.4);
+      color: #fde68a; font-size: 0.62rem; font-weight: 800;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      line-height: 1; pointer-events: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+    }
+    .pricing-card-soon i { font-size: 0.7rem; opacity: 0.95; }
+    .pricing-card-free {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 50px;
+      background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(74,222,128,0.1));
+      border: 1px solid rgba(74,222,128,0.45);
+      color: #6ee7b7;
+      font-size: 0.62rem; font-weight: 800;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      line-height: 1; pointer-events: none;
+      box-shadow: 0 4px 18px rgba(16,185,129,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .pricing-card-free i {
+      font-size: 0.72rem; color: #4ade80;
+      filter: drop-shadow(0 0 6px rgba(74,222,128,0.45));
+    }
+    .pricing-card[data-plan="starter"] {
+      border-color: rgba(74,222,128,0.22);
+      background: linear-gradient(165deg, rgba(16,185,129,0.06), rgba(10,14,36,0.52));
+    }
+    .pricing-card[data-plan="starter"]:hover {
+      border-color: rgba(74,222,128,0.42);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.35), 0 8px 32px rgba(16,185,129,0.12);
+    }
+    .pricing-card[data-plan="starter"].is-active {
+      border-color: rgba(74,222,128,0.55);
+      background: linear-gradient(165deg, rgba(16,185,129,0.14), rgba(13,18,48,0.78));
+      box-shadow: 0 8px 44px rgba(16,185,129,0.22), 0 0 0 2px rgba(74,222,128,0.28);
+    }
+    .pricing-card[data-plan="starter"].is-active::before {
+      background: linear-gradient(135deg, #10b981, #4ade80);
+      box-shadow: 0 4px 14px rgba(16,185,129,0.45);
+    }
+    .pricing-tier-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin-bottom: 6px; min-width: 0;
+    }
+    .pricing-tier-row .pricing-tier { margin-bottom: 0; min-width: 0; }
+    .pricing-tier-row .pricing-card-free,
+    .pricing-tier-row .pricing-card-soon { position: static; flex-shrink: 0; margin: 0; }
+    .pricing-soon-inline {
+      color: #fde68a; font-size: 0.78em; font-weight: 700; white-space: nowrap;
+    }
+    .pricing-price-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .pricing-was {
+      font-size: 1.15rem; font-weight: 700; color: var(--muted);
+      text-decoration: line-through; opacity: 0.75;
+    }
+    .pricing-save {
+      font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em;
+      text-transform: uppercase; color: #4ade80;
+      background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.28);
+      padding: 4px 10px; border-radius: 50px;
+    }
+    .pricing-card .pricing-cta { position: relative; z-index: 2; pointer-events: auto; }
+    .pricing-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 22px; margin-top: 48px; text-align: left;
+      max-width: 1120px; margin-left: auto; margin-right: auto;
+      align-items: stretch; overflow: visible; padding-top: 14px;
+    }
     .pricing-card {
-      background: linear-gradient(165deg, rgba(13,18,48,0.72), rgba(10,14,36,0.45));
-      border: 1px solid rgba(255,255,255,0.10);
-      border-radius: 22px;
-      padding: 22px 20px;
-      backdrop-filter: blur(14px);
-      box-shadow: 0 24px 50px rgba(0,0,0,0.35);
-      position: relative;
-      overflow: hidden;
+      background: linear-gradient(165deg, rgba(13,18,48,0.65), rgba(10,14,36,0.5));
+      border: 1px solid var(--glass-border);
+      border-radius: 22px; padding: 28px 24px 26px;
+      backdrop-filter: blur(12px);
+      display: flex; flex-direction: column;
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s, background 0.25s;
+      position: relative; cursor: pointer; user-select: none; outline: none;
     }
-    .pricing-card.featured { border-color: rgba(79,110,247,0.35); box-shadow: 0 30px 70px rgba(79,110,247,0.10), 0 24px 50px rgba(0,0,0,0.35); }
-    .pricing-badge { position:absolute; top:16px; right:16px; font-size:.75rem; font-weight:900; padding:6px 10px; border-radius:999px; background: rgba(167,139,250,0.14); border: 1px solid rgba(167,139,250,0.30); color: rgba(226,232,240,0.92); }
-    .pricing-tier { font-weight: 900; letter-spacing: -0.3px; }
-    .pricing-price { margin-top: 10px; font-size: 2.2rem; font-weight: 900; letter-spacing: -1px; }
-    .pricing-price span { font-size: 1rem; font-weight: 800; color: rgba(148,163,184,0.85); }
-    .pricing-period { margin-top: 6px; color: rgba(148,163,184,0.86); font-size: 0.9rem; }
-    .pricing-desc { margin-top: 10px; color: rgba(148,163,184,0.92); line-height: 1.7; }
-    .pricing-features { margin-top: 14px; padding-left: 18px; color: rgba(148,163,184,0.92); line-height: 1.75; }
-    .pricing-features li { margin: 6px 0; }
-    .pricing-cta {
+    .pricing-card:hover {
+      border-color: rgba(79,110,247,0.35);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.35);
+      transform: translateY(-4px);
+    }
+    .pricing-card:focus-visible {
+      box-shadow: 0 0 0 3px rgba(79,110,247,0.35), 0 24px 48px rgba(0,0,0,0.35);
+    }
+    .pricing-card.is-active {
+      border-color: rgba(79,110,247,0.65);
+      background: linear-gradient(165deg, rgba(79,110,247,0.16), rgba(13,18,48,0.78));
+      box-shadow: 0 8px 44px rgba(79,110,247,0.28), 0 0 0 2px rgba(167,139,250,0.35);
+      transform: translateY(-6px);
+      animation: cardGlow 3s ease-in-out infinite;
+    }
+    .pricing-card.is-active:hover {
+      box-shadow: 0 12px 52px rgba(79,110,247,0.32), 0 0 0 2px rgba(167,139,250,0.4);
+    }
+    .pricing-card.is-active::before {
+      content: '';
+      position: absolute; top: 14px; left: 14px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      box-shadow: 0 4px 14px rgba(79,110,247,0.45);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L19 7'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: center; background-size: 13px 13px;
+      z-index: 2;
+    }
+    .pricing-card.is-active .pricing-tier-row { padding-left: 34px; }
+    .pricing-badge {
       display: inline-flex; align-items: center; justify-content: center;
-      margin-top: 16px;
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 14px;
-      font-weight: 900;
-      text-decoration: none;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      transition: transform .2s, box-shadow .2s, background .2s;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      color: #fff;
+      font-size: clamp(0.58rem, 1.8vw, 0.68rem);
+      font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 6px 16px; border-radius: 50px; white-space: nowrap;
+      box-shadow: 0 6px 20px rgba(79,110,247,0.35);
+      pointer-events: none;
     }
-    .pricing-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,0.35); background: rgba(79,110,247,0.10); }
-    .pricing-cta.primary { background: linear-gradient(135deg, #4f6ef7, #a78bfa); border-color: transparent; }
+    .pricing-card-topbar {
+      position: absolute; top: 0; left: 8px; right: 8px;
+      display: flex; align-items: center; justify-content: center;
+      transform: translateY(-50%); z-index: 5; pointer-events: none;
+    }
+    .pricing-card-topbar .pricing-badge {
+      animation: badgePop 0.7s cubic-bezier(0.22, 1, 0.36, 1) both, badgeGlow 2.8s ease-in-out 0.7s infinite;
+    }
+    .pricing-card.has-badge { padding-top: 38px; }
+    .pricing-card.has-badge.is-active::before { top: 12px; left: 12px; }
+    .pricing-tier { font-size: 0.82rem; font-weight: 700; color: #a5b4fc; margin-bottom: 6px; }
+    .pricing-price {
+      font-size: 2.35rem; font-weight: 900; letter-spacing: -1px; color: var(--text);
+      line-height: 1.1;
+    }
+    .pricing-price span { font-size: 1rem; font-weight: 600; color: var(--muted); }
+    .pricing-period { font-size: 0.85rem; color: var(--muted); margin-top: 4px; margin-bottom: 22px; }
+    .pricing-desc { font-size: 0.875rem; color: var(--muted); line-height: 1.55; margin-bottom: 20px; }
+    .pricing-features { list-style: none; flex: 1; margin-bottom: 24px; }
+    .pricing-features li {
+      font-size: 0.84rem; color: var(--text); padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: flex-start; gap: 10px; line-height: 1.45;
+    }
+    .pricing-features li:last-child { border-bottom: none; }
+    .pricing-features li::before {
+      content: '✓'; color: #4ade80; font-weight: 800; flex-shrink: 0;
+      font-size: 0.75rem; margin-top: 2px;
+    }
+    .pricing-cta {
+      display: block; text-align: center; padding: 13px 20px; border-radius: 50px;
+      font-size: 0.9rem; font-weight: 700; text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .pricing-cta.primary {
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      color: #fff; box-shadow: 0 4px 20px rgba(79,110,247,0.35);
+    }
+    .pricing-cta.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,110,247,0.45); }
+    .pricing-cta.secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--text); border: 1px solid var(--glass-border);
+    }
+    .pricing-cta.secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+
+    @keyframes badgePop {
+      from { opacity: 0; transform: translateY(8px) scale(0.85); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes badgeGlow {
+      0%, 100% { box-shadow: 0 6px 20px rgba(79,110,247,0.35); }
+      50% { box-shadow: 0 8px 28px rgba(167,139,250,0.55), 0 0 24px rgba(79,110,247,0.25); }
+    }
+    @keyframes cardGlow {
+      0%, 100% { box-shadow: 0 8px 44px rgba(79,110,247,0.28), 0 0 0 2px rgba(167,139,250,0.35); }
+      50% { box-shadow: 0 12px 52px rgba(79,110,247,0.38), 0 0 0 2px rgba(167,139,250,0.5); }
+    }
 
     {% include "components/footer_css.html" %}
 
-    @media (max-width: 980px) { .pricing-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 768px) { .nav-links { display:none; } }
+    @media (max-width: 1100px) {
+      .pricing-grid { grid-template-columns: 1fr; max-width: min(480px, 100%); gap: 28px; }
+      .pricing-head-row { justify-content: center; text-align: center; }
+    }
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      main { padding: 100px 5% 40px; }
+      .pricing-grid { margin-top: 36px; }
+      .pricing-card { padding: 24px 18px 22px; }
+      .pricing-card.is-active { animation: none; transform: none; }
+      .pricing-card.is-active:hover { transform: none; }
+      .pricing-price { font-size: 2rem; }
+    }
+    @media (max-width: 480px) {
+      .pricing-badge { padding: 5px 10px; font-size: 0.56rem; letter-spacing: 0.04em; }
+      .pricing-card.has-badge { padding-top: 44px; }
+      .pricing-card.is-active .pricing-tier-row { padding-left: 0; padding-top: 28px; }
+      .pricing-tier-row { flex-wrap: wrap; row-gap: 6px; }
+      .pricing-card.has-badge.is-active::before { top: 36px; }
+      .pricing-card-soon { font-size: 0.56rem; padding: 4px 7px; }
+      .section-title { font-size: clamp(1.45rem, 7vw, 1.85rem); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pricing-card.is-active { animation: none; }
+      .pricing-card-topbar .pricing-badge { animation: none; }
+    }
   </style>
 </head>
 <body>
@@ -145,8 +325,7 @@
 
   <nav aria-label="Primary">
     <a href="{% url 'home' %}" class="nav-logo" aria-label="MailPilot home">
-      {% include "components/brand_logo.html" with logo_w=32 logo_h=32 %}
-      MailPilot
+      {% include "components/brand_logo.html" with logo_w=32 logo_h=32 %}<span class="nav-logo-text">MailPilot</span>
     </a>
     <ul class="nav-links">
       <li><a href="{% url 'features' %}">Features</a></li>
@@ -204,57 +383,85 @@
     {% endif %}
   </nav>
 
-  <main>
-    <div class="page-head">
-      <div class="tag"><span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block;"></span> Pricing</div>
-      <h1>Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h1>
-      <p class="sub">Start free, scale when volume grows. All plans include secure sign-in and tenant-isolated data—adjust numbers to match your real billing when you launch.</p>
+  <main aria-labelledby="pricing-heading">
+    <div class="pricing-head-row">
+      <div class="pricing-head-copy">
+        <div class="section-tag">Pricing</div>
+        <h1 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h1>
+        <p class="pricing-intro">Demo pricing preview—choose a send volume that fits your inbox. Paid checkout launches soon.</p>
+        <p class="pricing-demo-note">Limits count automated <strong>sent</strong> replies per month (draft-only mode does not use send quota).</p>
+      </div>
     </div>
 
-    <div class="pricing-grid" aria-label="Pricing plans">
-      <article class="pricing-card">
-        <div class="pricing-tier">Starter</div>
+    <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
+      <article class="pricing-card" role="option" tabindex="0" data-plan="starter" aria-pressed="false" aria-label="Starter plan">
+        <div class="pricing-tier-row">
+          <div class="pricing-tier">Starter</div>
+          <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
+        </div>
         <div class="pricing-price">$0<span>/mo</span></div>
-        <div class="pricing-period">For individuals &amp; trials</div>
-        <p class="pricing-desc">One mailbox, core automation, and enough AI to prove value before you commit.</p>
+        <p class="pricing-period">1 mo trial · then free tier</p>
+        <p class="pricing-desc">Try MailPilot with a full month to connect your inbox, test AI replies, and see relevance filtering in action.</p>
         <ul class="pricing-features">
+          <li><strong>1 mo</strong> trial access</li>
+          <li><strong>20 sent emails</strong> per month</li>
           <li>1 connected inbox (Gmail or IMAP)</li>
-          <li>Basic relevance scoring &amp; queue</li>
-          <li>Limited AI replies per month</li>
-          <li>Dashboard &amp; audit log (self)</li>
+          <li>Keyword filter + LLM relevance</li>
+          <li>Dashboard queue &amp; draft mode</li>
         </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta">Start free</a>
+        <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free trial</a>
       </article>
 
-      <article class="pricing-card featured">
-        <span class="pricing-badge">Most popular</span>
-        <div class="pricing-tier">Pro</div>
-        <div class="pricing-price">$49<span>/mo</span></div>
-        <div class="pricing-period">Billed monthly · cancel anytime</div>
-        <p class="pricing-desc">Full RAG knowledge base, higher limits, and background workers for reliable polling.</p>
+      <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
+        <div class="pricing-card-topbar">
+          <span class="pricing-badge">50% launch offer</span>
+        </div>
+        <div class="pricing-tier-row">
+          <div class="pricing-tier">Pro</div>
+          <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+        </div>
+        <div class="pricing-price-row">
+          <span class="pricing-was">$40</span>
+          <div class="pricing-price">$20<span>/mo</span></div>
+          <span class="pricing-save">Save 50%</span>
+        </div>
+        <p class="pricing-period">Billed monthly · cancel anytime</p>
+        <p class="pricing-desc">Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits.</p>
         <ul class="pricing-features">
-          <li>Up to 3 mailboxes</li>
-          <li>pgvector RAG &amp; document ingestion</li>
-          <li>Higher AI &amp; send volume</li>
-          <li>Celery-ready job queue (with Redis)</li>
-          <li>Priority email support</li>
+          <li><strong>1,000 sent emails</strong> per month</li>
+          <li>pgvector RAG (JSON &amp; text upload)</li>
+          <li>Gmail OAuth + SMTP/IMAP</li>
+          <li>APScheduler or Celery polling</li>
+          <li>Per-user encrypted credentials</li>
+          <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
+          <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
+          <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
         </ul>
         <a href="{% url 'signup' %}" class="pricing-cta primary">Get Pro</a>
       </article>
 
-      <article class="pricing-card">
-        <div class="pricing-tier">Business</div>
-        <div class="pricing-price">Custom</div>
-        <div class="pricing-period">Teams &amp; compliance</div>
-        <p class="pricing-desc">Volume, SSO, SLAs, and deployment options for teams that need a contract.</p>
+      <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
+        <div class="pricing-card-topbar">
+          <span class="pricing-badge">Most popular</span>
+        </div>
+        <div class="pricing-tier-row">
+          <div class="pricing-tier">Custom</div>
+          <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+        </div>
+        <div class="pricing-price">You choose</div>
+        <p class="pricing-period">Set price &amp; send volume</p>
+        <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
         <ul class="pricing-features">
-          <li>Unlimited mailboxes (fair use)</li>
-          <li>Team seats &amp; admin controls</li>
-          <li>Advanced audit &amp; retention</li>
-          <li>Dedicated onboarding &amp; SLAs</li>
-          <li>Optional private / VPC deployment</li>
+          <li><strong>2,000 sends</strong> (4 Gmail/SMTP) → <strong>$30/mo</strong></li>
+          <li><strong>3,000 sends</strong> (6 Gmail/SMTP) → <strong>$40/mo</strong></li>
+          <li>Or define your own tier (e.g. $50 → 5,000 sends)</li>
+          <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
+          <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
+          <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
+          <li>Annual billing option</li>
+          <li>Priority onboarding &amp; team seats</li>
         </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta">Contact sales</a>
+        <a href="{% url 'signup' %}" class="pricing-cta secondary">Build custom plan</a>
       </article>
     </div>
   </main>
@@ -279,6 +486,39 @@
     })();
   </script>
   {% endif %}
+
+  <script>
+    // Pricing plan selection (click card to highlight)
+    (function () {
+      const grid = document.querySelector('main .pricing-grid');
+      if (!grid) return;
+      const cards = Array.from(grid.querySelectorAll('.pricing-card[data-plan]'));
+      if (!cards.length) return;
+      function activate(card) {
+        cards.forEach((c) => {
+          const on = c === card;
+          c.classList.toggle('is-active', on);
+          c.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      }
+      cards.forEach((card) => {
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.pricing-cta')) return;
+          activate(card);
+        });
+        card.addEventListener('keydown', (e) => {
+          if (e.target.closest('.pricing-cta')) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            activate(card);
+          }
+        });
+        card.querySelectorAll('.pricing-cta').forEach((btn) => {
+          btn.addEventListener('click', (e) => e.stopPropagation());
+        });
+      });
+    })();
+  </script>
 
   <script>
     // Lightweight particle background (same idea as landing)

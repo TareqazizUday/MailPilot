@@ -50,6 +50,50 @@ def _extract_from_email(from_header: str) -> str:
     return (m.group(1) if m else h).strip()
 
 
+def _hdr_message_id_key(email_msg: Any) -> Optional[str]:
+    """Stable dedupe key from RFC Message-ID (IMAP/Gmail)."""
+    raw = str(email_msg.get("Message-ID") or email_msg.get("Message-Id") or "").strip()
+    if not raw:
+        return None
+    return "hdr:" + raw.strip("<>").lower()
+
+
+def _imap_dedupe_id(uid: str, email_msg: Any) -> str:
+    hdr = _hdr_message_id_key(email_msg)
+    return hdr if hdr else f"imap:{uid}"
+
+
+def _dedupe_aliases(*, primary_id: str, uid: str | None = None, email_msg: Any | None = None) -> list[str]:
+    aliases: list[str] = []
+    if uid:
+        imap_id = f"imap:{uid}"
+        if imap_id != primary_id:
+            aliases.append(imap_id)
+    if email_msg is not None:
+        hdr = _hdr_message_id_key(email_msg)
+        if hdr and hdr != primary_id:
+            aliases.append(hdr)
+    return aliases
+
+
+def _try_begin_processing(
+    state_store: StateStore,
+    dedupe_id: str,
+    *,
+    from_email: str = "",
+    subject: str = "",
+    transport_id: str = "",
+) -> bool:
+    extra: dict[str, Any] = {}
+    if from_email:
+        extra["from_email"] = from_email
+    if subject:
+        extra["subject"] = subject
+    if transport_id:
+        extra["transport_id"] = transport_id
+    return state_store.try_claim_message(dedupe_id, extra=extra or None)
+
+
 def _build_kb_context(*, settings: Settings, tenant_id: str, query_text: str, k: int = 6) -> str:
     if not query_text.strip():
         return ""
@@ -183,6 +227,11 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
             ignored += 1
             continue
 
+        if not _try_begin_processing(
+            state_store, mid, from_email=from_email, subject=subject, transport_id=mid
+        ):
+            continue
+
         query = _clean_text(subject + "\n\n" + body)[:6000]
         kb_ctx = _build_kb_context(settings=settings, tenant_id=state_store.tenant_id, query_text=query, k=6)
         decision = decide_and_write_reply(
@@ -310,10 +359,7 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
         print(f"[mailpoll][imap] search={search_label} uids_total={len(all_uids)} processing={len(uids)} fast={fast}")
 
         for uid in uids:
-            msg_id = f"imap:{uid}"
             scanned += 1
-            if state_store.get_processed_meta(msg_id) is not None:
-                continue
 
             ftyp, fdata = conn.uid("fetch", uid, "(RFC822)")
             if ftyp != "OK" or not fdata:
@@ -328,10 +374,21 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
                 continue
 
             msg = email.message_from_bytes(raw_bytes)
+            dedupe_id = _imap_dedupe_id(uid, msg)
+            imap_id = f"imap:{uid}"
             from_h = str(msg.get("From") or "")
             subject = _clean_text(str(msg.get("Subject") or ""))
             from_email = _extract_from_email(from_h)
             print(f"[mailpoll][imap] uid={uid} from={from_email!r} subject={subject!r}")
+
+            already_handled = state_store.get_processed_meta(dedupe_id) is not None
+            if not already_handled:
+                for alias in _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg):
+                    if state_store.get_processed_meta(alias) is not None:
+                        already_handled = True
+                        break
+            if already_handled:
+                continue
 
             # Extract body text (simple)
             body_text = ""
@@ -362,10 +419,30 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
 
             if not _should_consider_email(settings, from_email=from_email, subject=subject, body=body_text):
                 _mark_keyword_rejected(
-                    state_store, message_id=msg_id, from_email=from_email, subject=subject
+                    state_store, message_id=dedupe_id, from_email=from_email, subject=subject
                 )
+                aliases = _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg)
+                if aliases:
+                    state_store.mark_processed_aliases(
+                        dedupe_id,
+                        aliases,
+                        {
+                            "action": "ignored",
+                            "reason": "keyword_prefilter",
+                            "processed_at": _now_iso(),
+                        },
+                    )
                 ignored += 1
                 print(f"[mailpoll][imap] ignored uid={uid} reason=keyword_prefilter")
+                continue
+
+            if not _try_begin_processing(
+                state_store,
+                dedupe_id,
+                from_email=from_email,
+                subject=subject,
+                transport_id=imap_id,
+            ):
                 continue
 
             query = _clean_text(subject + "\n\n" + body_text)[:6000]
@@ -398,25 +475,28 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
                         )
                         sent += 1
                         print(f"[mailpoll][imap] sent uid={uid} to={from_email!r}")
+                        sent_meta = {
+                            "action": "sent",
+                            "confidence": conf,
+                            "reply_subject": reply_subject,
+                            "reply_body": reply_body,
+                            "processed_at": _now_iso(),
+                            "imap_uid": uid,
+                        }
                         state_store.upsert_queue_item(
-                            msg_id,
+                            dedupe_id,
                             status="completed",
                             details={
-                                "id": msg_id,
+                                "id": dedupe_id,
                                 "from_email": from_email,
                                 "subject": subject,
                                 "reason": "auto_reply",
                             },
                         )
-                        state_store.mark_processed(
-                            msg_id,
-                            {
-                                "action": "sent",
-                                "confidence": conf,
-                                "reply_subject": reply_subject,
-                                "reply_body": reply_body,
-                                "processed_at": _now_iso(),
-                            },
+                        state_store.mark_processed_aliases(
+                            dedupe_id,
+                            _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
+                            sent_meta,
                         )
                         # Mark as seen to avoid reprocessing if state store is cleared.
                         try:
@@ -426,51 +506,57 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
                     except Exception as e:
                         err = str(e)
                         print(f"[mailpoll][imap] send_failed uid={uid} err={err}")
+                        err_meta = {
+                            "action": "error",
+                            "confidence": conf,
+                            "reason": "send_failed",
+                            "error": err,
+                            "processed_at": _now_iso(),
+                        }
                         state_store.upsert_queue_item(
-                            msg_id,
+                            dedupe_id,
                             status="error",
                             details={
-                                "id": msg_id,
+                                "id": dedupe_id,
                                 "from_email": from_email,
                                 "subject": subject,
                                 "reason": "send_failed",
                                 "error": err,
                             },
                         )
-                        state_store.mark_processed(
-                            msg_id,
-                            {
-                                "action": "error",
-                                "confidence": conf,
-                                "reason": "send_failed",
-                                "error": err,
-                                "processed_at": _now_iso(),
-                            },
+                        state_store.mark_processed_aliases(
+                            dedupe_id,
+                            _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
+                            err_meta,
                         )
                 else:
                     drafts += 1
                     print(f"[mailpoll][imap] draft uid={uid} conf={conf}")
-                    state_store.mark_processed(
-                        msg_id,
-                        {
-                            "action": "draft",
-                            "confidence": conf,
-                            "reply_subject": reply_subject,
-                            "reply_body": reply_body,
-                            "processed_at": _now_iso(),
-                        },
+                    draft_meta = {
+                        "action": "draft",
+                        "confidence": conf,
+                        "reply_subject": reply_subject,
+                        "reply_body": reply_body,
+                        "processed_at": _now_iso(),
+                    }
+                    state_store.mark_processed_aliases(
+                        dedupe_id,
+                        _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
+                        draft_meta,
                     )
             else:
                 ignored += 1
                 print(f"[mailpoll][imap] not_relevant uid={uid} conf={conf} reason={decision.get('reason')!r}")
-                state_store.mark_processed(
-                    msg_id,
-                    {
-                        "action": "ignored",
-                        "confidence": conf,
-                        "reason": decision.get("reason") or "not_relevant",
-                        "processed_at": _now_iso(),
-                    },
+                ignored_meta = {
+                    "action": "ignored",
+                    "confidence": conf,
+                    "reason": decision.get("reason") or "not_relevant",
+                    "processed_at": _now_iso(),
+                }
+                state_store.mark_processed_aliases(
+                    dedupe_id,
+                    _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
+                    ignored_meta,
                 )
 
         return PollResult(scanned=scanned, relevant=relevant, sent=sent, drafts=drafts, ignored=ignored, queued=queued)

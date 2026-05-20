@@ -1,9 +1,16 @@
 {% load static %}
-<img
-  src="{% static 'img/mailpilot-logo.png' %}"
-  alt=""
-  class="brand-logo-img"
-  width="{{ logo_w|default:32 }}"
-  height="{{ logo_h|default:32 }}"
-  decoding="async"
-/>
+{# PNG has ~11% transparent margin; slight scale + clip removes optical gap beside wordmark #}
+<span
+  class="brand-logo-mark"
+  style="width:{{ logo_w|default:32 }}px;height:{{ logo_h|default:32 }}px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;line-height:0;"
+>
+  <img
+    src="{% static 'img/mailpilot-logo.png' %}"
+    alt=""
+    class="brand-logo-img"
+    width="{{ logo_w|default:32 }}"
+    height="{{ logo_h|default:32 }}"
+    decoding="async"
+    style="width:calc({{ logo_w|default:32 }}px * 1.26);height:calc({{ logo_h|default:32 }}px * 1.26);max-width:none;object-fit:contain;display:block;"
+  />
+</span>

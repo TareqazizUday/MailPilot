@@ -129,7 +129,7 @@
       letter-spacing:-.02em;
       display:flex;
       align-items:center;
-      gap:9px;
+      gap:6px;
       text-decoration:none;
       background: linear-gradient(135deg, #4f6ef7, #a78bfa);
       background-clip: text;
@@ -379,8 +379,7 @@
     <nav class="topnav" aria-label="Primary">
       <div class="nav-left">
         <a class="nav-brand" href="{% url 'home' %}" aria-label="MailPilot home">
-          {% include "components/brand_logo.html" with logo_w=26 logo_h=26 %}
-          MailPilot
+          {% include "components/brand_logo.html" with logo_w=26 logo_h=26 %}<span class="nav-logo-text">MailPilot</span>
         </a>
         <div class="nav-links" aria-label="Navigation links">
           <a class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'setup' %} active{% endif %}" href="{% url 'setup' %}">Setup</a>
