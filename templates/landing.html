@@ -33,7 +33,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
 
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f6ef7'/%3E%3Cpath d='M6 10l10 8 10-8' stroke='white' stroke-width='2' fill='none'/%3E%3C/svg%3E" />
+  <link rel="icon" type="image/png" href="{% static 'img/mailpilot-logo.png' %}" />
 
   <script type="application/ld+json">{{ seo_json_ld|safe }}</script>
 
@@ -99,7 +99,7 @@
       background: linear-gradient(135deg, #4f6ef7, #a78bfa);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
-    .nav-logo svg { width: 32px; height: 32px; }
+    .nav-logo .brand-logo-img { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; display: block; }
     .nav-links { display: flex; gap: 32px; list-style: none; }
     .nav-links a {
       color: var(--muted); font-size: 0.9rem; font-weight: 500;
@@ -1372,17 +1372,7 @@
 <!-- NAV -->
 <nav aria-label="Primary">
   <a href="{% url 'home' %}" class="nav-logo" style="text-decoration:none;color:inherit;" aria-label="MailPilot home">
-    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-      <rect width="32" height="32" rx="8" fill="url(#ng)"/>
-      <path d="M6 10l10 8 10-8" stroke="white" stroke-width="2" stroke-linecap="round"/>
-      <path d="M6 10h20v14a2 2 0 01-2 2H8a2 2 0 01-2-2V10z" stroke="white" stroke-width="2"/>
-      <circle cx="22" cy="10" r="4" fill="#a78bfa"/>
-      <defs>
-        <linearGradient id="ng" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#4f6ef7"/><stop offset="1" stop-color="#a78bfa"/>
-        </linearGradient>
-      </defs>
-    </svg>
+    {% include "components/brand_logo.html" with logo_w=32 logo_h=32 %}
     MailPilot
   </a>
   <ul class="nav-links">

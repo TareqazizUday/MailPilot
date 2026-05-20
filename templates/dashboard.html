@@ -211,7 +211,6 @@
           <span id="pInfo">—</span>
           <span id="lRun">Last run: —</span>
         </div>
-        <div class="small" id="autoPollNote" style="margin-top:10px;color:var(--txm);line-height:1.45;"></div>
       </div>
       <div class="pnl-hd" style="border-top:1px solid var(--bdr)">
         <span class="pnl-t">Queue</span>
@@ -400,18 +399,6 @@
       _mailPoll.autoOn = (j.mail_poll_backend === 'apscheduler' || j.mail_poll_backend === 'celery');
       _mailPoll.intervalSec = j.mail_poll_interval_seconds || j.mail_poll_beat_seconds || 60;
       _mailPoll.imapIdle = (j.imap_idle_watchers || 0) > 0;
-      const apn = document.getElementById('autoPollNote');
-      if(apn){
-        if(j.imap_idle_watchers > 0){
-          apn.textContent = 'Real-time IMAP: new mail triggers an immediate check (' + j.imap_idle_watchers + ' mailbox watcher). Fallback poll every ' + (j.mail_poll_interval_seconds || 60) + 's. Keyword match → AI reply (send mode).';
-        } else if(j.mail_poll_backend === 'apscheduler' && j.mail_poll_interval_seconds){
-          apn.textContent = 'While the server runs: inbox is checked every ' + j.mail_poll_interval_seconds + 's. New mail matching your keywords gets an AI reply automatically (REPLY_MODE=send). Click the button for an immediate check.';
-        } else if(j.mail_poll_backend === 'celery'){
-          apn.textContent = 'Automatic polling uses Celery every ' + (j.mail_poll_beat_seconds || '?') + 's — keep `celery worker` and `celery beat` running.';
-        } else {
-          apn.textContent = 'Automatic polling is off until the app server is fully running. Use the button above or restart runserver.';
-        }
-      }
       updatePollButtonUi();
     }
 
