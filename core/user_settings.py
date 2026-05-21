@@ -4,79 +4,46 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings as dj_settings
-from pydantic import SecretStr, ValidationError
+from pydantic import SecretStr
 
 from core.crypto import decrypt_str, encrypt_str
+from core.mail_accounts import (
+    build_effective_settings,
+    client_secret_path_for_user,
+    ensure_legacy_migrated,
+    get_or_create_mail_settings,
+    save_account_client_secret,
+    save_account_oauth_token,
+    sync_account_files_to_disk,
+    token_path_for_user,
+    user_data_dir,
+)
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import User
 
-
-def user_data_dir(user_id: int) -> Path:
-    base = Path(dj_settings.BASE_DIR) / "data" / "users" / str(user_id)
-    base.mkdir(parents=True, exist_ok=True)
-    return base
-
-
-def token_path_for_user(user_id: int) -> str:
-    return str(user_data_dir(user_id) / "token.json")
-
-
-def client_secret_path_for_user(user_id: int) -> str:
-    return str(user_data_dir(user_id) / "client_secret.json")
-
-
-def get_or_create_mail_settings(user: User):
-    from core.models import UserMailSettings
-
-    o, _ = UserMailSettings.objects.get_or_create(user=user, defaults={"settings_json": {}})
-    return o
-
-
-def _write_file_if_needed(path: str, content: str) -> None:
-    if not content.strip():
-        return
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
-
-
-def _merge_env_defaults_into_merged(merged: dict[str, Any], settings_json_keys: dict[str, Any]) -> dict[str, Any]:
-    """Fill LLM / Gmail / reply gaps from os.environ when the DB did not set them."""
-
-    def _secret_nonempty(val: Any) -> bool:
-        if val is None:
-            return False
-        if hasattr(val, "get_secret_value"):
-            return bool((val.get_secret_value() or "").strip())
-        return bool(str(val or "").strip())
-
-    if not _secret_nonempty(merged.get("LLM_API_KEY")):
-        for ek in ("OPENAI_API_KEY", "LLM_API_KEY"):
-            v = (os.environ.get(ek) or "").strip()
-            if v:
-                merged["LLM_API_KEY"] = SecretStr(v)
-                break
-    if not str(merged.get("GMAIL_ADDRESS") or "").strip():
-        ga = (os.environ.get("GMAIL_ADDRESS") or "").strip()
-        if ga:
-            merged["GMAIL_ADDRESS"] = ga
-    if "REPLY_MODE" not in settings_json_keys:
-        rm = (os.environ.get("REPLY_MODE") or "").strip()
-        if rm:
-            merged["REPLY_MODE"] = rm
-    if not str(merged.get("OAUTH_REDIRECT_URI") or "").strip():
-        uri = (os.environ.get("OAUTH_REDIRECT_URI") or "").strip()
-        if uri:
-            merged["OAUTH_REDIRECT_URI"] = uri
-    return merged
+# Re-export paths for backward compatibility
+__all__ = [
+    "user_data_dir",
+    "token_path_for_user",
+    "client_secret_path_for_user",
+    "get_or_create_mail_settings",
+    "build_effective_settings",
+    "save_settings_patch",
+    "save_google_token_json",
+    "save_client_secret_json",
+    "migrate_legacy_file_config_if_needed",
+    "sync_encrypted_files_to_disk",
+]
 
 
 def sync_encrypted_files_to_disk(user_id: int, ms) -> None:
-    """Write decrypted OAuth token and client secret JSON to user-scoped paths for libraries that expect files."""
+    """Legacy: sync user-level + all account files."""
+    from core.mail_accounts import list_accounts_for_user
+
     tp = token_path_for_user(user_id)
     if ms.google_oauth_token_enc:
         raw = decrypt_str(ms.google_oauth_token_enc)
@@ -87,102 +54,23 @@ def sync_encrypted_files_to_disk(user_id: int, ms) -> None:
         raw = decrypt_str(ms.client_secret_json_enc)
         if raw.strip():
             _write_file_if_needed(sp, raw)
+    for acc in list_accounts_for_user(ms.user):
+        sync_account_files_to_disk(user_id, acc)
 
 
-def build_effective_settings(user: User):
-    """Return email_automation.settings.Settings for this user."""
-    from email_automation.settings import Settings
-
-    from core.models import UserMailSettings
-
-    def _derive_imap_from_smtp(d: dict[str, Any]) -> dict[str, Any]:
-        """
-        Dashboard reads inbox via IMAP when SEND_TRANSPORT=smtp.
-        Setup UI stores SMTP creds and expects IMAP to use the same user/pass.
-        Derive IMAP_* fields from SMTP_* when missing so inbox can load reliably.
-        """
-        out = dict(d or {})
-        if str(out.get("SEND_TRANSPORT") or "").strip() != "smtp":
-            return out
-
-        smtp_host = str(out.get("SMTP_HOST") or "").strip()
-        smtp_user = str(out.get("SMTP_USERNAME") or "").strip()
-        smtp_pass = out.get("SMTP_PASSWORD")
-
-        if smtp_host and not str(out.get("IMAP_HOST") or "").strip():
-            host_l = smtp_host.lower()
-            if host_l.startswith("smtp."):
-                domain = smtp_host[5:]
-            else:
-                parts = smtp_host.split(".", 1)
-                domain = parts[1] if len(parts) == 2 else smtp_host
-            if domain:
-                out["IMAP_HOST"] = f"imap.{domain}"
-
-        if smtp_user and not str(out.get("IMAP_USERNAME") or "").strip():
-            out["IMAP_USERNAME"] = smtp_user
-
-        imap_pass = out.get("IMAP_PASSWORD")
-        imap_pass_str = ""
-        try:
-            imap_pass_str = (
-                imap_pass.get_secret_value() if hasattr(imap_pass, "get_secret_value") else str(imap_pass or "")
-            )
-        except Exception:
-            imap_pass_str = str(imap_pass or "")
-        if smtp_pass is not None and (imap_pass is None or not str(imap_pass_str).strip()):
-            out["IMAP_PASSWORD"] = smtp_pass
-
-        if out.get("IMAP_PORT") in (None, "", 0):
-            out["IMAP_PORT"] = 993
-
-        # Carry over TLS servername to IMAP if present.
-        if str(out.get("SMTP_TLS_SERVERNAME") or "").strip() and not str(out.get("IMAP_TLS_SERVERNAME") or "").strip():
-            out["IMAP_TLS_SERVERNAME"] = str(out.get("SMTP_TLS_SERVERNAME") or "").strip()
-
-        return out
-
-    base = Settings()
-    try:
-        ms = UserMailSettings.objects.get(user=user)
-    except UserMailSettings.DoesNotExist:
-        merged = base.model_dump(mode="python")
-        merged["GOOGLE_TOKEN_FILE"] = token_path_for_user(user.id)
-        merged["GOOGLE_CLIENT_SECRET_FILE"] = client_secret_path_for_user(user.id)
-        merged = _derive_imap_from_smtp(merged)
-        merged = _merge_env_defaults_into_merged(merged, {})
-        return Settings.model_validate(merged)
-
-    sync_encrypted_files_to_disk(user.id, ms)
-
-    patch: dict[str, Any] = dict(ms.settings_json or {})
-    if ms.smtp_password_enc:
-        patch["SMTP_PASSWORD"] = SecretStr(decrypt_str(ms.smtp_password_enc))
-    if ms.imap_password_enc:
-        patch["IMAP_PASSWORD"] = SecretStr(decrypt_str(ms.imap_password_enc))
-    if ms.llm_api_key_enc:
-        patch["LLM_API_KEY"] = SecretStr(decrypt_str(ms.llm_api_key_enc))
-
-    merged = base.model_dump(mode="python")
-    merged.update({k: v for k, v in patch.items() if k in Settings.model_fields})
-    merged["GOOGLE_TOKEN_FILE"] = token_path_for_user(user.id)
-    merged["GOOGLE_CLIENT_SECRET_FILE"] = client_secret_path_for_user(user.id)
-    merged = _derive_imap_from_smtp(merged)
-    merged = _merge_env_defaults_into_merged(merged, dict(ms.settings_json or {}))
-
-    # Per-user VECTOR_DB_DSN can include schema or we scope by tenant_id in DSN — use same DSN, tenant in tables
-    try:
-        return Settings.model_validate(merged)
-    except ValidationError:
-        return Settings.model_validate(base.model_dump(mode="python"))
+def _write_file_if_needed(path: str, content: str) -> None:
+    if not content.strip():
+        return
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
 
 
 def save_settings_patch(user: User, patch: dict[str, Any]) -> None:
-    """Merge non-secret keys into settings_json; extract secrets to encrypted columns."""
-    from core.models import UserMailSettings
-
+    """Merge non-secret keys into user-level settings_json; LLM key stays global."""
     secret_keys = {"SMTP_PASSWORD", "IMAP_PASSWORD", "LLM_API_KEY"}
     ms = get_or_create_mail_settings(user)
+    ensure_legacy_migrated(user)
     data = dict(ms.settings_json or {})
     for k, v in patch.items():
         if k in secret_keys:
@@ -217,44 +105,49 @@ def save_settings_patch(user: User, patch: dict[str, Any]) -> None:
 
     ms.save()
 
+    # Also patch first SMTP account if exists (backward compat for admin config API)
+    from core.mail_accounts import TRANSPORT_SMTP, list_accounts_for_user, patch_account_config, resolve_account
+
+    acc = resolve_account(user, transport=TRANSPORT_SMTP)
+    if acc and any(k.startswith("SMTP_") or k.startswith("IMAP_") for k in patch):
+        patch_account_config(acc, patch)
+
 
 def save_google_token_json(user: User, token_json: str) -> None:
-    from core.models import UserMailSettings
-
     ms = get_or_create_mail_settings(user)
     ms.google_oauth_token_enc = encrypt_str(token_json)
     ms.save()
+    ensure_legacy_migrated(user)
+    from core.mail_accounts import TRANSPORT_GMAIL, resolve_account
+
+    acc = resolve_account(user, transport=TRANSPORT_GMAIL)
+    if acc:
+        save_account_oauth_token(acc, token_json)
     sync_encrypted_files_to_disk(user.id, ms)
 
 
 def save_client_secret_json(user: User, secret_json: str) -> None:
-    from core.models import UserMailSettings
-
     ms = get_or_create_mail_settings(user)
     ms.client_secret_json_enc = encrypt_str(secret_json)
     ms.save()
+    ensure_legacy_migrated(user)
+    from core.mail_accounts import TRANSPORT_GMAIL, resolve_account
+
+    acc = resolve_account(user, transport=TRANSPORT_GMAIL)
+    if acc:
+        save_account_client_secret(acc, secret_json)
     sync_encrypted_files_to_disk(user.id, ms)
 
 
 def migrate_legacy_file_config_if_needed(user: User) -> None:
-    """One-time: copy global data/app_config.json into first user's settings if user has empty DB row."""
-    # IMPORTANT: Do NOT auto-provision legacy/global SMTP/IMAP credentials for newly created users.
-    # This could make a brand-new account appear "connected" without user intent.
-    #
-    # If you need the old behavior (e.g. single-tenant migration), explicitly enable it via env:
-    #   MAILPILOT_MIGRATE_LEGACY_CONFIG=1
     if (os.environ.get("MAILPILOT_MIGRATE_LEGACY_CONFIG") or "").strip().lower() not in ("1", "true", "yes"):
         return
 
-    from django.conf import settings as dj
-
-    from core.models import UserMailSettings
-
-    legacy = Path(dj.BASE_DIR) / "data" / "app_config.json"
+    legacy = Path(dj_settings.BASE_DIR) / "data" / "app_config.json"
     if not legacy.exists():
         return
-    ms, created = UserMailSettings.objects.get_or_create(user=user, defaults={"settings_json": {}})
-    if not created and (ms.settings_json or ms.smtp_password_enc):
+    ms = get_or_create_mail_settings(user)
+    if ms.settings_json or ms.smtp_password_enc:
         return
     try:
         raw = json.loads(legacy.read_text(encoding="utf-8"))
@@ -273,7 +166,7 @@ def migrate_legacy_file_config_if_needed(user: User) -> None:
         ms.llm_api_key_enc = encrypt_str(str(secrets["LLM_API_KEY"]))
     ms.save()
 
-    legacy_token = Path(dj.BASE_DIR) / "data" / "token.json"
+    legacy_token = Path(dj_settings.BASE_DIR) / "data" / "token.json"
     if legacy_token.exists():
         try:
             t = legacy_token.read_text(encoding="utf-8")
@@ -282,4 +175,5 @@ def migrate_legacy_file_config_if_needed(user: User) -> None:
                 ms.save()
         except Exception:
             pass
+    ensure_legacy_migrated(user)
     sync_encrypted_files_to_disk(user.id, ms)

@@ -13,6 +13,15 @@ _TERMINAL_ACTIONS = frozenset({"sent", "draft", "ignored", "processing", "error"
 _STALE_PROCESSING_MINUTES = 15
 
 
+def _normalize_queue_status(status: str) -> str:
+    s = (status or "").strip().lower()
+    if s in ("sent", "done"):
+        return "completed"
+    if s in ("ignored", "rejected"):
+        return "reject"
+    return s or "pending"
+
+
 class StateStore:
     """DB-backed store used by UI endpoints (Django default database, e.g. PostgreSQL).
 
@@ -34,23 +43,72 @@ class StateStore:
         return meta if isinstance(meta, dict) else {}
 
     def list_queue_items(self, limit: int = 10) -> list[dict[str, Any]]:
+        limit_n = max(1, int(limit or 10))
         qs = (
             QueueItem.objects.filter(tenant_id=self.tenant_id)
             .order_by("-updated_at")
-            .only("message_id", "status", "details_json", "updated_at")[: int(limit)]
+            .only("message_id", "status", "details_json", "updated_at")[:limit_n]
         )
         out: list[dict[str, Any]] = []
+        seen: set[str] = set()
         for r in qs:
             details = r.details_json if isinstance(r.details_json, dict) else {}
+            mid = str(r.message_id or "")
+            if mid:
+                seen.add(mid)
             out.append(
                 {
-                    "message_id": r.message_id,
-                    "status": r.status,
+                    "message_id": mid,
+                    "status": _normalize_queue_status(r.status),
                     "updated_at": r.updated_at.isoformat() if getattr(r, "updated_at", None) else "",
+                    "id": details.get("id") or mid,
                     **details,
                 }
             )
-        return out
+
+        if len(out) < limit_n:
+            meta_rows = (
+                ProcessedMeta.objects.filter(tenant_id=self.tenant_id)
+                .order_by("-id")
+                .only("message_id", "meta_json")[: max(50, limit_n * 5)]
+            )
+            for row in meta_rows:
+                mid = str(row.message_id or "")
+                if not mid or mid in seen:
+                    continue
+                meta = row.meta_json if isinstance(row.meta_json, dict) else {}
+                action = str(meta.get("action") or "").strip().lower()
+                if action == "sent":
+                    status = "completed"
+                    reason = str(meta.get("reason") or "auto_reply")
+                elif action == "draft":
+                    status = "draft"
+                    reason = str(meta.get("reason") or "draft")
+                elif action == "ignored":
+                    status = "reject"
+                    reason = str(meta.get("reason") or "not_relevant")
+                elif action == "error":
+                    status = "error"
+                    reason = str(meta.get("reason") or "error")
+                else:
+                    continue
+                seen.add(mid)
+                out.append(
+                    {
+                        "message_id": mid,
+                        "status": status,
+                        "updated_at": str(meta.get("processed_at") or ""),
+                        "id": mid,
+                        "from_email": str(meta.get("from_email") or ""),
+                        "subject": str(meta.get("subject") or meta.get("reply_subject") or ""),
+                        "reason": reason,
+                    }
+                )
+                if len(out) >= limit_n:
+                    break
+
+        out.sort(key=lambda x: str(x.get("updated_at") or ""), reverse=True)
+        return out[:limit_n]
 
     def update_processed_details(self, message_id: str, from_email: str, subject: str) -> None:
         row = (

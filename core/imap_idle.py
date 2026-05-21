@@ -11,7 +11,7 @@ from typing import Optional
 
 log = logging.getLogger("mailpilot.imap_idle")
 
-_idle_threads: dict[int, threading.Thread] = {}
+_idle_threads: dict[tuple[int, int], threading.Thread] = {}
 _idle_lock = threading.Lock()
 _idle_enabled = True
 
@@ -98,10 +98,11 @@ def _idle_wait_for_mail(conn: imaplib.IMAP4, stop: threading.Event, timeout_sec:
     return got_mail
 
 
-def _idle_worker(user_id: int, stop: threading.Event) -> None:
+def _idle_worker(user_id: int, account_id: int, stop: threading.Event) -> None:
     from django.contrib.auth.models import User
 
     from core import runtime
+    from core.mail_accounts import MODE_SMTP, active_transport_mode
     from core.user_settings import build_effective_settings
     from email_automation.imap_mailbox import imap_inbox_ready
 
@@ -110,27 +111,45 @@ def _idle_worker(user_id: int, stop: threading.Event) -> None:
         conn: Optional[imaplib.IMAP4] = None
         try:
             user = User.objects.get(pk=user_id)
-            settings = build_effective_settings(user)
+            if active_transport_mode(user) != MODE_SMTP:
+                time.sleep(30)
+                continue
+            settings = build_effective_settings(user, account_id=account_id)
             if str(settings.SEND_TRANSPORT or "").strip() != "smtp" or not imap_inbox_ready(settings):
                 time.sleep(30)
                 continue
             conn = _connect_imap(settings)
             if not _server_supports_idle(conn):
-                log.warning("IMAP IDLE not supported for user %s — using interval poll only", user_id)
+                log.warning(
+                    "IMAP IDLE not supported user=%s account=%s — interval poll only",
+                    user_id,
+                    account_id,
+                )
                 time.sleep(60)
                 continue
-            log.info("IMAP IDLE listening user_id=%s mailbox=%s", user_id, settings.IMAP_MAILBOX)
+            log.info(
+                "IMAP IDLE listening user_id=%s account_id=%s mailbox=%s",
+                user_id,
+                account_id,
+                settings.IMAP_MAILBOX,
+            )
             while not stop.is_set():
                 if _idle_wait_for_mail(conn, stop):
-                    log.info("IMAP IDLE: new mail signal user_id=%s — running poll", user_id)
+                    log.info("IMAP IDLE: new mail user=%s account=%s — poll", user_id, account_id)
                     try:
                         runtime.trigger_poll_fn(user=user, fast=True)
                     except Exception as e:
-                        log.warning("IMAP IDLE poll failed user %s: %s", user_id, e)
+                        log.warning("IMAP IDLE poll failed user=%s: %s", user_id, e)
                 else:
                     break
         except Exception as e:
-            log.warning("IMAP IDLE loop error user %s: %s (retry in %ss)", user_id, e, backoff)
+            log.warning(
+                "IMAP IDLE loop error user=%s account=%s: %s (retry in %ss)",
+                user_id,
+                account_id,
+                e,
+                backoff,
+            )
             time.sleep(backoff)
             backoff = min(backoff * 2, 120)
         finally:
@@ -144,14 +163,19 @@ def _idle_worker(user_id: int, stop: threading.Event) -> None:
 
 
 def ensure_imap_idle_watchers() -> None:
-    """Start one daemon thread per IMAP-ready user (SMTP transport)."""
+    """Start one daemon thread per enabled SMTP mail account."""
     global _idle_enabled
     if not imap_idle_enabled():
         _idle_enabled = False
         return
     try:
-        from django.contrib.auth.models import User
-
+        from core.mail_accounts import (
+            MODE_SMTP,
+            TRANSPORT_SMTP,
+            active_transport_mode,
+            ensure_legacy_migrated,
+            list_accounts_for_user,
+        )
         from core.models import UserMailSettings
         from core.user_settings import build_effective_settings
         from email_automation.imap_mailbox import imap_inbox_ready
@@ -162,20 +186,36 @@ def ensure_imap_idle_watchers() -> None:
     user_ids = list(UserMailSettings.objects.values_list("user_id", flat=True).distinct())
     with _idle_lock:
         for uid in user_ids:
-            if uid in _idle_threads and _idle_threads[uid].is_alive():
-                continue
             try:
+                from django.contrib.auth.models import User
+
                 u = User.objects.get(pk=uid)
-                eff = build_effective_settings(u)
-                if str(eff.SEND_TRANSPORT or "").strip() != "smtp" or not imap_inbox_ready(eff):
+                ensure_legacy_migrated(u)
+                if active_transport_mode(u) != MODE_SMTP:
                     continue
+                accounts = list_accounts_for_user(u, transport=TRANSPORT_SMTP).filter(is_enabled=True)
             except Exception:
                 continue
-            stop = threading.Event()
-            t = threading.Thread(target=_idle_worker, args=(int(uid), stop), daemon=True, name=f"imap-idle-{uid}")
-            _idle_threads[int(uid)] = t
-            t.start()
-            log.info("Started IMAP IDLE watcher for user_id=%s", uid)
+            for acc in accounts:
+                key = (int(uid), int(acc.id))
+                if key in _idle_threads and _idle_threads[key].is_alive():
+                    continue
+                try:
+                    eff = build_effective_settings(u, account_id=acc.id)
+                    if not imap_inbox_ready(eff):
+                        continue
+                except Exception:
+                    continue
+                stop = threading.Event()
+                t = threading.Thread(
+                    target=_idle_worker,
+                    args=(int(uid), int(acc.id), stop),
+                    daemon=True,
+                    name=f"imap-idle-{uid}-{acc.id}",
+                )
+                _idle_threads[key] = t
+                t.start()
+                log.info("Started IMAP IDLE watcher user_id=%s account_id=%s", uid, acc.id)
 
 
 def imap_idle_active_count() -> int:

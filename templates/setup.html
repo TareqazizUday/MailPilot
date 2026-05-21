@@ -1,4 +1,5 @@
 {% extends "mailpilot_base.html" %}
+{% load static %}
 
 {% block title %}Connect Gmail · Email Automation{% endblock %}
 
@@ -209,6 +210,29 @@
     .panel{display:none;}
     .panel.on{display:block;}
 
+    .mode-banner{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 14px;margin-bottom:16px;border-radius:12px;background:rgba(79,110,247,0.08);border:1px solid rgba(79,110,247,0.22);}
+    .mode-muted{font-size:0.78rem;color:var(--muted);}
+    .mb-card{border:1px solid var(--glass-border);border-radius:14px;padding:14px 16px;margin-bottom:12px;background:rgba(255,255,255,0.02);transition:opacity 0.2s,border-color 0.2s;}
+    .mb-card.mb-paused{opacity:0.72;}
+    .mb-card.mb-highlight{border-color:rgba(79,110,247,0.55);box-shadow:0 0 0 2px rgba(79,110,247,0.15);}
+    .mb-card-empty{border-style:dashed;cursor:pointer;text-align:center;color:var(--muted);padding:22px;}
+    .mb-card-empty:hover{border-color:rgba(79,110,247,0.4);color:var(--text);}
+    .mb-card-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+    .mb-card-title{flex:1;font-weight:700;font-size:0.88rem;min-width:120px;}
+    .mb-slot{color:#818cf8;margin-right:6px;}
+    .mb-card-meta{font-size:0.78rem;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .mb-switch{position:relative;display:inline-flex;align-items:center;cursor:pointer;}
+    .mb-switch input{position:absolute;opacity:0;width:0;height:0;}
+    .mb-switch-ui{width:40px;height:22px;border-radius:999px;background:rgba(255,255,255,0.12);border:1px solid var(--glass-border);transition:background 0.2s;}
+    .mb-switch-ui::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform 0.2s;}
+    .mb-switch input:checked + .mb-switch-ui{background:rgba(34,197,94,0.35);border-color:rgba(34,197,94,0.45);}
+    .mb-switch input:checked + .mb-switch-ui::after{transform:translateX(18px);}
+    .mb-switch{position:relative;}
+    .mb-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+    .btn-sm{padding:6px 12px;font-size:0.78rem;}
+    .pill.warn{background:rgba(251,191,36,0.12);color:#fcd34d;border:1px solid rgba(251,191,36,0.3);}
+    .mini-pill{margin-top:6px;display:inline-block;}
+
     .hint{background:rgba(79,110,247,0.07);border:1px solid rgba(79,110,247,0.2);border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:0.8rem;color:var(--muted);line-height:1.6;}
 
     .oauth-box{background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:12px;padding:14px 16px;margin-top:18px;}
@@ -402,176 +426,51 @@
             <span class="pill" id="transportPill">—</span>
           </div>
 
-          <!-- Transport tabs -->
-          <div class="tabs" role="tablist" aria-label="Email setup mode">
-            <button class="tab on" id="tabG" type="button" onclick="showPanel('gmail')"><i class="fa-brands fa-google" aria-hidden="true"></i> Gmail</button>
-            <button class="tab" id="tabS" type="button" onclick="showPanel('smtp')"><i class="fa-solid fa-envelope" aria-hidden="true"></i> SMTP</button>
-          </div>
-
-          <!-- Gmail Panel -->
-          <div class="panel on" id="pGmail">
-          <div class="hint">Use Google OAuth to read inbox and send replies via Gmail API.</div>
-
-      {% if gmail_oauth_connected %}
-        <div class="oauth-box" style="border-color: rgba(16,185,129,.18);">
-          <div class="oauth-h"><i class="fa-solid fa-link" aria-hidden="true" style="color: var(--grn-l);"></i> Connected</div>
-          <p class="oauth-txt" style="margin:0;">OAuth token found on server. Open <a href="{% url 'dashboard' %}">Dashboard</a>.</p>
-        </div>
-        <button class="btn btn-ghost btn-block disc-btn" type="button" onclick="disconnectGmail()">
-          <i class="fa-solid fa-link-slash" aria-hidden="true"></i> Disconnect
-        </button>
-      {% else %}
-        <form method="POST" action="{% url 'api_setup_credentials' %}" enctype="multipart/form-data">
-          {% csrf_token %}
-          <div class="fg">
-            <label class="fl" for="gmail_address">Email Address</label>
-            <input class="fi" type="email" id="gmail_address" name="gmail_address" value="{{ gmail_address|default:'' }}" placeholder="your@email.com" autocomplete="email" required>
-          </div>
-
-          <div class="fg">
-            <label class="fl" for="client_secret">Client Secret File</label>
-            <div class="fu" id="fUp" onclick="document.getElementById('client_secret').click()">
-              <i class="fa-solid fa-cloud-arrow-up" id="fIco" aria-hidden="true"></i>
-              <p id="fTxt">Drag &amp; drop your <span>credentials.json</span> here</p>
-              <div class="ht" id="fHt">or click to browse — JSON files only</div>
-            </div>
-            <input type="file" id="client_secret" name="client_secret" accept="application/json" style="display:none" required>
-          </div>
+          <div id="transportModeBanner" data-highlight-account="{{ highlight_account_id|default:'' }}" data-initial-mode="{{ transport_summary.active_mode|default:'gmail' }}"></div>
 
           {% if oauth_error %}
-            <div class="oauth-box" style="border-color: rgba(248,113,113,.18);">
+            <div class="oauth-box" style="border-color: rgba(248,113,113,.18); margin-bottom:14px;">
               <div class="oauth-h"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="color: var(--red);"></i> Google OAuth did not finish</div>
               <p class="oauth-txt" style="margin:0;"><span class="code-inline" style="word-break:break-all;">{{ oauth_error }}</span></p>
             </div>
           {% endif %}
 
-          <div class="oauth-box">
-            <div class="oauth-h"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> OAuth Configuration</div>
-            <p class="oauth-txt">OAuth client type must be <strong>Web application</strong>. Add this redirect URI exactly in Google Cloud Console:</p>
-            <div class="url-box" role="group" aria-label="Redirect URI">
-              <span class="url-txt" id="redirTxt">{{ oauth_redirect_uri }}</span>
-              <button class="cp-btn" type="button" onclick="cpRedirect()" title="Copy">Copy</button>
+          <div class="tabs" role="tablist" aria-label="Email setup mode">
+            <button class="tab on" id="tabG" type="button" onclick="showPanel('gmail')"><i class="fa-brands fa-google" aria-hidden="true"></i> Gmail</button>
+            <button class="tab" id="tabS" type="button" onclick="showPanel('smtp')"><i class="fa-solid fa-envelope" aria-hidden="true"></i> SMTP</button>
+          </div>
+
+          <div class="panel on" id="pGmail">
+            <div class="hint">Up to <strong>5 Gmail</strong> accounts. Toggle each mailbox on/off. Only accounts in <strong>Gmail mode</strong> (this tab active) run automation.</div>
+            <div class="oauth-box" style="margin-bottom:14px;">
+              <div class="oauth-h"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> OAuth redirect URI</div>
+              <p class="oauth-txt">Use <strong>Web application</strong> client in Google Cloud Console:</p>
+              <div class="url-box" role="group" aria-label="Redirect URI">
+                <span class="url-txt" id="redirTxt">{{ oauth_redirect_uri }}</span>
+                <button class="cp-btn" type="button" onclick="cpRedirect()" title="Copy">Copy</button>
+              </div>
             </div>
+            <div id="gmailAccountsList"></div>
           </div>
 
-          <button class="btn btn-purp btn-block" type="submit"><i class="fa-brands fa-google" aria-hidden="true"></i> Connect Gmail</button>
-        </form>
-      {% endif %}
-          </div>
-
-          <!-- SMTP Panel -->
           <div class="panel" id="pSmtp">
-            <div class="hint"><strong>SMTP</strong> sends mail. <strong>IMAP</strong> (below) reads the same mailbox on the Dashboard when Gmail OAuth is not used.</div>
-
+            <div class="hint"><strong>SMTP</strong> sends mail; <strong>IMAP</strong> reads inbox on the Dashboard. Up to <strong>5 SMTP</strong> mailboxes — pause any slot without deleting credentials.</div>
             <div class="oauth-box" style="margin-top:0;">
               <div class="oauth-h"><i class="fa-solid fa-gear" aria-hidden="true"></i> Quick profile</div>
-              <p class="oauth-txt" style="margin:0;">
-                For <span class="code-inline">timerni.com</span>:\n
-                Incoming IMAP: <span class="code-inline">imap.timerni.com</span> (SSL 993), Outgoing SMTP: <span class="code-inline">smtp.timerni.com</span>\n
-                Ports: <span class="code-inline">465 (SSL)</span> or <span class="code-inline">587 (TLS)</span>
-              </p>
+              <p class="oauth-txt" style="margin:0;">Example: <span class="code-inline">smtp.timerni.com</span> / <span class="code-inline">imap.timerni.com</span> — ports <span class="code-inline">587</span> (TLS) or <span class="code-inline">465</span> (SSL).</p>
             </div>
-
-          <div class="row2" style="margin-top:12px;">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpHost">SMTP Host <span style="color:#f87171;">*</span></label>
-              <input class="fi" id="smtpHost" name="smtpHost" placeholder="smtp.gmail.com" autocomplete="off" />
-              <div class="field-err" id="errSmtpHost" role="alert"></div>
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpPort">Port <span style="color:#f87171;">*</span></label>
-              <input class="fi" id="smtpPort" name="smtpPort" type="number" min="1" max="65535" step="1" value="587" />
-              <div class="field-err" id="errSmtpPort" role="alert"></div>
-              <div class="mini" id="smtpPortHint">Tip: 465 = SSL, 587 = TLS</div>
-            </div>
-          </div>
-          <div class="row2">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpUser">SMTP Username <span style="color:#f87171;">*</span></label>
-              <input class="fi" id="smtpUser" name="smtpUser" placeholder="your@email.com" autocomplete="username" />
-              <div class="field-err" id="errSmtpUser" role="alert"></div>
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpPass">Password / App password <span style="color:#f87171;">*</span></label>
-              <div class="pw-wrap">
-                <input class="fi" id="smtpPass" name="smtpPass" type="password" placeholder="••••••••" autocomplete="current-password" />
-                <button class="pw-btn" type="button" onclick="togglePw()" title="Show/Hide password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
-              </div>
-              <div class="field-err" id="errSmtpPass" role="alert"></div>
-              <div class="mini">Saved to <span class="code-inline">data/app_config.json</span>. Don’t commit this file. Prefer “app password” if your provider supports it.</div>
-            </div>
-          </div>
-          <div class="row2">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpFrom">From email (optional)</label>
-              <input class="fi" id="smtpFrom" placeholder="from@email.com" />
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl">Security</label>
-              <div class="row2" style="gap:8px;">
-                <label class="pill" style="justify-content:center;cursor:pointer;">
-                  <input type="checkbox" id="smtpTls" style="margin-right:8px;" checked> TLS
-                </label>
-                <label class="pill" style="justify-content:center;cursor:pointer;">
-                  <input type="checkbox" id="smtpSsl" style="margin-right:8px;"> SSL
-                </label>
-              </div>
-              <div class="mini" style="margin-top:8px;">
-                <label class="pill" style="justify-content:center;cursor:pointer;">
-                  <input type="checkbox" id="smtpVerify" style="margin-right:8px;" checked> Verify certificate
-                </label>
-                <div class="small" style="margin-top:6px;">
-                  If your provider has a hostname mismatch certificate error, temporarily turn this off (less secure).
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="oauth-box" style="margin-top:14px;">
-            <div class="oauth-h"><i class="fa-solid fa-inbox" aria-hidden="true"></i> IMAP (read inbox)</div>
-            <p class="oauth-txt" style="margin:0;">Leave <span class="code-inline">IMAP host</span> empty to derive <span class="code-inline">imap.&lt;domain&gt;</span> from your SMTP host (e.g. <span class="code-inline">smtp.timerni.com</span> → <span class="code-inline">imap.timerni.com</span>). Uses the same username/password as SMTP.</p>
-          </div>
-          <div class="row2" style="margin-top:10px;">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="imapHost">IMAP host (optional)</label>
-              <input class="fi" id="imapHost" placeholder="imap.timerni.com" />
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="imapPort">IMAP port <span style="color:#f87171;">*</span></label>
-              <input class="fi" id="imapPort" name="imapPort" type="number" min="1" max="65535" step="1" value="993" />
-              <div class="field-err" id="errImapPort" role="alert"></div>
-            </div>
-          </div>
-          <div class="row2">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpTlsServer">SMTP TLS name (cert mismatch)</label>
-              <input class="fi" id="smtpTlsServer" placeholder="timerni.com" />
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="imapTlsServer">IMAP TLS name (optional)</label>
-              <input class="fi" id="imapTlsServer" placeholder="timerni.com" />
-            </div>
-          </div>
-          <div class="fg" style="margin-bottom:10px;">
-            <label class="pill" style="justify-content:flex-start;cursor:pointer;">
-              <input type="checkbox" id="imapVerify" style="margin-right:8px;" checked> Verify IMAP certificate
-            </label>
-          </div>
-
-          <div class="mini" style="margin-top:4px;"><span style="color:#f87171;">*</span> Required. Optional: From email; IMAP host (blank = auto from SMTP host); SMTP/IMAP TLS name fields.</div>
-          <button class="btn btn-ghost btn-block" type="button" style="margin-top:10px;" onclick="connectSmtpAndEnable()"><i class="fa-solid fa-plug" aria-hidden="true"></i> Connect SMTP &amp; run automation</button>
-          <div class="mini" style="margin-top:8px;">Tests SMTP, enables SMTP sending, then checks unread mail once.</div>
-          <button class="btn btn-ghost btn-block disc-btn" id="btnSmtpDisconnect" style="margin-top:10px; display:none;" type="button" onclick="disconnectSmtp()">
-            <i class="fa-solid fa-link-slash" aria-hidden="true"></i> Disconnect SMTP
-          </button>
-          <div class="mini"><span id="smtpStatus" class="pill">—</span></div>
+            <div id="smtpAccountsList"></div>
           </div>
           </div>
           </div>
           <div class="content-aside">
             <div class="aside-card">
+              <div class="aside-title"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Mailboxes</div>
+              <div class="aside-desc">Gmail and SMTP modes are mutually exclusive. Paused mailboxes keep credentials but skip poll/send.</div>
+            </div>
+            <div class="aside-card" style="margin-top:12px;">
               <div class="aside-title"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Next</div>
-              <div class="aside-desc">After choosing how to send replies, configure <strong>Routing</strong> so only service-related emails are handled.</div>
+              <div class="aside-desc">Configure <strong>Routing</strong> and per-mailbox <strong>Knowledge Base</strong> for grounded replies.</div>
             </div>
           </div>
         </div>
@@ -649,6 +548,12 @@
           <div class="oauth-box" style="margin-top:0;">
             <div class="oauth-h"><i class="fa-solid fa-brain" aria-hidden="true"></i> Build knowledge for “perfect replies”</div>
             <p class="oauth-txt" style="margin:0;">Upload JSON or plain text (.txt) knowledge, or crawl your website so replies can be grounded in your real service info.</p>
+          </div>
+
+          <div class="fg" style="margin-top:12px;">
+            <label class="fl" for="kbAccountSelect">Knowledge for mailbox</label>
+            <select class="fi" id="kbAccountSelect" aria-label="Select mailbox for knowledge base"></select>
+            <div class="mini">Each Gmail or SMTP slot has its own RAG index (scoped per mailbox).</div>
           </div>
 
           <div class="oauth-box">
@@ -1091,19 +996,22 @@
         const cls = (tr === 'smtp') ? '' : (gmailConnected ? 'ok' : 'bad');
         setPill(tp, pillText, cls);
         // smtp config (password never echoed back)
-        document.getElementById('smtpHost').value = e.SMTP_HOST || '';
-        document.getElementById('smtpPort').value = e.SMTP_PORT ?? 587;
-        document.getElementById('smtpUser').value = e.SMTP_USERNAME || '';
-        document.getElementById('smtpFrom').value = e.SMTP_FROM_EMAIL || '';
-        document.getElementById('smtpTls').checked = !!e.SMTP_USE_TLS;
-        document.getElementById('smtpSsl').checked = !!e.SMTP_USE_SSL;
-        document.getElementById('smtpVerify').checked = (e.SMTP_VERIFY_TLS !== false);
-        document.getElementById('smtpTlsServer').value = e.SMTP_TLS_SERVERNAME || '';
-        document.getElementById('imapHost').value = e.IMAP_HOST || '';
-        document.getElementById('imapPort').value = e.IMAP_PORT ?? 993;
-        document.getElementById('imapVerify').checked = (e.IMAP_VERIFY_TLS !== false);
-        document.getElementById('imapTlsServer').value = e.IMAP_TLS_SERVERNAME || '';
-        applySmtpPortHints();
+        const sh = document.getElementById('smtpHost');
+        if(sh){
+          sh.value = e.SMTP_HOST || '';
+          document.getElementById('smtpPort').value = e.SMTP_PORT ?? 587;
+          document.getElementById('smtpUser').value = e.SMTP_USERNAME || '';
+          document.getElementById('smtpFrom').value = e.SMTP_FROM_EMAIL || '';
+          document.getElementById('smtpTls').checked = !!e.SMTP_USE_TLS;
+          document.getElementById('smtpSsl').checked = !!e.SMTP_USE_SSL;
+          document.getElementById('smtpVerify').checked = (e.SMTP_VERIFY_TLS !== false);
+          document.getElementById('smtpTlsServer').value = e.SMTP_TLS_SERVERNAME || '';
+          document.getElementById('imapHost').value = e.IMAP_HOST || '';
+          document.getElementById('imapPort').value = e.IMAP_PORT ?? 993;
+          document.getElementById('imapVerify').checked = (e.IMAP_VERIFY_TLS !== false);
+          document.getElementById('imapTlsServer').value = e.IMAP_TLS_SERVERNAME || '';
+          applySmtpPortHints();
+        }
         setPill(pill, 'Settings synced', 'ok');
         // Keep the UI clean: auto-hide after a moment.
         setTimeout(() => {
@@ -1482,7 +1390,7 @@
       const pill = document.getElementById('kbPill');
       const meta = document.getElementById('kbMeta');
       try{
-        const res = await fetch('/api/kb/status');
+        const res = await fetch('/api/kb/status' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''));
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'KB not ready'), 'bad');
@@ -1509,7 +1417,7 @@
       const pill = document.getElementById('kbClearStatus');
       setPill(pill, 'Deleting…', 'info');
       try{
-        const res = await fetch('/api/kb/clear', { method:'POST' });
+        const res = await fetch('/api/kb/clear' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''), { method:'POST' });
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Delete failed'), 'bad');
@@ -1597,7 +1505,7 @@
       const pill = document.getElementById('kbEditStatus');
       setPill(pill, 'Downloading…', 'info');
       try{
-        const res = await fetch('/api/kb/export-bundle');
+        const res = await fetch('/api/kb/export-bundle' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''));
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Download failed'), 'bad');
@@ -1631,7 +1539,7 @@
       const pill = document.getElementById('kbEditorPill');
       setPill(pill, 'Loading…', 'info');
       try{
-        const res = await fetch('/api/kb/export-bundle');
+        const res = await fetch('/api/kb/export-bundle' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''));
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Load failed'), 'bad');
@@ -1669,7 +1577,7 @@
         payload.schema_version = payload.schema_version || '1.0';
       }
       try{
-        const res = await fetch('/api/kb/replace-json', {
+        const res = await fetch('/api/kb/replace-json' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''), {
           method:'POST',
           headers:{ 'Content-Type':'application/json' },
           body: JSON.stringify(payload),
@@ -1701,7 +1609,8 @@
       }
       setPill(pill, 'Uploading…', '');
       const fd = new FormData();
-      const url = mode === 'text' ? '/api/kb/upload-text' : '/api/kb/upload-json';
+      const q = typeof kbAccountQuery === 'function' ? kbAccountQuery() : '';
+      const url = (mode === 'text' ? '/api/kb/upload-text' : '/api/kb/upload-json') + q;
       if(mode === 'text'){
         fd.append('text_file', f, f.name);
       }else{
@@ -1845,6 +1754,8 @@
       if(btn){ btn.disabled = true; btn.style.opacity = '0.65'; }
       const fd = new FormData();
       fd.append('start_url', url);
+      const aid = typeof getKbAccountId === 'function' ? getKbAccountId() : '';
+      if(aid) fd.append('account_id', aid);
       try{
         const res = await fetch('/api/kb/crawl', { method:'POST', body: fd });
         const j = await res.json().catch(() => ({}));
@@ -1903,4 +1814,5 @@
 
     _smtpWireFieldErrorClearing();
   </script>
+  <script src="{% static 'js/mail-accounts-setup.js' %}"></script>
 {% endblock %}

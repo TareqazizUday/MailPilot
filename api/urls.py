@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
+from core import mail_account_views as ma_views
 from core import views as legacy_views
 
 
@@ -14,6 +15,17 @@ urlpatterns = [
     # Versioned API
     path("v1/", include("api.v1.urls")),
     # Legacy endpoints (keep working)
+    path("mail-accounts/", ma_views.api_mail_accounts_list, name="api_mail_accounts_list"),
+    path("mail-accounts/create", ma_views.api_mail_accounts_create, name="api_mail_accounts_create"),
+    path("mail-accounts/<int:account_id>/", ma_views.api_mail_accounts_detail, name="api_mail_accounts_detail"),
+    path("mail-accounts/<int:account_id>/test-smtp", ma_views.api_mail_account_test_smtp, name="api_mail_account_test_smtp"),
+    path("mail-accounts/<int:account_id>/disconnect-gmail", ma_views.api_mail_account_disconnect_gmail, name="api_mail_account_disconnect_gmail"),
+    path(
+        "mail-accounts/<int:account_id>/setup-credentials",
+        ma_views.api_mail_account_setup_credentials,
+        name="api_mail_account_setup_credentials",
+    ),
+    path("transport-mode/", ma_views.api_transport_mode, name="api_transport_mode"),
     path("setup/credentials", legacy_views.api_setup_credentials, name="api_setup_credentials"),
     path("gmail/oauth/start", legacy_views.oauth_start, name="oauth_start"),
     path("gmail/oauth/callback", legacy_views.oauth_callback, name="oauth_callback"),

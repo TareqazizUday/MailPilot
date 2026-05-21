@@ -276,6 +276,9 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
                         "confidence": conf,
                         "reply_subject": reply_subject,
                         "reply_body": reply_body,
+                        "from_email": from_email,
+                        "subject": subject,
+                        "reason": "auto_reply",
                         "processed_at": _now_iso(),
                     },
                 )
@@ -480,6 +483,9 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
                             "confidence": conf,
                             "reply_subject": reply_subject,
                             "reply_body": reply_body,
+                            "from_email": from_email,
+                            "subject": subject,
+                            "reason": "auto_reply",
                             "processed_at": _now_iso(),
                             "imap_uid": uid,
                         }

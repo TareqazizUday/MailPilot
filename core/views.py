@@ -62,9 +62,30 @@ _crawl_jobs_lock = threading.Lock()
 _crawl_jobs: dict[int, dict[str, Any]] = {}
 
 
-def _get_vector_store_for_user(user) -> VectorStore:
-    effective = runtime.get_effective_settings(user)
-    tid = str(user.id) if user is not None and getattr(user, "is_authenticated", False) else ""
+def _account_id_from_request(request) -> int | None:
+    from core.mail_account_views import parse_account_id_from_request
+
+    return parse_account_id_from_request(request)
+
+
+def _resolve_mail_account(request):
+    from core.mail_accounts import ensure_legacy_migrated, resolve_account
+
+    ensure_legacy_migrated(request.user)
+    aid = _account_id_from_request(request)
+    return resolve_account(request.user, aid, require_enabled=False)
+
+
+def _get_vector_store_for_user(user, account_id: int | None = None) -> VectorStore:
+    from core.mail_accounts import ensure_legacy_migrated, resolve_account, tenant_id_for_account
+
+    ensure_legacy_migrated(user)
+    acc = resolve_account(user, account_id)
+    effective = runtime.get_effective_settings(user, account_id=acc.id if acc else None)
+    if acc:
+        tid = tenant_id_for_account(user.id, acc.id)
+    else:
+        tid = str(user.id) if user is not None and getattr(user, "is_authenticated", False) else ""
     return VectorStore(settings=effective, tenant_id=tid)
 
 
@@ -394,10 +415,14 @@ def setup_page(request):
     from core.user_settings import migrate_legacy_file_config_if_needed
 
     migrate_legacy_file_config_if_needed(request.user)
+    from core.mail_accounts import ensure_legacy_migrated, transport_summary
+
+    ensure_legacy_migrated(request.user)
     effective = runtime.get_effective_settings(request.user)
     cfg = _user_settings_dict(request)
     connected = _mailbox_connected_for_ui(effective, cfg)
     oauth_redirect_uri = _oauth_callback_url(request, effective)
+    highlight_account = (request.GET.get("account_id") or "").strip()
     return render(
         request,
         "setup.html",
@@ -407,6 +432,8 @@ def setup_page(request):
             "gmail_address": (cfg.get("GMAIL_ADDRESS") or ""),
             "oauth_error": (request.GET.get("oauth_error") or "").strip(),
             "oauth_redirect_uri": oauth_redirect_uri,
+            "transport_summary": transport_summary(request.user),
+            "highlight_account_id": highlight_account,
         },
     )
 
@@ -571,8 +598,18 @@ def api_setup_credentials(request):
     from core.user_settings import save_client_secret_json, save_settings_patch
 
     raw = b"".join(secret_file.chunks())
+    from core.mail_accounts import TRANSPORT_GMAIL, create_account, ensure_legacy_migrated, resolve_account
+
+    ensure_legacy_migrated(request.user)
+    acc = resolve_account(request.user, transport=TRANSPORT_GMAIL)
+    if acc is None:
+        acc = create_account(request.user, transport=TRANSPORT_GMAIL, gmail_address=gmail_address)
     save_client_secret_json(request.user, raw.decode("utf-8"))
-    save_settings_patch(request.user, {"GMAIL_ADDRESS": gmail_address})
+    from core.mail_accounts import patch_account_config, save_account_client_secret
+
+    save_account_client_secret(acc, raw.decode("utf-8"))
+    patch_account_config(acc, {"GMAIL_ADDRESS": gmail_address})
+    request.session["oauth_account_id"] = acc.id
     return redirect(reverse("oauth_start"))
 
 
@@ -581,7 +618,12 @@ def api_setup_credentials(request):
 def oauth_start(request):
     try:
         logger.info("oauth_start hit")
-        effective = runtime.get_effective_settings(request.user)
+        from core.mail_accounts import ensure_legacy_migrated, resolve_account
+
+        ensure_legacy_migrated(request.user)
+        account_id = request.session.get("oauth_account_id")
+        acc = resolve_account(request.user, account_id)
+        effective = runtime.get_effective_settings(request.user, account_id=acc.id if acc else None)
         client_secret_path = effective.GOOGLE_CLIENT_SECRET_FILE
         if not os.path.exists(client_secret_path):
             return JsonResponse({"ok": False, "error": "client_secret.json missing"}, status=400)
@@ -600,6 +642,8 @@ def oauth_start(request):
             prompt="consent",
         )
         request.session["oauth_state"] = state
+        if acc:
+            request.session["oauth_account_id"] = acc.id
         return redirect(authorization_url)
     except Exception as e:
         logger.exception("OAuth start failed")
@@ -612,7 +656,12 @@ def oauth_start(request):
 def oauth_callback(request):
     logger.info("oauth_callback hit; args_keys=%s", list(request.GET.keys()))
     try:
-        effective = runtime.get_effective_settings(request.user)
+        from core.mail_accounts import ensure_legacy_migrated, resolve_account, save_account_oauth_token
+
+        ensure_legacy_migrated(request.user)
+        account_id = request.session.get("oauth_account_id")
+        acc = resolve_account(request.user, account_id)
+        effective = runtime.get_effective_settings(request.user, account_id=acc.id if acc else None)
         client_secret_path = effective.GOOGLE_CLIENT_SECRET_FILE
         if not os.path.exists(client_secret_path):
             return redirect(f"{reverse('setup')}?oauth_error=client_secret_missing")
@@ -642,13 +691,34 @@ def oauth_callback(request):
             return HttpResponse(f"token_exchange_failed: {e}", status=200, content_type="text/plain; charset=utf-8")
 
         creds = flow.credentials
-        from core.user_settings import save_google_token_json
+        token_json = creds.to_json()
 
-        save_google_token_json(request.user, creds.to_json())
+        if acc:
+            expected = str((acc.config_json or {}).get("GMAIL_ADDRESS") or "").strip()
+            if expected:
+                from googleapiclient.discovery import build
+
+                svc = build("gmail", "v1", credentials=creds, cache_discovery=False)
+                profile = str(svc.users().getProfile(userId="me").execute().get("emailAddress") or "").strip()
+                if profile.lower() != expected.lower():
+                    err = (
+                        f"oauth_email_mismatch: You signed in as {profile} but this mailbox "
+                        f"expects {expected}. Use the correct Google account and try Connect OAuth again."
+                    )
+                    return redirect(f"{reverse('setup')}?oauth_error={quote(err, safe='')}&account_id={acc.id}")
+
+            save_account_oauth_token(acc, token_json)
+        else:
+            from core.user_settings import save_google_token_json
+
+            save_google_token_json(request.user, token_json)
 
         if "oauth_state" in request.session:
             del request.session["oauth_state"]
-        return redirect(reverse("dashboard"))
+        aid = acc.id if acc else ""
+        if "oauth_account_id" in request.session:
+            del request.session["oauth_account_id"]
+        return redirect(f"{reverse('setup')}?account_id={aid}" if aid else reverse("dashboard"))
     except Exception as e:
         logger.exception("OAuth callback failed")
         return HttpResponse(f"callback_error: {e}", status=200, content_type="text/plain; charset=utf-8")
@@ -658,9 +728,14 @@ def oauth_callback(request):
 def api_gmail_connection_status(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
-    effective = runtime.get_effective_settings(request.user)
+    from core.mail_accounts import account_to_dict, ensure_legacy_migrated, transport_summary
+
+    ensure_legacy_migrated(request.user)
+    acc = _resolve_mail_account(request)
+    effective = runtime.get_effective_settings(request.user, account_id=acc.id if acc else None)
     cfg = _user_settings_dict(request)
     send_transport_ui = str(cfg.get("SEND_TRANSPORT") or effective.SEND_TRANSPORT or "")
+    summary = transport_summary(request.user)
     has_client_secret = os.path.exists(effective.GOOGLE_CLIENT_SECRET_FILE)
     has_token = os.path.exists(effective.GOOGLE_TOKEN_FILE)
     has_gmail_address = bool((effective.GMAIL_ADDRESS or "").strip())
@@ -683,6 +758,14 @@ def api_gmail_connection_status(request):
     smtp_imap_poll_ready = bool(imap_ok and send_transport_ui == "smtp" and bool(out_from))
     poll_ready = bool(gmail_poll_ready or smtp_imap_poll_ready)
 
+    accounts_payload = []
+    if request.GET.get("include_accounts") == "1":
+        from core.mail_accounts import list_accounts_for_user
+
+        accounts_payload = [
+            account_to_dict(a, include_kb_count=True) for a in list_accounts_for_user(request.user)
+        ]
+
     return JsonResponse(
         {
             "ok": True,
@@ -691,12 +774,17 @@ def api_gmail_connection_status(request):
             "imap_connected": imap_ok,
             "smtp_last_test_ok": smtp_last_ok,
             "send_transport": send_transport_ui,
+            "active_mode": summary.get("active_mode"),
+            "enabled_count": summary.get("enabled_count"),
+            "account_id": acc.id if acc else None,
             "poll_ready": poll_ready,
             "has_client_secret": has_client_secret,
             "has_token": has_token,
             "has_gmail_address": has_gmail_address,
             "gmail_address": effective.GMAIL_ADDRESS,
             "token_error": token_error,
+            "accounts": accounts_payload,
+            "summary": summary,
         }
     )
 
@@ -708,8 +796,20 @@ def api_gmail_disconnect(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     try:
+        from core.mail_accounts import clear_account_oauth, ensure_legacy_migrated, resolve_account, TRANSPORT_GMAIL
         from core.user_settings import get_or_create_mail_settings, token_path_for_user
 
+        ensure_legacy_migrated(request.user)
+        body = {}
+        try:
+            if request.body:
+                body = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            pass
+        aid = body.get("account_id") or _account_id_from_request(request)
+        acc = resolve_account(request.user, aid, transport=TRANSPORT_GMAIL)
+        if acc:
+            clear_account_oauth(acc)
         ms = get_or_create_mail_settings(request.user)
         ms.google_oauth_token_enc = ""
         ms.save()
@@ -784,8 +884,10 @@ def _inbox_message_status(meta: dict[str, Any] | None) -> str | None:
     return None
 
 
-def _annotate_inbox_threads(threads: list[dict[str, Any]], user) -> list[dict[str, Any]]:
-    st = runtime.state_store_for_user(user)
+def _annotate_inbox_threads(
+    threads: list[dict[str, Any]], user, *, account_id: int | None = None
+) -> list[dict[str, Any]]:
+    st = runtime.state_store_for_user(user, account_id=account_id)
     for t in threads:
         mid = str(t.get("message_id") or "").strip()
         if not mid and t.get("thread_id") is not None:
@@ -803,18 +905,56 @@ def _annotate_inbox_threads(threads: list[dict[str, Any]], user) -> list[dict[st
 def api_gmail_inbox(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
-    effective = runtime.get_effective_settings(request.user)
+    from core.mail_accounts import ensure_legacy_migrated
+
+    ensure_legacy_migrated(request.user)
+    acc = _resolve_mail_account(request)
+    if acc is None:
+        return JsonResponse({"ok": False, "error": "no_account"}, status=400)
+    effective = runtime.get_effective_settings(request.user, account_id=acc.id)
     try:
-        g_ok = gmail_oauth_ready(effective)
-        use_imap_list = _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
+        g_ok = gmail_oauth_ready(effective) and acc.transport == "gmail_api"
+        use_imap_list = acc.transport == "smtp" and (
+            _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
+        )
         if use_imap_list:
             mb = ImapMailbox(settings=effective)
-            threads = _annotate_inbox_threads(mb.list_inbox_summaries(max_threads=40), request.user)
-            return JsonResponse({"ok": True, "threads": threads, "source": "imap"})
+            threads = _annotate_inbox_threads(
+                mb.list_inbox_summaries(max_threads=40), request.user, account_id=acc.id
+            )
+            return JsonResponse(
+                {"ok": True, "threads": threads, "source": "imap", "account_id": acc.id, "email": acc.config_json.get("SMTP_USERNAME")}
+            )
         if g_ok:
+            from email_automation.gmail_auth import gmail_oauth_matches_configured
+
+            matches, profile_email, configured_email = gmail_oauth_matches_configured(effective)
+            if not matches:
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": "oauth_email_mismatch",
+                        "email": configured_email or effective.GMAIL_ADDRESS,
+                        "profile_email": profile_email,
+                        "account_id": acc.id,
+                    },
+                    status=400,
+                )
             client = GmailClient(settings=effective)
-            threads = _annotate_inbox_threads(client.list_inbox_thread_summaries(max_threads=40), request.user)
-            return JsonResponse({"ok": True, "threads": threads, "source": "gmail"})
+            threads = _annotate_inbox_threads(
+                client.list_inbox_thread_summaries(max_threads=40), request.user, account_id=acc.id
+            )
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "threads": threads,
+                    "source": "gmail",
+                    "account_id": acc.id,
+                    "email": effective.GMAIL_ADDRESS,
+                    "profile_email": profile_email,
+                    "oauth_email_mismatch": False,
+                }
+            )
         return JsonResponse({"ok": False, "error": "not_connected"}, status=400)
     except Exception as e:
         logger.exception("api_gmail_inbox failed")
@@ -825,9 +965,15 @@ def api_gmail_inbox(request):
 def api_gmail_thread_detail(request, thread_id: str):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
-    effective = runtime.get_effective_settings(request.user)
+    from core.mail_accounts import ensure_legacy_migrated
+
+    ensure_legacy_migrated(request.user)
+    acc = _resolve_mail_account(request)
+    if acc is None:
+        return JsonResponse({"ok": False, "error": "no_account"}, status=400)
+    effective = runtime.get_effective_settings(request.user, account_id=acc.id)
     try:
-        g_ok = gmail_oauth_ready(effective)
+        g_ok = gmail_oauth_ready(effective) and acc.transport == "gmail_api"
         uid = int(thread_id) if thread_id.isdigit() else None
         use_imap_thread = uid is not None and (
             _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
@@ -836,13 +982,17 @@ def api_gmail_thread_detail(request, thread_id: str):
             mb = ImapMailbox(settings=effective)
             data = mb.get_thread_for_ui(uid=uid)
         elif g_ok:
+            from email_automation.gmail_auth import gmail_oauth_matches_configured
+
+            if not gmail_oauth_matches_configured(effective)[0]:
+                return JsonResponse({"ok": False, "error": "oauth_email_mismatch"}, status=400)
             client = GmailClient(settings=effective)
             data = client.get_thread_for_ui(thread_id)
         else:
             return JsonResponse({"ok": False, "error": "not_connected"}, status=400)
         messages = list(data.get("messages") or [])
         inbound_meta = None
-        st = runtime.state_store_for_user(request.user)
+        st = runtime.state_store_for_user(request.user, account_id=acc.id)
         for m in messages:
             mid = m.get("id")
             if not mid:
@@ -907,7 +1057,8 @@ def api_kb_status(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     try:
-        effective = runtime.get_effective_settings(request.user)
+        aid = _account_id_from_request(request)
+        effective = runtime.get_effective_settings(request.user, account_id=aid)
         if not is_vector_db_configured(effective):
             return JsonResponse(
                 {
@@ -916,16 +1067,16 @@ def api_kb_status(request):
                     "error": "No KB database connection. Set DJANGO_DB_* in .env (same DB is fine) or VECTOR_DB_DSN, and run CREATE EXTENSION vector; on that database — see docs/kb-pgvector-setup.md",
                 }
             )
-        vs = _get_vector_store_for_user(request.user)
+        vs = _get_vector_store_for_user(request.user, account_id=aid)
         st = vs.stats()
         return JsonResponse({"ok": True, "configured": True, **st})
     except Exception as e:
         return JsonResponse({"ok": False, "configured": False, "error": str(e)})
 
 
-def _ingest_documents(docs: list[KBDocument], user) -> dict[str, Any]:
-    effective = runtime.get_effective_settings(user)
-    vs = _get_vector_store_for_user(user)
+def _ingest_documents(docs: list[KBDocument], user, account_id: int | None = None) -> dict[str, Any]:
+    effective = runtime.get_effective_settings(user, account_id=account_id)
+    vs = _get_vector_store_for_user(user, account_id=account_id)
     total_chunks = 0
     for doc in docs:
         chunks_txt = chunk_text(doc.text)
@@ -970,12 +1121,12 @@ def _get_crawl_job(user_id: int) -> dict[str, Any]:
         return dict(_crawl_jobs.get(user_id) or {})
 
 
-def _build_kb_bundle_for_user(user) -> dict[str, Any]:
-    effective = runtime.get_effective_settings(user)
+def _build_kb_bundle_for_user(user, account_id: int | None = None) -> dict[str, Any]:
+    effective = runtime.get_effective_settings(user, account_id=account_id)
     website_crawl = load_website_crawl_file(_website_crawl_path(user))
     vector_documents: list[dict[str, Any]] = []
     if is_vector_db_configured(effective):
-        vs = _get_vector_store_for_user(user)
+        vs = _get_vector_store_for_user(user, account_id=account_id)
         vector_documents = vs.export_documents(limit=200)
     return build_kb_export_bundle(
         vector_documents=vector_documents,
@@ -999,7 +1150,7 @@ def api_kb_upload_json(request):
         return JsonResponse({"ok": False, "error": f"Invalid JSON: {e}"}, status=400)
     try:
         docs = documents_from_json_upload(data, source_name=secure_filename(f.name))
-        res = _ingest_documents(docs, request.user)
+        res = _ingest_documents(docs, request.user, account_id=_account_id_from_request(request))
         return JsonResponse({"ok": True, **res})
     except Exception as e:
         logger.exception("kb upload-json failed")
@@ -1030,7 +1181,7 @@ def api_kb_upload_text(request):
         docs = documents_from_text_upload(raw, source_name=name)
         if not docs:
             return JsonResponse({"ok": False, "error": "Text file is empty"}, status=400)
-        res = _ingest_documents(docs, request.user)
+        res = _ingest_documents(docs, request.user, account_id=_account_id_from_request(request))
         return JsonResponse({"ok": True, **res})
     except Exception as e:
         logger.exception("kb upload-text failed")
@@ -1055,7 +1206,8 @@ def api_kb_crawl(request):
     if not start_url:
         return JsonResponse({"ok": False, "error": "Missing start_url"}, status=400)
 
-    effective = runtime.get_effective_settings(request.user)
+    aid = _account_id_from_request(request)
+    effective = runtime.get_effective_settings(request.user, account_id=aid)
     if not is_vector_db_configured(effective):
         return JsonResponse(
             {"ok": False, "error": "kb_not_configured", "configured": False},
@@ -1064,6 +1216,7 @@ def api_kb_crawl(request):
 
     user = request.user
     uid = user.id
+    crawl_account_id = aid
     started_at = datetime.now(timezone.utc).isoformat()
     _set_crawl_job(
         uid,
@@ -1118,7 +1271,7 @@ def api_kb_crawl(request):
                 },
             )
             docs = documents_from_crawl_export(export_payload)
-            ingest_res = _ingest_documents(docs, user)
+            ingest_res = _ingest_documents(docs, user, account_id=crawl_account_id)
             result = {
                 **ingest_res,
                 "pages_fetched": export_stats.get("pages_fetched", len(pages)),
@@ -1191,11 +1344,12 @@ def api_kb_clear(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     try:
-        effective = runtime.get_effective_settings(request.user)
+        aid = _account_id_from_request(request)
+        effective = runtime.get_effective_settings(request.user, account_id=aid)
         crawl_deleted = delete_website_crawl_file(_website_crawl_path(request.user))
         res: dict[str, Any] = {"deleted_documents": 0, "deleted_chunks": 0}
         if is_vector_db_configured(effective):
-            vs = _get_vector_store_for_user(request.user)
+            vs = _get_vector_store_for_user(request.user, account_id=aid)
             res = vs.clear()
         return JsonResponse({"ok": True, **res, "deleted_crawl_file": crawl_deleted})
     except Exception as e:
@@ -1208,10 +1362,11 @@ def api_kb_export_json(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     try:
-        effective = runtime.get_effective_settings(request.user)
+        aid = _account_id_from_request(request)
+        effective = runtime.get_effective_settings(request.user, account_id=aid)
         if not is_vector_db_configured(effective):
             return JsonResponse({"ok": True, "documents": []})
-        vs = _get_vector_store_for_user(request.user)
+        vs = _get_vector_store_for_user(request.user, account_id=aid)
         docs = vs.export_documents(limit=200)
         return JsonResponse({"ok": True, "documents": docs})
     except Exception as e:
@@ -1224,7 +1379,7 @@ def api_kb_export_bundle(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     try:
-        bundle = _build_kb_bundle_for_user(request.user)
+        bundle = _build_kb_bundle_for_user(request.user, account_id=_account_id_from_request(request))
         return JsonResponse({"ok": True, **bundle})
     except Exception as e:
         logger.exception("kb export-bundle failed")
@@ -1253,7 +1408,8 @@ def api_kb_replace_json(request):
     except Exception as e:
         return JsonResponse({"ok": False, "error": f"invalid_json: {e}"}, status=400)
     try:
-        effective = runtime.get_effective_settings(request.user)
+        aid = _account_id_from_request(request)
+        effective = runtime.get_effective_settings(request.user, account_id=aid)
         if not is_vector_db_configured(effective):
             return JsonResponse(
                 {
@@ -1262,7 +1418,7 @@ def api_kb_replace_json(request):
                 },
                 status=400,
             )
-        vs = _get_vector_store_for_user(request.user)
+        vs = _get_vector_store_for_user(request.user, account_id=aid)
         cleared = vs.clear()
         if is_kb_bundle(payload):
             wc = payload.get("website_crawl")
@@ -1273,7 +1429,7 @@ def api_kb_replace_json(request):
             docs = documents_from_json_upload(payload, source_name="kb_edit.json")
         if not docs:
             return JsonResponse({"ok": False, "error": "no_documents_to_ingest"}, status=400)
-        res = _ingest_documents(docs, request.user)
+        res = _ingest_documents(docs, request.user, account_id=aid)
         return JsonResponse({"ok": True, **cleared, **res})
     except Exception as e:
         logger.exception("kb replace failed")
@@ -1284,33 +1440,46 @@ def api_kb_replace_json(request):
 def api_pending(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
-    effective = runtime.get_effective_settings(request.user)
-    items = runtime.state_store_for_user(request.user).list_queue_items(limit=10)
+    from core.mail_accounts import ensure_legacy_migrated
+
+    ensure_legacy_migrated(request.user)
+    acc = _resolve_mail_account(request)
+    account_id = acc.id if acc else None
+    st = runtime.state_store_for_user(request.user, account_id=account_id)
+    effective = runtime.get_effective_settings(request.user, account_id=account_id)
+    items = st.list_queue_items(limit=20)
     try:
         if os.path.exists(effective.GOOGLE_TOKEN_FILE):
-            client = GmailClient(settings=effective)
-            for it in items:
-                if (it.get("status") or "") != "completed":
-                    continue
-                mid = it.get("message_id") or ""
-                if not mid:
-                    continue
-                if (it.get("from_email") or "").strip() and (it.get("subject") or "").strip():
-                    continue
-                try:
-                    from_email, subject = client.get_message_from_and_subject(mid)
-                    runtime.state_store_for_user(request.user).update_processed_details(
-                        message_id=mid,
-                        from_email=from_email,
-                        subject=subject,
-                    )
-                    it["from_email"] = (it.get("from_email") or "").strip() or from_email
-                    it["subject"] = (it.get("subject") or "").strip() or subject
-                except Exception:
-                    pass
+            from email_automation.gmail_auth import gmail_oauth_matches_configured
+
+            if gmail_oauth_matches_configured(effective)[0]:
+                client = GmailClient(settings=effective)
+                for it in items:
+                    mid = it.get("message_id") or ""
+                    if not mid:
+                        continue
+                    if (it.get("from_email") or "").strip() and (it.get("subject") or "").strip():
+                        continue
+                    try:
+                        from_email, subject = client.get_message_from_and_subject(mid)
+                        st.update_processed_details(
+                            message_id=mid,
+                            from_email=from_email,
+                            subject=subject,
+                        )
+                        it["from_email"] = (it.get("from_email") or "").strip() or from_email
+                        it["subject"] = (it.get("subject") or "").strip() or subject
+                    except Exception:
+                        pass
     except Exception:
         pass
-    return JsonResponse({"ok": True, "items": items})
+    return JsonResponse(
+        {
+            "ok": True,
+            "items": items,
+            "account_id": account_id,
+        }
+    )
 
 
 @csrf_exempt
@@ -1450,12 +1619,16 @@ def api_smtp_test(request):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     try:
-        from core.user_settings import save_settings_patch
+        from core.mail_accounts import ensure_legacy_migrated, patch_account_config
 
-        effective = runtime.get_effective_settings(request.user)
+        ensure_legacy_migrated(request.user)
+        acc = _resolve_mail_account(request)
+        if acc is None:
+            return JsonResponse({"ok": False, "error": "no_account"}, status=400)
+        effective = runtime.get_effective_settings(request.user, account_id=acc.id)
         SMTPClient(settings=effective).test_connection()
-        save_settings_patch(
-            request.user,
+        patch_account_config(
+            acc,
             {
                 "SMTP_LAST_TEST_OK": True,
                 "SMTP_LAST_TEST_AT": datetime.now(timezone.utc).isoformat(),
@@ -1465,16 +1638,19 @@ def api_smtp_test(request):
         return JsonResponse({"ok": True})
     except Exception as e:
         try:
-            from core.user_settings import save_settings_patch
+            from core.mail_accounts import ensure_legacy_migrated, patch_account_config
 
-            save_settings_patch(
-                request.user,
-                {
-                    "SMTP_LAST_TEST_OK": False,
-                    "SMTP_LAST_TEST_AT": datetime.now(timezone.utc).isoformat(),
-                    "SMTP_LAST_TEST_ERROR": str(e),
-                },
-            )
+            ensure_legacy_migrated(request.user)
+            acc = _resolve_mail_account(request)
+            if acc:
+                patch_account_config(
+                    acc,
+                    {
+                        "SMTP_LAST_TEST_OK": False,
+                        "SMTP_LAST_TEST_AT": datetime.now(timezone.utc).isoformat(),
+                        "SMTP_LAST_TEST_ERROR": str(e),
+                    },
+                )
         except Exception:
             pass
         return JsonResponse({"ok": False, "error": str(e)}, status=200)

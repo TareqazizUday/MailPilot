@@ -26,8 +26,13 @@ class UserProfile(models.Model):
 class UserMailSettings(models.Model):
     """Per-user mail automation config (non-global). Secrets stored encrypted."""
 
+    MODE_GMAIL = "gmail"
+    MODE_SMTP = "smtp"
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="mail_settings")
     settings_json = models.JSONField(default=dict, blank=True)
+    active_transport_mode = models.CharField(max_length=8, default=MODE_GMAIL)
+    default_account_id = models.PositiveIntegerField(null=True, blank=True)
     smtp_password_enc = models.TextField(blank=True, default="")
     imap_password_enc = models.TextField(blank=True, default="")
     llm_api_key_enc = models.TextField(blank=True, default="")
@@ -37,6 +42,36 @@ class UserMailSettings(models.Model):
 
     class Meta:
         db_table = "core_usermailsettings"
+
+
+class MailAccount(models.Model):
+    """Per-user mailbox slot (up to 5 Gmail or 5 SMTP)."""
+
+    TRANSPORT_GMAIL = "gmail_api"
+    TRANSPORT_SMTP = "smtp"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="mail_accounts")
+    slot = models.PositiveSmallIntegerField()
+    transport = models.CharField(max_length=16)
+    label = models.CharField(max_length=80, blank=True, default="")
+    is_enabled = models.BooleanField(default=True)
+    config_json = models.JSONField(default=dict, blank=True)
+    oauth_token_enc = models.TextField(blank=True, default="")
+    client_secret_enc = models.TextField(blank=True, default="")
+    smtp_password_enc = models.TextField(blank=True, default="")
+    imap_password_enc = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_mailaccount"
+        constraints = [
+            models.UniqueConstraint(fields=["user", "slot", "transport"], name="uq_mailaccount_user_slot_transport"),
+        ]
+        ordering = ["slot", "id"]
+
+    def __str__(self) -> str:
+        return f"MailAccount({self.user_id}, {self.transport}, slot={self.slot})"
 
 
 class PasswordResetOTP(models.Model):
