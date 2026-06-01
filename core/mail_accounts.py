@@ -503,6 +503,25 @@ def enabled_accounts_for_active_mode(user: User):
     return list(list_accounts_for_user(user, transport=tr).filter(is_enabled=True))
 
 
+def all_owner_emails_for_user(user: User) -> set[str]:
+    """All mailbox addresses configured for this user (any transport/account).
+
+    Used to skip auto-replies to the user's own inboxes and prevent ping-pong loops
+    when testing or when multiple accounts are connected.
+    """
+    out: set[str] = set()
+    uemail = (getattr(user, "email", None) or "").strip().lower()
+    if uemail and "@" in uemail:
+        out.add(uemail)
+    for acc in list_accounts_for_user(user):
+        cfg = dict(acc.config_json or {})
+        for key in ("GMAIL_ADDRESS", "SMTP_FROM_EMAIL", "SMTP_USERNAME", "IMAP_USERNAME"):
+            addr = str(cfg.get(key) or "").strip().lower()
+            if addr and "@" in addr:
+                out.add(addr)
+    return out
+
+
 def transport_summary(user: User) -> dict[str, Any]:
     ensure_legacy_migrated(user)
     mode = active_transport_mode(user)

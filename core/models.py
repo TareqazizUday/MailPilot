@@ -38,6 +38,7 @@ class UserMailSettings(models.Model):
     llm_api_key_enc = models.TextField(blank=True, default="")
     google_oauth_token_enc = models.TextField(blank=True, default="")
     client_secret_json_enc = models.TextField(blank=True, default="")
+    telegram_bot_token_enc = models.TextField(blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

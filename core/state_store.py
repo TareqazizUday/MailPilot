@@ -10,7 +10,12 @@ from core.models import ProcessedMeta, QueueItem
 
 # Actions that must not be processed again (prevents duplicate auto-replies).
 _TERMINAL_ACTIONS = frozenset({"sent", "draft", "ignored", "processing", "error"})
+_THREAD_REPLY_ACTIONS = frozenset({"sent", "draft", "processing"})
 _STALE_PROCESSING_MINUTES = 15
+
+
+def _gmail_thread_key(thread_id: str) -> str:
+    return f"gthread:{thread_id}"
 
 
 def _normalize_queue_status(status: str) -> str:
@@ -129,6 +134,24 @@ class StateStore:
         if changed:
             row.details_json = details
             row.save(update_fields=["details_json", "updated_at"])
+
+    def has_replied_to_thread(self, thread_id: str) -> bool:
+        """True if this mailbox already auto-handled this Gmail thread (one reply per thread)."""
+        tid = str(thread_id or "").strip()
+        if not tid:
+            return False
+        meta = self.get_processed_meta(_gmail_thread_key(tid))
+        if not meta:
+            return False
+        return str(meta.get("action") or "") in _THREAD_REPLY_ACTIONS
+
+    def mark_thread_replied(self, thread_id: str, *, meta: dict[str, Any]) -> None:
+        tid = str(thread_id or "").strip()
+        if not tid:
+            return
+        payload = dict(meta or {})
+        payload["thread_id"] = tid
+        self.mark_processed(_gmail_thread_key(tid), payload)
 
     def try_claim_message(self, message_id: str, *, extra: Optional[dict[str, Any]] = None) -> bool:
         """Atomically reserve a message before LLM/send.

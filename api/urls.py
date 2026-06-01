@@ -52,5 +52,8 @@ urlpatterns = [
     path("smtp/test", legacy_views.api_smtp_test, name="api_smtp_test_legacy"),
     path("smtp/status", legacy_views.api_smtp_status, name="api_smtp_status_legacy"),
     path("smtp/disconnect", legacy_views.api_smtp_disconnect, name="api_smtp_disconnect_legacy"),
+    path("telegram/status", legacy_views.api_telegram_status, name="api_telegram_status_legacy"),
+    path("telegram/config", legacy_views.api_telegram_config, name="api_telegram_config_legacy"),
+    path("telegram/test", legacy_views.api_telegram_test, name="api_telegram_test_legacy"),
 ]
 

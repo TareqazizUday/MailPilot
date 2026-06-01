@@ -263,6 +263,9 @@ def _trigger_poll_fn_locked(
     if not accounts:
         return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
 
+    from core.mail_accounts import all_owner_emails_for_user
+
+    skip_from_emails = frozenset(all_owner_emails_for_user(user))
     total = PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
     uid = getattr(user, "id", None)
 
@@ -289,6 +292,7 @@ def _trigger_poll_fn_locked(
                     settings=effective,
                     state_store=st,
                     gmail_client=GmailClient(settings=effective),
+                    skip_from_emails=skip_from_emails,
                 )
                 total = PollResult(
                     scanned=total.scanned + r.scanned,
@@ -317,7 +321,7 @@ def _trigger_poll_fn_locked(
             if not out_from and not imap_inbox_ready(effective):
                 continue
             try:
-                r = poll_once_imap(settings=effective, state_store=st, fast=fast)
+                r = poll_once_imap(settings=effective, state_store=st, fast=fast, skip_from_emails=skip_from_emails)
                 total = PollResult(
                     scanned=total.scanned + r.scanned,
                     relevant=total.relevant + r.relevant,
@@ -423,3 +427,25 @@ def ensure_scheduler_started() -> None:
         ensure_imap_idle_watchers()
     except Exception as e:
         log.warning("IMAP IDLE watchers failed to start: %s", e)
+    try:
+        tg_sec = max(3, int(os.environ.get("TELEGRAM_POLL_SECONDS", 5)))
+        _scheduler.add_job(
+            _telegram_poll_job,
+            trigger="interval",
+            seconds=tg_sec,
+            id="telegram_poll_job",
+            max_instances=1,
+            replace_existing=True,
+        )
+        log.info("Telegram inbound poller started (interval=%ss)", tg_sec)
+    except Exception as e:
+        log.warning("Telegram poller failed to start: %s", e)
+
+
+def _telegram_poll_job():
+    try:
+        from core.telegram_bot import poll_all_telegram_inbound
+
+        poll_all_telegram_inbound()
+    except Exception as e:
+        log.warning("Telegram poll job failed: %s", e)

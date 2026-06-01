@@ -1705,3 +1705,60 @@ def api_smtp_disconnect(request):
         },
     )
     return JsonResponse({"ok": True})
+
+
+@require_GET
+def api_telegram_status(request):
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    from core.telegram_notify import telegram_status_for_user
+
+    return JsonResponse({"ok": True, **telegram_status_for_user(request.user)})
+
+
+@csrf_exempt
+@ratelimit(key="user", rate="20/m", block=True)
+def api_telegram_config(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    ct = request.content_type or ""
+    if "application/json" not in ct:
+        return JsonResponse({"ok": False, "error": "expected_json"}, status=400)
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+    from core.telegram_notify import save_telegram_settings, telegram_status_for_user
+
+    patch: dict[str, Any] = {}
+    if "TELEGRAM_CHAT_ID" in payload:
+        patch["TELEGRAM_CHAT_ID"] = str(payload.get("TELEGRAM_CHAT_ID") or "").strip()
+    if "TELEGRAM_NOTIFY_EVENTS" in payload:
+        patch["TELEGRAM_NOTIFY_EVENTS"] = str(payload.get("TELEGRAM_NOTIFY_EVENTS") or "all").strip()
+    if "TELEGRAM_ENABLED" in payload:
+        patch["TELEGRAM_ENABLED"] = bool(payload.get("TELEGRAM_ENABLED"))
+    if "TELEGRAM_REPLY_ENABLED" in payload:
+        patch["TELEGRAM_REPLY_ENABLED"] = bool(payload.get("TELEGRAM_REPLY_ENABLED"))
+    if "TELEGRAM_BOT_TOKEN" in payload:
+        token = str(payload.get("TELEGRAM_BOT_TOKEN") or "").strip()
+        if token and token not in ("***", "••••"):
+            patch["TELEGRAM_BOT_TOKEN"] = token
+    save_telegram_settings(request.user, patch)
+    return JsonResponse({"ok": True, **telegram_status_for_user(request.user)})
+
+
+@csrf_exempt
+@ratelimit(key="user", rate="10/m", block=True)
+def api_telegram_test(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    from core.telegram_notify import send_test_message
+
+    ok, err = send_test_message(request.user)
+    if not ok:
+        return JsonResponse({"ok": False, "error": err or "test_failed"}, status=400)
+    return JsonResponse({"ok": True, "message": "Test message sent"})
