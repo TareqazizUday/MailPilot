@@ -39,6 +39,7 @@ class UserMailSettings(models.Model):
     google_oauth_token_enc = models.TextField(blank=True, default="")
     client_secret_json_enc = models.TextField(blank=True, default="")
     telegram_bot_token_enc = models.TextField(blank=True, default="")
+    whatsapp_access_token_enc = models.TextField(blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

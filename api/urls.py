@@ -55,5 +55,9 @@ urlpatterns = [
     path("telegram/status", legacy_views.api_telegram_status, name="api_telegram_status_legacy"),
     path("telegram/config", legacy_views.api_telegram_config, name="api_telegram_config_legacy"),
     path("telegram/test", legacy_views.api_telegram_test, name="api_telegram_test_legacy"),
+    path("whatsapp/status", legacy_views.api_whatsapp_status, name="api_whatsapp_status_legacy"),
+    path("whatsapp/config", legacy_views.api_whatsapp_config, name="api_whatsapp_config_legacy"),
+    path("whatsapp/test", legacy_views.api_whatsapp_test, name="api_whatsapp_test_legacy"),
+    path("whatsapp/webhook", legacy_views.api_whatsapp_webhook, name="api_whatsapp_webhook_legacy"),
 ]
 

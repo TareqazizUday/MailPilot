@@ -10,10 +10,10 @@
     /* Match mailpilot_setup.html look */
     .setup-card{max-width:1100px;margin:0 auto;}
 
-    .main-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--glass-border);}
+    .main-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border-bottom:1px solid var(--glass-border);}
     .main-tab{
       display:flex;align-items:center;justify-content:space-between;
-      padding:16px 24px;cursor:pointer;
+      padding:14px 16px;cursor:pointer;
       border-right:1px solid var(--glass-border);
       transition:background 0.2s;
       background:none;border-top:none;border-bottom:none;border-left:none;
@@ -421,6 +421,13 @@
         </div>
         <div class="tab-icon" aria-hidden="true"><i class="fa-brands fa-telegram"></i></div>
       </button>
+      <button class="main-tab" id="btnMainWhatsapp" type="button" onclick="showMain('whatsapp')">
+        <div>
+          <div style="font-size:0.88rem;font-weight:700;">WhatsApp</div>
+          <div class="sub">Cloud API demo</div>
+        </div>
+        <div class="tab-icon" aria-hidden="true"><i class="fa-brands fa-whatsapp"></i></div>
+      </button>
     </div>
 
       <!-- Sections -->
@@ -705,6 +712,87 @@
             <div class="aside-card">
               <div class="aside-title"><i class="fa-brands fa-telegram" aria-hidden="true"></i> Why Telegram?</div>
               <div class="aside-desc">Optional alerts alongside your Knowledge Base — no change to Gmail/SMTP polling, routing, or auto-reply behavior.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-sec" id="secWhatsapp">
+        <div class="content-grid">
+          <div class="content-main">
+            <div class="sec">
+          <div class="sec-h">
+            <div class="s-sub">WhatsApp (demo)</div>
+            <span id="waPill" class="pill wrap">Checking…</span>
+          </div>
+          <div class="oauth-box" style="margin-top:0;">
+            <div class="oauth-h"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp Cloud API</div>
+            <p class="oauth-txt" style="margin:0;">Same optional alerts and chat commands as Telegram (Meta Business / Cloud API). Email automation is unchanged.</p>
+          </div>
+
+          <div class="fg" style="margin-top:12px;">
+            <label class="fl" for="waEnabled">
+              <input type="checkbox" id="waEnabled" checked style="margin-right:8px;" />
+              Enable WhatsApp notifications (mail sent / draft / error)
+            </label>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waReplyEnabled">
+              <input type="checkbox" id="waReplyEnabled" checked style="margin-right:8px;" />
+              Reply when you message on WhatsApp (webhook)
+            </label>
+            <div class="mini">Your WhatsApp number must match <strong>To phone</strong> below. Register the webhook URL in Meta Developer Console.</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waAccessToken">Permanent access token</label>
+            <input class="fi" id="waAccessToken" type="password" placeholder="EAAxxxx…" autocomplete="off" />
+            <div class="mini">From Meta App → WhatsApp → API setup. Leave blank when saving to keep the current token.</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waPhoneNumberId">Phone number ID</label>
+            <input class="fi" id="waPhoneNumberId" placeholder="123456789012345" autocomplete="off" />
+          </div>
+          <div class="fg">
+            <label class="fl" for="waToPhone">Your WhatsApp number (E.164)</label>
+            <input class="fi" id="waToPhone" placeholder="8801XXXXXXXXX" autocomplete="off" />
+            <div class="mini">Country code + number, digits only (no + or spaces).</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waVerifyToken">Webhook verify token</label>
+            <input class="fi" id="waVerifyToken" type="password" placeholder="my-secret-verify-token" autocomplete="off" />
+            <div class="mini">Must match Meta webhook setup (or set <code>WHATSAPP_VERIFY_TOKEN</code> in server env).</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Webhook callback URL</label>
+            <div class="url-box" role="group" aria-label="WhatsApp webhook URL">
+              <span class="url-txt" id="waWebhookUrl">—</span>
+              <button class="cp-btn" type="button" onclick="cpWaWebhook()" title="Copy">Copy</button>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waNotifyEvents">Notify on</label>
+            <select class="fi" id="waNotifyEvents">
+              <option value="all">Auto-replies, drafts, and errors</option>
+              <option value="sent">Auto-replies only</option>
+              <option value="errors">Errors only</option>
+            </select>
+          </div>
+
+          <div class="row2" style="margin-top:10px;gap:10px;">
+            <button class="btn btn-purp btn-block" type="button" onclick="saveWhatsapp()">
+              <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Save WhatsApp settings
+            </button>
+            <button class="btn btn-ghost btn-block" type="button" onclick="testWhatsapp()">
+              <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send test message
+            </button>
+          </div>
+          <div class="mini"><span id="waStatus" class="pill">—</span></div>
+            </div>
+          </div>
+          <div class="content-aside">
+            <div class="aside-card">
+              <div class="aside-title"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Demo note</div>
+              <div class="aside-desc">Requires a Meta WhatsApp Business app and a public HTTPS URL for webhooks. Commands: <code>/mail</code>, <code>/inbox</code>, <code>/ignored</code>, <code>/thread</code> — same as Telegram.</div>
             </div>
           </div>
         </div>
@@ -1570,6 +1658,122 @@
     }
     window.testTelegram = testTelegram;
 
+    function applyWhatsappStatus(j){
+      const en = document.getElementById('waEnabled');
+      const re = document.getElementById('waReplyEnabled');
+      const pid = document.getElementById('waPhoneNumberId');
+      const to = document.getElementById('waToPhone');
+      const ne = document.getElementById('waNotifyEvents');
+      const pill = document.getElementById('waPill');
+      const webhook = document.getElementById('waWebhookUrl');
+      const tokenEl = document.getElementById('waAccessToken');
+      if(en) en.checked = j.enabled !== false;
+      if(re) re.checked = j.reply_enabled !== false;
+      if(pid) pid.value = j.phone_number_id || '';
+      if(to) to.value = j.to_phone || '';
+      if(ne) ne.value = j.notify_events || 'all';
+      if(webhook) webhook.textContent = j.webhook_url || '—';
+      if(tokenEl){
+        if(j.has_access_token){
+          tokenEl.placeholder = j.access_token_hint ? (j.access_token_hint + ' (saved)') : 'Token saved';
+        }else{
+          tokenEl.placeholder = 'EAAxxxx…';
+        }
+        tokenEl.value = '';
+      }
+      const vt = document.getElementById('waVerifyToken');
+      if(vt){
+        vt.placeholder = j.verify_token_set ? 'Verify token saved' : 'my-secret-verify-token';
+        vt.value = '';
+      }
+      if(!pill) return;
+      if(j.configured && j.enabled !== false){
+        setPill(pill, 'Connected', 'ok');
+      }else if(j.configured){
+        setPill(pill, 'Configured (paused)', '');
+      }else{
+        setPill(pill, 'Not configured', '');
+      }
+    }
+
+    async function loadWhatsapp(){
+      const status = document.getElementById('waStatus');
+      try{
+        const res = await fetch('/api/whatsapp/status');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(status, (j.error || 'Could not load'), 'bad');
+          return;
+        }
+        applyWhatsappStatus(j);
+        setPill(status, '—', '');
+      }catch(err){
+        setPill(status, 'Network error', 'bad');
+      }
+    }
+    window.loadWhatsapp = loadWhatsapp;
+
+    async function saveWhatsapp(){
+      const status = document.getElementById('waStatus');
+      setPill(status, 'Saving…', '');
+      const payload = {
+        WHATSAPP_ENABLED: !!document.getElementById('waEnabled')?.checked,
+        WHATSAPP_REPLY_ENABLED: !!document.getElementById('waReplyEnabled')?.checked,
+        WHATSAPP_PHONE_NUMBER_ID: document.getElementById('waPhoneNumberId')?.value || '',
+        WHATSAPP_TO_PHONE: document.getElementById('waToPhone')?.value || '',
+        WHATSAPP_NOTIFY_EVENTS: document.getElementById('waNotifyEvents')?.value || 'all',
+      };
+      const token = (document.getElementById('waAccessToken')?.value || '').trim();
+      if(token) payload.WHATSAPP_ACCESS_TOKEN = token;
+      const vt = (document.getElementById('waVerifyToken')?.value || '').trim();
+      if(vt) payload.WHATSAPP_VERIFY_TOKEN = vt;
+      try{
+        const res = await fetch('/api/whatsapp/config', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(status, (j.error || 'Save failed'), 'bad');
+          return;
+        }
+        applyWhatsappStatus(j);
+        setPill(status, 'Saved', 'ok');
+      }catch(err){
+        setPill(status, 'Network error', 'bad');
+      }
+    }
+    window.saveWhatsapp = saveWhatsapp;
+
+    async function testWhatsapp(){
+      const status = document.getElementById('waStatus');
+      setPill(status, 'Sending test…', 'info');
+      try{
+        const res = await fetch('/api/whatsapp/test', { method:'POST' });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(status, (j.error || 'Test failed'), 'bad');
+          return;
+        }
+        setPill(status, 'Test sent — check WhatsApp', 'ok');
+      }catch(err){
+        setPill(status, 'Network error', 'bad');
+      }
+    }
+    window.testWhatsapp = testWhatsapp;
+
+    function cpWaWebhook(){
+      const el = document.getElementById('waWebhookUrl');
+      const txt = (el?.textContent || '').trim();
+      if(!txt || txt === '—') return;
+      navigator.clipboard?.writeText(txt).then(() => {
+        const status = document.getElementById('waStatus');
+        setPill(status, 'Webhook URL copied', 'ok');
+      }).catch(() => {});
+    }
+    window.cpWaWebhook = cpWaWebhook;
+
     async function clearKb(){
       const ok = await setupConfirmOpen({
         title: 'Delete Knowledge Base',
@@ -1944,6 +2148,7 @@
     loadConfig();
     refreshKbStatus();
     loadTelegram();
+    loadWhatsapp();
     refreshSmtpStatus();
 
     function showMain(which){
@@ -1951,16 +2156,19 @@
       const b2 = document.getElementById('btnMainRouting');
       const b3 = document.getElementById('btnMainKb');
       const b4 = document.getElementById('btnMainTelegram');
+      const b5 = document.getElementById('btnMainWhatsapp');
       const s1 = document.getElementById('secTransport');
       const s2 = document.getElementById('secRouting');
       const s3 = document.getElementById('secKb');
       const s4 = document.getElementById('secTelegram');
+      const s5 = document.getElementById('secWhatsapp');
 
       const map = {
         transport: { b: b1, s: s1 },
         routing: { b: b2, s: s2 },
         kb: { b: b3, s: s3 },
         telegram: { b: b4, s: s4 },
+        whatsapp: { b: b5, s: s5 },
       };
       Object.values(map).forEach(x => { x.b?.classList.remove('on'); x.s?.classList.remove('on'); });
       (map[which] || map.transport).b?.classList.add('on');

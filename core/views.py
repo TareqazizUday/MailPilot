@@ -1762,3 +1762,107 @@ def api_telegram_test(request):
     if not ok:
         return JsonResponse({"ok": False, "error": err or "test_failed"}, status=400)
     return JsonResponse({"ok": True, "message": "Test message sent"})
+
+
+@require_GET
+def api_whatsapp_status(request):
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    from core.whatsapp_notify import whatsapp_status_for_user
+
+    base = request.build_absolute_uri("/").rstrip("/")
+    return JsonResponse(
+        {
+            "ok": True,
+            **whatsapp_status_for_user(request.user),
+            "webhook_url": f"{base}/api/whatsapp/webhook",
+        }
+    )
+
+
+@csrf_exempt
+@ratelimit(key="user", rate="20/m", block=True)
+def api_whatsapp_config(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    ct = request.content_type or ""
+    if "application/json" not in ct:
+        return JsonResponse({"ok": False, "error": "expected_json"}, status=400)
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+    from core.whatsapp_notify import save_whatsapp_settings, whatsapp_status_for_user
+
+    patch: dict[str, Any] = {}
+    for key in (
+        "WHATSAPP_PHONE_NUMBER_ID",
+        "WHATSAPP_TO_PHONE",
+        "WHATSAPP_VERIFY_TOKEN",
+    ):
+        if key in payload:
+            patch[key] = str(payload.get(key) or "").strip()
+    if "WHATSAPP_NOTIFY_EVENTS" in payload:
+        patch["WHATSAPP_NOTIFY_EVENTS"] = str(payload.get("WHATSAPP_NOTIFY_EVENTS") or "all").strip()
+    if "WHATSAPP_ENABLED" in payload:
+        patch["WHATSAPP_ENABLED"] = bool(payload.get("WHATSAPP_ENABLED"))
+    if "WHATSAPP_REPLY_ENABLED" in payload:
+        patch["WHATSAPP_REPLY_ENABLED"] = bool(payload.get("WHATSAPP_REPLY_ENABLED"))
+    if "WHATSAPP_ACCESS_TOKEN" in payload:
+        token = str(payload.get("WHATSAPP_ACCESS_TOKEN") or "").strip()
+        if token and token not in ("***", "••••"):
+            patch["WHATSAPP_ACCESS_TOKEN"] = token
+    save_whatsapp_settings(request.user, patch)
+    base = request.build_absolute_uri("/").rstrip("/")
+    return JsonResponse(
+        {
+            "ok": True,
+            **whatsapp_status_for_user(request.user),
+            "webhook_url": f"{base}/api/whatsapp/webhook",
+        }
+    )
+
+
+@csrf_exempt
+@ratelimit(key="user", rate="10/m", block=True)
+def api_whatsapp_test(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    from core.whatsapp_notify import send_test_message as wa_send_test
+
+    ok, err = wa_send_test(request.user)
+    if not ok:
+        return JsonResponse({"ok": False, "error": err or "test_failed"}, status=400)
+    return JsonResponse({"ok": True, "message": "Test message sent"})
+
+
+@csrf_exempt
+def api_whatsapp_webhook(request):
+    """Meta WhatsApp Cloud API webhook (no session auth; verify token on GET)."""
+    from django.http import HttpResponse
+
+    from core.whatsapp_webhook import handle_webhook_verification, parse_webhook_body, process_webhook_payload
+
+    if request.method == "GET":
+        mode = request.GET.get("hub.mode") or ""
+        token = request.GET.get("hub.verify_token") or ""
+        challenge = request.GET.get("hub.challenge") or ""
+        verified = handle_webhook_verification(mode=mode, token=token, challenge=challenge)
+        if verified is None:
+            return HttpResponse("Forbidden", status=403)
+        return HttpResponse(verified, content_type="text/plain")
+
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    payload = parse_webhook_body(request.body)
+    if payload:
+        try:
+            process_webhook_payload(payload)
+        except Exception:
+            logger.exception("api_whatsapp_webhook process failed")
+    return JsonResponse({"ok": True})

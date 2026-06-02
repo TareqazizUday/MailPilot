@@ -117,6 +117,11 @@ def _settings_for_user(user):
     return effective, tenant_id
 
 
+def compose_inbound_reply(user, *, text: str, sender_name: str) -> str:
+    """Public entry for WhatsApp webhook (same logic as Telegram bot replies)."""
+    return _compose_reply(user, text=text, sender_name=sender_name)
+
+
 def _compose_reply(user, *, text: str, sender_name: str) -> str:
     settings, tenant_id = _settings_for_user(user)
     query = (text or "").strip()

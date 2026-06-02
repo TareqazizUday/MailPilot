@@ -232,6 +232,19 @@ def _maybe_telegram_notify(
         )
     except Exception:
         pass
+    try:
+        from core.whatsapp_notify import notify_mail_event as whatsapp_notify_mail_event
+
+        whatsapp_notify_mail_event(
+            state_store.tenant_id,
+            event,
+            subject=subject,
+            from_email=from_email,
+            error=error,
+            reply_subject=reply_subject,
+        )
+    except Exception:
+        pass
 
 
 def _send_reply_via_transport(
