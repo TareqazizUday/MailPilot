@@ -339,6 +339,7 @@
   }
 
   function smtpFieldsHtml(a, c) {
+    const passPh = a.has_smtp_password ? 'Re-enter only to change' : 'Required — enter to save';
     return (
       '<div class="row2"><div class="fg"><label class="fl">SMTP Host</label>' +
       '<input class="fi smtp-host" value="' +
@@ -353,7 +354,9 @@
       esc(c.SMTP_USERNAME || '') +
       '"></div>' +
       '<div class="fg"><label class="fl">Password</label>' +
-      '<input class="fi smtp-pass" type="password" placeholder="••••••••"></div></div>' +
+      '<input class="fi smtp-pass" type="password" autocomplete="new-password" placeholder="' +
+      attrEsc(passPh) +
+      '"></div></div>' +
       '<div class="row2"><div class="fg"><label class="fl">From (optional)</label>' +
       '<input class="fi smtp-from" value="' +
       esc(c.SMTP_FROM_EMAIL || '') +
@@ -361,23 +364,53 @@
       '<div class="fg"><label class="fl">IMAP host (optional)</label>' +
       '<input class="fi imap-host" value="' +
       esc(c.IMAP_HOST || '') +
-      '"></div></div>'
+      '" placeholder="imap.example.com"></div></div>' +
+      '<div class="oauth-box tighter mb-imap-box" style="margin-top:10px;">' +
+      '<div class="oauth-h">IMAP (read inbox)</div>' +
+      '<p class="oauth-txt" style="margin:0 0 10px;">Leave IMAP host empty to derive <code>imap.&lt;domain&gt;</code> from SMTP host (e.g. <code>smtp.timerni.com</code> → <code>imap.timerni.com</code>). Uses the same username/password as SMTP.</p>' +
+      '<div class="row2"><div class="fg"><label class="fl">IMAP port</label>' +
+      '<input class="fi imap-port" type="number" min="1" max="65535" value="' +
+      (c.IMAP_PORT || 993) +
+      '" required></div>' +
+      '<div class="fg"><label class="fl">SMTP TLS name (cert mismatch)</label>' +
+      '<input class="fi smtp-tls-name" value="' +
+      esc(c.SMTP_TLS_SERVERNAME || '') +
+      '" placeholder="timerni.com"></div></div>' +
+      '<div class="fg" style="margin-bottom:0;"><label class="fl">IMAP TLS name (optional)</label>' +
+      '<input class="fi imap-tls-name" value="' +
+      esc(c.IMAP_TLS_SERVERNAME || '') +
+      '" placeholder="timerni.com"></div></div>'
     );
   }
 
+  function smtpAccountById(id) {
+    return mailAccounts.find((a) => String(a.id) === String(id));
+  }
+
+  function smtpPasswordReady(card, account) {
+    const pass = (card.querySelector('.smtp-pass')?.value || '').trim();
+    if (pass) return true;
+    return !!(account && account.has_smtp_password);
+  }
+
   function smtpPayloadFromCard(card) {
-    return {
+    const payload = {
       SMTP_HOST: card.querySelector('.smtp-host')?.value || '',
       SMTP_PORT: parseInt(card.querySelector('.smtp-port')?.value || '587', 10),
       SMTP_USERNAME: card.querySelector('.smtp-user')?.value || '',
-      SMTP_PASSWORD: card.querySelector('.smtp-pass')?.value || '',
       SMTP_FROM_EMAIL: card.querySelector('.smtp-from')?.value || '',
       IMAP_HOST: card.querySelector('.imap-host')?.value || '',
-      IMAP_PORT: 993,
+      IMAP_PORT: parseInt(card.querySelector('.imap-port')?.value || '993', 10),
+      SMTP_TLS_SERVERNAME: card.querySelector('.smtp-tls-name')?.value || '',
+      IMAP_TLS_SERVERNAME: card.querySelector('.imap-tls-name')?.value || '',
       SMTP_USE_TLS: true,
       SMTP_USE_SSL: false,
       SMTP_VERIFY_TLS: true,
+      IMAP_VERIFY_TLS: true,
     };
+    const pass = card.querySelector('.smtp-pass')?.value || '';
+    if (pass) payload.SMTP_PASSWORD = pass;
+    return payload;
   }
 
   function wireSmtpCards() {
@@ -394,14 +427,22 @@
       btn.addEventListener('click', async () => {
         const card = btn.closest('.mb-smtp-card');
         const id = btn.dataset.saveSmtp;
+        const account = smtpAccountById(id);
+        const pill = document.getElementById('smtpStatus-' + id);
+        if (!smtpPasswordReady(card, account)) {
+          if (typeof window.setPill === 'function') {
+            window.setPill(pill, 'Enter SMTP password and Save', 'bad');
+          }
+          return;
+        }
         const payload = smtpPayloadFromCard(card);
         const { res, j } = await apiJson('/api/mail-accounts/' + id + '/', {
           method: 'PATCH',
           body: JSON.stringify(payload),
         });
-        const pill = document.getElementById('smtpStatus-' + id);
         if (res.ok && j.ok) {
           if (typeof window.setPill === 'function') window.setPill(pill, 'Saved', 'ok');
+          card.querySelector('.smtp-pass').value = '';
           await loadMailAccounts();
         } else if (typeof window.setPill === 'function') {
           window.setPill(pill, j.error || 'Save failed', 'bad');
@@ -412,16 +453,28 @@
       btn.addEventListener('click', async () => {
         const id = btn.dataset.testSmtp;
         const card = btn.closest('.mb-smtp-card');
+        const account = smtpAccountById(id);
+        const pill = document.getElementById('smtpStatus-' + id);
+        if (!smtpPasswordReady(card, account)) {
+          if (typeof window.setPill === 'function') {
+            window.setPill(pill, 'Enter SMTP password first', 'bad');
+          }
+          return;
+        }
         await apiJson('/api/mail-accounts/' + id + '/', {
           method: 'PATCH',
           body: JSON.stringify(smtpPayloadFromCard(card)),
         });
-        const pill = document.getElementById('smtpStatus-' + id);
-        if (typeof window.setPill === 'function') window.setPill(pill, 'Testing…', 'info');
+        if (typeof window.setPill === 'function') window.setPill(pill, 'Sending test mail…', 'info');
         const { res, j } = await apiJson('/api/mail-accounts/' + id + '/test-smtp', { method: 'POST', body: '{}' });
         if (typeof window.setPill === 'function') {
-          window.setPill(pill, res.ok && j.ok ? 'SMTP OK' : j.error || 'Failed', res.ok && j.ok ? 'ok' : 'bad');
+          const ok = res.ok && j.ok;
+          const msg = ok
+            ? 'Test mail sent to ' + (j.sent_to || 'mailbox')
+            : j.error || 'Failed';
+          window.setPill(pill, msg, ok ? 'ok' : 'bad');
         }
+        if (res.ok && j.ok) card.querySelector('.smtp-pass').value = '';
         await loadMailAccounts();
       });
     });

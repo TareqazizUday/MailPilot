@@ -140,6 +140,12 @@ def api_mail_accounts_detail(request, account_id: int):
                 patch["IMAP_HOST"] = f"imap.{domain}"
         if smtp_user and not str(patch.get("IMAP_USERNAME") or "").strip():
             patch["IMAP_USERNAME"] = smtp_user
+        smtp_pw = patch.get("SMTP_PASSWORD")
+        smtp_pw_str = (
+            smtp_pw.get_secret_value() if hasattr(smtp_pw, "get_secret_value") else str(smtp_pw or "")
+        ).strip() if smtp_pw is not None else ""
+        if smtp_pw_str and "IMAP_PASSWORD" not in patch:
+            patch["IMAP_PASSWORD"] = patch["SMTP_PASSWORD"]
         patch_account_config(acc, patch)
         acc.refresh_from_db()
 
@@ -170,8 +176,20 @@ def api_mail_account_test_smtp(request, account_id: int):
     from datetime import datetime, timezone
 
     effective = build_effective_settings(request.user, account_id=acc.id)
+    to_email = (
+        (effective.outbound_from_email() or "").strip()
+        or (effective.SMTP_USERNAME or "").strip()
+        or (getattr(request.user, "email", None) or "").strip()
+    )
+    if not to_email or "@" not in to_email:
+        return JsonResponse(
+            {"ok": False, "error": "Set a From address or SMTP username to receive the test email."},
+            status=200,
+        )
     try:
-        SMTPClient(settings=effective).test_connection()
+        client = SMTPClient(settings=effective)
+        client.test_connection()
+        client.send_test_email(to_email)
         patch_account_config(
             acc,
             {
@@ -180,7 +198,7 @@ def api_mail_account_test_smtp(request, account_id: int):
                 "SMTP_LAST_TEST_ERROR": "",
             },
         )
-        return JsonResponse({"ok": True})
+        return JsonResponse({"ok": True, "sent_to": to_email})
     except Exception as e:
         patch_account_config(
             acc,

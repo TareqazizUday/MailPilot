@@ -775,12 +775,12 @@
           return;
         }
         const msgs = j.messages || [];
-        const subj = (msgs.length && (msgs[msgs.length - 1].subject || msgs[0].subject)) ? (msgs[msgs.length - 1].subject || msgs[0].subject) : '(No subject)';
-        const top = msgs.length ? msgs[msgs.length - 1] : null;
-        const from = top?.from || (msgs[0]?.from || '');
+        const inboundFirst = msgs.find(m => !m.is_from_me) || msgs[0];
+        const subj = (inboundFirst?.subject || msgs[0]?.subject || '(No subject)').replace(/^re:\s*/i, '').trim() || '(No subject)';
+        const from = inboundFirst?.from || (msgs[0]?.from || '');
         const fromName = (from || '').replace(/\s*<.*?>/, '').trim();
-        const fromEmail = (from || '').match(/<([^>]+)>/)?.[1] || '';
-        const dt = fmtTs(top?.internal_date || msgs[0]?.internal_date);
+        const fromEmail = (from || '').match(/<([^>]+)>/)?.[1] || from || '';
+        const dt = fmtTs(inboundFirst?.internal_date || msgs[0]?.internal_date);
 
         rpS.textContent = subj;
         rpA.textContent = (fromName || fromEmail || '—').slice(0,1).toUpperCase();
@@ -788,16 +788,16 @@
         rpM.textContent = fromEmail || from || '';
         rpD.textContent = dt;
 
-        hint.textContent = '';
+        hint.textContent = msgs.length > 1 ? (msgs.length + ' messages in thread') : '';
         const ordered = [...msgs].sort((a, b) => (a.internal_date || 0) - (b.internal_date || 0));
         panel.innerHTML = ordered.map(m => {
           const rawBody = (m.body_text || '').trim();
           const fallback = (!rawBody && (m.snippet || '')) ? ('Preview: ' + m.snippet) : (rawBody || m.snippet || '(No content)');
           const mine = !!m.is_from_me;
           const who = mine ? 'You' : ((m.from || '').replace(/\s*<.*?>/, '').trim() || 'Contact');
-          const whoEmail = m.from || '';
+          const whoEmail = mine ? (m.from || '') : (m.from || '');
           const cls = mine ? 'rp-msg rp-msg--reply' : 'rp-msg';
-          const lbl = mine ? '<div class="rp-msg-lbl">Your reply</div>' : '';
+          const lbl = mine ? '<div class="rp-msg-lbl">Your reply</div>' : '<div class="rp-msg-lbl">Incoming</div>';
           return (
             `<div class="${cls}">
               ${lbl}

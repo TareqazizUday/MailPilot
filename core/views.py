@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 from datetime import datetime, timezone
 from typing import Any
@@ -104,7 +105,9 @@ def _smtp_imap_inbox_active(effective: Settings) -> bool:
     return effective.SEND_TRANSPORT == "smtp" and imap_inbox_ready(effective)
 
 
-def _mailbox_connected_for_ui(effective: Settings, cfg: dict[str, Any]) -> bool:
+def _mailbox_connected_for_ui(
+    effective: Settings, cfg: dict[str, Any], *, account_config: dict[str, Any] | None = None
+) -> bool:
     """True if the user has a usable mailbox path for the *current* transport.
 
     IMAP credentials alone must not imply "connected" when SEND_TRANSPORT is still
@@ -117,7 +120,8 @@ def _mailbox_connected_for_ui(effective: Settings, cfg: dict[str, Any]) -> bool:
     if transport == "smtp":
         if imap_inbox_ready(effective):
             return True
-        return bool(cfg.get("SMTP_LAST_TEST_OK"))
+        acc_cfg = account_config if account_config is not None else {}
+        return bool(acc_cfg.get("SMTP_LAST_TEST_OK") or cfg.get("SMTP_LAST_TEST_OK"))
     return False
 
 
@@ -736,6 +740,7 @@ def api_gmail_connection_status(request):
     cfg = _user_settings_dict(request)
     send_transport_ui = str(cfg.get("SEND_TRANSPORT") or effective.SEND_TRANSPORT or "")
     summary = transport_summary(request.user)
+    acc_cfg = dict(acc.config_json or {}) if acc else {}
     has_client_secret = os.path.exists(effective.GOOGLE_CLIENT_SECRET_FILE)
     has_token = os.path.exists(effective.GOOGLE_TOKEN_FILE)
     has_gmail_address = bool((effective.GMAIL_ADDRESS or "").strip())
@@ -747,8 +752,8 @@ def api_gmail_connection_status(request):
         token_error = None
 
     imap_ok = imap_inbox_ready(effective)
-    connected = _mailbox_connected_for_ui(effective, cfg)
-    smtp_last_ok = bool(cfg.get("SMTP_LAST_TEST_OK"))
+    connected = _mailbox_connected_for_ui(effective, cfg, account_config=acc_cfg)
+    smtp_last_ok = bool(acc_cfg.get("SMTP_LAST_TEST_OK") if acc else cfg.get("SMTP_LAST_TEST_OK"))
     out_from = (effective.outbound_from_email() or "").strip()
     gmail_poll_ready = bool(
         gmail_connected
@@ -840,32 +845,97 @@ def _sort_messages_chronological(messages: list) -> list:
     return sorted(messages or [], key=lambda m: int(m.get("internal_date") or 0))
 
 
+def _resolve_processed_meta(st, msg_id: str, thread_id: str | None = None) -> dict[str, Any] | None:
+    """Look up ProcessedMeta by IMAP uid, imap:uid alias, or RFC Message-ID key."""
+    keys: list[str] = []
+    mid = str(msg_id or "").strip()
+    tid = str(thread_id or "").strip()
+    if mid:
+        keys.append(mid)
+        if mid.isdigit():
+            keys.append(f"imap:{mid}")
+    if tid and tid not in (mid, f"imap:{mid}"):
+        keys.append(tid)
+        if tid.isdigit():
+            keys.append(f"imap:{tid}")
+    seen: set[str] = set()
+    for k in keys:
+        if not k or k in seen:
+            continue
+        seen.add(k)
+        meta = st.get_processed_meta(k)
+        if meta:
+            return meta
+    return None
+
+
+def _normalize_body_text(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip().lower())
+
+
+def _bodies_similar(a: str, b: str) -> bool:
+    na = _normalize_body_text(a)
+    nb = _normalize_body_text(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    shorter, longer = (na, nb) if len(na) <= len(nb) else (nb, na)
+    if shorter in longer:
+        return True
+    return len(shorter) >= 48 and longer.startswith(shorter[:48])
+
+
 def _append_stored_app_reply(messages: list, meta: dict | None, effective: Settings) -> list:
-    """Show MailPilot's auto-reply under the original when Sent sync is slow or unavailable."""
+    """Show original inbound + MailPilot auto-reply in chronological order."""
     if not meta or meta.get("action") not in ("sent", "draft"):
         return list(messages or [])
     reply_body = (meta.get("reply_body") or "").strip()
     if not reply_body:
         return list(messages or [])
-    for m in messages or []:
-        if m.get("is_from_me") and (m.get("body_text") or "").strip():
-            return list(messages or [])
+
     from_addr = (
         effective.outbound_from_email() or effective.SMTP_USERNAME or effective.GMAIL_ADDRESS or "You"
     ).strip()
     base_id = (messages[0].get("id") if messages else "0")
-    synthetic = {
+    reply_ts = _processed_at_ms(meta.get("processed_at") or "")
+    reply_msg = {
         "id": f"app-reply-{base_id}",
         "from": from_addr,
         "subject": meta.get("reply_subject") or "",
-        "internal_date": _processed_at_ms(meta.get("processed_at") or ""),
+        "internal_date": reply_ts or int(datetime.now(timezone.utc).timestamp() * 1000),
         "snippet": reply_body[:240],
         "body_text": reply_body,
         "is_from_me": True,
         "is_app_reply": True,
     }
+
+    inbound_only = [m for m in (messages or []) if not m.get("is_from_me")]
+    has_outbound = any(m.get("is_from_me") and (m.get("body_text") or "").strip() for m in (messages or []))
+
+    # Inbox row can contain the auto-reply body with the customer's From (mis-threaded / quoted).
+    if len(inbound_only) == 1 and _bodies_similar(inbound_only[0].get("body_text") or "", reply_body):
+        original_body = (meta.get("mail_body") or "").strip()
+        if not original_body:
+            original_body = "(Original message text was not stored - only the auto-reply is shown below.)"
+        original = {
+            "id": str(inbound_only[0].get("id") or base_id),
+            "from": meta.get("from_email") or inbound_only[0].get("from") or "",
+            "subject": meta.get("subject") or inbound_only[0].get("subject") or "",
+            "internal_date": int(inbound_only[0].get("internal_date") or 0),
+            "snippet": original_body[:240],
+            "body_text": original_body,
+            "is_from_me": False,
+        }
+        if reply_ts and reply_ts <= int(original.get("internal_date") or 0):
+            reply_msg["internal_date"] = int(original.get("internal_date") or 0) + 1
+        return [original, reply_msg]
+
+    if has_outbound:
+        return list(messages or [])
+
     out = list(messages or [])
-    out.append(synthetic)
+    out.append(reply_msg)
     return out
 
 
@@ -997,7 +1067,7 @@ def api_gmail_thread_detail(request, thread_id: str):
             mid = m.get("id")
             if not mid:
                 continue
-            meta = st.get_processed_meta(str(mid))
+            meta = _resolve_processed_meta(st, str(mid), thread_id=thread_id)
             m["app_handled"] = meta is not None
             if meta:
                 m["app_action"] = meta.get("action")
@@ -1011,6 +1081,8 @@ def api_gmail_thread_detail(request, thread_id: str):
                 m["app_reply_subject"] = None
                 m["app_reply_body"] = None
                 m["app_processed_at"] = None
+        if inbound_meta is None:
+            inbound_meta = _resolve_processed_meta(st, thread_id, thread_id=thread_id)
         messages = _sort_messages_chronological(messages)
         messages = _append_stored_app_reply(messages, inbound_meta, effective)
         data["messages"] = messages
@@ -1626,7 +1698,19 @@ def api_smtp_test(request):
         if acc is None:
             return JsonResponse({"ok": False, "error": "no_account"}, status=400)
         effective = runtime.get_effective_settings(request.user, account_id=acc.id)
-        SMTPClient(settings=effective).test_connection()
+        to_email = (
+            (effective.outbound_from_email() or "").strip()
+            or (effective.SMTP_USERNAME or "").strip()
+            or (getattr(request.user, "email", None) or "").strip()
+        )
+        if not to_email or "@" not in to_email:
+            return JsonResponse(
+                {"ok": False, "error": "Set a From address or SMTP username to receive the test email."},
+                status=200,
+            )
+        client = SMTPClient(settings=effective)
+        client.test_connection()
+        client.send_test_email(to_email)
         patch_account_config(
             acc,
             {
@@ -1635,7 +1719,7 @@ def api_smtp_test(request):
                 "SMTP_LAST_TEST_ERROR": "",
             },
         )
-        return JsonResponse({"ok": True})
+        return JsonResponse({"ok": True, "sent_to": to_email})
     except Exception as e:
         try:
             from core.mail_accounts import ensure_legacy_migrated, patch_account_config

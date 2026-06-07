@@ -650,6 +650,7 @@ def poll_once_imap(
                             "reply_body": reply_body,
                             "from_email": from_email,
                             "subject": subject,
+                            "mail_body": body_text[:8000],
                             "reason": "auto_reply",
                             "processed_at": _now_iso(),
                             "imap_uid": uid,
@@ -722,6 +723,9 @@ def poll_once_imap(
                         "confidence": conf,
                         "reply_subject": reply_subject,
                         "reply_body": reply_body,
+                        "from_email": from_email,
+                        "subject": subject,
+                        "mail_body": body_text[:8000],
                         "processed_at": _now_iso(),
                     }
                     state_store.mark_processed_aliases(

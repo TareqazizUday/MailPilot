@@ -337,6 +337,7 @@ def account_to_dict(account: MailAccount, *, include_kb_count: bool = False) -> 
         "inbox_ready": inbox_ready,
         "has_client_secret": bool(account.client_secret_enc) or os.path.exists(settings.GOOGLE_CLIENT_SECRET_FILE),
         "has_token": g_ready,
+        "has_smtp_password": bool(account.smtp_password_enc),
         "smtp_last_test_ok": bool(cfg.get("SMTP_LAST_TEST_OK")),
         "config": {k: v for k, v in cfg.items() if not k.endswith("PASSWORD")},
     }

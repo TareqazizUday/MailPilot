@@ -296,6 +296,28 @@ class ImapMailbox:
     def _sent_mailbox_names(self) -> List[str]:
         return ["Sent", "Sent Items", "INBOX.Sent", "[Gmail]/Sent Mail", "Sent Messages"]
 
+    def _discover_sent_mailboxes(self, conn: imaplib.IMAP4) -> List[str]:
+        names = list(self._sent_mailbox_names())
+        seen = {n.lower() for n in names}
+        try:
+            typ, data = conn.list()
+            if typ == "OK" and data:
+                for raw in data:
+                    if not raw:
+                        continue
+                    line = raw.decode(errors="replace") if isinstance(raw, bytes) else str(raw)
+                    m = re.search(r'"([^"]+)"\s*$', line)
+                    if not m:
+                        continue
+                    folder = m.group(1)
+                    fl = folder.lower()
+                    if "sent" in fl and fl not in seen:
+                        names.append(folder)
+                        seen.add(fl)
+        except Exception:
+            pass
+        return names
+
     def _find_sent_replies(self, conn: imaplib.IMAP4, original: email.message.Message) -> List[Dict[str, Any]]:
         """Load outbound replies from Sent that belong to this inbox message."""
         orig_mid = self._normalize_msg_id(original.get("Message-ID") or "")
@@ -304,7 +326,7 @@ class ImapMailbox:
         found: List[Dict[str, Any]] = []
         seen_uids: set[str] = set()
 
-        for folder in self._sent_mailbox_names():
+        for folder in self._discover_sent_mailboxes(conn):
             try:
                 typ, _ = conn.select(folder, readonly=True)
                 if typ != "OK":

@@ -229,6 +229,7 @@
     .mb-switch input:checked + .mb-switch-ui::after{transform:translateX(18px);}
     .mb-switch{position:relative;}
     .mb-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+    .mb-imap-box{margin-bottom:0;}
     .btn-sm{padding:6px 12px;font-size:0.78rem;}
     .pill.warn{background:rgba(251,191,36,0.12);color:#fcd34d;border:1px solid rgba(251,191,36,0.3);}
     .mini-pill{margin-top:6px;display:inline-block;}
@@ -2191,5 +2192,5 @@
 
     _smtpWireFieldErrorClearing();
   </script>
-  <script src="{% static 'js/mail-accounts-setup.js' %}"></script>
+  <script src="{% static 'js/mail-accounts-setup.js' %}?v=3"></script>
 {% endblock %}
