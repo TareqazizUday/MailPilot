@@ -119,6 +119,18 @@ def _build_kb_context(*, settings: Settings, tenant_id: str, query_text: str, k:
     return "\n\n".join(parts[:k]).strip()
 
 
+def _thread_already_handled(msgs: List[Dict[str, Any]], state_store: StateStore) -> bool:
+    """True if any message in this Gmail thread was already auto-sent or drafted."""
+    for m in msgs or []:
+        mid = str(m.get("id") or "")
+        if not mid:
+            continue
+        meta = state_store.get_processed_meta(mid)
+        if meta and str(meta.get("action") or "") in ("sent", "draft"):
+            return True
+    return False
+
+
 def _gmail_latest_inbound_unprocessed(msgs: List[Dict[str, Any]], state_store: StateStore) -> Optional[Dict[str, Any]]:
     """Newest peer message in the thread not yet processed (skips our own messages, e.g. after we replied)."""
     for m in reversed(msgs or []):
@@ -133,19 +145,22 @@ def _gmail_latest_inbound_unprocessed(msgs: List[Dict[str, Any]], state_store: S
     return None
 
 
-def _mark_keyword_rejected(
+def _mark_ignored_message(
     state_store: StateStore,
     *,
     message_id: str,
     from_email: str,
     subject: str,
+    reason: str,
 ) -> None:
     processed_at = _now_iso()
     state_store.mark_processed(
         message_id,
         {
             "action": "ignored",
-            "reason": "keyword_prefilter",
+            "reason": reason,
+            "from_email": from_email,
+            "subject": subject,
             "processed_at": processed_at,
         },
     )
@@ -156,9 +171,31 @@ def _mark_keyword_rejected(
             "id": message_id,
             "from_email": from_email,
             "subject": subject,
-            "reason": "keyword_prefilter",
+            "reason": reason,
         },
     )
+
+
+def _mark_keyword_rejected(
+    state_store: StateStore,
+    *,
+    message_id: str,
+    from_email: str,
+    subject: str,
+) -> None:
+    _mark_ignored_message(
+        state_store,
+        message_id=message_id,
+        from_email=from_email,
+        subject=subject,
+        reason="keyword_prefilter",
+    )
+
+
+def _is_skipped_sender(from_email: str, skip_from_emails: frozenset[str] | None) -> bool:
+    if not skip_from_emails:
+        return False
+    return (from_email or "").strip().lower() in skip_from_emails
 
 
 def _should_consider_email(settings: Settings, *, from_email: str, subject: str, body: str) -> bool:
@@ -171,6 +208,43 @@ def _should_consider_email(settings: Settings, *, from_email: str, subject: str,
         return True
     hay = (" ".join([from_email or "", subject or "", body or ""])).lower()
     return any(t in hay for t in toks)
+
+
+def _maybe_telegram_notify(
+    state_store: StateStore,
+    event: str,
+    *,
+    subject: str = "",
+    from_email: str = "",
+    error: str = "",
+    reply_subject: str = "",
+) -> None:
+    try:
+        from core.telegram_notify import notify_mail_event
+
+        notify_mail_event(
+            state_store.tenant_id,
+            event,
+            subject=subject,
+            from_email=from_email,
+            error=error,
+            reply_subject=reply_subject,
+        )
+    except Exception:
+        pass
+    try:
+        from core.whatsapp_notify import notify_mail_event as whatsapp_notify_mail_event
+
+        whatsapp_notify_mail_event(
+            state_store.tenant_id,
+            event,
+            subject=subject,
+            from_email=from_email,
+            error=error,
+            reply_subject=reply_subject,
+        )
+    except Exception:
+        pass
 
 
 def _send_reply_via_transport(
@@ -197,7 +271,13 @@ def _send_reply_via_transport(
     return ""
 
 
-def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any) -> PollResult:
+def poll_once(
+    *,
+    settings: Settings,
+    state_store: StateStore,
+    gmail_client: Any,
+    skip_from_emails: frozenset[str] | None = None,
+) -> PollResult:
     scanned = relevant = sent = drafts = ignored = queued = 0
 
     # Gmail: recent inbox threads; per thread, newest *inbound* message not yet handled (not only msgs[-1]).
@@ -222,6 +302,26 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
         from_email = _extract_from_email(from_h)
         subject = _clean_text(str(last.get("subject") or ""))
         body = str(last.get("body_text") or last.get("snippet") or "").strip()
+        if _is_skipped_sender(from_email, skip_from_emails):
+            _mark_ignored_message(
+                state_store,
+                message_id=mid,
+                from_email=from_email,
+                subject=subject,
+                reason="own_mailbox_sender",
+            )
+            ignored += 1
+            continue
+        if state_store.has_replied_to_thread(tid) or _thread_already_handled(msgs, state_store):
+            _mark_ignored_message(
+                state_store,
+                message_id=mid,
+                from_email=from_email,
+                subject=subject,
+                reason="thread_already_replied",
+            )
+            ignored += 1
+            continue
         if not _should_consider_email(settings, from_email=from_email, subject=subject, body=body):
             _mark_keyword_rejected(state_store, message_id=mid, from_email=from_email, subject=subject)
             ignored += 1
@@ -276,8 +376,29 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
                         "confidence": conf,
                         "reply_subject": reply_subject,
                         "reply_body": reply_body,
+                        "from_email": from_email,
+                        "subject": subject,
+                        "reason": "auto_reply",
+                        "thread_id": tid,
                         "processed_at": _now_iso(),
                     },
+                )
+                state_store.mark_thread_replied(
+                    tid,
+                    meta={
+                        "action": "sent",
+                        "message_id": mid,
+                        "from_email": from_email,
+                        "subject": subject,
+                        "processed_at": _now_iso(),
+                    },
+                )
+                _maybe_telegram_notify(
+                    state_store,
+                    "sent",
+                    subject=subject,
+                    from_email=from_email,
+                    reply_subject=reply_subject,
                 )
             else:
                 drafts += 1
@@ -288,8 +409,26 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
                         "confidence": conf,
                         "reply_subject": reply_subject,
                         "reply_body": reply_body,
+                        "thread_id": tid,
                         "processed_at": _now_iso(),
                     },
+                )
+                state_store.mark_thread_replied(
+                    tid,
+                    meta={
+                        "action": "draft",
+                        "message_id": mid,
+                        "from_email": from_email,
+                        "subject": subject,
+                        "processed_at": _now_iso(),
+                    },
+                )
+                _maybe_telegram_notify(
+                    state_store,
+                    "draft",
+                    subject=subject,
+                    from_email=from_email,
+                    reply_subject=reply_subject,
                 )
         else:
             ignored += 1
@@ -306,7 +445,13 @@ def poll_once(*, settings: Settings, state_store: StateStore, gmail_client: Any)
     return PollResult(scanned=scanned, relevant=relevant, sent=sent, drafts=drafts, ignored=ignored, queued=queued)
 
 
-def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = False) -> PollResult:
+def poll_once_imap(
+    *,
+    settings: Settings,
+    state_store: StateStore,
+    fast: bool = False,
+    skip_from_emails: frozenset[str] | None = None,
+) -> PollResult:
     scanned = relevant = sent = drafts = ignored = queued = 0
 
     host = (settings.IMAP_HOST or "").strip()
@@ -388,6 +533,29 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
                         already_handled = True
                         break
             if already_handled:
+                continue
+
+            if _is_skipped_sender(from_email, skip_from_emails):
+                _mark_ignored_message(
+                    state_store,
+                    message_id=dedupe_id,
+                    from_email=from_email,
+                    subject=subject,
+                    reason="own_mailbox_sender",
+                )
+                aliases = _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg)
+                if aliases:
+                    state_store.mark_processed_aliases(
+                        dedupe_id,
+                        aliases,
+                        {
+                            "action": "ignored",
+                            "reason": "own_mailbox_sender",
+                            "processed_at": _now_iso(),
+                        },
+                    )
+                ignored += 1
+                print(f"[mailpoll][imap] ignored uid={uid} reason=own_mailbox_sender")
                 continue
 
             # Extract body text (simple)
@@ -480,6 +648,10 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
                             "confidence": conf,
                             "reply_subject": reply_subject,
                             "reply_body": reply_body,
+                            "from_email": from_email,
+                            "subject": subject,
+                            "mail_body": body_text[:8000],
+                            "reason": "auto_reply",
                             "processed_at": _now_iso(),
                             "imap_uid": uid,
                         }
@@ -503,6 +675,13 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
                             conn.uid("store", uid, "+FLAGS", r"(\Seen)")
                         except Exception:
                             pass
+                        _maybe_telegram_notify(
+                            state_store,
+                            "sent",
+                            subject=subject,
+                            from_email=from_email,
+                            reply_subject=reply_subject,
+                        )
                     except Exception as e:
                         err = str(e)
                         print(f"[mailpoll][imap] send_failed uid={uid} err={err}")
@@ -529,6 +708,13 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
                             _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
                             err_meta,
                         )
+                        _maybe_telegram_notify(
+                            state_store,
+                            "error",
+                            subject=subject,
+                            from_email=from_email,
+                            error=err,
+                        )
                 else:
                     drafts += 1
                     print(f"[mailpoll][imap] draft uid={uid} conf={conf}")
@@ -537,12 +723,22 @@ def poll_once_imap(*, settings: Settings, state_store: StateStore, fast: bool = 
                         "confidence": conf,
                         "reply_subject": reply_subject,
                         "reply_body": reply_body,
+                        "from_email": from_email,
+                        "subject": subject,
+                        "mail_body": body_text[:8000],
                         "processed_at": _now_iso(),
                     }
                     state_store.mark_processed_aliases(
                         dedupe_id,
                         _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
                         draft_meta,
+                    )
+                    _maybe_telegram_notify(
+                        state_store,
+                        "draft",
+                        subject=subject,
+                        from_email=from_email,
+                        reply_subject=reply_subject,
                     )
             else:
                 ignored += 1

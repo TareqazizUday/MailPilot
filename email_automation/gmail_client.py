@@ -112,28 +112,75 @@ class GmailClient:
             return t.strip()
         return ""
 
+    def get_profile_email(self) -> str:
+        svc = self._service()
+        prof = svc.users().getProfile(userId="me").execute()
+        return str(prof.get("emailAddress") or "").strip()
+
+    def _threads_list(
+        self,
+        svc,
+        *,
+        max_threads: int,
+        label_ids: list[str] | None = None,
+        q: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str]:
+        """List thread stubs; returns (threads, source_label for UI)."""
+        kwargs: dict[str, Any] = {
+            "userId": "me",
+            "maxResults": int(max_threads),
+            "includeSpamTrash": False,
+        }
+        if label_ids:
+            kwargs["labelIds"] = label_ids
+        if q:
+            kwargs["q"] = q
+        resp = svc.users().threads().list(**kwargs).execute()
+        threads = resp.get("threads") or []
+        if label_ids == ["INBOX"]:
+            return threads, "inbox"
+        if q:
+            return threads, "search"
+        return threads, "all"
+
     def list_inbox_thread_summaries(self, max_threads: int = 40) -> List[Dict[str, Any]]:
         svc = self._service()
-        # Get recent inbox threads. Use Threads.list for cheaper UI summary.
-        resp = (
-            svc.users()
-            .threads()
-            .list(userId="me", labelIds=["INBOX"], maxResults=int(max_threads), includeSpamTrash=False)
-            .execute()
-        )
-        threads = resp.get("threads") or []
+        max_n = max(1, int(max_threads or 40))
+
+        threads, _source = self._threads_list(svc, max_threads=max_n, label_ids=["INBOX"])
+        # Some Gmail accounts keep mail under category labels but not INBOX (API returns 0).
+        if not threads:
+            threads, _source = self._threads_list(svc, max_threads=max_n)
+
         out: List[Dict[str, Any]] = []
         for t in threads:
             tid = str(t.get("id") or "")
             if not tid:
                 continue
-            # Fetch minimal metadata for the latest message in thread.
-            det = (
-                svc.users()
-                .threads()
-                .get(userId="me", id=tid, format="metadata", metadataHeaders=["From", "Subject", "Date"])
-                .execute()
-            )
+            list_snippet = str(t.get("snippet") or "")
+            try:
+                det = (
+                    svc.users()
+                    .threads()
+                    .get(userId="me", id=tid, format="metadata", metadataHeaders=["From", "Subject", "Date"])
+                    .execute()
+                )
+            except Exception:
+                # Rate limits or transient errors: still show thread stub from list().
+                out.append(
+                    {
+                        "thread_id": tid,
+                        "message_id": "",
+                        "from": "",
+                        "subject": "(Could not load headers)",
+                        "internal_date": 0,
+                        "snippet": list_snippet,
+                        "unread": False,
+                        "date": "",
+                    }
+                )
+                continue
+
             msgs = det.get("messages") or []
             if not msgs:
                 continue
@@ -152,10 +199,9 @@ class GmailClient:
             subj = self._header(headers, "Subject")
             date_v = self._header(headers, "Date")
             internal_ms = int(last.get("internalDate") or 0)
-            # unread: if INBOX + UNREAD label is on the thread/message
             label_ids = (last.get("labelIds") or []) + (det.get("labels") or [])
             unread = "UNREAD" in set(label_ids)
-            snippet = str(last.get("snippet") or "")
+            snippet = str(last.get("snippet") or "") or list_snippet
             out.append(
                 {
                     "thread_id": tid,
