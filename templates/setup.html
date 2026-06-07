@@ -8,7 +8,10 @@
 {% block head_extra %}
   <style>
     /* Match mailpilot_setup.html look */
-    .setup-card{max-width:1100px;margin:0 auto;}
+    .setup-card{max-width:1100px;margin:0 auto;width:100%;}
+    @media(min-width:1200px){
+      .setup-card{max-width:1440px;}
+    }
 
     .main-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border-bottom:1px solid var(--glass-border);}
     .main-tab{
@@ -40,8 +43,17 @@
     }
 
     .content-grid{display:grid;grid-template-columns:1fr 320px;gap:0;}
+    @media(min-width:1200px){
+      .content-grid{grid-template-columns:minmax(0,1fr) 420px;}
+    }
     .content-main{padding:28px 32px;border-right:1px solid var(--glass-border);}
+    @media(min-width:1200px){
+      .content-main{padding:28px 36px;}
+    }
     .content-aside{padding:24px;}
+    @media(min-width:1200px){
+      .content-aside{padding:24px 28px;}
+    }
     @media(max-width:900px){
       .main-tabs{grid-template-columns:1fr;}
       .content-grid{grid-template-columns:1fr;}
