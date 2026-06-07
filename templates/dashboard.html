@@ -5,9 +5,15 @@
 {% block head_extra %}
   <style>
     .dash-card{max-width:1180px;margin:0 auto;width:100%;}
+    @media(min-width:1200px){
+      .dash-card{max-width:1440px;}
+    }
     /* ── Three Column Layout (inside MailPilot card) ── */
     .tri{display:grid;grid-template-columns:280px 1fr 380px;gap:12px;min-height:560px}
-    @media(max-width:1100px){.tri{grid-template-columns:220px 1fr 300px}}
+    @media(min-width:1200px){
+      .tri{grid-template-columns:360px minmax(0,1fr) 460px;gap:14px;min-height:620px}
+    }
+    @media(max-width:1100px){.tri{grid-template-columns:240px 1fr 320px}}
     @media(max-width:900px){.tri{grid-template-columns:1fr;min-height:auto}.tri .pnl{min-height:320px}}
 
     /* ── Panel ── */
