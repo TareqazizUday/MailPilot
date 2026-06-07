@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
+from core import mail_account_views as ma_views
 from core import views as legacy_views
 
 
@@ -14,6 +15,17 @@ urlpatterns = [
     # Versioned API
     path("v1/", include("api.v1.urls")),
     # Legacy endpoints (keep working)
+    path("mail-accounts/", ma_views.api_mail_accounts_list, name="api_mail_accounts_list"),
+    path("mail-accounts/create", ma_views.api_mail_accounts_create, name="api_mail_accounts_create"),
+    path("mail-accounts/<int:account_id>/", ma_views.api_mail_accounts_detail, name="api_mail_accounts_detail"),
+    path("mail-accounts/<int:account_id>/test-smtp", ma_views.api_mail_account_test_smtp, name="api_mail_account_test_smtp"),
+    path("mail-accounts/<int:account_id>/disconnect-gmail", ma_views.api_mail_account_disconnect_gmail, name="api_mail_account_disconnect_gmail"),
+    path(
+        "mail-accounts/<int:account_id>/setup-credentials",
+        ma_views.api_mail_account_setup_credentials,
+        name="api_mail_account_setup_credentials",
+    ),
+    path("transport-mode/", ma_views.api_transport_mode, name="api_transport_mode"),
     path("setup/credentials", legacy_views.api_setup_credentials, name="api_setup_credentials"),
     path("gmail/oauth/start", legacy_views.oauth_start, name="oauth_start"),
     path("gmail/oauth/callback", legacy_views.oauth_callback, name="oauth_callback"),
@@ -40,5 +52,12 @@ urlpatterns = [
     path("smtp/test", legacy_views.api_smtp_test, name="api_smtp_test_legacy"),
     path("smtp/status", legacy_views.api_smtp_status, name="api_smtp_status_legacy"),
     path("smtp/disconnect", legacy_views.api_smtp_disconnect, name="api_smtp_disconnect_legacy"),
+    path("telegram/status", legacy_views.api_telegram_status, name="api_telegram_status_legacy"),
+    path("telegram/config", legacy_views.api_telegram_config, name="api_telegram_config_legacy"),
+    path("telegram/test", legacy_views.api_telegram_test, name="api_telegram_test_legacy"),
+    path("whatsapp/status", legacy_views.api_whatsapp_status, name="api_whatsapp_status_legacy"),
+    path("whatsapp/config", legacy_views.api_whatsapp_config, name="api_whatsapp_config_legacy"),
+    path("whatsapp/test", legacy_views.api_whatsapp_test, name="api_whatsapp_test_legacy"),
+    path("whatsapp/webhook", legacy_views.api_whatsapp_webhook, name="api_whatsapp_webhook_legacy"),
 ]
 

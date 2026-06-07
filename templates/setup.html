@@ -1,4 +1,5 @@
 {% extends "mailpilot_base.html" %}
+{% load static %}
 
 {% block title %}Connect Gmail · Email Automation{% endblock %}
 
@@ -9,10 +10,10 @@
     /* Match mailpilot_setup.html look */
     .setup-card{max-width:1100px;margin:0 auto;}
 
-    .main-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--glass-border);}
+    .main-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border-bottom:1px solid var(--glass-border);}
     .main-tab{
       display:flex;align-items:center;justify-content:space-between;
-      padding:16px 24px;cursor:pointer;
+      padding:14px 16px;cursor:pointer;
       border-right:1px solid var(--glass-border);
       transition:background 0.2s;
       background:none;border-top:none;border-bottom:none;border-left:none;
@@ -209,6 +210,29 @@
     .panel{display:none;}
     .panel.on{display:block;}
 
+    .mode-banner{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 14px;margin-bottom:16px;border-radius:12px;background:rgba(79,110,247,0.08);border:1px solid rgba(79,110,247,0.22);}
+    .mode-muted{font-size:0.78rem;color:var(--muted);}
+    .mb-card{border:1px solid var(--glass-border);border-radius:14px;padding:14px 16px;margin-bottom:12px;background:rgba(255,255,255,0.02);transition:opacity 0.2s,border-color 0.2s;}
+    .mb-card.mb-paused{opacity:0.72;}
+    .mb-card.mb-highlight{border-color:rgba(79,110,247,0.55);box-shadow:0 0 0 2px rgba(79,110,247,0.15);}
+    .mb-card-empty{border-style:dashed;cursor:pointer;text-align:center;color:var(--muted);padding:22px;}
+    .mb-card-empty:hover{border-color:rgba(79,110,247,0.4);color:var(--text);}
+    .mb-card-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+    .mb-card-title{flex:1;font-weight:700;font-size:0.88rem;min-width:120px;}
+    .mb-slot{color:#818cf8;margin-right:6px;}
+    .mb-card-meta{font-size:0.78rem;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .mb-switch{position:relative;display:inline-flex;align-items:center;cursor:pointer;}
+    .mb-switch input{position:absolute;opacity:0;width:0;height:0;}
+    .mb-switch-ui{width:40px;height:22px;border-radius:999px;background:rgba(255,255,255,0.12);border:1px solid var(--glass-border);transition:background 0.2s;}
+    .mb-switch-ui::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform 0.2s;}
+    .mb-switch input:checked + .mb-switch-ui{background:rgba(34,197,94,0.35);border-color:rgba(34,197,94,0.45);}
+    .mb-switch input:checked + .mb-switch-ui::after{transform:translateX(18px);}
+    .mb-switch{position:relative;}
+    .mb-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+    .btn-sm{padding:6px 12px;font-size:0.78rem;}
+    .pill.warn{background:rgba(251,191,36,0.12);color:#fcd34d;border:1px solid rgba(251,191,36,0.3);}
+    .mini-pill{margin-top:6px;display:inline-block;}
+
     .hint{background:rgba(79,110,247,0.07);border:1px solid rgba(79,110,247,0.2);border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:0.8rem;color:var(--muted);line-height:1.6;}
 
     .oauth-box{background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:12px;padding:14px 16px;margin-top:18px;}
@@ -390,6 +414,20 @@
         </div>
         <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-brain"></i></div>
       </button>
+      <button class="main-tab" id="btnMainTelegram" type="button" onclick="showMain('telegram')">
+        <div>
+          <div style="font-size:0.88rem;font-weight:700;">Telegram</div>
+          <div class="sub">Bot &amp; alerts</div>
+        </div>
+        <div class="tab-icon" aria-hidden="true"><i class="fa-brands fa-telegram"></i></div>
+      </button>
+      <button class="main-tab" id="btnMainWhatsapp" type="button" onclick="showMain('whatsapp')">
+        <div>
+          <div style="font-size:0.88rem;font-weight:700;">WhatsApp</div>
+          <div class="sub">Live alerts</div>
+        </div>
+        <div class="tab-icon" aria-hidden="true"><i class="fa-brands fa-whatsapp"></i></div>
+      </button>
     </div>
 
       <!-- Sections -->
@@ -402,176 +440,51 @@
             <span class="pill" id="transportPill">—</span>
           </div>
 
-          <!-- Transport tabs -->
-          <div class="tabs" role="tablist" aria-label="Email setup mode">
-            <button class="tab on" id="tabG" type="button" onclick="showPanel('gmail')"><i class="fa-brands fa-google" aria-hidden="true"></i> Gmail</button>
-            <button class="tab" id="tabS" type="button" onclick="showPanel('smtp')"><i class="fa-solid fa-envelope" aria-hidden="true"></i> SMTP</button>
-          </div>
-
-          <!-- Gmail Panel -->
-          <div class="panel on" id="pGmail">
-          <div class="hint">Use Google OAuth to read inbox and send replies via Gmail API.</div>
-
-      {% if gmail_oauth_connected %}
-        <div class="oauth-box" style="border-color: rgba(16,185,129,.18);">
-          <div class="oauth-h"><i class="fa-solid fa-link" aria-hidden="true" style="color: var(--grn-l);"></i> Connected</div>
-          <p class="oauth-txt" style="margin:0;">OAuth token found on server. Open <a href="{% url 'dashboard' %}">Dashboard</a>.</p>
-        </div>
-        <button class="btn btn-ghost btn-block disc-btn" type="button" onclick="disconnectGmail()">
-          <i class="fa-solid fa-link-slash" aria-hidden="true"></i> Disconnect
-        </button>
-      {% else %}
-        <form method="POST" action="{% url 'api_setup_credentials' %}" enctype="multipart/form-data">
-          {% csrf_token %}
-          <div class="fg">
-            <label class="fl" for="gmail_address">Email Address</label>
-            <input class="fi" type="email" id="gmail_address" name="gmail_address" value="{{ gmail_address|default:'' }}" placeholder="your@email.com" autocomplete="email" required>
-          </div>
-
-          <div class="fg">
-            <label class="fl" for="client_secret">Client Secret File</label>
-            <div class="fu" id="fUp" onclick="document.getElementById('client_secret').click()">
-              <i class="fa-solid fa-cloud-arrow-up" id="fIco" aria-hidden="true"></i>
-              <p id="fTxt">Drag &amp; drop your <span>credentials.json</span> here</p>
-              <div class="ht" id="fHt">or click to browse — JSON files only</div>
-            </div>
-            <input type="file" id="client_secret" name="client_secret" accept="application/json" style="display:none" required>
-          </div>
+          <div id="transportModeBanner" data-highlight-account="{{ highlight_account_id|default:'' }}" data-initial-mode="{{ transport_summary.active_mode|default:'gmail' }}"></div>
 
           {% if oauth_error %}
-            <div class="oauth-box" style="border-color: rgba(248,113,113,.18);">
+            <div class="oauth-box" style="border-color: rgba(248,113,113,.18); margin-bottom:14px;">
               <div class="oauth-h"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="color: var(--red);"></i> Google OAuth did not finish</div>
               <p class="oauth-txt" style="margin:0;"><span class="code-inline" style="word-break:break-all;">{{ oauth_error }}</span></p>
             </div>
           {% endif %}
 
-          <div class="oauth-box">
-            <div class="oauth-h"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> OAuth Configuration</div>
-            <p class="oauth-txt">OAuth client type must be <strong>Web application</strong>. Add this redirect URI exactly in Google Cloud Console:</p>
-            <div class="url-box" role="group" aria-label="Redirect URI">
-              <span class="url-txt" id="redirTxt">{{ oauth_redirect_uri }}</span>
-              <button class="cp-btn" type="button" onclick="cpRedirect()" title="Copy">Copy</button>
+          <div class="tabs" role="tablist" aria-label="Email setup mode">
+            <button class="tab on" id="tabG" type="button" onclick="showPanel('gmail')"><i class="fa-brands fa-google" aria-hidden="true"></i> Gmail</button>
+            <button class="tab" id="tabS" type="button" onclick="showPanel('smtp')"><i class="fa-solid fa-envelope" aria-hidden="true"></i> SMTP</button>
+          </div>
+
+          <div class="panel on" id="pGmail">
+            <div class="hint">Up to <strong>5 Gmail</strong> accounts. Toggle each mailbox on/off. Only accounts in <strong>Gmail mode</strong> (this tab active) run automation.</div>
+            <div class="oauth-box" style="margin-bottom:14px;">
+              <div class="oauth-h"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> OAuth redirect URI</div>
+              <p class="oauth-txt">Use <strong>Web application</strong> client in Google Cloud Console:</p>
+              <div class="url-box" role="group" aria-label="Redirect URI">
+                <span class="url-txt" id="redirTxt">{{ oauth_redirect_uri }}</span>
+                <button class="cp-btn" type="button" onclick="cpRedirect()" title="Copy">Copy</button>
+              </div>
             </div>
+            <div id="gmailAccountsList"></div>
           </div>
 
-          <button class="btn btn-purp btn-block" type="submit"><i class="fa-brands fa-google" aria-hidden="true"></i> Connect Gmail</button>
-        </form>
-      {% endif %}
-          </div>
-
-          <!-- SMTP Panel -->
           <div class="panel" id="pSmtp">
-            <div class="hint"><strong>SMTP</strong> sends mail. <strong>IMAP</strong> (below) reads the same mailbox on the Dashboard when Gmail OAuth is not used.</div>
-
+            <div class="hint"><strong>SMTP</strong> sends mail; <strong>IMAP</strong> reads inbox on the Dashboard. Up to <strong>5 SMTP</strong> mailboxes — pause any slot without deleting credentials.</div>
             <div class="oauth-box" style="margin-top:0;">
               <div class="oauth-h"><i class="fa-solid fa-gear" aria-hidden="true"></i> Quick profile</div>
-              <p class="oauth-txt" style="margin:0;">
-                For <span class="code-inline">timerni.com</span>:\n
-                Incoming IMAP: <span class="code-inline">imap.timerni.com</span> (SSL 993), Outgoing SMTP: <span class="code-inline">smtp.timerni.com</span>\n
-                Ports: <span class="code-inline">465 (SSL)</span> or <span class="code-inline">587 (TLS)</span>
-              </p>
+              <p class="oauth-txt" style="margin:0;">Example: <span class="code-inline">smtp.timerni.com</span> / <span class="code-inline">imap.timerni.com</span> — ports <span class="code-inline">587</span> (TLS) or <span class="code-inline">465</span> (SSL).</p>
             </div>
-
-          <div class="row2" style="margin-top:12px;">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpHost">SMTP Host <span style="color:#f87171;">*</span></label>
-              <input class="fi" id="smtpHost" name="smtpHost" placeholder="smtp.gmail.com" autocomplete="off" />
-              <div class="field-err" id="errSmtpHost" role="alert"></div>
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpPort">Port <span style="color:#f87171;">*</span></label>
-              <input class="fi" id="smtpPort" name="smtpPort" type="number" min="1" max="65535" step="1" value="587" />
-              <div class="field-err" id="errSmtpPort" role="alert"></div>
-              <div class="mini" id="smtpPortHint">Tip: 465 = SSL, 587 = TLS</div>
-            </div>
-          </div>
-          <div class="row2">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpUser">SMTP Username <span style="color:#f87171;">*</span></label>
-              <input class="fi" id="smtpUser" name="smtpUser" placeholder="your@email.com" autocomplete="username" />
-              <div class="field-err" id="errSmtpUser" role="alert"></div>
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpPass">Password / App password <span style="color:#f87171;">*</span></label>
-              <div class="pw-wrap">
-                <input class="fi" id="smtpPass" name="smtpPass" type="password" placeholder="••••••••" autocomplete="current-password" />
-                <button class="pw-btn" type="button" onclick="togglePw()" title="Show/Hide password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
-              </div>
-              <div class="field-err" id="errSmtpPass" role="alert"></div>
-              <div class="mini">Saved to <span class="code-inline">data/app_config.json</span>. Don’t commit this file. Prefer “app password” if your provider supports it.</div>
-            </div>
-          </div>
-          <div class="row2">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpFrom">From email (optional)</label>
-              <input class="fi" id="smtpFrom" placeholder="from@email.com" />
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl">Security</label>
-              <div class="row2" style="gap:8px;">
-                <label class="pill" style="justify-content:center;cursor:pointer;">
-                  <input type="checkbox" id="smtpTls" style="margin-right:8px;" checked> TLS
-                </label>
-                <label class="pill" style="justify-content:center;cursor:pointer;">
-                  <input type="checkbox" id="smtpSsl" style="margin-right:8px;"> SSL
-                </label>
-              </div>
-              <div class="mini" style="margin-top:8px;">
-                <label class="pill" style="justify-content:center;cursor:pointer;">
-                  <input type="checkbox" id="smtpVerify" style="margin-right:8px;" checked> Verify certificate
-                </label>
-                <div class="small" style="margin-top:6px;">
-                  If your provider has a hostname mismatch certificate error, temporarily turn this off (less secure).
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="oauth-box" style="margin-top:14px;">
-            <div class="oauth-h"><i class="fa-solid fa-inbox" aria-hidden="true"></i> IMAP (read inbox)</div>
-            <p class="oauth-txt" style="margin:0;">Leave <span class="code-inline">IMAP host</span> empty to derive <span class="code-inline">imap.&lt;domain&gt;</span> from your SMTP host (e.g. <span class="code-inline">smtp.timerni.com</span> → <span class="code-inline">imap.timerni.com</span>). Uses the same username/password as SMTP.</p>
-          </div>
-          <div class="row2" style="margin-top:10px;">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="imapHost">IMAP host (optional)</label>
-              <input class="fi" id="imapHost" placeholder="imap.timerni.com" />
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="imapPort">IMAP port <span style="color:#f87171;">*</span></label>
-              <input class="fi" id="imapPort" name="imapPort" type="number" min="1" max="65535" step="1" value="993" />
-              <div class="field-err" id="errImapPort" role="alert"></div>
-            </div>
-          </div>
-          <div class="row2">
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="smtpTlsServer">SMTP TLS name (cert mismatch)</label>
-              <input class="fi" id="smtpTlsServer" placeholder="timerni.com" />
-            </div>
-            <div class="fg" style="margin-bottom:10px;">
-              <label class="fl" for="imapTlsServer">IMAP TLS name (optional)</label>
-              <input class="fi" id="imapTlsServer" placeholder="timerni.com" />
-            </div>
-          </div>
-          <div class="fg" style="margin-bottom:10px;">
-            <label class="pill" style="justify-content:flex-start;cursor:pointer;">
-              <input type="checkbox" id="imapVerify" style="margin-right:8px;" checked> Verify IMAP certificate
-            </label>
-          </div>
-
-          <div class="mini" style="margin-top:4px;"><span style="color:#f87171;">*</span> Required. Optional: From email; IMAP host (blank = auto from SMTP host); SMTP/IMAP TLS name fields.</div>
-          <button class="btn btn-ghost btn-block" type="button" style="margin-top:10px;" onclick="connectSmtpAndEnable()"><i class="fa-solid fa-plug" aria-hidden="true"></i> Connect SMTP &amp; run automation</button>
-          <div class="mini" style="margin-top:8px;">Tests SMTP, enables SMTP sending, then checks unread mail once.</div>
-          <button class="btn btn-ghost btn-block disc-btn" id="btnSmtpDisconnect" style="margin-top:10px; display:none;" type="button" onclick="disconnectSmtp()">
-            <i class="fa-solid fa-link-slash" aria-hidden="true"></i> Disconnect SMTP
-          </button>
-          <div class="mini"><span id="smtpStatus" class="pill">—</span></div>
+            <div id="smtpAccountsList"></div>
           </div>
           </div>
           </div>
           <div class="content-aside">
             <div class="aside-card">
+              <div class="aside-title"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Mailboxes</div>
+              <div class="aside-desc">Gmail and SMTP modes are mutually exclusive. Paused mailboxes keep credentials but skip poll/send.</div>
+            </div>
+            <div class="aside-card" style="margin-top:12px;">
               <div class="aside-title"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Next</div>
-              <div class="aside-desc">After choosing how to send replies, configure <strong>Routing</strong> so only service-related emails are handled.</div>
+              <div class="aside-desc">Configure <strong>Routing</strong> and per-mailbox <strong>Knowledge Base</strong> for grounded replies.</div>
             </div>
           </div>
         </div>
@@ -651,6 +564,12 @@
             <p class="oauth-txt" style="margin:0;">Upload JSON or plain text (.txt) knowledge, or crawl your website so replies can be grounded in your real service info.</p>
           </div>
 
+          <div class="fg" style="margin-top:12px;">
+            <label class="fl" for="kbAccountSelect">Knowledge for mailbox</label>
+            <select class="fi" id="kbAccountSelect" aria-label="Select mailbox for knowledge base"></select>
+            <div class="mini">Each Gmail or SMTP slot has its own RAG index (scoped per mailbox).</div>
+          </div>
+
           <div class="oauth-box">
             <div class="oauth-h"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> KB Status</div>
             <p class="oauth-txt" style="margin:0;">
@@ -728,6 +647,152 @@
             <div class="aside-card">
               <div class="aside-title"><i class="fa-solid fa-rocket" aria-hidden="true"></i> Next</div>
               <div class="aside-desc">After KB + routing are set, the system will automatically read recent mail and reply based on your settings.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-sec" id="secTelegram">
+        <div class="content-grid">
+          <div class="content-main">
+            <div class="sec">
+          <div class="sec-h">
+            <div class="s-sub">Telegram</div>
+            <span id="tgPill" class="pill wrap">Checking…</span>
+          </div>
+          <div class="oauth-box" style="margin-top:0;">
+            <div class="oauth-h"><i class="fa-brands fa-telegram" aria-hidden="true"></i> Connect a Telegram bot</div>
+            <p class="oauth-txt" style="margin:0;">Get mail alerts and chat with your bot — replies use your Knowledge Base + LLM (same as email auto-reply). Email automation is unchanged.</p>
+          </div>
+
+          <div class="fg" style="margin-top:12px;">
+            <label class="fl" for="tgEnabled">
+              <input type="checkbox" id="tgEnabled" checked style="margin-right:8px;" />
+              Enable Telegram notifications (mail sent / draft / error)
+            </label>
+          </div>
+          <div class="fg">
+            <label class="fl" for="tgReplyEnabled">
+              <input type="checkbox" id="tgReplyEnabled" checked style="margin-right:8px;" />
+              Reply when you message the bot on Telegram
+            </label>
+            <div class="mini">Chat ID must match the Telegram chat you message from (usually your user ID from @userinfobot).</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="tgBotToken">Bot token</label>
+            <input class="fi" id="tgBotToken" type="password" placeholder="123456789:ABCdefGHI…" autocomplete="off" />
+            <div class="mini">From <strong>@BotFather</strong> on Telegram. Leave blank when saving to keep the current token.</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="tgChatId">Default chat ID</label>
+            <input class="fi" id="tgChatId" placeholder="-1001234567890" autocomplete="off" />
+            <div class="mini">Your user ID from <strong>@userinfobot</strong> or group ID from <code>getUpdates</code>.</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="tgNotifyEvents">Notify on</label>
+            <select class="fi" id="tgNotifyEvents">
+              <option value="all">Auto-replies, drafts, and errors</option>
+              <option value="sent">Auto-replies only</option>
+              <option value="errors">Errors only</option>
+            </select>
+          </div>
+
+          <div class="row2" style="margin-top:10px;gap:10px;">
+            <button class="btn btn-purp btn-block" type="button" onclick="saveTelegram()">
+              <i class="fa-brands fa-telegram" aria-hidden="true"></i> Save Telegram settings
+            </button>
+            <button class="btn btn-ghost btn-block" type="button" onclick="testTelegram()">
+              <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send test message
+            </button>
+          </div>
+          <div class="mini"><span id="tgStatus" class="pill">—</span></div>
+            </div>
+          </div>
+          <div class="content-aside">
+            <div class="aside-card">
+              <div class="aside-title"><i class="fa-brands fa-telegram" aria-hidden="true"></i> Why Telegram?</div>
+              <div class="aside-desc">Optional alerts alongside your Knowledge Base — no change to Gmail/SMTP polling, routing, or auto-reply behavior.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-sec" id="secWhatsapp">
+        <div class="content-grid">
+          <div class="content-main">
+            <div class="sec">
+          <div class="sec-h">
+            <div class="s-sub">WhatsApp</div>
+            <span id="waPill" class="pill wrap">Checking…</span>
+          </div>
+          <div class="oauth-box" style="margin-top:0;">
+            <div class="oauth-h"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp Cloud API</div>
+            <p class="oauth-txt" style="margin:0;">Same optional alerts and chat commands as Telegram (Meta Business / Cloud API). Email automation is unchanged.</p>
+          </div>
+
+          <div class="fg" style="margin-top:12px;">
+            <label class="fl" for="waEnabled">
+              <input type="checkbox" id="waEnabled" checked style="margin-right:8px;" />
+              Enable WhatsApp notifications (mail sent / draft / error)
+            </label>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waReplyEnabled">
+              <input type="checkbox" id="waReplyEnabled" checked style="margin-right:8px;" />
+              Reply when you message on WhatsApp (webhook)
+            </label>
+            <div class="mini">Your WhatsApp number must match <strong>To phone</strong> below. Register the webhook URL in Meta Developer Console.</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waAccessToken">Permanent access token</label>
+            <input class="fi" id="waAccessToken" type="password" placeholder="EAAxxxx…" autocomplete="off" />
+            <div class="mini">From Meta App → WhatsApp → API setup. Leave blank when saving to keep the current token.</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waPhoneNumberId">Phone number ID</label>
+            <input class="fi" id="waPhoneNumberId" placeholder="123456789012345" autocomplete="off" />
+          </div>
+          <div class="fg">
+            <label class="fl" for="waToPhone">Your WhatsApp number (E.164)</label>
+            <input class="fi" id="waToPhone" placeholder="8801XXXXXXXXX" autocomplete="off" />
+            <div class="mini">Country code + number, digits only (no + or spaces).</div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waVerifyToken">Webhook verify token</label>
+            <input class="fi" id="waVerifyToken" type="password" placeholder="my-secret-verify-token" autocomplete="off" />
+            <div class="mini">Must match Meta webhook setup (or set <code>WHATSAPP_VERIFY_TOKEN</code> in server env).</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Webhook callback URL</label>
+            <div class="url-box" role="group" aria-label="WhatsApp webhook URL">
+              <span class="url-txt" id="waWebhookUrl">—</span>
+              <button class="cp-btn" type="button" onclick="cpWaWebhook()" title="Copy">Copy</button>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl" for="waNotifyEvents">Notify on</label>
+            <select class="fi" id="waNotifyEvents">
+              <option value="all">Auto-replies, drafts, and errors</option>
+              <option value="sent">Auto-replies only</option>
+              <option value="errors">Errors only</option>
+            </select>
+          </div>
+
+          <div class="row2" style="margin-top:10px;gap:10px;">
+            <button class="btn btn-purp btn-block" type="button" onclick="saveWhatsapp()">
+              <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Save WhatsApp settings
+            </button>
+            <button class="btn btn-ghost btn-block" type="button" onclick="testWhatsapp()">
+              <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send test message
+            </button>
+          </div>
+          <div class="mini"><span id="waStatus" class="pill">—</span></div>
+            </div>
+          </div>
+          <div class="content-aside">
+            <div class="aside-card">
+              <div class="aside-title"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp (Live)</div>
+              <div class="aside-desc">Live alerts are enabled when your Meta Cloud API token and phone settings are valid. Use a public HTTPS callback URL for webhook replies. Commands: <code>/mail</code>, <code>/inbox</code>, <code>/ignored</code>, <code>/thread</code>.</div>
             </div>
           </div>
         </div>
@@ -1091,19 +1156,22 @@
         const cls = (tr === 'smtp') ? '' : (gmailConnected ? 'ok' : 'bad');
         setPill(tp, pillText, cls);
         // smtp config (password never echoed back)
-        document.getElementById('smtpHost').value = e.SMTP_HOST || '';
-        document.getElementById('smtpPort').value = e.SMTP_PORT ?? 587;
-        document.getElementById('smtpUser').value = e.SMTP_USERNAME || '';
-        document.getElementById('smtpFrom').value = e.SMTP_FROM_EMAIL || '';
-        document.getElementById('smtpTls').checked = !!e.SMTP_USE_TLS;
-        document.getElementById('smtpSsl').checked = !!e.SMTP_USE_SSL;
-        document.getElementById('smtpVerify').checked = (e.SMTP_VERIFY_TLS !== false);
-        document.getElementById('smtpTlsServer').value = e.SMTP_TLS_SERVERNAME || '';
-        document.getElementById('imapHost').value = e.IMAP_HOST || '';
-        document.getElementById('imapPort').value = e.IMAP_PORT ?? 993;
-        document.getElementById('imapVerify').checked = (e.IMAP_VERIFY_TLS !== false);
-        document.getElementById('imapTlsServer').value = e.IMAP_TLS_SERVERNAME || '';
-        applySmtpPortHints();
+        const sh = document.getElementById('smtpHost');
+        if(sh){
+          sh.value = e.SMTP_HOST || '';
+          document.getElementById('smtpPort').value = e.SMTP_PORT ?? 587;
+          document.getElementById('smtpUser').value = e.SMTP_USERNAME || '';
+          document.getElementById('smtpFrom').value = e.SMTP_FROM_EMAIL || '';
+          document.getElementById('smtpTls').checked = !!e.SMTP_USE_TLS;
+          document.getElementById('smtpSsl').checked = !!e.SMTP_USE_SSL;
+          document.getElementById('smtpVerify').checked = (e.SMTP_VERIFY_TLS !== false);
+          document.getElementById('smtpTlsServer').value = e.SMTP_TLS_SERVERNAME || '';
+          document.getElementById('imapHost').value = e.IMAP_HOST || '';
+          document.getElementById('imapPort').value = e.IMAP_PORT ?? 993;
+          document.getElementById('imapVerify').checked = (e.IMAP_VERIFY_TLS !== false);
+          document.getElementById('imapTlsServer').value = e.IMAP_TLS_SERVERNAME || '';
+          applySmtpPortHints();
+        }
         setPill(pill, 'Settings synced', 'ok');
         // Keep the UI clean: auto-hide after a moment.
         setTimeout(() => {
@@ -1482,7 +1550,7 @@
       const pill = document.getElementById('kbPill');
       const meta = document.getElementById('kbMeta');
       try{
-        const res = await fetch('/api/kb/status');
+        const res = await fetch('/api/kb/status' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''));
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'KB not ready'), 'bad');
@@ -1497,6 +1565,215 @@
       }
     }
 
+    function applyTelegramStatus(j){
+      const pill = document.getElementById('tgPill');
+      const enabledEl = document.getElementById('tgEnabled');
+      const replyEl = document.getElementById('tgReplyEnabled');
+      const chatEl = document.getElementById('tgChatId');
+      const notifyEl = document.getElementById('tgNotifyEvents');
+      const tokenEl = document.getElementById('tgBotToken');
+      if(enabledEl) enabledEl.checked = j.enabled !== false;
+      if(replyEl) replyEl.checked = j.reply_enabled !== false;
+      if(chatEl) chatEl.value = j.chat_id || '';
+      if(notifyEl) notifyEl.value = j.notify_events || 'all';
+      if(tokenEl){
+        if(j.has_bot_token){
+          tokenEl.placeholder = (j.bot_token_hint ? 'Saved (' + j.bot_token_hint + ') — enter new to replace' : 'Token saved — enter new to replace');
+        }else{
+          tokenEl.placeholder = '123456789:ABCdefGHI…';
+        }
+        tokenEl.value = '';
+      }
+      if(!pill) return;
+      if(j.configured && j.enabled !== false){
+        setPill(pill, 'Connected', 'ok');
+      }else if(j.configured){
+        setPill(pill, 'Configured (paused)', '');
+      }else{
+        setPill(pill, 'Not configured', '');
+      }
+    }
+
+    async function loadTelegram(){
+      const status = document.getElementById('tgStatus');
+      try{
+        const res = await fetch('/api/telegram/status');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(status, (j.error || 'Could not load'), 'bad');
+          return;
+        }
+        applyTelegramStatus(j);
+        setPill(status, '—', '');
+      }catch(err){
+        setPill(status, 'Network error', 'bad');
+      }
+    }
+    window.loadTelegram = loadTelegram;
+
+    async function saveTelegram(){
+      const status = document.getElementById('tgStatus');
+      setPill(status, 'Saving…', '');
+      const payload = {
+        TELEGRAM_ENABLED: !!document.getElementById('tgEnabled')?.checked,
+        TELEGRAM_REPLY_ENABLED: !!document.getElementById('tgReplyEnabled')?.checked,
+        TELEGRAM_CHAT_ID: document.getElementById('tgChatId')?.value || '',
+        TELEGRAM_NOTIFY_EVENTS: document.getElementById('tgNotifyEvents')?.value || 'all',
+      };
+      const token = (document.getElementById('tgBotToken')?.value || '').trim();
+      if(token) payload.TELEGRAM_BOT_TOKEN = token;
+      try{
+        const res = await fetch('/api/telegram/config', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(status, (j.error || 'Save failed'), 'bad');
+          return;
+        }
+        applyTelegramStatus(j);
+        setPill(status, 'Saved', 'ok');
+      }catch(err){
+        setPill(status, 'Network error', 'bad');
+      }
+    }
+    window.saveTelegram = saveTelegram;
+
+    async function testTelegram(){
+      const status = document.getElementById('tgStatus');
+      setPill(status, 'Sending test…', 'info');
+      try{
+        const res = await fetch('/api/telegram/test', { method:'POST' });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(status, (j.error || 'Test failed'), 'bad');
+          return;
+        }
+        setPill(status, 'Test sent — check Telegram', 'ok');
+      }catch(err){
+        setPill(status, 'Network error', 'bad');
+      }
+    }
+    window.testTelegram = testTelegram;
+
+    function applyWhatsappStatus(j){
+      const en = document.getElementById('waEnabled');
+      const re = document.getElementById('waReplyEnabled');
+      const pid = document.getElementById('waPhoneNumberId');
+      const to = document.getElementById('waToPhone');
+      const ne = document.getElementById('waNotifyEvents');
+      const pill = document.getElementById('waPill');
+      const webhook = document.getElementById('waWebhookUrl');
+      const tokenEl = document.getElementById('waAccessToken');
+      if(en) en.checked = j.enabled !== false;
+      if(re) re.checked = j.reply_enabled !== false;
+      if(pid) pid.value = j.phone_number_id || '';
+      if(to) to.value = j.to_phone || '';
+      if(ne) ne.value = j.notify_events || 'all';
+      if(webhook) webhook.textContent = j.webhook_url || '—';
+      if(tokenEl){
+        if(j.has_access_token){
+          tokenEl.placeholder = j.access_token_hint ? (j.access_token_hint + ' (saved)') : 'Token saved';
+        }else{
+          tokenEl.placeholder = 'EAAxxxx…';
+        }
+        tokenEl.value = '';
+      }
+      const vt = document.getElementById('waVerifyToken');
+      if(vt){
+        vt.placeholder = j.verify_token_set ? 'Verify token saved' : 'my-secret-verify-token';
+        vt.value = '';
+      }
+      if(!pill) return;
+      if(j.configured && j.enabled !== false){
+        setPill(pill, 'Connected', 'ok');
+      }else if(j.configured){
+        setPill(pill, 'Configured (paused)', '');
+      }else{
+        setPill(pill, 'Not configured', '');
+      }
+    }
+
+    async function loadWhatsapp(){
+      const status = document.getElementById('waStatus');
+      try{
+        const res = await fetch('/api/whatsapp/status');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(status, (j.error || 'Could not load'), 'bad');
+          return;
+        }
+        applyWhatsappStatus(j);
+        setPill(status, '—', '');
+      }catch(err){
+        setPill(status, 'Network error', 'bad');
+      }
+    }
+    window.loadWhatsapp = loadWhatsapp;
+
+    async function saveWhatsapp(){
+      const status = document.getElementById('waStatus');
+      setPill(status, 'Saving…', '');
+      const payload = {
+        WHATSAPP_ENABLED: !!document.getElementById('waEnabled')?.checked,
+        WHATSAPP_REPLY_ENABLED: !!document.getElementById('waReplyEnabled')?.checked,
+        WHATSAPP_PHONE_NUMBER_ID: document.getElementById('waPhoneNumberId')?.value || '',
+        WHATSAPP_TO_PHONE: document.getElementById('waToPhone')?.value || '',
+        WHATSAPP_NOTIFY_EVENTS: document.getElementById('waNotifyEvents')?.value || 'all',
+      };
+      const token = (document.getElementById('waAccessToken')?.value || '').trim();
+      if(token) payload.WHATSAPP_ACCESS_TOKEN = token;
+      const vt = (document.getElementById('waVerifyToken')?.value || '').trim();
+      if(vt) payload.WHATSAPP_VERIFY_TOKEN = vt;
+      try{
+        const res = await fetch('/api/whatsapp/config', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(status, (j.error || 'Save failed'), 'bad');
+          return;
+        }
+        applyWhatsappStatus(j);
+        setPill(status, 'Saved', 'ok');
+      }catch(err){
+        setPill(status, 'Network error', 'bad');
+      }
+    }
+    window.saveWhatsapp = saveWhatsapp;
+
+    async function testWhatsapp(){
+      const status = document.getElementById('waStatus');
+      setPill(status, 'Sending test…', 'info');
+      try{
+        const res = await fetch('/api/whatsapp/test', { method:'POST' });
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok){
+          setPill(status, (j.error || 'Test failed'), 'bad');
+          return;
+        }
+        setPill(status, 'Test sent — check WhatsApp', 'ok');
+      }catch(err){
+        setPill(status, 'Network error', 'bad');
+      }
+    }
+    window.testWhatsapp = testWhatsapp;
+
+    function cpWaWebhook(){
+      const el = document.getElementById('waWebhookUrl');
+      const txt = (el?.textContent || '').trim();
+      if(!txt || txt === '—') return;
+      navigator.clipboard?.writeText(txt).then(() => {
+        const status = document.getElementById('waStatus');
+        setPill(status, 'Webhook URL copied', 'ok');
+      }).catch(() => {});
+    }
+    window.cpWaWebhook = cpWaWebhook;
+
     async function clearKb(){
       const ok = await setupConfirmOpen({
         title: 'Delete Knowledge Base',
@@ -1509,7 +1786,7 @@
       const pill = document.getElementById('kbClearStatus');
       setPill(pill, 'Deleting…', 'info');
       try{
-        const res = await fetch('/api/kb/clear', { method:'POST' });
+        const res = await fetch('/api/kb/clear' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''), { method:'POST' });
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Delete failed'), 'bad');
@@ -1597,7 +1874,7 @@
       const pill = document.getElementById('kbEditStatus');
       setPill(pill, 'Downloading…', 'info');
       try{
-        const res = await fetch('/api/kb/export-bundle');
+        const res = await fetch('/api/kb/export-bundle' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''));
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Download failed'), 'bad');
@@ -1631,7 +1908,7 @@
       const pill = document.getElementById('kbEditorPill');
       setPill(pill, 'Loading…', 'info');
       try{
-        const res = await fetch('/api/kb/export-bundle');
+        const res = await fetch('/api/kb/export-bundle' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''));
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'Load failed'), 'bad');
@@ -1669,7 +1946,7 @@
         payload.schema_version = payload.schema_version || '1.0';
       }
       try{
-        const res = await fetch('/api/kb/replace-json', {
+        const res = await fetch('/api/kb/replace-json' + (typeof kbAccountQuery === 'function' ? kbAccountQuery() : ''), {
           method:'POST',
           headers:{ 'Content-Type':'application/json' },
           body: JSON.stringify(payload),
@@ -1701,7 +1978,8 @@
       }
       setPill(pill, 'Uploading…', '');
       const fd = new FormData();
-      const url = mode === 'text' ? '/api/kb/upload-text' : '/api/kb/upload-json';
+      const q = typeof kbAccountQuery === 'function' ? kbAccountQuery() : '';
+      const url = (mode === 'text' ? '/api/kb/upload-text' : '/api/kb/upload-json') + q;
       if(mode === 'text'){
         fd.append('text_file', f, f.name);
       }else{
@@ -1845,6 +2123,8 @@
       if(btn){ btn.disabled = true; btn.style.opacity = '0.65'; }
       const fd = new FormData();
       fd.append('start_url', url);
+      const aid = typeof getKbAccountId === 'function' ? getKbAccountId() : '';
+      if(aid) fd.append('account_id', aid);
       try{
         const res = await fetch('/api/kb/crawl', { method:'POST', body: fd });
         const j = await res.json().catch(() => ({}));
@@ -1867,20 +2147,28 @@
 
     loadConfig();
     refreshKbStatus();
+    loadTelegram();
+    loadWhatsapp();
     refreshSmtpStatus();
 
     function showMain(which){
       const b1 = document.getElementById('btnMainTransport');
       const b2 = document.getElementById('btnMainRouting');
       const b3 = document.getElementById('btnMainKb');
+      const b4 = document.getElementById('btnMainTelegram');
+      const b5 = document.getElementById('btnMainWhatsapp');
       const s1 = document.getElementById('secTransport');
       const s2 = document.getElementById('secRouting');
       const s3 = document.getElementById('secKb');
+      const s4 = document.getElementById('secTelegram');
+      const s5 = document.getElementById('secWhatsapp');
 
       const map = {
         transport: { b: b1, s: s1 },
         routing: { b: b2, s: s2 },
         kb: { b: b3, s: s3 },
+        telegram: { b: b4, s: s4 },
+        whatsapp: { b: b5, s: s5 },
       };
       Object.values(map).forEach(x => { x.b?.classList.remove('on'); x.s?.classList.remove('on'); });
       (map[which] || map.transport).b?.classList.add('on');
@@ -1903,4 +2191,5 @@
 
     _smtpWireFieldErrorClearing();
   </script>
+  <script src="{% static 'js/mail-accounts-setup.js' %}"></script>
 {% endblock %}
