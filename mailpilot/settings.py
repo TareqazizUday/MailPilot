@@ -1,4 +1,3 @@
-"""Django settings for Mailpilot — mirrors Flask `email_automation` app behavior."""
 from __future__ import annotations
 
 import json
