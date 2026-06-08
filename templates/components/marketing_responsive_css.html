@@ -1,0 +1,72 @@
+    /* ── Marketing pages: shared responsive ── */
+    .page-head { min-width: 0; }
+    .page-head h1 { line-height: 1.15; word-wrap: break-word; }
+    .page-head .sub { word-break: break-word; }
+
+    @media (max-width: 900px) {
+      .features-grid,
+      .steps,
+      .reviews-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 14px;
+      }
+      .pricing-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        max-width: 1120px;
+        gap: 18px;
+      }
+    }
+    @media (max-width: 600px) {
+      .features-grid,
+      .steps,
+      .reviews-grid,
+      .pricing-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+      }
+      .pricing-grid { max-width: min(440px, 100%); }
+      .feat-card,
+      .step,
+      .reviews-grid .card {
+        padding: 18px 16px;
+      }
+      .page-head h1 { font-size: clamp(1.5rem, 7vw, 2rem); }
+    }
+
+    @media (max-width: 768px) {
+      main.mp-marketing-main,
+      .mp-marketing-wrap {
+        padding-left: 5%;
+        padding-right: 5%;
+      }
+      footer {
+        padding-left: 5%;
+        padding-right: 5%;
+      }
+      .wrap.mp-marketing-wrap .card {
+        padding: 24px 18px;
+        border-radius: 18px;
+      }
+      .wrap.mp-marketing-wrap .card h1 {
+        font-size: clamp(1.45rem, 6vw, 1.85rem);
+      }
+      .wrap.mp-marketing-wrap .card p,
+      .wrap.mp-marketing-wrap .card li {
+        font-size: 0.9rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      main.mp-marketing-main,
+      .mp-marketing-wrap {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      footer {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .wrap.mp-marketing-wrap .card {
+        padding: 20px 14px;
+      }
+    }

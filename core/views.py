@@ -994,17 +994,12 @@ def api_gmail_inbox(request):
         )
         if use_imap_list:
             mb = ImapMailbox(settings=effective)
-<<<<<<< HEAD
-            threads = _annotate_inbox_threads(mb.list_inbox_summaries(max_threads=10), request.user)
-            return JsonResponse({"ok": True, "threads": threads, "source": "imap"})
-=======
             threads = _annotate_inbox_threads(
                 mb.list_inbox_summaries(max_threads=40), request.user, account_id=acc.id
             )
             return JsonResponse(
                 {"ok": True, "threads": threads, "source": "imap", "account_id": acc.id, "email": acc.config_json.get("SMTP_USERNAME")}
             )
->>>>>>> db4612300449d760c9f89b83ac680128d9ff8052
         if g_ok:
             from email_automation.gmail_auth import gmail_oauth_matches_configured
 
@@ -1021,10 +1016,6 @@ def api_gmail_inbox(request):
                     status=400,
                 )
             client = GmailClient(settings=effective)
-<<<<<<< HEAD
-            threads = _annotate_inbox_threads(client.list_inbox_thread_summaries(max_threads=10), request.user)
-            return JsonResponse({"ok": True, "threads": threads, "source": "gmail"})
-=======
             threads = _annotate_inbox_threads(
                 client.list_inbox_thread_summaries(max_threads=40), request.user, account_id=acc.id
             )
@@ -1039,7 +1030,6 @@ def api_gmail_inbox(request):
                     "oauth_email_mismatch": False,
                 }
             )
->>>>>>> db4612300449d760c9f89b83ac680128d9ff8052
         return JsonResponse({"ok": False, "error": "not_connected"}, status=400)
     except Exception as e:
         if is_gmail_rate_limit_error(e):
