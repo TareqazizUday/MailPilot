@@ -22,7 +22,7 @@ _CONFIG_SECRET_KEYS = frozenset({"SMTP_PASSWORD", "IMAP_PASSWORD", "LLM_API_KEY"
 _scheduler: Optional[BackgroundScheduler] = None
 _scheduler_started = False
 _warned_smtp_without_inbox = False
-_gmail_invalid_grant_seen: set[int | None] = set()
+_gmail_invalid_grant_seen: set[tuple[int | None, int | None]] = set()
 _mail_poll_backend: str = "none"
 _mail_poll_interval_sec: Optional[int] = None
 _user_poll_locks: dict[int, threading.Lock] = {}
@@ -83,13 +83,22 @@ def config_store():
     return _config_store
 
 
-def state_store_for_user(user: Optional[User] = None):
-    """Rows scoped by tenant_id = str(user.id)."""
+def state_store_for_user(user: Optional[User] = None, account_id: int | None = None):
+    """Rows scoped by tenant_id = user_id or user_id:account_id."""
     from core.state_store import StateStore
 
     _ensure_imports()
-    tid = str(user.id) if user is not None and getattr(user, "is_authenticated", False) else ""
-    return StateStore(tenant_id=tid)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return StateStore(tenant_id="")
+    if account_id is not None:
+        from core.mail_accounts import tenant_id_for_account
+
+        return StateStore(tenant_id=tenant_id_for_account(user.id, account_id))
+    return StateStore(tenant_id=str(user.id))
+
+
+def state_store_for_account(user: User, account_id: int):
+    return state_store_for_user(user, account_id=account_id)
 
 
 def state_store():
@@ -121,7 +130,7 @@ def settings_field_names() -> set[str]:
     return set(Settings.model_fields.keys())
 
 
-def get_effective_settings(user: Optional[User] = None):
+def get_effective_settings(user: Optional[User] = None, account_id: int | None = None):
     from email_automation.settings import Settings
 
     def _derive_imap_from_smtp(d: dict[str, Any]) -> dict[str, Any]:
@@ -162,7 +171,7 @@ def get_effective_settings(user: Optional[User] = None):
     if user is not None and getattr(user, "is_authenticated", False):
         from core.user_settings import build_effective_settings
 
-        return build_effective_settings(user)
+        return build_effective_settings(user, account_id=account_id)
 
     _ensure_imports()
     overrides = _strip_empty_secret_overrides(config_store().load())
@@ -212,6 +221,13 @@ def _trigger_poll_fn_locked(
     from email_automation.imap_mailbox import imap_inbox_ready
     from email_automation.worker import PollResult, poll_once, poll_once_imap
 
+    from core.mail_accounts import (
+        TRANSPORT_GMAIL,
+        TRANSPORT_SMTP,
+        enabled_accounts_for_active_mode,
+        ensure_legacy_migrated,
+    )
+
     if user_id is not None and user is None:
         from django.contrib.auth.models import User
 
@@ -220,15 +236,34 @@ def _trigger_poll_fn_locked(
         except User.DoesNotExist:
             return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
 
-    effective = get_effective_settings(user)
-    g_ok = gmail_oauth_ready(effective)
-    out_from = (effective.outbound_from_email() or "").strip()
-    # Gmail send uses OAuth "me" when From is unset; do not block poll solely on missing SMTP_FROM.
-    if not out_from and not g_ok:
+    if user is None:
+        effective = get_effective_settings(None)
+        g_ok = gmail_oauth_ready(effective)
+        if not g_ok and effective.SEND_TRANSPORT == "smtp" and not imap_inbox_ready(effective):
+            return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
+        st = state_store_for_user(None)
+        if g_ok:
+            try:
+                return poll_once(
+                    settings=effective,
+                    state_store=st,
+                    gmail_client=GmailClient(settings=effective),
+                )
+            except Exception as e:
+                log.warning("Gmail poll failed: %s", e)
+        if effective.SEND_TRANSPORT == "smtp" and imap_inbox_ready(effective):
+            try:
+                return poll_once_imap(settings=effective, state_store=st, fast=fast)
+            except Exception as e:
+                log.warning("IMAP poll failed: %s", e)
         return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
 
-    st = state_store_for_user(user)
+    ensure_legacy_migrated(user)
+    accounts = enabled_accounts_for_active_mode(user)
+    if not accounts:
+        return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
 
+<<<<<<< HEAD
     # Prefer Gmail API poll when OAuth token exists — matches users who connected Gmail in the UI
     # but still have SEND_TRANSPORT=smtp + derived IMAP from .env (otherwise IMAP branch ran first and skipped Gmail).
     if g_ok:
@@ -253,27 +288,79 @@ def _trigger_poll_fn_locked(
                 log.warning("Gmail poll rate-limited (user_id=%s): %s", uid, e)
             else:
                 log.warning("Gmail poll failed: %s", e)
+=======
+    from core.mail_accounts import all_owner_emails_for_user
 
-    if effective.SEND_TRANSPORT == "smtp" and imap_inbox_ready(effective):
-        try:
-            return poll_once_imap(settings=effective, state_store=st, fast=fast)
-        except Exception as e:
-            log.warning("IMAP poll failed: %s", e)
+    skip_from_emails = frozenset(all_owner_emails_for_user(user))
+    total = PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
+    uid = getattr(user, "id", None)
+>>>>>>> db4612300449d760c9f89b83ac680128d9ff8052
 
-    global _warned_smtp_without_inbox
-    if (
-        effective.SEND_TRANSPORT == "smtp"
-        and not imap_inbox_ready(effective)
-        and not g_ok
-        and not _warned_smtp_without_inbox
-    ):
-        _warned_smtp_without_inbox = True
-        log.warning(
-            "SEND_TRANSPORT=smtp but no usable inbox: configure IMAP (host + user + password, "
-            "same as SMTP) or connect Gmail OAuth. Worker cannot read mail until one of these works."
-        )
+    for acc in accounts:
+        effective = get_effective_settings(user, account_id=acc.id)
+        st = state_store_for_user(user, account_id=acc.id)
+        out_from = (effective.outbound_from_email() or "").strip()
+        g_ok = acc.transport == TRANSPORT_GMAIL and gmail_oauth_ready(effective)
 
-    return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
+        if acc.transport == TRANSPORT_GMAIL:
+            if not g_ok:
+                continue
+            from email_automation.gmail_auth import gmail_oauth_matches_configured
+
+            if not gmail_oauth_matches_configured(effective)[0]:
+                log.warning(
+                    "Skipping Gmail poll: OAuth email does not match mailbox config (user_id=%s account_id=%s)",
+                    uid,
+                    acc.id,
+                )
+                continue
+            try:
+                r = poll_once(
+                    settings=effective,
+                    state_store=st,
+                    gmail_client=GmailClient(settings=effective),
+                    skip_from_emails=skip_from_emails,
+                )
+                total = PollResult(
+                    scanned=total.scanned + r.scanned,
+                    relevant=total.relevant + r.relevant,
+                    sent=total.sent + r.sent,
+                    drafts=total.drafts + r.drafts,
+                    ignored=total.ignored + r.ignored,
+                    queued=total.queued + r.queued,
+                )
+            except Exception as e:
+                from email_automation.gmail_auth import invalidate_gmail_oauth, is_invalid_grant_error
+
+                if is_invalid_grant_error(e):
+                    key = (uid, acc.id)
+                    if key not in _gmail_invalid_grant_seen:
+                        _gmail_invalid_grant_seen.add(key)
+                        invalidate_gmail_oauth(effective, account=acc)
+                        log.warning(
+                            "Gmail OAuth expired (user_id=%s account_id=%s). Reconnect in Setup.",
+                            uid,
+                            acc.id,
+                        )
+                else:
+                    log.warning("Gmail poll failed user=%s account=%s: %s", uid, acc.id, e)
+        elif acc.transport == TRANSPORT_SMTP and imap_inbox_ready(effective):
+            if not out_from and not imap_inbox_ready(effective):
+                continue
+            try:
+                r = poll_once_imap(settings=effective, state_store=st, fast=fast, skip_from_emails=skip_from_emails)
+                total = PollResult(
+                    scanned=total.scanned + r.scanned,
+                    relevant=total.relevant + r.relevant,
+                    sent=total.sent + r.sent,
+                    drafts=total.drafts + r.drafts,
+                    ignored=total.ignored + r.ignored,
+                    queued=total.queued + r.queued,
+                )
+            except Exception as e:
+                log.warning("IMAP poll failed user=%s account=%s: %s", uid, acc.id, e)
+
+    return total
 
 
 def _scheduled_job():
@@ -367,3 +454,25 @@ def ensure_scheduler_started() -> None:
         ensure_imap_idle_watchers()
     except Exception as e:
         log.warning("IMAP IDLE watchers failed to start: %s", e)
+    try:
+        tg_sec = max(3, int(os.environ.get("TELEGRAM_POLL_SECONDS", 5)))
+        _scheduler.add_job(
+            _telegram_poll_job,
+            trigger="interval",
+            seconds=tg_sec,
+            id="telegram_poll_job",
+            max_instances=1,
+            replace_existing=True,
+        )
+        log.info("Telegram inbound poller started (interval=%ss)", tg_sec)
+    except Exception as e:
+        log.warning("Telegram poller failed to start: %s", e)
+
+
+def _telegram_poll_job():
+    try:
+        from core.telegram_bot import poll_all_telegram_inbound
+
+        poll_all_telegram_inbound()
+    except Exception as e:
+        log.warning("Telegram poll job failed: %s", e)

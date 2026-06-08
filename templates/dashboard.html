@@ -5,9 +5,15 @@
 {% block head_extra %}
   <style>
     .dash-card{max-width:1180px;margin:0 auto;width:100%;}
+    @media(min-width:1200px){
+      .dash-card{max-width:1440px;}
+    }
     /* ── Three Column Layout (inside MailPilot card) ── */
     .tri{display:grid;grid-template-columns:280px 1fr 380px;gap:12px;min-height:560px}
-    @media(max-width:1100px){.tri{grid-template-columns:220px 1fr 300px}}
+    @media(min-width:1200px){
+      .tri{grid-template-columns:360px minmax(0,1fr) 460px;gap:14px;min-height:620px}
+    }
+    @media(max-width:1100px){.tri{grid-template-columns:240px 1fr 320px}}
     @media(max-width:900px){.tri{grid-template-columns:1fr;min-height:auto}.tri .pnl{min-height:320px}}
 
     /* ── Panel ── */
@@ -126,6 +132,7 @@
     .sb.pe{background:rgba(99,102,241,.08);color:var(--info);border:1px solid rgba(99,102,241,.15)}
     .sb.dn{background:rgba(16,185,129,.08);color:var(--grn-l);border:1px solid rgba(16,185,129,.15)}
     .sb.rj{background:rgba(248,113,113,.08);color:var(--red);border:1px solid rgba(248,113,113,.15)}
+    .sb.er{background:rgba(251,191,36,.08);color:#fbbf24;border:1px solid rgba(251,191,36,.2)}
 
   </style>
 {% endblock %}
@@ -153,6 +160,11 @@
       <div class="pnl-hd">
         <span class="pnl-t">Messages</span>
         <span class="pnl-badge" id="msgCnt">—</span>
+      </div>
+      <div style="padding:8px 14px;border-bottom:1px solid var(--bdr);">
+        <label class="small" for="dashAccountSelect" style="display:block;margin-bottom:4px;color:var(--txm);">Multiple Mailbox</label>
+        <select id="dashAccountSelect" class="fi" style="width:100%;font-size:12px;padding:6px 8px;" aria-label="Select mailbox"></select>
+        <div class="small" id="dashAccountViewing" style="margin-top:6px;color:var(--txm);line-height:1.4;"></div>
       </div>
       <div class="msg-search">
         <div class="msg-si">
@@ -327,8 +339,32 @@
       btn.innerHTML = '<i class="fa-solid fa-plug-circle-xmark" aria-hidden="true"></i> Connect mailbox on Setup';
     }
 
+    function queueStatusLabel(status){
+      const s = (status || 'pending').toLowerCase();
+      if(s === 'completed' || s === 'done' || s === 'sent') return 'Completed';
+      if(s === 'reject') return 'Reject';
+      if(s === 'error') return 'Error';
+      if(s === 'draft') return 'Draft';
+      if(s === 'pending' || s === 'processing') return 'Pending';
+      return s ? (s.charAt(0).toUpperCase() + s.slice(1)) : 'Pending';
+    }
+
+    function queueStatusClass(status){
+      const s = (status || 'pending').toLowerCase();
+      if(s === 'completed' || s === 'done' || s === 'sent') return 'dn';
+      if(s === 'reject') return 'rj';
+      if(s === 'error') return 'er';
+      return 'pe';
+    }
+
+    function queueRowId(it){
+      const raw = String(it.id || it.message_id || '').trim();
+      if(!raw) return '—';
+      return raw.length > 14 ? raw.slice(0, 12) + '…' : raw;
+    }
+
     async function apiGetPending(){
-      const res = await fetch('/api/pending');
+      const res = await fetch('/api/pending' + dashAccountQuery());
       return await res.json();
     }
 
@@ -344,45 +380,54 @@
         }
         const items = j.items || [];
         const body = document.getElementById('pendingBody');
+        const sel = document.getElementById('dashAccountSelect');
+        const mbLabel = (sel && sel.selectedOptions && sel.selectedOptions[0])
+          ? sel.selectedOptions[0].textContent.replace(/\s*—\s*not connected\s*$/i, '').replace(/\s*—\s*wrong Google account\s*$/i, '').trim()
+          : 'this mailbox';
         const activeCount = items.filter(it => {
           const s = (it.status || 'pending').toLowerCase();
-          return s !== 'completed' && s !== 'done' && s !== 'reject';
+          return s !== 'completed' && s !== 'done' && s !== 'sent' && s !== 'reject';
         }).length;
         if(items.length === 0){
-          body.innerHTML = '<tr><td colspan="4" class="small" style="padding: 12px 11px;">Nothing waiting</td></tr>';
+          body.innerHTML = '<tr><td colspan="4" class="small" style="padding: 12px 11px;">No queue activity for this mailbox yet</td></tr>';
           info.textContent = '0';
-          if(hint) hint.textContent = 'Recent automation activity (sent, errors, or completed).';
+          if(hint) hint.textContent = 'Queue for ' + mbLabel + ' — sent replies show Completed; filtered mail shows Reject.';
           const qc = document.getElementById('qCnt'); if(qc) qc.textContent = '0';
           const pi = document.getElementById('pInfo'); if(pi) pi.textContent = '0 items in queue';
           return;
         }
         body.innerHTML = items.map(it => {
           const status = (it.status || 'pending').toLowerCase();
-          const isDone = status === 'completed' || status === 'done';
+          const isDone = status === 'completed' || status === 'done' || status === 'sent';
           const isReject = status === 'reject';
-          const cls = isDone ? 'dn' : (isReject ? 'rj' : 'pe');
-          const label = isReject ? 'Reject' : (status[0].toUpperCase() + status.slice(1));
+          const cls = queueStatusClass(status);
+          const label = queueStatusLabel(status);
           const reason = (it.reason || '').toLowerCase();
           const rbClass = reason.includes('approval') ? 'ap' : (reason.includes('risk') || reason.includes('keyword')) ? 'rk' : 'ar';
           const rbLabel = it.reason || 'auto_reply';
+          const rowId = queueRowId(it);
+          const from = (it.from_email || '').trim() || '—';
           return (
             `<tr>
-              <td><span class="qt-id">#${it.id}</span></td>
-              <td><span class="qt-fr" title="${attrEsc(it.from_email || '—')}">${esc(it.from_email || '—')}</span></td>
+              <td><span class="qt-id" title="${attrEsc(it.message_id || it.id || '')}">${esc(rowId)}</span></td>
+              <td><span class="qt-fr" title="${attrEsc(from)}">${esc(from)}</span></td>
               <td><span class="rb ${rbClass}">${esc(rbLabel)}</span></td>
               <td><span class="sb ${cls}">${esc(label)}</span></td>
             </tr>`
           );
         }).join('');
-        info.textContent = String(activeCount);
+        info.textContent = String(items.length);
         if(hint){
-          hint.textContent = activeCount > 0
-            ? 'These need a decision before sending.'
-            : 'Below is recent activity (sent / queued / ignored). Draft mode saves replies in the thread view.';
+          hint.textContent = 'Queue for ' + mbLabel + ' — '
+            + items.length + ' item(s). Sent → Completed · Rejected → Reject.';
         }
-        const qc = document.getElementById('qCnt'); if(qc) qc.textContent = String(activeCount);
+        const qc = document.getElementById('qCnt'); if(qc) qc.textContent = String(items.length);
         const pi = document.getElementById('pInfo');
-        if(pi) pi.textContent = activeCount > 0 ? (activeCount + ' items in queue') : ('0 pending · ' + items.length + ' recent');
+        if(pi){
+          pi.textContent = activeCount > 0
+            ? (activeCount + ' pending · ' + items.length + ' total for mailbox')
+            : (items.length + ' item(s) in queue for selected mailbox');
+        }
       }catch(e){
         info.textContent = 'Could not load';
         if(hint) hint.textContent = 'Network error. Try again.';
@@ -434,7 +479,7 @@
 
     async function refreshGmailConnection(){
       try{
-        const res = await fetch('/api/gmail/connection-status');
+        const res = await fetch('/api/gmail/connection-status' + dashAccountQuery());
         const j = await res.json();
         const badge = document.getElementById('gmailConnectedBadge');
         const hint = document.getElementById('gmailTokenHint');
@@ -519,17 +564,140 @@
       return m ? decodeURIComponent(m[1]) : null;
     }
     let activeTid = null;
+    let _dashAccountId = sessionStorage.getItem('mailpilot_account_id') || '';
+
+    function dashAccountQuery(){
+      return _dashAccountId ? ('?account_id=' + encodeURIComponent(_dashAccountId)) : '';
+    }
+
+    function inboxReadyAccount(a){
+      if(!a || !a.is_enabled) return false;
+      if(a.oauth_email_mismatch) return false;
+      if(typeof a.inbox_ready === 'boolean') return a.inbox_ready;
+      return a.transport === 'gmail_api' ? !!a.gmail_inbox_ready : !!a.imap_ready;
+    }
+
+    function inboxErrorMessage(err, j){
+      const e = String(err || '').trim();
+      if(e === 'not_connected'){
+        return 'This mailbox is not connected. Open Setup, add credentials.json, and Connect OAuth for this address.';
+      }
+      if(e === 'oauth_email_mismatch'){
+        const cfg = (j && j.email) ? j.email : 'this mailbox';
+        const prof = (j && j.profile_email) ? j.profile_email : 'another account';
+        return 'Wrong Google account connected for ' + cfg + '. OAuth is signed in as ' + prof + '. Disconnect on Setup and Connect OAuth again using ' + cfg + '.';
+      }
+      if(e.includes('429') || /rate limit/i.test(e)){
+        return 'Gmail rate limit — wait a few minutes, then select this mailbox again.';
+      }
+      return e || 'Could not load inbox';
+    }
+
+    function updateDashAccountViewing(){
+      const sel = document.getElementById('dashAccountSelect');
+      const viewing = document.getElementById('dashAccountViewing');
+      if(!sel || !viewing) return;
+      const opt = sel.selectedOptions && sel.selectedOptions[0];
+      if(opt){
+        viewing.textContent = 'Viewing inbox for ' + (opt.textContent || 'mailbox').replace(/\s*—\s*not connected\s*$/i, '');
+      }
+    }
+
+    function resetReadingPane(){
+      activeTid = null;
+      const base = location.pathname + location.search;
+      if(location.hash) history.replaceState(null, '', base);
+      const rpE = document.getElementById('rpE');
+      const rpF = document.getElementById('rpF');
+      const panel = document.getElementById('threadDetail');
+      const hint = document.getElementById('threadDetailHint');
+      if(rpF) rpF.classList.remove('on');
+      if(rpE) rpE.style.display = 'flex';
+      if(panel) panel.innerHTML = '';
+      if(hint) hint.textContent = '';
+    }
+
+    function clearInboxUi(){
+      renderThreadRows([]);
+      const cnt = document.getElementById('msgCnt');
+      if(cnt) cnt.textContent = '—';
+      resetReadingPane();
+    }
+
+    async function switchMailbox(){
+      const sel = document.getElementById('dashAccountSelect');
+      _dashAccountId = (sel && sel.value) ? sel.value : '';
+      sessionStorage.setItem('mailpilot_account_id', _dashAccountId);
+      updateDashAccountViewing();
+      clearInboxUi();
+      await loadInbox();
+      await refreshGmailConnection();
+      await refreshPending();
+    }
+
+    async function loadDashAccounts(){
+      const sel = document.getElementById('dashAccountSelect');
+      const viewing = document.getElementById('dashAccountViewing');
+      if(!sel) return;
+      try{
+        const res = await fetch('/api/mail-accounts/');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok) return;
+        const accounts = (j.accounts || []).filter(a => a.is_enabled);
+        sel.innerHTML = '';
+        accounts.forEach(a => {
+          const opt = document.createElement('option');
+          opt.value = a.id;
+          const label = a.email || a.label || ('Slot ' + a.slot);
+          const kind = a.transport === 'gmail_api' ? ' (Gmail)' : ' (SMTP)';
+          const ready = inboxReadyAccount(a);
+          let suffix = ready ? '' : ' — not connected';
+          if(a.oauth_email_mismatch) suffix = ' — wrong Google account';
+          opt.textContent = label + kind + suffix;
+          opt.dataset.inboxReady = ready ? '1' : '0';
+          sel.appendChild(opt);
+        });
+        if(accounts.length){
+          const stored = _dashAccountId && accounts.some(a => String(a.id) === String(_dashAccountId));
+          const preferred = accounts.find(a => inboxReadyAccount(a));
+          _dashAccountId = stored ? _dashAccountId : String((preferred || accounts[0]).id);
+          sel.value = _dashAccountId;
+          sessionStorage.setItem('mailpilot_account_id', _dashAccountId);
+          updateDashAccountViewing();
+        }else if(viewing){
+          viewing.textContent = 'No active mailboxes — enable one on Setup.';
+        }
+        if(!sel.dataset.changeBound){
+          sel.dataset.changeBound = '1';
+          sel.onchange = () => { switchMailbox(); };
+        }
+      }catch(e){ /* ignore */ }
+    }
+
     async function loadInbox(){
       const hint = document.getElementById('inboxListHint');
       const list = document.getElementById('threadList');
+      const sel = document.getElementById('dashAccountSelect');
       if(!hint || !list) return;
-      hint.textContent = 'Loading your inbox…';
+      const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
+      if(opt && opt.dataset.inboxReady === '0'){
+        clearInboxUi();
+        hint.textContent = 'This mailbox is not connected — connect it on Setup first.';
+        return;
+      }
+      hint.textContent = 'Loading inbox…';
+      renderThreadRows([]);
       try{
-        const res = await fetch('/api/gmail/inbox');
+        const res = await fetch('/api/gmail/inbox' + dashAccountQuery());
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
-          hint.textContent = j.error || 'Could not load inbox';
+          clearInboxUi();
+          hint.textContent = inboxErrorMessage(j.error, j);
           return;
+        }
+        if(j.email){
+          const viewing = document.getElementById('dashAccountViewing');
+          if(viewing) viewing.textContent = 'Viewing inbox for ' + j.email;
         }
         const threads = j.threads || [];
         if(threads.length === 0){
@@ -537,7 +705,8 @@
           renderThreadRows([]);
           return;
         }
-        hint.textContent = threads.length + ' messages';
+        hint.textContent = threads.length + ' message' + (threads.length === 1 ? '' : 's');
+        refreshPending();
         renderThreadRows(threads.map(t => {
           const from = (t.from || '').trim();
           const sj = (t.subject || '').trim();
@@ -566,6 +735,7 @@
           if(match) selectThread(wanted, { focusEl: match, skipHash: true });
         }
       }catch(e){
+        clearInboxUi();
         hint.textContent = 'Could not load inbox.';
       }
     }
@@ -602,7 +772,7 @@
       }
 
       try{
-        const res = await fetch('/api/gmail/threads/' + encodeURIComponent(threadId));
+        const res = await fetch('/api/gmail/threads/' + encodeURIComponent(threadId) + dashAccountQuery());
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
           rpF.classList.remove('on');
@@ -611,12 +781,12 @@
           return;
         }
         const msgs = j.messages || [];
-        const subj = (msgs.length && (msgs[msgs.length - 1].subject || msgs[0].subject)) ? (msgs[msgs.length - 1].subject || msgs[0].subject) : '(No subject)';
-        const top = msgs.length ? msgs[msgs.length - 1] : null;
-        const from = top?.from || (msgs[0]?.from || '');
+        const inboundFirst = msgs.find(m => !m.is_from_me) || msgs[0];
+        const subj = (inboundFirst?.subject || msgs[0]?.subject || '(No subject)').replace(/^re:\s*/i, '').trim() || '(No subject)';
+        const from = inboundFirst?.from || (msgs[0]?.from || '');
         const fromName = (from || '').replace(/\s*<.*?>/, '').trim();
-        const fromEmail = (from || '').match(/<([^>]+)>/)?.[1] || '';
-        const dt = fmtTs(top?.internal_date || msgs[0]?.internal_date);
+        const fromEmail = (from || '').match(/<([^>]+)>/)?.[1] || from || '';
+        const dt = fmtTs(inboundFirst?.internal_date || msgs[0]?.internal_date);
 
         rpS.textContent = subj;
         rpA.textContent = (fromName || fromEmail || '—').slice(0,1).toUpperCase();
@@ -624,16 +794,16 @@
         rpM.textContent = fromEmail || from || '';
         rpD.textContent = dt;
 
-        hint.textContent = '';
+        hint.textContent = msgs.length > 1 ? (msgs.length + ' messages in thread') : '';
         const ordered = [...msgs].sort((a, b) => (a.internal_date || 0) - (b.internal_date || 0));
         panel.innerHTML = ordered.map(m => {
           const rawBody = (m.body_text || '').trim();
           const fallback = (!rawBody && (m.snippet || '')) ? ('Preview: ' + m.snippet) : (rawBody || m.snippet || '(No content)');
           const mine = !!m.is_from_me;
           const who = mine ? 'You' : ((m.from || '').replace(/\s*<.*?>/, '').trim() || 'Contact');
-          const whoEmail = m.from || '';
+          const whoEmail = mine ? (m.from || '') : (m.from || '');
           const cls = mine ? 'rp-msg rp-msg--reply' : 'rp-msg';
-          const lbl = mine ? '<div class="rp-msg-lbl">Your reply</div>' : '';
+          const lbl = mine ? '<div class="rp-msg-lbl">Your reply</div>' : '<div class="rp-msg-lbl">Incoming</div>';
           return (
             `<div class="${cls}">
               ${lbl}
@@ -676,11 +846,19 @@
 
     async function refreshDashboard(){
       await refreshStatus();
+      await loadDashAccounts();
       await refreshGmailConnection();
       await refreshPending();
     }
-    refreshDashboard();
+    async function initDashboard(){
+      await refreshDashboard();
+      {% if inbox_ready %}await loadInbox();{% endif %}
+    }
+    initDashboard();
     setInterval(refreshDashboard, 30000);
+    {% if inbox_ready %}
+    setInterval(() => { loadInbox(); }, 120000);
+    {% endif %}
 
     maybeScrollFromView();
     document.getElementById('msgQ')?.addEventListener('input', filterMsg);
@@ -693,11 +871,7 @@
         selectThread(el.getAttribute('data-tid'), { focusEl: el });
       });
     }
-    {% if inbox_ready %}
-      loadInbox();
-      // Auto-refresh inbox without page reload.
-      setInterval(() => { loadInbox(); }, 120000);
-    {% else %}
+    {% if not inbox_ready %}
       const inh = document.getElementById('inboxListHint');
       if(inh) inh.textContent = 'Connect Gmail or configure IMAP (Setup) to load messages.';
     {% endif %}
