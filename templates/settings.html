@@ -4,32 +4,32 @@
 
 {% block content %}
   <style>
-    .set-wrap{max-width:980px;margin:0 auto;}
-    .set-grid{display:grid;grid-template-columns:1fr 320px;gap:0;}
-    .set-main{padding:28px 32px;border-right:1px solid var(--glass-border);}
-    .set-side{padding:24px;}
-    @media(max-width:900px){
+    .set-wrap{max-width:980px;margin:0 auto;width:100%;}
+    .set-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:0;align-items:start;min-width:0;}
+    .set-main{padding:clamp(18px,3vw,28px) clamp(16px,3vw,32px);border-right:1px solid var(--glass-border);min-width:0;}
+    .set-side{padding:clamp(18px,2.5vw,24px);min-width:0;}
+    @media(max-width:1024px){
       .set-grid{grid-template-columns:1fr;}
       .set-main{border-right:none;border-bottom:1px solid var(--glass-border);}
     }
 
-    .msg{padding:10px 12px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);font-size:0.88rem;margin-bottom:12px;}
+    .msg{padding:10px 12px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);font-size:0.88rem;margin-bottom:12px;word-break:break-word;}
     .msg.ok{border-color:rgba(74,222,128,0.25);background:rgba(74,222,128,0.08);color:#bbf7d0;}
     .msg.bad{border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.08);color:#fecaca;}
 
     .h{font-weight:900;font-size:1.05rem;letter-spacing:-.01em;margin-bottom:6px;}
     .sub{font-size:0.82rem;color:rgba(148,163,184,0.82);line-height:1.55;margin-bottom:18px;}
 
-    .sec{border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.02);border-radius:14px;padding:18px;}
+    .sec{border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.02);border-radius:14px;padding:18px;min-width:0;}
     .sec + .sec{margin-top:14px;}
-    .sec-title{display:flex;align-items:center;gap:10px;font-weight:900;margin-bottom:12px;}
+    .sec-title{display:flex;align-items:center;gap:10px;font-weight:900;margin-bottom:12px;flex-wrap:wrap;}
     .sec-title i{color:rgba(148,163,184,0.9);}
 
-    .field{margin-bottom:16px;}
+    .field{margin-bottom:16px;min-width:0;}
     .label{font-size:0.75rem;font-weight:850;text-transform:uppercase;letter-spacing:0.5px;color:rgba(148,163,184,0.9);margin-bottom:10px;display:block;}
-    .input{width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:var(--font);outline:none;}
+    .input{width:100%;max-width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:var(--font);outline:none;box-sizing:border-box;}
     .input:focus{border-color:rgba(79,110,247,0.6);background:rgba(79,110,247,0.06);box-shadow:0 0 0 3px rgba(79,110,247,0.1);}
-    .help{font-size:0.78rem;color:rgba(148,163,184,0.82);margin-top:8px;line-height:1.5;}
+    .help{font-size:0.78rem;color:rgba(148,163,184,0.82);margin-top:8px;line-height:1.5;word-break:break-word;}
 
     .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;}
     .btn-primary2{
@@ -37,7 +37,7 @@
       background:linear-gradient(135deg,#4f6ef7,#a78bfa);
       color:#fff;font-weight:800;cursor:pointer;
       box-shadow:0 6px 22px rgba(79,110,247,0.35);
-      display:inline-flex;align-items:center;gap:8px;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
       font-family:'Inter',sans-serif;
     }
     .btn-primary2:hover{transform:translateY(-1px);}
@@ -47,16 +47,40 @@
       border:1px solid rgba(255,255,255,0.10);
       color:rgba(226,232,240,0.92);
       font-weight:800;cursor:pointer;
-      display:inline-flex;align-items:center;gap:8px;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
       text-decoration:none;
       font-family:'Inter',sans-serif;
     }
     .btn-soft:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.08);}
 
     .side-card{background:rgba(79,110,247,0.05);border:1px solid rgba(79,110,247,0.15);border-radius:14px;padding:18px;}
-    .side-title{font-size:0.9rem;font-weight:900;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
-    .side-desc{font-size:0.82rem;color:rgba(148,163,184,0.85);line-height:1.65;}
+    .side-card + .side-card{margin-top:12px;}
+    .side-title{font-size:0.9rem;font-weight:900;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .side-desc{font-size:0.82rem;color:rgba(148,163,184,0.85);line-height:1.65;word-break:break-word;}
     .side-desc a{color:#c4b5fd;text-decoration:none;}
+
+    .set-wrap .setup-card{width:100%;overflow-x:clip;}
+
+    @media(max-width:768px){
+      body .main-wrap{padding:20px 12px 56px;}
+      .set-wrap .setup-card{border-radius:16px;}
+      .set-wrap .setup-card-header{padding:20px 16px 16px;}
+      .set-wrap .setup-card-title{font-size:1.1rem;}
+      .set-wrap .setup-card-sub{font-size:0.82rem;}
+      .set-main,.set-side{padding:18px 14px;}
+      .sec{padding:14px;}
+      .btn-row{flex-direction:column;align-items:stretch;}
+      .btn-row .btn-primary2,.btn-row .btn-soft{width:100%;}
+      .input{font-size:16px;}
+      .btn-primary2,.btn-soft{min-height:44px;}
+    }
+    @media(max-width:480px){
+      body .main-wrap{padding:16px 10px 48px;}
+      .set-wrap .setup-card-header{padding:16px 14px 14px;}
+      .set-main,.set-side{padding:14px 12px;}
+      .sec{border-radius:12px;padding:12px;}
+      .side-card{padding:14px;}
+    }
   </style>
 
   <div class="set-wrap">
@@ -116,7 +140,6 @@
               Use a unique password and keep your device secure. If you think your account is compromised, change your password immediately.
             </div>
           </div>
-          <div style="height:12px"></div>
           <div class="side-card">
             <div class="side-title"><i class="fa-solid fa-gear" aria-hidden="true"></i> Automation settings</div>
             <div class="side-desc">

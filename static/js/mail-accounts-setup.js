@@ -357,17 +357,15 @@
       '<input class="fi smtp-pass" type="password" autocomplete="new-password" placeholder="' +
       attrEsc(passPh) +
       '"></div></div>' +
-      '<div class="row2"><div class="fg"><label class="fl">From (optional)</label>' +
+      '<div class="fg"><label class="fl">From (optional)</label>' +
       '<input class="fi smtp-from" value="' +
       esc(c.SMTP_FROM_EMAIL || '') +
       '"></div>' +
+      '<div class="oauth-h" style="margin-top:12px;margin-bottom:8px;">IMAP (read inbox)</div>' +
       '<div class="fg"><label class="fl">IMAP host (optional)</label>' +
       '<input class="fi imap-host" value="' +
       esc(c.IMAP_HOST || '') +
-      '" placeholder="imap.example.com"></div></div>' +
-      '<div class="oauth-box tighter mb-imap-box" style="margin-top:10px;">' +
-      '<div class="oauth-h">IMAP (read inbox)</div>' +
-      '<p class="oauth-txt" style="margin:0 0 10px;">Leave IMAP host empty to derive <code>imap.&lt;domain&gt;</code> from SMTP host (e.g. <code>smtp.timerni.com</code> → <code>imap.timerni.com</code>). Uses the same username/password as SMTP.</p>' +
+      '" placeholder="imap.example.com"></div>' +
       '<div class="row2"><div class="fg"><label class="fl">IMAP port</label>' +
       '<input class="fi imap-port" type="number" min="1" max="65535" value="' +
       (c.IMAP_PORT || 993) +
@@ -379,7 +377,7 @@
       '<div class="fg" style="margin-bottom:0;"><label class="fl">IMAP TLS name (optional)</label>' +
       '<input class="fi imap-tls-name" value="' +
       esc(c.IMAP_TLS_SERVERNAME || '') +
-      '" placeholder="timerni.com"></div></div>'
+      '" placeholder="timerni.com"></div>'
     );
   }
 

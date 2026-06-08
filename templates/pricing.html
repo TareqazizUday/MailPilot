@@ -243,12 +243,9 @@
     {% include "components/footer_css.html" %}
 
     @media (max-width: 1100px) {
-      .pricing-grid { grid-template-columns: 1fr; max-width: min(480px, 100%); gap: 28px; }
       .pricing-head-row { justify-content: center; text-align: center; }
     }
     @media (max-width: 768px) {
-      .nav-links { display: none; }
-      main { padding: 100px 5% 40px; }
       .pricing-grid { margin-top: 36px; }
       .pricing-card { padding: 24px 18px 22px; }
       .pricing-card.is-active { animation: none; transform: none; }
