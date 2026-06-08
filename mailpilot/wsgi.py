@@ -16,4 +16,14 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mailpilot.settings")
 
 from django.core.wsgi import get_wsgi_application  # noqa: E402
 
-application = get_wsgi_application()
+_django_application = get_wsgi_application()
+
+
+def application(environ, start_response):
+    """IIS terminates HTTPS and proxies HTTP to Waitress; inject forwarded headers when configured."""
+    if (os.environ.get("DJANGO_BEHIND_HTTPS_PROXY") or "").strip().lower() in ("1", "true", "yes"):
+        if not environ.get("HTTP_X_FORWARDED_PROTO"):
+            environ["HTTP_X_FORWARDED_PROTO"] = "https"
+        if not environ.get("HTTP_X_FORWARDED_HOST") and environ.get("HTTP_HOST"):
+            environ["HTTP_X_FORWARDED_HOST"] = environ["HTTP_HOST"]
+    return _django_application(environ, start_response)
