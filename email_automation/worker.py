@@ -286,6 +286,9 @@ def poll_once(
         tid = str(t.get("thread_id") or "")
         if not tid:
             continue
+        mid = str(t.get("message_id") or "")
+        if mid and state_store.get_processed_meta(mid) is not None:
+            continue
         det = gmail_client.get_thread_for_ui(tid)
         msgs = det.get("messages") or []
         if not msgs:

@@ -59,15 +59,19 @@
     .orb2{width:400px;height:400px;background:rgba(167,139,250,0.08);bottom:-100px;right:-100px;}
 
     /* NAVBAR */
-    nav{
+    nav.mp-app-nav{
       position:fixed;top:0;left:0;right:0;z-index:100;
-      display:flex;align-items:center;justify-content:space-between;
-      padding:0 32px; height:56px;
+      display:flex;flex-direction:column;
+      padding:0;
       background:rgba(6,8,24,0.85);
       backdrop-filter:blur(20px);
       border-bottom:1px solid var(--glass-border);
     }
-    .nav-left{display:flex;align-items:center;gap:36px;min-width:0;}
+    .mp-app-nav-bar{
+      display:flex;align-items:center;justify-content:space-between;
+      gap:12px;min-height:56px;padding:0 clamp(12px,4vw,32px);width:100%;
+    }
+    .nav-left{display:flex;align-items:center;gap:clamp(12px,3vw,36px);min-width:0;}
     .nav-logo{
       display:flex;align-items:center;gap:6px;
       font-size:1rem;font-weight:800;
@@ -92,7 +96,27 @@
       border-bottom:2px solid var(--accent);
       border-radius:0;padding-bottom:4px;background:transparent;
     }
-    .nav-right{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+    .nav-right{display:flex;align-items:center;gap:12px;flex-shrink:0;margin-left:auto;}
+    .mp-app-nav-toggle{
+      display:none;align-items:center;justify-content:center;
+      width:40px;height:40px;padding:0;border-radius:10px;
+      border:1px solid var(--glass-border);
+      background:rgba(255,255,255,0.04);color:var(--text);cursor:pointer;
+      flex-shrink:0;
+    }
+    .mp-app-nav-toggle:hover{background:rgba(79,110,247,0.1);}
+    .mp-app-nav-drawer{
+      display:none;flex-direction:column;gap:4px;
+      padding:10px clamp(12px,4vw,32px) 16px;
+      border-top:1px solid var(--glass-border);
+      background:rgba(6,8,24,0.96);
+    }
+    .mp-app-nav-open .mp-app-nav-drawer{display:flex;}
+    .mp-app-nav-drawer .nav-link{
+      display:block;padding:10px 12px;border-radius:10px;
+      border-bottom:none;
+    }
+    .mp-app-nav-drawer .connected-badge{padding:10px 12px;}
     .connected-badge{display:flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:600;color:var(--muted);}
     .connected-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;animation:pulse-dot 2s infinite;}
     .logout-btn{
@@ -106,12 +130,12 @@
     /* Account dropdown (Profile + Settings + Logout) */
     .acct{position:relative;display:flex;align-items:center;}
     .acct-btn{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:6px 12px;border-radius:10px;
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:4px;border-radius:999px;
       background:rgba(255,255,255,0.03);
       border:1px solid var(--glass-border);
-      color:var(--text);font-size:0.82rem;font-weight:650;
-      cursor:pointer;transition:background .2s,border-color .2s;
+      color:var(--text);
+      cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s;
       font-family:'Inter',sans-serif;
     }
     .acct-btn:hover{background:rgba(79,110,247,0.08);border-color:rgba(79,110,247,0.22);}
@@ -121,7 +145,7 @@
       box-shadow:0 0 0 2px rgba(79,110,247,0.10);
     }
     .acct-ico{
-      width:24px;height:24px;border-radius:999px;
+      width:32px;height:32px;border-radius:999px;
       display:flex;align-items:center;justify-content:center;
       background:rgba(79,110,247,0.12);
       border:1px solid rgba(79,110,247,0.18);
@@ -253,12 +277,23 @@
     .aside-desc strong{color:var(--text);}
 
     @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.6;transform:scale(1.3);}}
+    .sr-only{
+      position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+      overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+    }
+    body.mp-app-nav-menu-open{overflow:hidden;}
 
     @media(max-width:900px){
+      .mp-app-nav-bar > .nav-left > .nav-links,
+      .mp-app-nav-bar .connected-badge{display:none!important;}
+      .mp-app-nav-toggle{display:inline-flex;}
       .content-grid{grid-template-columns:1fr;}
       .content-main{border-right:none;border-bottom:1px solid var(--glass-border);}
       .main-wrap{padding:24px 16px 64px;}
       .tab-bar{grid-template-columns:1fr;}
+    }
+    @media(max-width:520px){
+      .connected-badge .conn-label{display:none;}
     }
   </style>
   {% block head_extra %}{% endblock %}
@@ -268,57 +303,74 @@
   <div class="orb orb2" aria-hidden="true"></div>
   <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
-  <nav aria-label="Primary">
-    <div class="nav-left">
-      <a href="{% url 'home' %}" class="nav-logo" aria-label="MailPilot home">
-        {% include "components/brand_logo.html" with logo_w=26 logo_h=26 %}<span class="nav-logo-text">MailPilot</span>
-      </a>
-      <div class="nav-links">
-        <a href="{% url 'setup' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'setup' %} active{% endif %}">Setup</a>
-        <a href="{% url 'dashboard' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'dashboard' %} active{% endif %}">Dashboard</a>
-      </div>
-    </div>
-    <div class="nav-right">
-      <div class="connected-badge" id="navConnStatus">
-        {% if connected %}
-          <span class="connected-dot" aria-hidden="true"></span> Connected
-        {% else %}
-          Not connected
-        {% endif %}
-      </div>
-      {% if user.is_authenticated %}
-      <div class="acct" id="acctMenu">
-        <button class="acct-btn{% if request.resolver_match and request.resolver_match.url_name == 'profile' %} active{% endif %}" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false">
-          <span class="acct-ico" aria-hidden="true">
-            {% if nav_avatar_url %}
-              <img src="{{ nav_avatar_url }}" alt="" loading="lazy" decoding="async"/>
-            {% else %}
-              <i class="fa-regular fa-user"></i>
-            {% endif %}
-          </span>
-          Profile
-          <i class="fa-solid fa-chevron-down" aria-hidden="true" style="font-size:12px;color:rgba(148,163,184,0.9)"></i>
-        </button>
-        <div class="acct-dd" id="acctDd" role="menu" aria-label="Profile menu">
-          <a class="acct-item" href="{% url 'profile' %}" role="menuitem">
-            <i class="fa-regular fa-id-badge" aria-hidden="true"></i>
-            Profile details
-          </a>
-          <a class="acct-item" href="{% url 'settings' %}" role="menuitem">
-            <i class="fa-solid fa-gear" aria-hidden="true"></i>
-            Settings
-          </a>
-          <div class="acct-sep" aria-hidden="true"></div>
-          <form action="{% url 'logout' %}" method="post" style="margin:0;">
-            {% csrf_token %}
-            <button class="acct-item acct-logout" type="submit" role="menuitem">
-              <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
-              Log out
-            </button>
-          </form>
+  <nav class="mp-app-nav" id="mpAppNav" aria-label="Primary">
+    <div class="mp-app-nav-bar">
+      <div class="nav-left">
+        <a href="{% url 'home' %}" class="nav-logo" aria-label="MailPilot home">
+          {% include "components/brand_logo.html" with logo_w=26 logo_h=26 %}<span class="nav-logo-text">MailPilot</span>
+        </a>
+        <div class="nav-links">
+          <a href="{% url 'setup' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'setup' %} active{% endif %}">Setup</a>
+          <a href="{% url 'dashboard' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'dashboard' %} active{% endif %}">Dashboard</a>
         </div>
       </div>
-      {% endif %}
+      <div class="nav-right">
+        <div class="connected-badge" id="navConnStatus">
+          {% if connected %}
+            <span class="connected-dot" aria-hidden="true"></span>
+            <span class="conn-label">Connected</span>
+          {% else %}
+            <span class="conn-label">Not connected</span>
+          {% endif %}
+        </div>
+        {% if user.is_authenticated %}
+        <div class="acct" id="acctMenu">
+          <button class="acct-btn{% if request.resolver_match and request.resolver_match.url_name == 'profile' %} active{% endif %}" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Profile menu" title="Profile">
+            <span class="acct-ico" aria-hidden="true">
+              {% if nav_avatar_url %}
+                <img src="{{ nav_avatar_url }}" alt="" loading="lazy" decoding="async"/>
+              {% else %}
+                <i class="fa-regular fa-user"></i>
+              {% endif %}
+            </span>
+          </button>
+          <div class="acct-dd" id="acctDd" role="menu" aria-label="Profile menu">
+            <a class="acct-item" href="{% url 'profile' %}" role="menuitem">
+              <i class="fa-regular fa-id-badge" aria-hidden="true"></i>
+              Profile details
+            </a>
+            <a class="acct-item" href="{% url 'settings' %}" role="menuitem">
+              <i class="fa-solid fa-gear" aria-hidden="true"></i>
+              Settings
+            </a>
+            <div class="acct-sep" aria-hidden="true"></div>
+            <form action="{% url 'logout' %}" method="post" style="margin:0;">
+              {% csrf_token %}
+              <button class="acct-item acct-logout" type="submit" role="menuitem">
+                <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+                Log out
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
+        <button type="button" class="mp-app-nav-toggle" id="mpAppNavToggle" aria-expanded="false" aria-controls="mpAppNavDrawer">
+          <i class="fa-solid fa-bars" aria-hidden="true"></i>
+          <span class="sr-only">Menu</span>
+        </button>
+      </div>
+    </div>
+    <div class="mp-app-nav-drawer" id="mpAppNavDrawer" hidden>
+      <a href="{% url 'setup' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'setup' %} active{% endif %}">Setup</a>
+      <a href="{% url 'dashboard' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'dashboard' %} active{% endif %}">Dashboard</a>
+      <div class="connected-badge" id="navConnStatusDrawer">
+        {% if connected %}
+          <span class="connected-dot" aria-hidden="true"></span>
+          <span class="conn-label">Connected</span>
+        {% else %}
+          <span class="conn-label">Not connected</span>
+        {% endif %}
+      </div>
     </div>
   </nav>
 
@@ -350,6 +402,33 @@
       animate();
     })();
 
+    /* App nav mobile drawer */
+    (function(){
+      const nav = document.getElementById('mpAppNav');
+      const toggle = document.getElementById('mpAppNavToggle');
+      const drawer = document.getElementById('mpAppNavDrawer');
+      if(!nav || !toggle || !drawer) return;
+      function setMenuOpen(open){
+        nav.classList.toggle('mp-app-nav-open', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        drawer.hidden = !open;
+        document.body.classList.toggle('mp-app-nav-menu-open', open);
+      }
+      toggle.addEventListener('click', function(e){
+        e.preventDefault();
+        setMenuOpen(!nav.classList.contains('mp-app-nav-open'));
+      });
+      drawer.querySelectorAll('a').forEach(function(link){
+        link.addEventListener('click', function(){ setMenuOpen(false); });
+      });
+      document.addEventListener('keydown', function(e){
+        if(e.key === 'Escape') setMenuOpen(false);
+      });
+      window.addEventListener('resize', function(){
+        if(window.innerWidth > 900) setMenuOpen(false);
+      });
+    })();
+
     /* Profile dropdown */
     (function(){
       const menu = document.getElementById('acctMenu');
@@ -360,9 +439,14 @@
       function setOpen(open){
         menu.classList.toggle('open', open);
         btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if(open){
+          const nav = document.getElementById('mpAppNav');
+          if(nav) nav.classList.remove('mp-app-nav-open');
+        }
       }
       btn.addEventListener('click', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         setOpen(!menu.classList.contains('open'));
       });
       dd?.addEventListener('click', (e) => {
@@ -381,28 +465,33 @@
 
     /* Navbar: Connected / Not connected (live refresh; same API as Setup/Dashboard) */
     window.refreshNavConnectionStatus = function (prefetched) {
-      const el = document.getElementById('navConnStatus');
-      if (!el) return Promise.resolve();
+      const els = [
+        document.getElementById('navConnStatus'),
+        document.getElementById('navConnStatusDrawer'),
+      ].filter(Boolean);
+      if (!els.length) return Promise.resolve();
 
       function applyNav(j) {
         if (!j || !j.ok) return;
-        if (j.connected) {
-          const st = j.send_transport || '';
-          const hint =
-            j.gmail_connected
-              ? 'Gmail OAuth'
-              : j.imap_connected
-                ? 'SMTP + IMAP mailbox'
-                : j.smtp_last_test_ok && st === 'smtp'
-                  ? 'SMTP verified (outgoing)'
-                  : 'Connected';
-          el.title = hint;
-          el.innerHTML =
-            '<span class="connected-dot" aria-hidden="true"></span> Connected';
-        } else {
-          el.title = '';
-          el.textContent = 'Not connected';
-        }
+        els.forEach(function (el) {
+          if (j.connected) {
+            const st = j.send_transport || '';
+            const hint =
+              j.gmail_connected
+                ? 'Gmail OAuth'
+                : j.imap_connected
+                  ? 'SMTP + IMAP mailbox'
+                  : j.smtp_last_test_ok && st === 'smtp'
+                    ? 'SMTP verified (outgoing)'
+                    : 'Connected';
+            el.title = hint;
+            el.innerHTML =
+              '<span class="connected-dot" aria-hidden="true"></span><span class="conn-label">Connected</span>';
+          } else {
+            el.title = '';
+            el.innerHTML = '<span class="conn-label">Not connected</span>';
+          }
+        });
       }
 
       if (prefetched && prefetched.ok) {

@@ -263,11 +263,38 @@ def _trigger_poll_fn_locked(
     if not accounts:
         return PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
 
+<<<<<<< HEAD
+    # Prefer Gmail API poll when OAuth token exists — matches users who connected Gmail in the UI
+    # but still have SEND_TRANSPORT=smtp + derived IMAP from .env (otherwise IMAP branch ran first and skipped Gmail).
+    if g_ok:
+        try:
+            gmail_client = GmailClient(settings=effective)
+            return poll_once(settings=effective, state_store=st, gmail_client=gmail_client)
+        except Exception as e:
+            from email_automation.gmail_auth import invalidate_gmail_oauth, is_invalid_grant_error
+            from email_automation.gmail_client import is_gmail_rate_limit_error
+
+            uid = getattr(user, "id", None) if user is not None else None
+            if is_invalid_grant_error(e):
+                if uid not in _gmail_invalid_grant_seen:
+                    _gmail_invalid_grant_seen.add(uid)
+                    invalidate_gmail_oauth(effective, user=user)
+                    log.warning(
+                        "Gmail OAuth token expired or revoked (user_id=%s). "
+                        "Reconnect Gmail in Setup/Settings — stale token removed.",
+                        uid,
+                    )
+            elif is_gmail_rate_limit_error(e):
+                log.warning("Gmail poll rate-limited (user_id=%s): %s", uid, e)
+            else:
+                log.warning("Gmail poll failed: %s", e)
+=======
     from core.mail_accounts import all_owner_emails_for_user
 
     skip_from_emails = frozenset(all_owner_emails_for_user(user))
     total = PollResult(scanned=0, relevant=0, sent=0, drafts=0, ignored=0, queued=0)
     uid = getattr(user, "id", None)
+>>>>>>> db4612300449d760c9f89b83ac680128d9ff8052
 
     for acc in accounts:
         effective = get_effective_settings(user, account_id=acc.id)

@@ -1,0 +1,113 @@
+<nav class="mp-nav" id="mpNav" aria-label="Primary">
+  <div class="mp-nav-bar">
+    <a href="{% url 'home' %}" class="nav-logo" aria-label="MailPilot home">
+      {% include "components/brand_logo.html" with logo_w=32 logo_h=32 %}<span class="nav-logo-text">MailPilot</span>
+    </a>
+
+    <ul class="nav-links">
+      {% if nav_variant == "legal" %}
+        <li><a href="{% url 'terms' %}">Terms</a></li>
+        <li><a href="{% url 'privacy' %}">Privacy</a></li>
+      {% else %}
+        <li><a href="{% url 'features' %}">Features</a></li>
+        <li><a href="{% url 'how_it_works' %}">How it Works</a></li>
+        <li><a href="{% url 'reviews' %}">Reviews</a></li>
+        <li><a href="{% url 'pricing' %}">Pricing</a></li>
+      {% endif %}
+    </ul>
+
+    <div class="mp-nav-end">
+      {% if user.is_authenticated %}
+        <div class="app-actions mp-nav-desktop-only">
+          <a class="app-link" href="{% url 'setup' %}">Setup</a>
+          <a class="app-link" href="{% url 'dashboard' %}">Dashboard</a>
+          <div class="conn-badge" title="{% if connected %}Connected{% else %}Not connected{% endif %}">
+            {% if connected %}
+              <span class="conn-dot" aria-hidden="true"></span>
+              <span class="conn-label">Connected</span>
+            {% else %}
+              <span class="conn-dot off" aria-hidden="true"></span>
+              <span class="conn-label">Not connected</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="acct" id="acctMenu">
+          <button class="acct-btn" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Profile menu" title="Profile">
+            <span class="acct-ico" aria-hidden="true">
+              {% if nav_avatar_url %}
+                <img src="{{ nav_avatar_url }}" alt="" loading="lazy" decoding="async"/>
+              {% else %}
+                <i class="fa-regular fa-user" aria-hidden="true"></i>
+              {% endif %}
+            </span>
+          </button>
+          <div class="acct-dd" id="acctDd" role="menu" aria-label="Profile menu">
+            <a class="acct-item" href="{% url 'profile' %}" role="menuitem">
+              <i class="fa-regular fa-id-badge" aria-hidden="true"></i>
+              Profile details
+            </a>
+            <a class="acct-item" href="{% url 'settings' %}" role="menuitem">
+              <i class="fa-solid fa-gear" aria-hidden="true"></i>
+              Settings
+            </a>
+            <div class="acct-sep" role="separator" aria-hidden="true"></div>
+            <form action="{% url 'logout' %}" method="post" style="margin:0;">
+              {% csrf_token %}
+              <button class="acct-item acct-logout" type="submit" role="menuitem">
+                <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+                Log out
+              </button>
+            </form>
+          </div>
+        </div>
+      {% else %}
+        <div class="nav-guest mp-nav-desktop-only">
+          <a href="{% url 'login' %}" class="nav-login">Log in</a>
+          <a href="{% url 'signup' %}" class="nav-cta">Get Started →</a>
+        </div>
+      {% endif %}
+
+      <button type="button" class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navDrawer">
+        <span class="nav-toggle-bars" aria-hidden="true"></span>
+        <span class="sr-only">Menu</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="nav-drawer" id="navDrawer" hidden>
+    <ul class="nav-links">
+      {% if nav_variant == "legal" %}
+        <li><a href="{% url 'terms' %}">Terms</a></li>
+        <li><a href="{% url 'privacy' %}">Privacy</a></li>
+      {% else %}
+        <li><a href="{% url 'features' %}">Features</a></li>
+        <li><a href="{% url 'how_it_works' %}">How it Works</a></li>
+        <li><a href="{% url 'reviews' %}">Reviews</a></li>
+        <li><a href="{% url 'pricing' %}">Pricing</a></li>
+      {% endif %}
+    </ul>
+
+    {% if user.is_authenticated %}
+      <div class="nav-drawer-divider" aria-hidden="true"></div>
+      <div class="nav-drawer-actions">
+        <a class="app-link" href="{% url 'setup' %}">Setup</a>
+        <a class="app-link" href="{% url 'dashboard' %}">Dashboard</a>
+        <div class="conn-badge">
+          {% if connected %}
+            <span class="conn-dot" aria-hidden="true"></span>
+            <span class="conn-label">Connected</span>
+          {% else %}
+            <span class="conn-dot off" aria-hidden="true"></span>
+            <span class="conn-label">Not connected</span>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="nav-drawer-divider" aria-hidden="true"></div>
+      <div class="nav-drawer-actions">
+        <a href="{% url 'login' %}" class="nav-login">Log in</a>
+        <a href="{% url 'signup' %}" class="nav-cta">Get Started →</a>
+      </div>
+    {% endif %}
+  </div>
+</nav>
