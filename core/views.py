@@ -13,7 +13,7 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import FileResponse, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
@@ -24,7 +24,7 @@ from werkzeug.utils import secure_filename
 
 from core.access import check_api_access
 from email_automation.gmail_auth import gmail_oauth_ready, gmail_oauth_try
-from email_automation.gmail_client import GmailClient
+from email_automation.gmail_client import GmailClient, gmail_retry_after_seconds, is_gmail_rate_limit_error
 from email_automation.imap_mailbox import ImapMailbox, imap_inbox_ready
 from email_automation.kb.embedder import embed_texts
 from email_automation.kb.extract import (
@@ -115,7 +115,12 @@ def server_error(request, exception=None):
 
 
 def favicon(request):
-    return HttpResponse(status=204)
+    from django.contrib.staticfiles import finders
+
+    path = finders.find("favicon/favicon.ico")
+    if not path:
+        return HttpResponse(status=404)
+    return FileResponse(open(path, "rb"), content_type="image/x-icon")
 
 
 @require_GET
@@ -809,14 +814,24 @@ def api_gmail_inbox(request):
         use_imap_list = _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
         if use_imap_list:
             mb = ImapMailbox(settings=effective)
-            threads = _annotate_inbox_threads(mb.list_inbox_summaries(max_threads=40), request.user)
+            threads = _annotate_inbox_threads(mb.list_inbox_summaries(max_threads=10), request.user)
             return JsonResponse({"ok": True, "threads": threads, "source": "imap"})
         if g_ok:
             client = GmailClient(settings=effective)
-            threads = _annotate_inbox_threads(client.list_inbox_thread_summaries(max_threads=40), request.user)
+            threads = _annotate_inbox_threads(client.list_inbox_thread_summaries(max_threads=10), request.user)
             return JsonResponse({"ok": True, "threads": threads, "source": "gmail"})
         return JsonResponse({"ok": False, "error": "not_connected"}, status=400)
     except Exception as e:
+        if is_gmail_rate_limit_error(e):
+            wait = int(gmail_retry_after_seconds(e))
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": f"Gmail rate limit — try again in about {wait} seconds.",
+                    "retry_after_seconds": wait,
+                },
+                status=429,
+            )
         logger.exception("api_gmail_inbox failed")
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
@@ -866,6 +881,16 @@ def api_gmail_thread_detail(request, thread_id: str):
         data["messages"] = messages
         return JsonResponse({"ok": True, **data})
     except Exception as e:
+        if is_gmail_rate_limit_error(e):
+            wait = int(gmail_retry_after_seconds(e))
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": f"Gmail rate limit — try again in about {wait} seconds.",
+                    "retry_after_seconds": wait,
+                },
+                status=429,
+            )
         logger.exception("api_gmail_thread_detail failed")
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 

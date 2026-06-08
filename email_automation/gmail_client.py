@@ -3,11 +3,48 @@ from __future__ import annotations
 import base64
 import email.utils
 import re
+import time
+from datetime import datetime, timezone
 from email.message import EmailMessage
-from email.utils import parseaddr
+from email.utils import parseaddr, parsedate_to_datetime
 from typing import Any, Dict, List, Tuple
 
+from googleapiclient.errors import HttpError
+
 from email_automation.settings import Settings
+
+
+def gmail_retry_after_seconds(err: HttpError) -> float:
+    """Seconds to wait before retrying after Gmail 429 (from header or error message)."""
+    try:
+        raw = (err.resp.get("retry-after") or err.resp.get("Retry-After") or "").strip()
+        if raw:
+            if raw.isdigit():
+                return max(1.0, float(raw))
+            dt = parsedate_to_datetime(raw)
+            if dt is not None:
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return max(1.0, (dt.astimezone(timezone.utc) - datetime.now(timezone.utc)).total_seconds())
+    except Exception:
+        pass
+    m = re.search(r"Retry after ([0-9T:\.\-+Z]+)", str(err), re.I)
+    if m:
+        try:
+            deadline = datetime.fromisoformat(m.group(1).replace("Z", "+00:00"))
+            if deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=timezone.utc)
+            return max(
+                1.0,
+                min(300.0, (deadline.astimezone(timezone.utc) - datetime.now(timezone.utc)).total_seconds()),
+            )
+        except Exception:
+            pass
+    return 15.0
+
+
+def is_gmail_rate_limit_error(err: BaseException) -> bool:
+    return isinstance(err, HttpError) and getattr(err.resp, "status", None) == 429
 
 
 class GmailClient:
@@ -30,6 +67,16 @@ class GmailClient:
         creds = Credentials.from_authorized_user_file(token_file, scopes=self.settings.gmail_scopes())
         self._svc = build("gmail", "v1", credentials=creds, cache_discovery=False)
         return self._svc
+
+    def _execute(self, request, *, max_retries: int = 2):
+        for attempt in range(max_retries + 1):
+            try:
+                return request.execute()
+            except HttpError as e:
+                if getattr(e.resp, "status", None) == 429 and attempt < max_retries:
+                    time.sleep(gmail_retry_after_seconds(e))
+                    continue
+                raise
 
     @staticmethod
     def _header(headers: list[dict[str, str]] | None, name: str) -> str:
@@ -115,11 +162,10 @@ class GmailClient:
     def list_inbox_thread_summaries(self, max_threads: int = 40) -> List[Dict[str, Any]]:
         svc = self._service()
         # Get recent inbox threads. Use Threads.list for cheaper UI summary.
-        resp = (
+        resp = self._execute(
             svc.users()
             .threads()
             .list(userId="me", labelIds=["INBOX"], maxResults=int(max_threads), includeSpamTrash=False)
-            .execute()
         )
         threads = resp.get("threads") or []
         out: List[Dict[str, Any]] = []
@@ -128,11 +174,10 @@ class GmailClient:
             if not tid:
                 continue
             # Fetch minimal metadata for the latest message in thread.
-            det = (
+            det = self._execute(
                 svc.users()
                 .threads()
                 .get(userId="me", id=tid, format="metadata", metadataHeaders=["From", "Subject", "Date"])
-                .execute()
             )
             msgs = det.get("messages") or []
             if not msgs:
@@ -176,7 +221,7 @@ class GmailClient:
         if not tid:
             return {"ok": False, "error": "missing_thread_id"}
 
-        det = svc.users().threads().get(userId="me", id=tid, format="full").execute()
+        det = self._execute(svc.users().threads().get(userId="me", id=tid, format="full"))
         msgs = det.get("messages") or []
         ui_msgs: List[Dict[str, Any]] = []
         for m in msgs:
@@ -209,11 +254,10 @@ class GmailClient:
         mid = str(message_id or "").strip()
         if not mid:
             return "", ""
-        m = (
+        m = self._execute(
             svc.users()
             .messages()
             .get(userId="me", id=mid, format="metadata", metadataHeaders=["From", "Subject"])
-            .execute()
         )
         payload = m.get("payload") or {}
         headers = payload.get("headers") or []
@@ -246,6 +290,6 @@ class GmailClient:
         body: dict[str, Any] = {"raw": raw}
         if thread_id:
             body["threadId"] = str(thread_id)
-        sent = svc.users().messages().send(userId="me", body=body).execute()
+        sent = self._execute(svc.users().messages().send(userId="me", body=body))
         return str(sent.get("id") or "")
 

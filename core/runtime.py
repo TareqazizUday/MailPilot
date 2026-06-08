@@ -237,6 +237,7 @@ def _trigger_poll_fn_locked(
             return poll_once(settings=effective, state_store=st, gmail_client=gmail_client)
         except Exception as e:
             from email_automation.gmail_auth import invalidate_gmail_oauth, is_invalid_grant_error
+            from email_automation.gmail_client import is_gmail_rate_limit_error
 
             uid = getattr(user, "id", None) if user is not None else None
             if is_invalid_grant_error(e):
@@ -248,6 +249,8 @@ def _trigger_poll_fn_locked(
                         "Reconnect Gmail in Setup/Settings — stale token removed.",
                         uid,
                     )
+            elif is_gmail_rate_limit_error(e):
+                log.warning("Gmail poll rate-limited (user_id=%s): %s", uid, e)
             else:
                 log.warning("Gmail poll failed: %s", e)
 

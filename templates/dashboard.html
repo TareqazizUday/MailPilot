@@ -678,7 +678,6 @@
       await refreshStatus();
       await refreshGmailConnection();
       await refreshPending();
-      if({% if inbox_ready %}true{% else %}false{% endif %}) loadInbox();
     }
     refreshDashboard();
     setInterval(refreshDashboard, 30000);

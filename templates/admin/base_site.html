@@ -5,6 +5,7 @@
 
 {% block extrastyle %}
   {{ block.super }}
+  {% include "components/favicon.html" %}
   <link rel="stylesheet" href="{% static 'admin/mailpilot_admin.css' %}">
 {% endblock %}
 

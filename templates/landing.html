@@ -69,6 +69,12 @@
       overflow-x: hidden;
     }
 
+    main#main-content {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: clip;
+    }
+
     /* ── CANVAS ── */
     #bg-canvas {
       position: fixed; top: 0; left: 0;
@@ -76,114 +82,22 @@
       z-index: 0; pointer-events: none;
     }
 
-    /* ── NAV ── */
-    nav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 18px 7%;
-      backdrop-filter: blur(18px);
-      background: rgba(6,8,24,0.7);
-      border-bottom: 1px solid var(--glass-border);
-      transition: padding 0.35s ease, background 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
-    }
-    nav.is-scrolled {
-      padding-top: 12px;
-      padding-bottom: 12px;
-      background: rgba(6,8,24,0.92);
-      border-bottom-color: rgba(79,110,247,0.2);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
-    }
-    .nav-logo {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .nav-logo .brand-logo-mark { flex-shrink: 0; }
-    .nav-links { display: flex; gap: 32px; list-style: none; }
-    .nav-links a {
-      color: var(--muted); font-size: 0.9rem; font-weight: 500;
-      text-decoration: none; transition: color 0.2s;
-    }
-    .nav-links a:hover { color: var(--text); }
-    .nav-cta {
-      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
-      color: #fff; border: none; padding: 10px 26px;
-      border-radius: 50px; font-size: 0.9rem; font-weight: 600;
-      cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
-      text-decoration: none;
-    }
-    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,110,247,0.45); }
-
-    /* App-style badge (when logged in) */
-    .app-actions{display:flex;align-items:center;gap:14px;flex-shrink:0;}
-    .conn-badge{display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;color:var(--muted);}
-    .conn-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 10px rgba(74,222,128,.8);}
-    .conn-dot.off{background:#f87171;box-shadow:0 0 10px rgba(248,113,113,.5);}
-    .app-link{color:var(--muted);font-size:0.9rem;font-weight:600;text-decoration:none;padding:8px 12px;border-radius:10px;transition:background .2s,color .2s;}
-    .app-link:hover{background:rgba(255,255,255,0.05);color:var(--text);}
-
-    /* Profile dropdown (home page only) */
-    .acct{position:relative;display:flex;align-items:center;margin-left:4px;}
-    .acct-btn{
-      display:inline-flex;align-items:center;gap:10px;
-      padding:8px 12px;border-radius:12px;
-      background:rgba(255,255,255,0.03);
-      border:1px solid var(--glass-border);
-      color:var(--text);font-size:0.9rem;font-weight:700;
-      cursor:pointer;transition:background .2s,border-color .2s;
-      font-family:'Inter',sans-serif;
-    }
-    .acct-btn:hover{background:rgba(79,110,247,0.08);border-color:rgba(79,110,247,0.22);}
-    .acct-ico{
-      width:26px;height:26px;border-radius:999px;
-      display:flex;align-items:center;justify-content:center;
-      background:rgba(79,110,247,0.12);
-      border:1px solid rgba(79,110,247,0.18);
-      color:rgba(226,232,240,0.95);
-      flex-shrink:0;
-      font-size:0.95rem;
-    }
-    .acct-ico img{width:100%;height:100%;object-fit:cover;display:block;border-radius:999px;}
-    .acct-dd{
-      position:absolute;right:0;top:46px;min-width:220px;
-      background:rgba(13,18,48,0.92);
-      border:1px solid rgba(255,255,255,0.10);
-      border-radius:14px;
-      box-shadow:0 18px 60px rgba(0,0,0,.55);
-      backdrop-filter:blur(18px);
-      padding:8px;
-      display:none;
-      z-index:120;
-    }
-    .acct.open .acct-dd{display:block;}
-    .acct-item{
-      display:flex;align-items:center;gap:10px;
-      width:100%;
-      padding:10px 10px;
-      border-radius:12px;
-      color:rgba(226,232,240,0.92);
-      text-decoration:none;
-      background:transparent;
-      border:none;
-      cursor:pointer;
-      font-family:'Inter',sans-serif;
-      font-size:0.9rem;
-      font-weight:650;
-    }
-    .acct-item:hover{background:rgba(255,255,255,0.05);}
-    .acct-item i{width:18px;text-align:center;color:rgba(148,163,184,0.9);}
-    .acct-sep{height:1px;background:rgba(255,255,255,0.08);margin:6px 4px;}
-    .acct-logout{color:#fecaca;}
-    .acct-logout i{color:#f87171;}
+    {% include "components/marketing_nav_css.html" %}
+    nav.mp-nav.is-scrolled .mp-nav-bar { min-height: 60px; }
 
     /* ── HERO ── */
     #hero {
       position: relative; z-index: 1;
-      min-height: 100vh;
+      box-sizing: border-box;
+      min-height: calc(100svh + env(safe-area-inset-bottom, 0px));
       display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center; padding: 120px 7% 80px;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding-top: calc(var(--mp-nav-h, 72px) + env(safe-area-inset-top, 0px) + clamp(28px, 6vw, 56px));
+      padding-right: clamp(16px, 5vw, 7%);
+      padding-bottom: clamp(48px, 10vw, 80px);
+      padding-left: clamp(16px, 5vw, 7%);
     }
     .hero-badge {
       display: inline-flex; align-items: center; gap: 8px;
@@ -197,8 +111,9 @@
     .hero-badge span { width: 7px; height: 7px; border-radius: 50%; background: #a78bfa; animation: pulse 2s infinite; }
 
     h1 {
-      font-size: clamp(2.8rem, 6vw, 5.2rem);
-      font-weight: 900; line-height: 1.08; letter-spacing: -2px;
+      font-size: clamp(1.85rem, 5vw + 0.85rem, 5.2rem);
+      font-weight: 900; line-height: 1.08;
+      letter-spacing: -0.035em;
       animation: fadeUp 0.9s 0.1s ease both;
     }
     h1 .gradient,
@@ -211,8 +126,10 @@
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     .hero-sub {
-      max-width: 620px; margin: 22px auto 0;
-      font-size: 1.15rem; font-weight: 400; color: var(--muted); line-height: 1.7;
+      max-width: min(620px, 100%); margin: 22px auto 0;
+      font-size: clamp(0.94rem, 2.6vw, 1.15rem);
+      font-weight: 400; color: var(--muted); line-height: 1.65;
+      overflow-wrap: break-word;
       animation: fadeUp 1s 0.2s ease both;
     }
     .hero-btns {
@@ -238,7 +155,8 @@
 
     /* 3D FLOATING CARD */
     .hero-visual {
-      position: relative; margin-top: 70px; width: 100%; max-width: 820px;
+      position: relative; margin-top: clamp(40px, 8vw, 70px);
+      width: 100%; max-width: min(820px, 100%);
       animation: fadeUp 1s 0.4s ease both;
     }
     .hero-card {
@@ -252,11 +170,21 @@
     }
     .hero-card:hover { transform: perspective(1000px) rotateX(0deg); }
     .card-topbar {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: center;
+      flex-wrap: wrap; gap: 8px 12px; margin-bottom: 20px;
     }
     .dot { width: 12px; height: 12px; border-radius: 50%; }
     .dot.red { background: #ff5f57; } .dot.yellow { background: #febc2e; } .dot.green { background: #28c840; }
-    .card-topbar-title { margin-left: auto; margin-right: auto; font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+    .card-topbar-title {
+      flex: 1 1 auto;
+      min-width: min(100%, 200px);
+      text-align: center;
+      font-size: clamp(0.68rem, 2vw, 0.78rem);
+      color: var(--muted);
+      font-weight: 500;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
 
     .email-list { display: flex; flex-direction: column; gap: 10px; }
     .email-item {
@@ -280,9 +208,19 @@
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
     }
-    .email-meta { flex: 1; text-align: left; }
-    .email-from { font-size: 0.82rem; font-weight: 600; color: var(--text); }
-    .email-subject { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .email-meta { flex: 1 1 auto; min-width: 0; text-align: left; }
+    .email-from {
+      font-size: clamp(0.74rem, 2.2vw, 0.82rem);
+      font-weight: 600; color: var(--text);
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    .email-subject {
+      font-size: clamp(0.68rem, 2vw, 0.75rem);
+      color: var(--muted); margin-top: 2px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
     .email-badge {
       font-size: 0.68rem; font-weight: 600; padding: 4px 10px;
       border-radius: 50px; white-space: nowrap;
@@ -296,7 +234,8 @@
     .stats-bar {
       position: relative; z-index: 1;
       display: flex; justify-content: center; gap: 0;
-      flex-wrap: wrap; margin: 0 7% 80px;
+      flex-wrap: wrap;
+      margin: 0 clamp(16px, 5vw, 7%) clamp(56px, 10vw, 80px);
       background: var(--glass); border: 1px solid var(--glass-border);
       border-radius: 20px; overflow: hidden;
       backdrop-filter: blur(12px);
@@ -316,7 +255,8 @@
     /* ── FEATURES ── */
     #features {
       position: relative; z-index: 1;
-      padding: 80px 7%; text-align: center;
+      padding: clamp(56px, 10vw, 80px) clamp(16px, 5vw, 7%);
+      text-align: center;
     }
     .section-tag {
       font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px;
@@ -329,7 +269,8 @@
     .section-sub { color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px; margin-left: auto; margin-right: auto; }
 
     .features-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
       gap: 20px; margin-top: 56px;
     }
     .feat-card {
@@ -363,40 +304,219 @@
 
     /* ── HOW IT WORKS ── */
     #how-it-works {
-      position: relative; z-index: 1; padding: 80px 7%; text-align: center;
+      position: relative; z-index: 1;
+      padding: clamp(56px, 10vw, 88px) clamp(16px, 5vw, 7%);
+      text-align: center;
+      overflow: hidden;
     }
-    .steps {
-      display: flex; gap: 0; margin-top: 56px; position: relative;
-      flex-wrap: wrap; justify-content: center;
+    #how-it-works::before {
+      content: '';
+      position: absolute;
+      width: min(720px, 90vw); height: min(720px, 70vh);
+      left: 50%; top: 42%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(79,110,247,0.14) 0%, transparent 68%);
+      pointer-events: none;
     }
-    .step {
-      flex: 1; min-width: 200px; max-width: 240px; padding: 0 20px;
-      position: relative; text-align: center;
+    .hiw-head {
+      position: relative;
+      max-width: 640px;
+      margin: 0 auto;
     }
-    .step::after {
-      content: '→';
-      position: absolute; right: -10px; top: 28px;
-      color: var(--accent); font-size: 1.4rem; font-weight: 300;
+    .hiw-steps {
+      position: relative;
+      max-width: 1120px;
+      margin: clamp(40px, 6vw, 56px) auto 0;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      text-align: left;
     }
-    .step:last-child::after { display: none; }
-    .step-num {
-      width: 60px; height: 60px; border-radius: 50%;
+    .hiw-step {
+      --hiw-accent: #4f6ef7;
+      --hiw-glow: rgba(79,110,247,0.22);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 22px 20px 20px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.09);
+      background: linear-gradient(165deg, rgba(13,18,48,0.82), rgba(8,12,32,0.55));
+      backdrop-filter: blur(14px);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.32);
+      transition: transform 0.3s ease, border-color 0.3s, box-shadow 0.3s;
+      overflow: hidden;
+    }
+    .hiw-step::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--hiw-accent), transparent);
+      opacity: 0.65;
+      transition: opacity 0.3s;
+    }
+    .hiw-step:hover {
+      transform: translateY(-5px);
+      border-color: color-mix(in srgb, var(--hiw-accent) 45%, transparent);
+      box-shadow: 0 22px 48px rgba(0,0,0,0.4), 0 0 32px var(--hiw-glow);
+    }
+    .hiw-step:hover::before { opacity: 1; }
+    .hiw-step[data-accent="sky"] { --hiw-accent: #38bdf8; --hiw-glow: rgba(56,189,248,0.2); }
+    .hiw-step[data-accent="purple"] { --hiw-accent: #a78bfa; --hiw-glow: rgba(167,139,250,0.22); }
+    .hiw-step[data-accent="pink"] { --hiw-accent: #f472b6; --hiw-glow: rgba(244,114,182,0.2); }
+    .hiw-step[data-accent="green"] { --hiw-accent: #4ade80; --hiw-glow: rgba(74,222,128,0.2); }
+    .hiw-step[data-accent="orange"] { --hiw-accent: #fb923c; --hiw-glow: rgba(251,146,60,0.2); }
+    .hiw-step-icon {
+      position: relative;
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--hiw-accent);
+      background: color-mix(in srgb, var(--hiw-accent) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--hiw-accent) 28%, transparent);
+      flex-shrink: 0;
+      transition: transform 0.3s ease, box-shadow 0.3s;
+    }
+    .hiw-step-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      flex-shrink: 0;
+    }
+    .hiw-step:hover .hiw-step-icon {
+      transform: scale(1.06);
+      box-shadow: 0 8px 20px var(--hiw-glow);
+    }
+    .hiw-step-badge {
+      display: none;
+      position: absolute;
+      top: -5px; right: -5px;
+      min-width: 22px; height: 22px;
+      padding: 0 6px;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 800;
+      border-radius: 999px;
       background: linear-gradient(135deg, #4f6ef7, #a78bfa);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; font-weight: 800; margin: 0 auto 20px;
-      box-shadow: 0 8px 24px rgba(79,110,247,0.4);
-      transition: transform 0.35s ease, box-shadow 0.35s ease;
+      color: #fff;
+      border: 2px solid var(--bg);
+      line-height: 1;
     }
-    .step:hover .step-num {
-      transform: scale(1.08);
-      box-shadow: 0 12px 32px rgba(79,110,247,0.55);
+    .hiw-step-label {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--hiw-accent);
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--hiw-accent) 14%, transparent);
+      border: 1px solid color-mix(in srgb, var(--hiw-accent) 35%, transparent);
+      margin-bottom: 8px;
     }
-    .step-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
-    .step-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+    .hiw-step-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .hiw-step-title {
+      font-size: 1.02rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      line-height: 1.25;
+    }
+    .hiw-step-desc {
+      font-size: 0.86rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+    @media (min-width: 901px) {
+      .hiw-step:nth-child(3n+2)::after,
+      .hiw-step:nth-child(3n+1)::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: -12px;
+        width: 24px;
+        height: 2px;
+        transform: translateY(-50%);
+        background: linear-gradient(90deg, var(--hiw-accent), transparent);
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      .hiw-step:nth-child(3n)::after { display: none; }
+    }
+    @media (max-width: 900px) {
+      .hiw-steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .hiw-step::after { display: none !important; }
+    }
+    @media (max-width: 600px) {
+      .hiw-steps {
+        grid-template-columns: 1fr;
+        gap: 0;
+        padding-left: 4px;
+      }
+      .hiw-step {
+        display: grid;
+        grid-template-columns: 52px 1fr;
+        grid-template-rows: auto auto;
+        column-gap: 16px;
+        row-gap: 6px;
+        padding: 0 0 28px 0;
+        margin-bottom: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+      .hiw-step::before { display: none; }
+      .hiw-step:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: transparent;
+      }
+      .hiw-step:not(:last-child) .hiw-step-icon::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 52px;
+        bottom: -28px;
+        width: 2px;
+        transform: translateX(-50%);
+        background: linear-gradient(180deg, rgba(79,110,247,0.45), rgba(167,139,250,0.12));
+        pointer-events: none;
+      }
+      .hiw-step {
+        grid-template-columns: 56px 1fr;
+        grid-template-rows: auto;
+        column-gap: 16px;
+        row-gap: 0;
+      }
+      .hiw-step-icon {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        align-self: start;
+        width: 52px; height: 52px;
+        border-radius: 16px;
+      }
+      .hiw-step-body { grid-column: 2; }
+      .hiw-step-label { display: none; }
+      .hiw-step-badge { display: flex; }
+    }
 
     /* ── TESTIMONIALS ── */
     #testimonials {
-      position: relative; z-index: 1; padding: 80px 7%; text-align: center;
+      position: relative; z-index: 1;
+      padding: clamp(56px, 10vw, 80px) clamp(16px, 5vw, 7%);
+      text-align: center;
     }
     .testimonials-intro {
       color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
@@ -416,7 +536,7 @@
     }
     .testimonials-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
       gap: 22px; margin-top: 40px; text-align: left;
       max-width: 1120px; margin-left: auto; margin-right: auto;
     }
@@ -468,13 +588,20 @@
     .testimonial-role {
       font-size: 0.78rem; color: var(--muted); margin-top: 2px; line-height: 1.4;
     }
-    @media (max-width: 992px) {
-      .testimonials-grid { grid-template-columns: 1fr; max-width: 480px; }
+
+    #features,
+    #how-it-works,
+    #testimonials,
+    #pricing,
+    #cta {
+      scroll-margin-top: calc(var(--mp-nav-h, 72px) + 16px);
     }
 
     /* ── PRICING ── */
     #pricing {
-      position: relative; z-index: 1; padding: 80px 7%; text-align: center;
+      position: relative; z-index: 1;
+      padding: clamp(56px, 10vw, 80px) clamp(16px, 5vw, 7%);
+      text-align: center;
     }
     .pricing-head-row {
       display: flex; align-items: flex-start; justify-content: space-between;
@@ -706,8 +833,8 @@
     /* ── CONTACT FORM ── */
     #contact {
       position: relative; z-index: 1;
-      padding: 80px 7%;
-      scroll-margin-top: 88px;
+      padding: clamp(56px, 10vw, 80px) clamp(16px, 5vw, 7%);
+      scroll-margin-top: calc(var(--mp-nav-h, 72px) + 16px);
       text-align: center;
     }
     #contact::before {
@@ -1004,7 +1131,9 @@
 
     /* ── CTA ── */
     #cta {
-      position: relative; z-index: 1; padding: 48px 7% 56px; text-align: center;
+      position: relative; z-index: 1;
+      padding: clamp(40px, 8vw, 48px) clamp(16px, 5vw, 7%) clamp(48px, 10vw, 56px);
+      text-align: center;
     }
     .cta-box {
       background: linear-gradient(135deg, rgba(79,110,247,0.12), rgba(167,139,250,0.12));
@@ -1034,7 +1163,11 @@
       font-weight: 900;
       letter-spacing: -0.5px;
       line-height: 1.15;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      max-width: 100%;
+      margin-left: auto;
+      margin-right: auto;
     }
     .cta-title .cta-accent {
       background: linear-gradient(135deg, #4f6ef7, #a78bfa);
@@ -1047,8 +1180,8 @@
     /* ── FAQ ── */
     #faq {
       position: relative; z-index: 1;
-      padding: 24px 7% 88px;
-      scroll-margin-top: 88px;
+      padding: clamp(24px, 5vw, 28px) clamp(16px, 5vw, 7%) clamp(72px, 12vw, 88px);
+      scroll-margin-top: calc(var(--mp-nav-h, 72px) + 16px);
     }
     .faq-wrap {
       max-width: 760px;
@@ -1292,9 +1425,11 @@
     }
 
     @media (max-width: 768px) {
-      nav { padding: 14px 5%; }
-      .nav-links { display: none; }
-      #hero { padding: 100px 5% 60px; min-height: auto; }
+      #hero {
+        min-height: auto;
+        padding-top: calc(var(--mp-nav-h, 64px) + env(safe-area-inset-top, 0px) + clamp(18px, 4vw, 32px));
+        padding-bottom: clamp(40px, 9vw, 56px);
+      }
       .hero-visual { margin-top: 48px; max-width: 100%; }
       .hero-card { padding: 20px 16px; transform: none; }
       .hero-card:hover { transform: none; }
@@ -1319,27 +1454,40 @@
       }
       #cta { padding-bottom: 72px; }
       .features-grid { margin-top: 40px; gap: 16px; }
-      .step::after { display: none; }
-      .steps { gap: 32px; }
-      .step { max-width: 100%; min-width: 0; }
       .testimonials-grid { margin-top: 32px; }
       .trust-strip { gap: 10px 16px; margin-top: 28px; }
       .pricing-grid { margin-top: 36px; }
       .pricing-card { padding: 24px 18px 22px; }
       .pricing-card.is-active { transform: none; }
       .pricing-card.is-active:hover { transform: none; }
-      .pricing-price { font-size: 2rem; }
+      .stat-num { font-size: clamp(1.65rem, 6vw, 2.2rem); }
+      .pricing-price { font-size: clamp(1.75rem, 7vw, 2.35rem); }
       .contact-panel { grid-template-columns: 1fr; gap: 20px; }
       .contact-row2 { grid-template-columns: 1fr; }
       .cta-box { padding: 48px 24px; }
       .cta-title { font-size: clamp(1.15rem, 4.2vw, 1.75rem); letter-spacing: -0.35px; }
-      .app-actions { gap: 8px; }
-      .conn-badge span:last-child { display: none; }
     }
 
     @media (max-width: 480px) {
-      nav { padding: 12px 4%; }
-      h1 { letter-spacing: -1px; }
+      .hero-badge {
+        font-size: clamp(0.62rem, 2.8vw, 0.76rem);
+        padding: 6px 14px;
+        letter-spacing: 0.06em;
+      }
+      .email-item {
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .email-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1 1 100%;
+        width: 100%;
+        margin-top: 2px;
+      }
+      h1 { letter-spacing: -0.04em; }
       .hero-sub { font-size: 1rem; }
       .btn-primary, .btn-secondary { width: 100%; justify-content: center; text-align: center; }
       .hero-btns { flex-direction: column; width: 100%; max-width: 320px; margin-left: auto; margin-right: auto; }
@@ -1369,98 +1517,8 @@
 <!-- Animated particle canvas -->
 <canvas id="bg-canvas" aria-hidden="true"></canvas>
 
-<!-- NAV -->
-<nav aria-label="Primary">
-  <a href="{% url 'home' %}" class="nav-logo" style="text-decoration:none;color:inherit;" aria-label="MailPilot home">
-    {% include "components/brand_logo.html" with logo_w=32 logo_h=32 %}<span class="nav-logo-text">MailPilot</span>
-  </a>
-  <ul class="nav-links">
-    <li><a href="{% url 'features' %}">Features</a></li>
-    <li><a href="{% url 'how_it_works' %}">How it Works</a></li>
-    <li><a href="{% url 'reviews' %}">Reviews</a></li>
-    <li><a href="{% url 'pricing' %}">Pricing</a></li>
-  </ul>
-  {% if user.is_authenticated %}
-    <div class="app-actions">
-      <a class="app-link" href="{% url 'setup' %}">Setup</a>
-      <a class="app-link" href="{% url 'dashboard' %}">Dashboard</a>
-      <div class="conn-badge">
-        {% if connected %}
-          <span class="conn-dot" aria-hidden="true"></span> Connected
-        {% else %}
-          <span class="conn-dot off" aria-hidden="true"></span> Not connected
-        {% endif %}
-      </div>
-      <div class="acct" id="acctMenu">
-        <button class="acct-btn" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false">
-          <span class="acct-ico" aria-hidden="true">
-            {% if nav_avatar_url %}
-              <img src="{{ nav_avatar_url }}" alt="" loading="lazy" decoding="async"/>
-            {% else %}
-              <i class="fa-regular fa-user" aria-hidden="true"></i>
-            {% endif %}
-          </span>
-          Profile
-          <span aria-hidden="true" style="opacity:.85">▾</span>
-        </button>
-        <div class="acct-dd" id="acctDd" role="menu" aria-label="Profile menu">
-          <a class="acct-item" href="{% url 'profile' %}" role="menuitem">
-            <i class="fa-regular fa-id-badge" aria-hidden="true"></i>
-            Profile details
-          </a>
-          <a class="acct-item" href="{% url 'settings' %}" role="menuitem">
-            <i class="fa-solid fa-gear" aria-hidden="true"></i>
-            Settings
-          </a>
-          <div class="acct-sep" role="separator" aria-hidden="true"></div>
-          <form action="{% url 'logout' %}" method="post" style="margin:0;">
-            {% csrf_token %}
-            <button class="acct-item acct-logout" type="submit" role="menuitem">
-              <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
-              Log out
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  {% else %}
-    <div style="display:flex;align-items:center;gap:16px;flex-shrink:0;">
-      <a href="{% url 'login' %}" style="color:var(--muted);font-size:0.9rem;font-weight:500;text-decoration:none;">Log in</a>
-      <a href="{% url 'signup' %}" class="nav-cta">Get Started →</a>
-    </div>
-  {% endif %}
-</nav>
-
-{% if user.is_authenticated %}
-<script>
-  (function(){
-    const menu = document.getElementById('acctMenu');
-    const btn  = document.getElementById('acctBtn');
-    const dd   = document.getElementById('acctDd');
-    if(!menu || !btn) return;
-    function setOpen(open){
-      menu.classList.toggle('open', open);
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      setOpen(!menu.classList.contains('open'));
-    });
-    dd?.addEventListener('click', (e) => {
-      const a = e.target && e.target.closest ? e.target.closest('a') : null;
-      if(a) setOpen(false);
-    });
-    document.addEventListener('click', (e) => {
-      if(!menu.classList.contains('open')) return;
-      if(menu.contains(e.target)) return;
-      setOpen(false);
-    });
-    document.addEventListener('keydown', (e) => {
-      if(e.key === 'Escape') setOpen(false);
-    });
-  })();
-</script>
-{% endif %}
+{% include "components/marketing_nav.html" %}
+{% include "components/marketing_nav_js.html" %}
 
 <main id="main-content">
 <!-- HERO -->
@@ -1565,41 +1623,79 @@
 </section>
 
 <!-- HOW IT WORKS -->
-<section id="how-it-works">
-  <div class="section-tag"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Workflow</div>
-  <h2 class="section-title">How MailPilot <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">works</span></h2>
-  <p class="section-sub">Six steps matching the live automation pipeline—from inbox poll to reply and per-user state.</p>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-title">Poll inbox</div>
-      <div class="step-desc">Gmail API (recent threads) or IMAP INBOX on a schedule, manual “Run poll”, or IMAP IDLE for faster SMTP inboxes.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-title">Keyword prefilter</div>
-      <div class="step-desc">Optional SERVICE_KEYWORDS filter runs first—non-matching mail is skipped before any LLM call.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-title">RAG lookup</div>
-      <div class="step-desc">If your KB is configured: embed subject+body and pull top chunks from Postgres pgvector (JSON upload).</div>
-    </div>
-    <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-title">AI relevance &amp; reply</div>
-      <div class="step-desc">One LLM call returns relevance, confidence, and reply text; must pass your RELEVANCE_THRESHOLD.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">5</div>
-      <div class="step-title">Draft or auto-send</div>
-      <div class="step-desc">REPLY_MODE=draft saves the reply for dashboard review; send delivers immediately via Gmail API or SMTP.</div>
-    </div>
-    <div class="step">
-      <div class="step-num">6</div>
-      <div class="step-title">State &amp; queue</div>
-      <div class="step-desc">Per-user processed state avoids duplicates; the dashboard queue shows sent, draft, and ignored activity (account audit in admin).</div>
-    </div>
+<section id="how-it-works" aria-labelledby="how-it-works-heading">
+  <div class="hiw-head">
+    <div class="section-tag"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Workflow</div>
+    <h2 class="section-title" id="how-it-works-heading">How MailPilot <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">works</span></h2>
+    <p class="section-sub">Six steps matching the live automation pipeline—from inbox poll to reply and per-user state.</p>
+  </div>
+  <div class="hiw-steps" aria-label="Workflow steps">
+    <article class="hiw-step" data-accent="blue">
+      <div class="hiw-step-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        <span class="hiw-step-badge">01</span>
+      </div>
+      <div class="hiw-step-body">
+        <span class="hiw-step-label">Step 1</span>
+        <h3 class="hiw-step-title">Poll inbox</h3>
+        <p class="hiw-step-desc">Gmail API (recent threads) or IMAP INBOX on a schedule, manual “Run poll”, or IMAP IDLE for faster SMTP inboxes.</p>
+      </div>
+    </article>
+    <article class="hiw-step" data-accent="sky">
+      <div class="hiw-step-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        <span class="hiw-step-badge">02</span>
+      </div>
+      <div class="hiw-step-body">
+        <span class="hiw-step-label">Step 2</span>
+        <h3 class="hiw-step-title">Keyword prefilter</h3>
+        <p class="hiw-step-desc">Optional SERVICE_KEYWORDS filter runs first—non-matching mail is skipped before any LLM call.</p>
+      </div>
+    </article>
+    <article class="hiw-step" data-accent="purple">
+      <div class="hiw-step-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 7 7 0 0 0-2.526 9.375"/><path d="M12 5a3 3 0 1 1 5.997.125 7 7 0 0 1 2.526 9.375"/><path d="M12 5v14"/><path d="M6 19h12"/></svg>
+        <span class="hiw-step-badge">03</span>
+      </div>
+      <div class="hiw-step-body">
+        <span class="hiw-step-label">Step 3</span>
+        <h3 class="hiw-step-title">RAG lookup</h3>
+        <p class="hiw-step-desc">If your KB is configured: embed subject+body and pull top chunks from Postgres pgvector (JSON upload).</p>
+      </div>
+    </article>
+    <article class="hiw-step" data-accent="pink">
+      <div class="hiw-step-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+        <span class="hiw-step-badge">04</span>
+      </div>
+      <div class="hiw-step-body">
+        <span class="hiw-step-label">Step 4</span>
+        <h3 class="hiw-step-title">AI relevance &amp; reply</h3>
+        <p class="hiw-step-desc">One LLM call returns relevance, confidence, and reply text; must pass your RELEVANCE_THRESHOLD.</p>
+      </div>
+    </article>
+    <article class="hiw-step" data-accent="green">
+      <div class="hiw-step-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>
+        <span class="hiw-step-badge">05</span>
+      </div>
+      <div class="hiw-step-body">
+        <span class="hiw-step-label">Step 5</span>
+        <h3 class="hiw-step-title">Draft or auto-send</h3>
+        <p class="hiw-step-desc">REPLY_MODE=draft saves the reply for dashboard review; send delivers immediately via Gmail API or SMTP.</p>
+      </div>
+    </article>
+    <article class="hiw-step" data-accent="orange">
+      <div class="hiw-step-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 18H3"/><path d="M21 18h-8"/><path d="M11 6H3"/><path d="M21 6h-8"/><path d="M7 12h10"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="6" cy="6" r="2"/></svg>
+        <span class="hiw-step-badge">06</span>
+      </div>
+      <div class="hiw-step-body">
+        <span class="hiw-step-label">Step 6</span>
+        <h3 class="hiw-step-title">State &amp; queue</h3>
+        <p class="hiw-step-desc">Per-user processed state avoids duplicates; the dashboard queue shows sent, draft, and ignored activity (account audit in admin).</p>
+      </div>
+    </article>
   </div>
 </section>
 
@@ -2001,7 +2097,7 @@ if(card) {
 
 // Nav shrink on scroll
 (function () {
-  const nav = document.querySelector('nav');
+  const nav = document.getElementById('mpNav') || document.querySelector('nav');
   if (!nav) return;
   const onScroll = () => nav.classList.toggle('is-scrolled', window.scrollY > 24);
   onScroll();
@@ -2016,14 +2112,14 @@ if(card) {
     '.section-tag', '.section-title', '.section-sub',
     '.testimonials-intro', '.pricing-intro', '.pricing-demo-note',
     '.contact-intro', '.faq-intro', '.pricing-head-row',
-    '.feat-card', '.step', '.stat-item', '.testimonial-card',
+    '.feat-card', '.hiw-step', '.stat-item', '.testimonial-card',
     '.pricing-card', '.trust-strip', '.contact-aside', '.contact-form-card',
     '.cta-box', '.faq-item'
   ].join(',');
 
   const staggerGroups = {
     '.feat-card': 0.09,
-    '.step': 0.1,
+    '.hiw-step': 0.09,
     '.stat-item': 0.12,
     '.testimonial-card': 0.1,
     '.pricing-card': 0.12,
