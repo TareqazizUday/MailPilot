@@ -192,15 +192,6 @@ class GmailClient:
 
     def list_inbox_thread_summaries(self, max_threads: int = 40) -> List[Dict[str, Any]]:
         svc = self._service()
-<<<<<<< HEAD
-        # Get recent inbox threads. Use Threads.list for cheaper UI summary.
-        resp = self._execute(
-            svc.users()
-            .threads()
-            .list(userId="me", labelIds=["INBOX"], maxResults=int(max_threads), includeSpamTrash=False)
-        )
-        threads = resp.get("threads") or []
-=======
         max_n = max(1, int(max_threads or 40))
 
         threads, _source = self._threads_list(svc, max_threads=max_n, label_ids=["INBOX"])
@@ -208,20 +199,11 @@ class GmailClient:
         if not threads:
             threads, _source = self._threads_list(svc, max_threads=max_n)
 
->>>>>>> db4612300449d760c9f89b83ac680128d9ff8052
         out: List[Dict[str, Any]] = []
         for t in threads:
             tid = str(t.get("id") or "")
             if not tid:
                 continue
-<<<<<<< HEAD
-            # Fetch minimal metadata for the latest message in thread.
-            det = self._execute(
-                svc.users()
-                .threads()
-                .get(userId="me", id=tid, format="metadata", metadataHeaders=["From", "Subject", "Date"])
-            )
-=======
             list_snippet = str(t.get("snippet") or "")
             try:
                 det = (
@@ -246,7 +228,6 @@ class GmailClient:
                 )
                 continue
 
->>>>>>> db4612300449d760c9f89b83ac680128d9ff8052
             msgs = det.get("messages") or []
             if not msgs:
                 continue
