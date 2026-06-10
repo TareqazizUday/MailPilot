@@ -206,11 +206,10 @@ class GmailClient:
                 continue
             list_snippet = str(t.get("snippet") or "")
             try:
-                det = (
+                det = self._execute(
                     svc.users()
                     .threads()
                     .get(userId="me", id=tid, format="metadata", metadataHeaders=["From", "Subject", "Date"])
-                    .execute()
                 )
             except Exception:
                 # Rate limits or transient errors: still show thread stub from list().

@@ -8,7 +8,7 @@
 {% block head_extra %}
   <style>
     /* Match mailpilot_setup.html look */
-    .setup-card{max-width:1100px;margin:0 auto;width:100%;}
+    .setup-card{max-width:1100px;margin:0 auto;width:100%;overflow-x:clip;}
     @media(min-width:1200px){
       .setup-card{max-width:1440px;}
     }
@@ -42,25 +42,111 @@
       color:var(--text);
     }
 
-    .content-grid{display:grid;grid-template-columns:1fr 320px;gap:0;}
+    .main-tab > div:first-child{min-width:0;flex:1;}
+    .main-tab-label{font-size:0.88rem;font-weight:700;line-height:1.25;}
+
+    .content-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;align-items:start;}
     @media(min-width:1200px){
-      .content-grid{grid-template-columns:minmax(0,1fr) 420px;}
+      .content-grid{grid-template-columns:minmax(0,1fr) 380px;}
     }
-    .content-main{padding:28px 32px;border-right:1px solid var(--glass-border);}
+    .content-main{padding:clamp(18px,3vw,28px) clamp(16px,3vw,32px);border-right:1px solid var(--glass-border);min-width:0;}
+    .content-aside{min-width:0;padding:clamp(18px,2.5vw,24px);}
     @media(min-width:1200px){
       .content-main{padding:28px 36px;}
-    }
-    .content-aside{padding:24px;}
-    @media(min-width:1200px){
       .content-aside{padding:24px 28px;}
     }
-    @media(max-width:900px){
-      .main-tabs{grid-template-columns:1fr;}
-      .content-grid{grid-template-columns:1fr;}
+
+    /* ── Setup responsive (mobile → desktop) ── */
+    @media(max-width:1099px){
+      .main-tabs{
+        display:flex;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+        scroll-snap-type:x mandatory;
+        scrollbar-width:thin;
+      }
+      .main-tabs::-webkit-scrollbar{height:6px;}
+      .main-tabs::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:999px;}
+      .main-tab{
+        flex:0 0 min(240px,78vw);
+        scroll-snap-align:start;
+        min-height:56px;
+      }
+      .main-tab:last-child{border-right:none;}
+    }
+    @media(max-width:1024px){
+      .content-grid{grid-template-columns:1fr !important;}
       .content-main{border-right:none;border-bottom:1px solid var(--glass-border);}
+      .content-aside .aside-card{position:static;top:auto;}
+    }
+    @media(max-width:768px){
+      body .main-wrap{padding:20px 12px 56px;}
+      .setup-card{border-radius:16px;}
+      .setup-card-header{padding:20px 16px 16px;}
+      .setup-card-title{font-size:1.1rem;}
+      .setup-card-sub{font-size:0.82rem;}
+      .sec{padding:14px;}
+      .sec-h{align-items:flex-start;flex-wrap:wrap;}
+      .sec-h .pill{white-space:normal;max-width:100%;text-align:left;}
+      .tabs{flex-direction:column;padding:6px;}
+      .tab{width:100%;justify-content:flex-start;padding:12px 14px;}
+      .row2{grid-template-columns:1fr;gap:12px;margin-bottom:14px;}
+      .row2 .fg{margin-bottom:14px;}
+      .row2 .fg:last-child{margin-bottom:0;}
+      .mb-card{padding:12px 14px;}
+      .mb-card-hd{gap:6px 10px;}
+      .mb-card-title{font-size:0.84rem;}
+      .mb-switch{padding:10px 6px;margin:-10px -6px -10px 0;}
+      .mb-switch-ui{width:44px;height:26px;}
+      .mb-switch-ui::after{width:18px;height:18px;top:3px;left:3px;}
+      .mb-switch input:checked + .mb-switch-ui::after{transform:translateX(18px);}
+      .mb-card-hd > .pill{font-size:0.68rem;white-space:normal;line-height:1.35;}
+      .mb-card-meta{font-size:0.75rem;}
+      .mb-card-actions{flex-direction:column;}
+      .mb-card-actions .btn{width:100%;}
+      #pGmail .mb-connect-form .fg{margin-bottom:12px;}
+      #pGmail .mb-connect-form .fi{font-size:16px;}
+      .url-box{flex-direction:column;align-items:stretch;}
+      .url-txt{white-space:normal;word-break:break-all;text-overflow:unset;overflow:visible;}
+      .cp-btn{width:100%;text-align:center;padding:10px;}
+      .mode-banner{flex-direction:column;align-items:flex-start;}
+      .kb-format-row{align-items:flex-start;flex-direction:column;}
+      .kb-format-toggle{width:100%;}
+      .kb-format-btn{flex:1;text-align:center;}
+      .setup-confirm-actions{flex-direction:column-reverse;}
+      .setup-confirm-actions .btn{width:100%;}
+      .mp-modal{padding:12px;align-items:flex-end;}
+      .mp-modal-card{max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;}
+      .kb-editor{min-height:240px;max-height:45vh;font-size:0.78rem;}
+      .fi,select.fi{font-size:16px;}
+      .btn{min-height:44px;}
+      .main-tab{flex:0 0 min(220px,88vw);padding:12px 14px;}
+      .main-tab-label{font-size:0.82rem;}
+      .main-tab .sub{font-size:0.68rem;}
+    }
+    @media(max-width:480px){
+      body .main-wrap{padding:16px 10px 48px;}
+      .setup-card-header{padding:16px 14px 14px;}
+      .content-main,.content-aside{padding:14px 12px;}
+      .sec{padding:12px;}
+      .mb-card{padding:12px;}
+      .mb-card-title{font-size:0.8rem;}
+      .mb-slot{display:inline-block;margin-bottom:2px;}
+      .main-tabs{display:grid;grid-template-columns:1fr;overflow:visible;}
+      .main-tab{flex:none;width:100%;min-height:52px;border-right:none;border-bottom:1px solid var(--glass-border);}
+      .main-tab:last-child{border-bottom:none;}
+      .oauth-box,.hint{padding:12px 14px;}
+      .pill{font-size:0.68rem;padding:4px 10px;}
+      label.pill{width:100%;}
+      .fu{padding:18px 12px;min-height:96px;}
+      .tab-icon{width:28px;height:28px;font-size:0.85rem;}
+    }
+    @media(max-width:380px){
+      .main-tab-label{font-size:0.78rem;}
+      .s-sub{font-size:0.92rem;}
     }
 
-    .sec{border:1px solid var(--glass-border);border-radius:14px;background:rgba(255,255,255,0.02);padding:18px;}
+    .sec{border:1px solid var(--glass-border);border-radius:14px;background:rgba(255,255,255,0.02);padding:18px;min-width:0;}
     .sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}
     .s-sub{font-size:1rem;font-weight:800;letter-spacing:-.01em;}
 
@@ -220,50 +306,75 @@
     .tab.on{background:linear-gradient(135deg,rgba(79,110,247,0.25),rgba(167,139,250,0.2));color:#fff;box-shadow:0 2px 12px rgba(79,110,247,0.25);}
     .tab:hover:not(.on){color:var(--text);}
     .panel{display:none;}
-    .panel.on{display:block;}
+    .panel.on{display:flex;flex-direction:column;gap:16px;width:100%;}
+    #secTransport .panel:not(.on){display:none !important;}
+    #smtpAccountsList,#gmailAccountsList{display:flex;flex-direction:column;gap:12px;width:100%;min-width:0;max-width:100%;}
+    #pGmail,#pSmtp,.panel.on{width:100%;min-width:0;max-width:100%;}
+    .mb-smtp-fields{width:100%;min-width:0;}
+    #pSmtp > .oauth-box,#pGmail > .oauth-box{margin-top:0;margin-bottom:0;}
+    #pSmtp > .hint,#pGmail > .hint{margin-bottom:0;}
 
     .mode-banner{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 14px;margin-bottom:16px;border-radius:12px;background:rgba(79,110,247,0.08);border:1px solid rgba(79,110,247,0.22);}
     .mode-muted{font-size:0.78rem;color:var(--muted);}
-    .mb-card{border:1px solid var(--glass-border);border-radius:14px;padding:14px 16px;margin-bottom:12px;background:rgba(255,255,255,0.02);transition:opacity 0.2s,border-color 0.2s;}
+    .mb-card{border:1px solid var(--glass-border);border-radius:14px;padding:14px 16px;margin:0;background:rgba(255,255,255,0.02);transition:opacity 0.2s,border-color 0.2s;width:100%;max-width:100%;box-sizing:border-box;}
     .mb-card.mb-paused{opacity:0.72;}
     .mb-card.mb-highlight{border-color:rgba(79,110,247,0.55);box-shadow:0 0 0 2px rgba(79,110,247,0.15);}
     .mb-card-empty{border-style:dashed;cursor:pointer;text-align:center;color:var(--muted);padding:22px;}
     .mb-card-empty:hover{border-color:rgba(79,110,247,0.4);color:var(--text);}
-    .mb-card-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
-    .mb-card-title{flex:1;font-weight:700;font-size:0.88rem;min-width:120px;}
-    .mb-slot{color:#818cf8;margin-right:6px;}
+    .mb-card-hd{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      grid-template-rows:auto auto;
+      gap:8px 12px;
+      align-items:start;
+      margin-bottom:8px;
+    }
+    .mb-card-title{
+      grid-column:1;
+      grid-row:1;
+      font-weight:700;
+      font-size:0.88rem;
+      min-width:0;
+      line-height:1.35;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+    .mb-slot{color:#818cf8;margin-right:6px;white-space:nowrap;}
+    .mb-card-hd > .mb-switch{grid-column:2;grid-row:1;justify-self:end;align-self:start;}
+    .mb-card-hd > .pill{grid-column:1 / -1;grid-row:2;justify-self:start;max-width:100%;}
     .mb-card-meta{font-size:0.78rem;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-    .mb-switch{position:relative;display:inline-flex;align-items:center;cursor:pointer;}
+    .mb-switch{position:relative;display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0;padding:4px;margin:-4px -4px -4px 0;}
     .mb-switch input{position:absolute;opacity:0;width:0;height:0;}
-    .mb-switch-ui{width:40px;height:22px;border-radius:999px;background:rgba(255,255,255,0.12);border:1px solid var(--glass-border);transition:background 0.2s;}
+    .mb-switch-ui{position:relative;width:40px;height:22px;border-radius:999px;background:rgba(255,255,255,0.12);border:1px solid var(--glass-border);transition:background 0.2s;flex-shrink:0;}
     .mb-switch-ui::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform 0.2s;}
     .mb-switch input:checked + .mb-switch-ui{background:rgba(34,197,94,0.35);border-color:rgba(34,197,94,0.45);}
     .mb-switch input:checked + .mb-switch-ui::after{transform:translateX(18px);}
-    .mb-switch{position:relative;}
     .mb-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
-    .mb-imap-box{margin-bottom:0;}
+    .mb-card .mb-connect-form{margin-top:10px;}
+    .mb-card .mb-connect-form .btn-block{width:100%;}
+    .mb-card > .btn.btn-ghost{width:100%;margin-top:8px;}
     .btn-sm{padding:6px 12px;font-size:0.78rem;}
     .pill.warn{background:rgba(251,191,36,0.12);color:#fcd34d;border:1px solid rgba(251,191,36,0.3);}
     .mini-pill{margin-top:6px;display:inline-block;}
 
     .hint{background:rgba(79,110,247,0.07);border:1px solid rgba(79,110,247,0.2);border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:0.8rem;color:var(--muted);line-height:1.6;}
 
-    .oauth-box{background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:12px;padding:14px 16px;margin-top:18px;}
+    .oauth-box{background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:12px;padding:14px 16px;margin-top:18px;width:100%;max-width:100%;box-sizing:border-box;}
     .oauth-box.tighter{margin-top:12px;}
     .oauth-h{font-size:0.82rem;font-weight:800;margin-bottom:6px;}
     .oauth-txt{font-size:0.8rem;color:var(--muted);line-height:1.65;}
     .url-box{margin-top:10px;padding:8px 10px;background:rgba(6,8,24,0.6);border:1px solid var(--glass-border);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
-    .url-txt{font-size:0.78rem;color:rgba(148,163,184,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .url-txt{font-size:0.78rem;color:rgba(148,163,184,0.75);word-break:break-all;overflow-wrap:anywhere;}
     .cp-btn{background:none;border:1px solid var(--glass-border);color:var(--muted);border-radius:10px;padding:6px 10px;cursor:pointer;}
     .cp-btn:hover{border-color:rgba(79,110,247,0.5);color:var(--text);}
 
-    .row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
-    @media(max-width:900px){.row2{grid-template-columns:1fr;}}
+    .row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:18px;}
+    @media(max-width:640px){.row2{grid-template-columns:1fr;gap:12px;}}
     /* Field spacing: keep labels from “sticking” to inputs */
     .fg{margin-bottom:18px;}
     .row2 .fg{margin-bottom:0;}
     .fl{font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:10px;display:block;}
-    .fi{width:100%;padding:10px 14px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;color:var(--text);font-size:0.875rem;font-family:var(--font);outline:none;transition:border-color 0.2s,background 0.2s,box-shadow 0.2s;}
+    .fi{width:100%;max-width:100%;padding:10px 14px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;color:var(--text);font-size:0.875rem;font-family:var(--font);outline:none;transition:border-color 0.2s,background 0.2s,box-shadow 0.2s;box-sizing:border-box;}
     .fi:focus{border-color:rgba(79,110,247,0.6);background:rgba(79,110,247,0.06);box-shadow:0 0 0 3px rgba(79,110,247,0.1);}
     .fi::placeholder{color:rgba(148,163,184,0.5);}
     select.fi{
@@ -372,6 +483,10 @@
     }
     .kb-editor:focus{border-color:rgba(79,110,247,0.55);box-shadow:0 0 0 3px rgba(79,110,247,0.12);}
     .kb-editor-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+    @media(max-width:768px){
+      .kb-editor-actions{flex-direction:column;}
+      .kb-editor-actions .btn{width:100%;}
+    }
 
     /* Reusable confirm dialog (replaces window.confirm) */
     .setup-confirm-modal{z-index:70;}
@@ -408,35 +523,35 @@
     <div class="main-tabs" role="tablist" aria-label="Setup sections">
       <button class="main-tab on" id="btnMainTransport" type="button" onclick="showMain('transport')">
         <div>
-          <div style="font-size:0.88rem;font-weight:700;">Email Transport</div>
+          <div class="main-tab-label">Email Transport</div>
           <div class="sub">Gmail / SMTP</div>
         </div>
         <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-right-left"></i></div>
       </button>
       <button class="main-tab" id="btnMainRouting" type="button" onclick="showMain('routing')">
         <div>
-          <div style="font-size:0.88rem;font-weight:700;">Relevance / Routing</div>
+          <div class="main-tab-label">Relevance / Routing</div>
           <div class="sub">Only handle related mails</div>
         </div>
         <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-filter"></i></div>
       </button>
       <button class="main-tab" id="btnMainKb" type="button" onclick="showMain('kb')">
         <div>
-          <div style="font-size:0.88rem;font-weight:700;">Knowledge Base (RAG)</div>
+          <div class="main-tab-label">Knowledge Base (RAG)</div>
           <div class="sub">Website + JSON ingest</div>
         </div>
         <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-brain"></i></div>
       </button>
       <button class="main-tab" id="btnMainTelegram" type="button" onclick="showMain('telegram')">
         <div>
-          <div style="font-size:0.88rem;font-weight:700;">Telegram</div>
+          <div class="main-tab-label">Telegram</div>
           <div class="sub">Bot &amp; alerts</div>
         </div>
         <div class="tab-icon" aria-hidden="true"><i class="fa-brands fa-telegram"></i></div>
       </button>
       <button class="main-tab" id="btnMainWhatsapp" type="button" onclick="showMain('whatsapp')">
         <div>
-          <div style="font-size:0.88rem;font-weight:700;">WhatsApp</div>
+          <div class="main-tab-label">WhatsApp</div>
           <div class="sub">Live alerts</div>
         </div>
         <div class="tab-icon" aria-hidden="true"><i class="fa-brands fa-whatsapp"></i></div>
@@ -1294,19 +1409,6 @@
       // Initial render (after config load populates)
       setTimeout(render, 50);
     })();
-
-    function showPanel(which){
-      const tg = document.getElementById('tabG');
-      const ts = document.getElementById('tabS');
-      const pg = document.getElementById('pGmail');
-      const ps = document.getElementById('pSmtp');
-      const smtpOn = which === 'smtp';
-
-      tg?.classList.toggle('on', !smtpOn);
-      ts?.classList.toggle('on', smtpOn);
-      pg?.classList.toggle('on', !smtpOn);
-      ps?.classList.toggle('on', smtpOn);
-    }
 
     function _smtpSavePayload(){
       return {
@@ -2204,5 +2306,5 @@
 
     _smtpWireFieldErrorClearing();
   </script>
-  <script src="{% static 'js/mail-accounts-setup.js' %}?v=3"></script>
+  <script src="{% static 'js/mail-accounts-setup.js' %}?v=6"></script>
 {% endblock %}
