@@ -6,21 +6,9 @@ from typing import Any, Optional
 
 import requests
 
-from core import runtime
-from core.mail_accounts import enabled_accounts_for_active_mode, tenant_id_for_account
+from core.mail_chat_assistant import answer_mail_chat
 from core.state_store import StateStore
 from core.telegram_notify import TelegramConfig, load_telegram_config, send_telegram_message
-from core.telegram_inbox import (
-    format_ignored_reply,
-    format_inbox_list_reply,
-    format_thread_reply,
-    is_ignored_command,
-    is_inbox_list_command,
-    parse_thread_command,
-)
-from core.telegram_mail_stats import format_mail_stats_reply, is_mail_stats_query
-from email_automation.llm import decide_and_write_reply
-from email_automation.worker import _build_kb_context, _effective_relevance_threshold
 
 log = logging.getLogger("mailpilot.telegram.bot")
 
@@ -109,83 +97,13 @@ def _load_update_offset(user_id: int) -> Optional[int]:
         return None
 
 
-def _settings_for_user(user):
-    accounts = enabled_accounts_for_active_mode(user)
-    account_id = accounts[0].id if accounts else None
-    effective = runtime.get_effective_settings(user, account_id=account_id)
-    tenant_id = tenant_id_for_account(user.id, account_id) if account_id else str(user.id)
-    return effective, tenant_id
-
-
-def compose_inbound_reply(user, *, text: str, sender_name: str) -> str:
+def compose_inbound_reply(user, *, text: str, sender_name: str, context_text: str = "") -> str:
     """Public entry for WhatsApp webhook (same logic as Telegram bot replies)."""
-    return _compose_reply(user, text=text, sender_name=sender_name)
+    return _compose_reply(user, text=text, sender_name=sender_name, context_text=context_text)
 
 
-def _compose_reply(user, *, text: str, sender_name: str) -> str:
-    settings, tenant_id = _settings_for_user(user)
-    query = (text or "").strip()
-    if not query:
-        return "Please send a text message."
-    if query.lower().startswith("/start"):
-        return (
-            "MailPilot bot is connected.\n"
-            "Inbox commands:\n"
-            "  /mail — stats summary\n"
-            "  /inbox — sender + subject list\n"
-            "  /thread <id> — open a message\n"
-            "  /ignored — skipped mail\n"
-            "Or ask any service question (Knowledge Base + LLM)."
-        )
-    thread_id = parse_thread_command(query)
-    if thread_id is not None:
-        try:
-            return format_thread_reply(user, thread_id)
-        except Exception as e:
-            log.warning("Telegram thread reply failed user=%s: %s", user.id, e)
-            return "Could not load that thread. Try /inbox for ids or open the Dashboard."
-    if is_inbox_list_command(query):
-        try:
-            return format_inbox_list_reply(user)
-        except Exception as e:
-            log.warning("Telegram inbox list failed user=%s: %s", user.id, e)
-            return "Could not load inbox list. Try again or open the Dashboard."
-    if is_ignored_command(query):
-        try:
-            return format_ignored_reply(user)
-        except Exception as e:
-            log.warning("Telegram ignored list failed user=%s: %s", user.id, e)
-            return "Could not load ignored mail. Try again or open the Dashboard."
-    if is_mail_stats_query(query):
-        try:
-            return format_mail_stats_reply(user)
-        except Exception as e:
-            log.warning("Telegram mail stats failed user=%s: %s", user.id, e)
-            return "Could not load inbox stats right now. Try again in a moment or check the Dashboard."
-    kb_ctx = _build_kb_context(settings=settings, tenant_id=tenant_id, query_text=query[:6000], k=6)
-    decision = decide_and_write_reply(
-        settings=settings,
-        mail_from=f"Telegram:{sender_name or 'user'}",
-        mail_subject="Telegram message",
-        mail_body=query,
-        kb_context=kb_ctx,
-        service_keywords=settings.SERVICE_KEYWORDS or [],
-    )
-    conf = float(decision.get("confidence") or 0.0)
-    is_rel = bool(decision.get("is_relevant"))
-    thr = _effective_relevance_threshold(settings)
-    body = str(decision.get("reply_body") or "").strip()
-    if body and (is_rel or conf >= thr or conf <= 0):
-        return body
-    if body:
-        return body
-    reason = str(decision.get("reason") or "").strip()
-    if reason == "missing_llm_key":
-        return "LLM API key is not configured. Add it in MailPilot to enable smart replies."
-    return (
-        "Thanks for your message. I could not find a strong match in your Knowledge Base. "
-        "Add more content in Setup → Knowledge Base."
-    )
+def _compose_reply(user, *, text: str, sender_name: str, context_text: str = "") -> str:
+    return answer_mail_chat(user, text=text, channel="telegram", sender_name=sender_name, context_text=context_text)
 
 
 def _handle_message(user_id: int, cfg: TelegramConfig, message: dict[str, Any]) -> None:
@@ -210,7 +128,9 @@ def _handle_message(user_id: int, cfg: TelegramConfig, message: dict[str, Any]) 
     sender_name = " ".join(
         [str(sender.get("first_name") or "").strip(), str(sender.get("last_name") or "").strip()]
     ).strip() or str(sender.get("username") or "user")
-    reply = _compose_reply(user, text=text, sender_name=sender_name)
+    reply_to = message.get("reply_to_message") or {}
+    context_text = str(reply_to.get("text") or reply_to.get("caption") or "").strip() if isinstance(reply_to, dict) else ""
+    reply = _compose_reply(user, text=text, sender_name=sender_name, context_text=context_text)
     ok, err = send_telegram_message(bot_token=cfg.bot_token, chat_id=str(chat_id), text=reply)
     if not ok:
         log.warning("Telegram reply failed user=%s chat=%s err=%s", user_id, chat_id, err)

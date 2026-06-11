@@ -5,6 +5,7 @@ import json
 import logging
 from typing import Any, Optional
 
+from core.mail_chat_assistant import answer_mail_chat
 from core.state_store import StateStore
 from core.whatsapp_notify import (
     find_user_for_inbound,
@@ -89,9 +90,7 @@ def _handle_one_inbound(item: dict[str, Any]) -> bool:
         if not st.try_claim_message(f"wa:{wa_msg_id}"):
             return False
 
-    from core.telegram_bot import compose_inbound_reply
-
-    reply = compose_inbound_reply(user, text=text, sender_name=f"WhatsApp:{from_phone}")
+    reply = answer_mail_chat(user, text=text, channel="whatsapp", sender_name=f"WhatsApp:{from_phone}")
     cfg = load_whatsapp_config(user.id)
     if cfg is None:
         return False
