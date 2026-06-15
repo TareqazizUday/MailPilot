@@ -162,12 +162,12 @@ def _format_message(event: str, *, subject: str, from_email: str, error: str, re
     subj = (subject or reply_subject or "(No subject)").strip()
     sender = (from_email or "unknown").strip()
     if event == "sent":
-        return f"✅ MailPilot auto-reply sent\nFrom: {sender}\nSubject: {subj}"
+        return f"MailPilot auto-reply sent\nFrom: {sender}\nSubject: {subj}"
     if event == "draft":
-        return f"📝 MailPilot draft saved\nFrom: {sender}\nSubject: {subj}"
+        return f"MailPilot draft saved\nFrom: {sender}\nSubject: {subj}"
     if event == "error":
         err = (error or "unknown error").strip()
-        return f"⚠️ MailPilot send error\nFrom: {sender}\nSubject: {subj}\nError: {err}"
+        return f"MailPilot send error\nFrom: {sender}\nSubject: {subj}\nError: {err}"
     return f"MailPilot: {event}\nFrom: {sender}\nSubject: {subj}"
 
 
@@ -249,7 +249,7 @@ def send_test_message(user) -> tuple[bool, str]:
         return False, "Configure access token, phone number ID, and your WhatsApp number first"
     if not cfg.enabled:
         return False, "WhatsApp notifications are disabled"
-    text = "✅ MailPilot WhatsApp test\nYour Cloud API connection is ready for alerts."
+    text = "MailPilot WhatsApp test\nYour Cloud API connection is ready for alerts."
     return send_whatsapp_text(
         access_token=cfg.access_token,
         phone_number_id=cfg.phone_number_id,

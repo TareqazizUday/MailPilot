@@ -1655,13 +1655,13 @@
   <div class="features-grid">
     <div class="feat-card" style="--card-accent:#4f6ef7">
       <div class="feat-icon" style="background:rgba(79,110,247,0.15)"><i class="fa-regular fa-envelope" aria-hidden="true"></i></div>
-      <div class="feat-title">Inbox Intelligence</div>
-      <div class="feat-desc">Automatically reads Gmail and IMAP inboxes, filters noise, and identifies emails that need a response — powered by LLM relevance scoring.</div>
+      <div class="feat-title">Multi-Inbox Intelligence</div>
+      <div class="feat-desc">Automatically reads multiple Gmail and SMTP/IMAP inboxes, filters noise, and identifies emails that need a response — powered by LLM relevance scoring.</div>
     </div>
     <div class="feat-card" style="--card-accent:#a78bfa">
       <div class="feat-icon" style="background:rgba(167,139,250,0.15)"><i class="fa-solid fa-brain" aria-hidden="true"></i></div>
       <div class="feat-title">RAG-Powered Replies</div>
-      <div class="feat-desc">Enriches every AI reply with your own knowledge base via Postgres + pgvector. Answers are grounded in your actual documentation and FAQs.</div>
+      <div class="feat-desc">Enriches every AI reply with your own knowledge base. Answers are grounded in your actual documentation, website content, and FAQs.</div>
     </div>
     <div class="feat-card" style="--card-accent:#38bdf8">
       <div class="feat-icon" style="background:rgba(56,189,248,0.15)"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div>
@@ -1675,13 +1675,13 @@
     </div>
     <div class="feat-card" style="--card-accent:#fb923c">
       <div class="feat-icon" style="background:rgba(251,146,60,0.15)"><i class="fa-solid fa-link" aria-hidden="true"></i></div>
-      <div class="feat-title">Gmail OAuth + SMTP/IMAP</div>
-      <div class="feat-desc">Connect via Google OAuth 2.0 or any SMTP/IMAP provider. Per-user token files, automatic refresh, and OAuth callback handling included.</div>
+      <div class="feat-title">Multi Gmail + SMTP/IMAP</div>
+      <div class="feat-desc">Connect multiple Gmail OAuth accounts or SMTP/IMAP mailboxes. Per-user encrypted credentials, automatic token refresh, and OAuth callback handling are included.</div>
     </div>
     <div class="feat-card" style="--card-accent:#f472b6">
       <div class="feat-icon" style="background:rgba(244,114,182,0.15)"><i class="fa-solid fa-chart-column" aria-hidden="true"></i></div>
-      <div class="feat-title">Dashboard & Audit Trail</div>
-      <div class="feat-desc">Real-time dashboard showing pending queue, sent replies, skipped emails, and full audit logs — all scoped per user account.</div>
+      <div class="feat-title">Telegram, WhatsApp & Dashboard</div>
+      <div class="feat-desc">Monitor queues in the dashboard and use live Telegram or WhatsApp alerts/chat commands for sent replies, drafts, errors, and mailbox actions.</div>
     </div>
   </div>
 </section>
@@ -1724,7 +1724,7 @@
       <div class="hiw-step-body">
         <span class="hiw-step-label">Step 3</span>
         <h3 class="hiw-step-title">RAG lookup</h3>
-        <p class="hiw-step-desc">If your KB is configured: embed subject+body and pull top chunks from Postgres pgvector (JSON upload).</p>
+        <p class="hiw-step-desc">If your knowledge base is configured, MailPilot finds the most relevant website, text, or JSON content before generating a reply.</p>
       </div>
     </article>
     <article class="hiw-step" data-accent="pink">
@@ -1819,14 +1819,14 @@
   </div>
 </section>
 
-<!-- PRICING (demo — billing coming soon) -->
+<!-- PRICING -->
 <section id="pricing" aria-labelledby="pricing-heading">
   <div class="pricing-head-row">
     <div class="pricing-head-copy">
       <div class="section-tag">Pricing</div>
       <h2 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h2>
-      <p class="pricing-intro">Demo pricing preview—choose a send volume that fits your inbox. Paid checkout launches soon.</p>
-      <p class="pricing-demo-note">Limits count automated <strong>sent</strong> replies per month (draft-only mode does not use send quota).</p>
+      <p class="pricing-intro">Simple token plans for every inbox size. Connect your inbox in Setup, then let MailPilot draft or send safely.</p>
+      <p class="pricing-demo-note">1 auto-sent reply uses 5 tokens. Draft-only mode, skipped emails, and Setup test emails do not use tokens.</p>
     </div>
   </div>
 
@@ -1837,16 +1837,18 @@
         <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
       </div>
       <div class="pricing-price">$0<span>/mo</span></div>
-      <p class="pricing-period">1 mo trial · then free tier</p>
-      <p class="pricing-desc">Try MailPilot with a full month to connect your inbox, test AI replies, and see relevance filtering in action.</p>
+      <p class="pricing-period">Free forever</p>
+      <p class="pricing-desc">Connect one inbox, test AI replies, and keep draft mode unlimited while you validate relevance filtering.</p>
       <ul class="pricing-features">
-        <li><strong>1 mo</strong> trial access</li>
-        <li><strong>20 sent emails</strong> per month</li>
+        <li><strong>20 tokens</strong> per month (up to 4 auto-sent replies)</li>
+        <li><strong>5 auto-sends/day</strong> safety cap</li>
         <li>1 connected inbox (Gmail or IMAP)</li>
+        <li>Basic KB: 1 crawl or upload</li>
         <li>Keyword filter + LLM relevance</li>
-        <li>Dashboard queue &amp; draft mode</li>
+        <li>Dashboard queue &amp; unlimited drafts</li>
+        <li>No Telegram or WhatsApp</li>
       </ul>
-      <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free trial</a>
+      <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free</a>
     </article>
 
     <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
@@ -1855,7 +1857,7 @@
       </div>
       <div class="pricing-tier-row">
         <div class="pricing-tier">Pro</div>
-        <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+        <span class="pricing-card-soon"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Live when Stripe is configured</span>
       </div>
       <div class="pricing-price-row">
         <span class="pricing-was">$40</span>
@@ -1865,16 +1867,15 @@
       <p class="pricing-period">Billed monthly · cancel anytime</p>
       <p class="pricing-desc">Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits.</p>
       <ul class="pricing-features">
-        <li><strong>1,000 sent emails</strong> per month</li>
-        <li>pgvector RAG (JSON &amp; text upload)</li>
-        <li>Gmail OAuth + SMTP/IMAP</li>
-        <li>APScheduler or Celery polling</li>
+        <li><strong>1,000 tokens</strong> per month (up to 200 auto-sent replies)</li>
+        <li>Up to 3 active Gmail or SMTP/IMAP inboxes</li>
+        <li>100 auto-sends/day/inbox safety cap</li>
+        <li>Full AI knowledge base (website crawl + file upload)</li>
+        <li>Multi Gmail OAuth + SMTP/IMAP mailbox support</li>
         <li>Per-user encrypted credentials</li>
-        <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-        <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-        <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
+        <li>Telegram &amp; WhatsApp alerts and commands</li>
       </ul>
-      <a href="{% url 'signup' %}" class="pricing-cta primary">Get Pro</a>
+      <a href="{% if user.is_authenticated %}{% url 'billing_checkout_pro' %}{% else %}{% url 'signup' %}{% endif %}" class="pricing-cta primary">Get Pro</a>
     </article>
 
     <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
@@ -1883,18 +1884,17 @@
       </div>
       <div class="pricing-tier-row">
         <div class="pricing-tier">Custom</div>
-        <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+        <span class="pricing-card-soon"><i class="fa-solid fa-user-gear" aria-hidden="true"></i> Manual setup</span>
       </div>
       <div class="pricing-price">You choose</div>
       <p class="pricing-period">Set price &amp; send volume</p>
       <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
       <ul class="pricing-features">
-        <li><strong>2,000 sends</strong> (4 Gmail/SMTP) → <strong>$30/mo</strong></li>
-        <li><strong>3,000 sends</strong> (6 Gmail/SMTP) → <strong>$40/mo</strong></li>
+        <li><strong>2,000 tokens</strong> + 4 Gmail/SMTP inboxes → <strong>$30/mo</strong></li>
+        <li><strong>3,000 tokens</strong> + 6 Gmail/SMTP inboxes → <strong>$40/mo</strong></li>
         <li>Or define your own tier (e.g. $50 → 5,000 sends)</li>
-        <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-        <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-        <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
+        <li>Provider-aware daily safety caps</li>
+        <li>Telegram &amp; WhatsApp alerts and chat commands</li>
         <li>Annual billing option</li>
         <li>Priority onboarding &amp; team seats</li>
       </ul>
@@ -1909,7 +1909,7 @@
     <div class="contact-head">
       <div class="section-tag">Get in touch</div>
       <h2 class="section-title" id="contact-heading">Questions before you <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">sign up?</span></h2>
-      <p class="contact-intro">Share your inbox goals—we typically reply within one business day. Or start your free trial below.</p>
+      <p class="contact-intro">Share your inbox goals—we typically reply within one business day. Or start with the free Starter plan below.</p>
     </div>
 
     {% if contact_sent %}
@@ -2027,7 +2027,7 @@
           <span class="faq-q"><i class="fa-brands fa-google" aria-hidden="true"></i><span>Gmail or SMTP/IMAP—which should I use?</span></span>
           <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
         </summary>
-        <p class="faq-a"><strong>Gmail OAuth</strong> is the fastest setup for Google Workspace or personal Gmail. Use <strong>SMTP + IMAP</strong> for other providers. You can test the connection in Setup before going live.</p>
+        <p class="faq-a"><strong>Gmail OAuth</strong> is the fastest setup for Google Workspace or personal Gmail. Use <strong>SMTP + IMAP</strong> for other providers. Pro and Custom plans can run multiple active mailboxes, and each connection can be tested in Setup before going live.</p>
       </details>
 
       <details class="faq-item">
@@ -2035,15 +2035,15 @@
           <span class="faq-q"><i class="fa-solid fa-brain" aria-hidden="true"></i><span>How does the knowledge base work?</span></span>
           <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
         </summary>
-        <p class="faq-a">Upload JSON or text, or crawl your website. MailPilot chunks content, stores embeddings in PostgreSQL with pgvector, and pulls the best matches into each AI reply.</p>
+        <p class="faq-a">Upload JSON or text, or crawl your website. MailPilot finds the best matching content and uses it to ground each AI reply in your real business information.</p>
       </details>
 
       <details class="faq-item">
         <summary>
-          <span class="faq-q"><i class="fa-solid fa-gift" aria-hidden="true"></i><span>Is there a free trial?</span></span>
+          <span class="faq-q"><i class="fa-solid fa-gift" aria-hidden="true"></i><span>Is there a free plan?</span></span>
           <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
         </summary>
-        <p class="faq-a">Yes. The <strong>Starter</strong> plan includes a one-month trial with a monthly send limit so you can connect an inbox and test relevance filtering before paid plans launch.</p>
+        <p class="faq-a">Yes. <strong>Starter</strong> is free forever with 20 monthly tokens, enough for up to 4 auto-sent replies, plus one active inbox, one KB source, and unlimited draft mode.</p>
       </details>
 
       <details class="faq-item">
@@ -2056,10 +2056,10 @@
 
       <details class="faq-item">
         <summary>
-          <span class="faq-q"><i class="fa-solid fa-credit-card" aria-hidden="true"></i><span>When will paid plans be available?</span></span>
+          <span class="faq-q"><i class="fa-solid fa-credit-card" aria-hidden="true"></i><span>How do paid plans work?</span></span>
           <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
         </summary>
-        <p class="faq-a">Pro and Custom plans are marked <strong>Coming soon</strong> on pricing. Sign up for the free trial now; contact us for agency or high-volume pricing.</p>
+        <p class="faq-a"><strong>Pro</strong> uses hosted Stripe checkout when billing is configured. <strong>Custom</strong> is manually configured for higher token volume, more Gmail/SMTP inboxes, and onboarding support.</p>
       </details>
     </div>
   </div>

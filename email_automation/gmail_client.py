@@ -222,6 +222,9 @@ class GmailClient:
                         "internal_date": 0,
                         "snippet": list_snippet,
                         "unread": False,
+                        "important": False,
+                        "starred": False,
+                        "label_ids": [],
                         "date": "",
                     }
                 )
@@ -246,7 +249,8 @@ class GmailClient:
             date_v = self._header(headers, "Date")
             internal_ms = int(last.get("internalDate") or 0)
             label_ids = (last.get("labelIds") or []) + (det.get("labels") or [])
-            unread = "UNREAD" in set(label_ids)
+            labels = set(label_ids)
+            unread = "UNREAD" in labels
             snippet = str(last.get("snippet") or "") or list_snippet
             out.append(
                 {
@@ -257,6 +261,9 @@ class GmailClient:
                     "internal_date": internal_ms,
                     "snippet": snippet,
                     "unread": unread,
+                    "important": "IMPORTANT" in labels,
+                    "starred": "STARRED" in labels,
+                    "label_ids": sorted(labels),
                     "date": date_v,
                 }
             )

@@ -292,6 +292,7 @@ def _trigger_poll_fn_locked(
                     settings=effective,
                     state_store=st,
                     gmail_client=GmailClient(settings=effective),
+                    mail_account=acc,
                     skip_from_emails=skip_from_emails,
                 )
                 total = PollResult(
@@ -321,7 +322,13 @@ def _trigger_poll_fn_locked(
             if not out_from and not imap_inbox_ready(effective):
                 continue
             try:
-                r = poll_once_imap(settings=effective, state_store=st, fast=fast, skip_from_emails=skip_from_emails)
+                r = poll_once_imap(
+                    settings=effective,
+                    state_store=st,
+                    fast=fast,
+                    mail_account=acc,
+                    skip_from_emails=skip_from_emails,
+                )
                 total = PollResult(
                     scanned=total.scanned + r.scanned,
                     relevant=total.relevant + r.relevant,
