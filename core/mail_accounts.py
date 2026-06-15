@@ -31,10 +31,15 @@ def count_enabled(user: User, transport: str) -> int:
 
 
 def can_enable_more(user: User, transport: str, *, excluding_account_id: int | None = None) -> bool:
-    qs = list_accounts_for_user(user, transport=transport).filter(is_enabled=True)
-    if excluding_account_id:
-        qs = qs.exclude(pk=excluding_account_id)
-    return qs.count() < max_active_accounts()
+    try:
+        from core.billing import can_enable_mailbox
+
+        return can_enable_mailbox(user, excluding_account_id=excluding_account_id).allowed
+    except Exception:
+        qs = list_accounts_for_user(user, transport=transport).filter(is_enabled=True)
+        if excluding_account_id:
+            qs = qs.exclude(pk=excluding_account_id)
+        return qs.count() < max_active_accounts()
 
 
 TRANSPORT_GMAIL = "gmail_api"
@@ -233,6 +238,16 @@ def create_account(
     slot = next_free_slot(user, transport)
     if slot is None:
         raise ValueError(f"Maximum {MAX_SLOTS_PER_TRANSPORT} {transport} accounts reached")
+    try:
+        from core.billing import can_enable_mailbox
+
+        gate = can_enable_mailbox(user)
+        if not gate.allowed:
+            raise ValueError(gate.reason or "plan_inbox_limit_reached")
+    except ValueError:
+        raise
+    except Exception:
+        pass
 
     cfg: dict[str, Any] = {}
     if transport == TRANSPORT_GMAIL and gmail_address:

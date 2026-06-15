@@ -280,8 +280,8 @@
       <div class="pricing-head-copy">
         <div class="section-tag">Pricing</div>
         <h1 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h1>
-        <p class="pricing-intro">Demo pricing preview—choose a send volume that fits your inbox. Paid checkout launches soon.</p>
-        <p class="pricing-demo-note">Limits count automated <strong>sent</strong> replies per month (draft-only mode does not use send quota).</p>
+        <p class="pricing-intro">Simple token plans for every inbox size. Connect your inbox in Setup, then let MailPilot draft or send safely.</p>
+        <p class="pricing-demo-note">1 auto-sent reply uses 5 tokens. Draft-only mode, skipped emails, and Setup test emails do not use tokens.</p>
       </div>
     </div>
 
@@ -292,16 +292,18 @@
           <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
         </div>
         <div class="pricing-price">$0<span>/mo</span></div>
-        <p class="pricing-period">1 mo trial · then free tier</p>
-        <p class="pricing-desc">Try MailPilot with a full month to connect your inbox, test AI replies, and see relevance filtering in action.</p>
+        <p class="pricing-period">Free forever</p>
+        <p class="pricing-desc">Connect one inbox, test AI replies, and keep draft mode unlimited while you validate relevance filtering.</p>
         <ul class="pricing-features">
-          <li><strong>1 mo</strong> trial access</li>
-          <li><strong>20 sent emails</strong> per month</li>
+          <li><strong>20 tokens</strong> per month (up to 4 auto-sent replies)</li>
+          <li><strong>5 auto-sends/day</strong> safety cap</li>
           <li>1 connected inbox (Gmail or IMAP)</li>
+          <li>Basic KB: 1 crawl or upload</li>
           <li>Keyword filter + LLM relevance</li>
-          <li>Dashboard queue &amp; draft mode</li>
+          <li>Dashboard queue &amp; unlimited drafts</li>
+          <li>No Telegram or WhatsApp</li>
         </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free trial</a>
+        <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free</a>
       </article>
 
       <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
@@ -310,7 +312,7 @@
         </div>
         <div class="pricing-tier-row">
           <div class="pricing-tier">Pro</div>
-          <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+          <span class="pricing-card-soon"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Live when Stripe is configured</span>
         </div>
         <div class="pricing-price-row">
           <span class="pricing-was">$40</span>
@@ -320,16 +322,15 @@
         <p class="pricing-period">Billed monthly · cancel anytime</p>
         <p class="pricing-desc">Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits.</p>
         <ul class="pricing-features">
-          <li><strong>1,000 sent emails</strong> per month</li>
-          <li>pgvector RAG (JSON &amp; text upload)</li>
-          <li>Gmail OAuth + SMTP/IMAP</li>
-          <li>APScheduler or Celery polling</li>
+          <li><strong>1,000 tokens</strong> per month (up to 200 auto-sent replies)</li>
+          <li>Up to 3 active Gmail or SMTP/IMAP inboxes</li>
+          <li>100 auto-sends/day/inbox safety cap</li>
+          <li>Full AI knowledge base (website crawl + file upload)</li>
+          <li>Multi Gmail OAuth + SMTP/IMAP mailbox support</li>
           <li>Per-user encrypted credentials</li>
-          <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
+          <li>Telegram &amp; WhatsApp alerts and commands</li>
         </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta primary">Get Pro</a>
+        <a href="{% if user.is_authenticated %}{% url 'billing_checkout_pro' %}{% else %}{% url 'signup' %}{% endif %}" class="pricing-cta primary">Get Pro</a>
       </article>
 
       <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
@@ -338,18 +339,17 @@
         </div>
         <div class="pricing-tier-row">
           <div class="pricing-tier">Custom</div>
-          <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+          <span class="pricing-card-soon"><i class="fa-solid fa-user-gear" aria-hidden="true"></i> Manual setup</span>
         </div>
         <div class="pricing-price">You choose</div>
         <p class="pricing-period">Set price &amp; send volume</p>
         <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
         <ul class="pricing-features">
-          <li><strong>2,000 sends</strong> (4 Gmail/SMTP) → <strong>$30/mo</strong></li>
-          <li><strong>3,000 sends</strong> (6 Gmail/SMTP) → <strong>$40/mo</strong></li>
+          <li><strong>2,000 tokens</strong> + 4 Gmail/SMTP inboxes → <strong>$30/mo</strong></li>
+          <li><strong>3,000 tokens</strong> + 6 Gmail/SMTP inboxes → <strong>$40/mo</strong></li>
           <li>Or define your own tier (e.g. $50 → 5,000 sends)</li>
-          <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
+          <li>Provider-aware daily safety caps</li>
+          <li>Telegram &amp; WhatsApp alerts and chat commands</li>
           <li>Annual billing option</li>
           <li>Priority onboarding &amp; team seats</li>
         </ul>

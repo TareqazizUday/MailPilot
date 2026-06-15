@@ -28,6 +28,13 @@ def _reply_enabled(user_id: int) -> bool:
         user = User.objects.get(pk=user_id)
     except User.DoesNotExist:
         return False
+    try:
+        from core.billing import can_use_integration
+
+        if not can_use_integration(user, "telegram").allowed:
+            return False
+    except Exception:
+        pass
     sj = dict(get_or_create_mail_settings(user).settings_json or {})
     raw = sj.get("TELEGRAM_REPLY_ENABLED")
     if raw is None:

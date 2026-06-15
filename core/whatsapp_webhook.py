@@ -109,6 +109,13 @@ def _handle_one_inbound(item: dict[str, Any]) -> bool:
     user = find_user_for_inbound(phone_number_id=phone_number_id, from_phone=from_phone)
     if user is None:
         return False
+    try:
+        from core.billing import can_use_integration
+
+        if not can_use_integration(user, "whatsapp").allowed:
+            return False
+    except Exception:
+        pass
     if not whatsapp_reply_enabled(user):
         return False
 

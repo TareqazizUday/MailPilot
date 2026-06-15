@@ -5,6 +5,8 @@ import logging
 import os
 import re
 import threading
+import hashlib
+import hmac
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote, urljoin
@@ -582,6 +584,173 @@ def settings_page(request):
             "connected": connected,
         },
     )
+
+
+@require_GET
+def api_billing_summary(request):
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        from core.billing import usage_summary
+
+        acc = _resolve_mail_account(request)
+        return JsonResponse({"ok": True, "billing": usage_summary(request.user, account=acc)})
+    except Exception as e:
+        logger.exception("billing summary failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@login_required(login_url="/login")
+@require_http_methods(["GET", "POST"])
+def billing_checkout_pro(request):
+    """Create a Stripe Checkout session for Pro when Stripe env is configured."""
+    secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+    price_id = (os.environ.get("STRIPE_PRICE_PRO_MONTHLY") or "").strip()
+    if not secret or not price_id:
+        return redirect(f"{reverse('pricing')}?billing=not_configured")
+    try:
+        import requests
+
+        base = _public_base_url(request)
+        data = {
+            "mode": "subscription",
+            "line_items[0][price]": price_id,
+            "line_items[0][quantity]": "1",
+            "success_url": f"{base}{reverse('setup')}?billing=success",
+            "cancel_url": f"{base}{reverse('pricing')}?billing=cancelled",
+            "client_reference_id": str(request.user.id),
+            "customer_email": (request.user.email or "").strip(),
+            "metadata[user_id]": str(request.user.id),
+        }
+        resp = requests.post(
+            "https://api.stripe.com/v1/checkout/sessions",
+            data=data,
+            auth=(secret, ""),
+            timeout=20,
+        )
+        payload = resp.json() if resp.content else {}
+        if not resp.ok:
+            logger.warning("stripe checkout failed: %s", payload or resp.text)
+            return redirect(f"{reverse('pricing')}?billing=checkout_error")
+        url = str(payload.get("url") or "").strip()
+        if not url:
+            return redirect(f"{reverse('pricing')}?billing=checkout_error")
+        return redirect(url)
+    except Exception as e:
+        logger.exception("stripe checkout exception: %s", e)
+        return redirect(f"{reverse('pricing')}?billing=checkout_error")
+
+
+@login_required(login_url="/login")
+@require_http_methods(["GET", "POST"])
+def billing_portal(request):
+    secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+    if not secret:
+        return redirect(f"{reverse('settings')}?billing=not_configured")
+    try:
+        from core.billing import get_or_create_subscription
+
+        sub = get_or_create_subscription(request.user)
+        customer_id = (sub.stripe_customer_id or "").strip()
+        if not customer_id:
+            return redirect(f"{reverse('pricing')}?billing=no_customer")
+        import requests
+
+        base = _public_base_url(request)
+        resp = requests.post(
+            "https://api.stripe.com/v1/billing_portal/sessions",
+            data={"customer": customer_id, "return_url": f"{base}{reverse('settings')}"},
+            auth=(secret, ""),
+            timeout=20,
+        )
+        payload = resp.json() if resp.content else {}
+        url = str(payload.get("url") or "").strip()
+        if not resp.ok or not url:
+            logger.warning("stripe portal failed: %s", payload or resp.text)
+            return redirect(f"{reverse('settings')}?billing=portal_error")
+        return redirect(url)
+    except Exception as e:
+        logger.exception("stripe portal exception: %s", e)
+        return redirect(f"{reverse('settings')}?billing=portal_error")
+
+
+def _stripe_signature_ok(raw: bytes, sig_header: str, secret: str) -> bool:
+    if not secret:
+        return True
+    parts: dict[str, str] = {}
+    for chunk in (sig_header or "").split(","):
+        if "=" in chunk:
+            k, v = chunk.split("=", 1)
+            parts[k.strip()] = v.strip()
+    ts = parts.get("t")
+    v1 = parts.get("v1")
+    if not ts or not v1:
+        return False
+    signed = f"{ts}.{raw.decode('utf-8', errors='replace')}".encode("utf-8")
+    expected = hmac.new(secret.encode("utf-8"), signed, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, v1)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def billing_stripe_webhook(request):
+    raw = request.body or b""
+    webhook_secret = (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip()
+    if webhook_secret and not _stripe_signature_ok(raw, request.headers.get("Stripe-Signature", ""), webhook_secret):
+        return JsonResponse({"ok": False, "error": "invalid_signature"}, status=400)
+    try:
+        event = json.loads(raw.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse({"ok": False, "error": "invalid_json"}, status=400)
+    try:
+        from django.contrib.auth.models import User
+        from core.billing import get_or_create_subscription, set_subscription_plan
+
+        etype = str(event.get("type") or "")
+        obj = ((event.get("data") or {}).get("object") or {}) if isinstance(event.get("data"), dict) else {}
+        user_id = (
+            str((obj.get("metadata") or {}).get("user_id") or "").strip()
+            or str(obj.get("client_reference_id") or "").strip()
+        )
+        user = User.objects.filter(pk=int(user_id)).first() if user_id.isdigit() else None
+        if user is None and obj.get("customer"):
+            from core.models import UserSubscription
+
+            sub = UserSubscription.objects.filter(stripe_customer_id=str(obj.get("customer"))).select_related("user").first()
+            user = sub.user if sub else None
+        if user is None:
+            return JsonResponse({"ok": True, "ignored": "unknown_user"})
+        sub = get_or_create_subscription(user)
+
+        if etype == "checkout.session.completed":
+            set_subscription_plan(sub, "pro", status="active")
+            sub.stripe_customer_id = str(obj.get("customer") or sub.stripe_customer_id or "")
+            sub.stripe_subscription_id = str(obj.get("subscription") or sub.stripe_subscription_id or "")
+        elif etype in ("customer.subscription.updated", "customer.subscription.created"):
+            set_subscription_plan(
+                sub,
+                "pro",
+                status="active" if str(obj.get("status") or "") in ("active", "trialing") else "past_due",
+            )
+            sub.stripe_customer_id = str(obj.get("customer") or sub.stripe_customer_id or "")
+            sub.stripe_subscription_id = str(obj.get("id") or sub.stripe_subscription_id or "")
+            if obj.get("current_period_start"):
+                sub.current_period_start = datetime.fromtimestamp(
+                    int(obj["current_period_start"]),
+                    tz=timezone.utc,
+                )
+            if obj.get("current_period_end"):
+                sub.current_period_end = datetime.fromtimestamp(
+                    int(obj["current_period_end"]),
+                    tz=timezone.utc,
+                )
+        elif etype == "customer.subscription.deleted":
+            set_subscription_plan(sub, "starter", status="canceled")
+        sub.save()
+        return JsonResponse({"ok": True})
+    except Exception as e:
+        logger.exception("stripe webhook failed: %s", e)
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
 @csrf_exempt
@@ -1237,6 +1406,18 @@ def api_kb_upload_json(request):
         return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    aid = _account_id_from_request(request)
+    try:
+        from core.billing import can_use_kb_source
+
+        gate = can_use_kb_source(request.user, account_id=aid)
+        if not gate.allowed:
+            return JsonResponse(
+                {"ok": False, "error": gate.reason, "upgrade_required": True, "billing": gate.summary or {}},
+                status=403,
+            )
+    except Exception:
+        pass
     f = request.FILES.get("json_file")
     if f is None or not getattr(f, "name", ""):
         return JsonResponse({"ok": False, "error": "Missing json_file"}, status=400)
@@ -1247,7 +1428,7 @@ def api_kb_upload_json(request):
         return JsonResponse({"ok": False, "error": f"Invalid JSON: {e}"}, status=400)
     try:
         docs = documents_from_json_upload(data, source_name=secure_filename(f.name))
-        res = _ingest_documents(docs, request.user, account_id=_account_id_from_request(request))
+        res = _ingest_documents(docs, request.user, account_id=aid)
         return JsonResponse({"ok": True, **res})
     except Exception as e:
         logger.exception("kb upload-json failed")
@@ -1260,6 +1441,18 @@ def api_kb_upload_text(request):
         return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    aid = _account_id_from_request(request)
+    try:
+        from core.billing import can_use_kb_source
+
+        gate = can_use_kb_source(request.user, account_id=aid)
+        if not gate.allowed:
+            return JsonResponse(
+                {"ok": False, "error": gate.reason, "upgrade_required": True, "billing": gate.summary or {}},
+                status=403,
+            )
+    except Exception:
+        pass
     f = request.FILES.get("text_file")
     if f is None or not getattr(f, "name", ""):
         return JsonResponse({"ok": False, "error": "Missing text_file"}, status=400)
@@ -1278,7 +1471,7 @@ def api_kb_upload_text(request):
         docs = documents_from_text_upload(raw, source_name=name)
         if not docs:
             return JsonResponse({"ok": False, "error": "Text file is empty"}, status=400)
-        res = _ingest_documents(docs, request.user, account_id=_account_id_from_request(request))
+        res = _ingest_documents(docs, request.user, account_id=aid)
         return JsonResponse({"ok": True, **res})
     except Exception as e:
         logger.exception("kb upload-text failed")
@@ -1304,6 +1497,17 @@ def api_kb_crawl(request):
         return JsonResponse({"ok": False, "error": "Missing start_url"}, status=400)
 
     aid = _account_id_from_request(request)
+    try:
+        from core.billing import can_use_kb_source
+
+        gate = can_use_kb_source(request.user, account_id=aid)
+        if not gate.allowed:
+            return JsonResponse(
+                {"ok": False, "error": gate.reason, "upgrade_required": True, "billing": gate.summary or {}},
+                status=403,
+            )
+    except Exception:
+        pass
     effective = runtime.get_effective_settings(request.user, account_id=aid)
     if not is_vector_db_configured(effective):
         return JsonResponse(
@@ -1442,6 +1646,17 @@ def api_kb_clear(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     try:
         aid = _account_id_from_request(request)
+        try:
+            from core.billing import can_use_kb_source
+
+            gate = can_use_kb_source(request.user, account_id=aid, replacing=True)
+            if not gate.allowed:
+                return JsonResponse(
+                    {"ok": False, "error": gate.reason, "upgrade_required": True, "billing": gate.summary or {}},
+                    status=403,
+                )
+        except Exception:
+            pass
         effective = runtime.get_effective_settings(request.user, account_id=aid)
         crawl_deleted = delete_website_crawl_file(_website_crawl_path(request.user))
         res: dict[str, Any] = {"deleted_documents": 0, "deleted_chunks": 0}
@@ -1822,7 +2037,13 @@ def api_telegram_status(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     from core.telegram_notify import telegram_status_for_user
 
-    return JsonResponse({"ok": True, **telegram_status_for_user(request.user)})
+    try:
+        from core.billing import can_use_integration
+
+        gate = can_use_integration(request.user, "telegram")
+        return JsonResponse({"ok": True, "plan_allowed": gate.allowed, **telegram_status_for_user(request.user)})
+    except Exception:
+        return JsonResponse({"ok": True, "plan_allowed": True, **telegram_status_for_user(request.user)})
 
 
 @csrf_exempt
@@ -1832,6 +2053,17 @@ def api_telegram_config(request):
         return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        from core.billing import can_use_integration
+
+        gate = can_use_integration(request.user, "telegram")
+        if not gate.allowed:
+            return JsonResponse(
+                {"ok": False, "error": gate.reason, "upgrade_required": True, "billing": gate.summary or {}},
+                status=403,
+            )
+    except Exception:
+        pass
     ct = request.content_type or ""
     if "application/json" not in ct:
         return JsonResponse({"ok": False, "error": "expected_json"}, status=400)
@@ -1865,6 +2097,17 @@ def api_telegram_test(request):
         return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        from core.billing import can_use_integration
+
+        gate = can_use_integration(request.user, "telegram")
+        if not gate.allowed:
+            return JsonResponse(
+                {"ok": False, "error": gate.reason, "upgrade_required": True, "billing": gate.summary or {}},
+                status=403,
+            )
+    except Exception:
+        pass
     from core.telegram_notify import send_test_message
 
     ok, err = send_test_message(request.user)
@@ -1880,9 +2123,16 @@ def api_whatsapp_status(request):
     from core.whatsapp_notify import whatsapp_status_for_user
 
     base = request.build_absolute_uri("/").rstrip("/")
+    try:
+        from core.billing import can_use_integration
+
+        plan_allowed = can_use_integration(request.user, "whatsapp").allowed
+    except Exception:
+        plan_allowed = True
     return JsonResponse(
         {
             "ok": True,
+            "plan_allowed": plan_allowed,
             **whatsapp_status_for_user(request.user),
             "webhook_url": f"{base}/api/whatsapp/webhook",
         }
@@ -1896,6 +2146,17 @@ def api_whatsapp_config(request):
         return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        from core.billing import can_use_integration
+
+        gate = can_use_integration(request.user, "whatsapp")
+        if not gate.allowed:
+            return JsonResponse(
+                {"ok": False, "error": gate.reason, "upgrade_required": True, "billing": gate.summary or {}},
+                status=403,
+            )
+    except Exception:
+        pass
     ct = request.content_type or ""
     if "application/json" not in ct:
         return JsonResponse({"ok": False, "error": "expected_json"}, status=400)
@@ -1941,6 +2202,17 @@ def api_whatsapp_test(request):
         return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        from core.billing import can_use_integration
+
+        gate = can_use_integration(request.user, "whatsapp")
+        if not gate.allowed:
+            return JsonResponse(
+                {"ok": False, "error": gate.reason, "upgrade_required": True, "billing": gate.summary or {}},
+                status=403,
+            )
+    except Exception:
+        pass
     from core.whatsapp_notify import send_test_message as wa_send_test
 
     ok, err = wa_send_test(request.user)

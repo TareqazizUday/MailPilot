@@ -276,6 +276,7 @@ def poll_once(
     settings: Settings,
     state_store: StateStore,
     gmail_client: Any,
+    mail_account: Any | None = None,
     skip_from_emails: frozenset[str] | None = None,
 ) -> PollResult:
     scanned = relevant = sent = drafts = ignored = queued = 0
@@ -353,14 +354,67 @@ def poll_once(
             reply_subject = _clean_text(decision.get("reply_subject") or ("Re: " + subject))
             reply_body = str(decision.get("reply_body") or "").strip()
             if (settings.REPLY_MODE or "").lower() == "send":
-                _send_reply_via_transport(
-                    settings=settings,
-                    gmail_client=gmail_client,
-                    to_email=from_email,
-                    subject=reply_subject,
-                    body_text=reply_body,
-                    thread_id=tid,
-                )
+                reservation = None
+                if mail_account is not None:
+                    from core.billing import reserve_auto_send
+
+                    reservation = reserve_auto_send(mail_account.user, mail_account, mid)
+                    if not reservation.allowed:
+                        drafts += 1
+                        state_store.upsert_queue_item(
+                            mid,
+                            status="quota_blocked",
+                            details={
+                                "id": mid,
+                                "from_email": from_email,
+                                "subject": subject,
+                                "reason": reservation.reason or "quota_blocked",
+                                "reply_subject": reply_subject,
+                                "upgrade_required": True,
+                            },
+                        )
+                        state_store.mark_processed(
+                            mid,
+                            {
+                                "action": "draft",
+                                "confidence": conf,
+                                "reply_subject": reply_subject,
+                                "reply_body": reply_body,
+                                "from_email": from_email,
+                                "subject": subject,
+                                "reason": reservation.reason or "quota_blocked",
+                                "thread_id": tid,
+                                "processed_at": _now_iso(),
+                                "quota_blocked": True,
+                            },
+                        )
+                        _maybe_telegram_notify(
+                            state_store,
+                            "draft",
+                            subject=subject,
+                            from_email=from_email,
+                            reply_subject=reply_subject,
+                        )
+                        continue
+                try:
+                    _send_reply_via_transport(
+                        settings=settings,
+                        gmail_client=gmail_client,
+                        to_email=from_email,
+                        subject=reply_subject,
+                        body_text=reply_body,
+                        thread_id=tid,
+                    )
+                    if reservation is not None:
+                        from core.billing import commit_auto_send
+
+                        commit_auto_send(reservation)
+                except Exception as e:
+                    if reservation is not None:
+                        from core.billing import fail_auto_send
+
+                        fail_auto_send(reservation, str(e))
+                    raise
                 sent += 1
                 state_store.upsert_queue_item(
                     mid,
@@ -384,6 +438,7 @@ def poll_once(
                         "reason": "auto_reply",
                         "thread_id": tid,
                         "processed_at": _now_iso(),
+                        "usage_event_id": getattr(reservation, "event_id", None),
                     },
                 )
                 state_store.mark_thread_replied(
@@ -453,6 +508,7 @@ def poll_once_imap(
     settings: Settings,
     state_store: StateStore,
     fast: bool = False,
+    mail_account: Any | None = None,
     skip_from_emails: frozenset[str] | None = None,
 ) -> PollResult:
     scanned = relevant = sent = drafts = ignored = queued = 0
@@ -635,6 +691,52 @@ def poll_once_imap(
                 reply_subject = _clean_text(decision.get("reply_subject") or ("Re: " + subject))
                 reply_body = str(decision.get("reply_body") or "").strip()
                 if (settings.REPLY_MODE or "").lower() == "send":
+                    reservation = None
+                    if mail_account is not None:
+                        from core.billing import reserve_auto_send
+
+                        reservation = reserve_auto_send(mail_account.user, mail_account, dedupe_id)
+                        if not reservation.allowed:
+                            drafts += 1
+                            quota_meta = {
+                                "action": "draft",
+                                "confidence": conf,
+                                "reply_subject": reply_subject,
+                                "reply_body": reply_body,
+                                "from_email": from_email,
+                                "subject": subject,
+                                "mail_body": body_text[:8000],
+                                "reason": reservation.reason or "quota_blocked",
+                                "processed_at": _now_iso(),
+                                "imap_uid": uid,
+                                "quota_blocked": True,
+                            }
+                            state_store.upsert_queue_item(
+                                dedupe_id,
+                                status="quota_blocked",
+                                details={
+                                    "id": dedupe_id,
+                                    "from_email": from_email,
+                                    "subject": subject,
+                                    "reason": reservation.reason or "quota_blocked",
+                                    "reply_subject": reply_subject,
+                                    "upgrade_required": True,
+                                },
+                            )
+                            state_store.mark_processed_aliases(
+                                dedupe_id,
+                                _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
+                                quota_meta,
+                            )
+                            _maybe_telegram_notify(
+                                state_store,
+                                "draft",
+                                subject=subject,
+                                from_email=from_email,
+                                reply_subject=reply_subject,
+                            )
+                            print(f"[mailpoll][imap] quota_blocked uid={uid} reason={reservation.reason!r}")
+                            continue
                     try:
                         _send_reply_via_transport(
                             settings=settings,
@@ -644,6 +746,10 @@ def poll_once_imap(
                             body_text=reply_body,
                             thread_id=None,
                         )
+                        if reservation is not None:
+                            from core.billing import commit_auto_send
+
+                            commit_auto_send(reservation)
                         sent += 1
                         print(f"[mailpoll][imap] sent uid={uid} to={from_email!r}")
                         sent_meta = {
@@ -657,6 +763,7 @@ def poll_once_imap(
                             "reason": "auto_reply",
                             "processed_at": _now_iso(),
                             "imap_uid": uid,
+                            "usage_event_id": getattr(reservation, "event_id", None),
                         }
                         state_store.upsert_queue_item(
                             dedupe_id,
@@ -687,6 +794,10 @@ def poll_once_imap(
                         )
                     except Exception as e:
                         err = str(e)
+                        if reservation is not None:
+                            from core.billing import fail_auto_send
+
+                            fail_auto_send(reservation, err)
                         print(f"[mailpoll][imap] send_failed uid={uid} err={err}")
                         err_meta = {
                             "action": "error",
