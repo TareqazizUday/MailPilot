@@ -46,9 +46,35 @@ def _extract_inbound_messages(payload: dict[str, Any]) -> list[dict[str, Any]]:
                         "from_phone": str(msg.get("from") or ""),
                         "message_id": str(msg.get("id") or ""),
                         "text": body,
+                        "context_text": _extract_context_text(msg),
                     }
                 )
     return out
+
+
+def _extract_context_text(msg: dict[str, Any]) -> str:
+    ctx = msg.get("context") or {}
+    if not isinstance(ctx, dict):
+        return ""
+    candidates: list[str] = []
+    for key in ("body", "text", "message"):
+        value = ctx.get(key)
+        if isinstance(value, str):
+            candidates.append(value)
+        elif isinstance(value, dict):
+            candidates.append(str(value.get("body") or value.get("text") or ""))
+    quoted = ctx.get("quoted_message") or ctx.get("quotedMessage")
+    if isinstance(quoted, dict):
+        text_obj = quoted.get("text") or {}
+        if isinstance(text_obj, dict):
+            candidates.append(str(text_obj.get("body") or ""))
+        candidates.append(str(quoted.get("body") or quoted.get("text") or ""))
+    for value in candidates:
+        text = str(value or "").strip()
+        if text:
+            return text
+    ctx_id = str(ctx.get("id") or "").strip()
+    return f"WhatsApp context id: {ctx_id}" if ctx_id else ""
 
 
 def handle_webhook_verification(*, mode: str, token: str, challenge: str) -> Optional[str]:
@@ -75,6 +101,7 @@ def _handle_one_inbound(item: dict[str, Any]) -> bool:
     phone_number_id = str(item.get("phone_number_id") or "")
     from_phone = str(item.get("from_phone") or "")
     text = str(item.get("text") or "").strip()
+    context_text = str(item.get("context_text") or "").strip()
     wa_msg_id = str(item.get("message_id") or "")
     if not text:
         return False
@@ -90,7 +117,7 @@ def _handle_one_inbound(item: dict[str, Any]) -> bool:
         if not st.try_claim_message(f"wa:{wa_msg_id}"):
             return False
 
-    reply = answer_mail_chat(user, text=text, channel="whatsapp", sender_name=f"WhatsApp:{from_phone}")
+    reply = answer_mail_chat(user, text=text, channel="whatsapp", sender_name=f"WhatsApp:{from_phone}", context_text=context_text)
     cfg = load_whatsapp_config(user.id)
     if cfg is None:
         return False

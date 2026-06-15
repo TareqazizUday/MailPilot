@@ -12,7 +12,6 @@ from core.mail_accounts import (
     TRANSPORT_GMAIL,
     TRANSPORT_SMTP,
     account_to_dict,
-    enabled_accounts_for_active_mode,
     ensure_legacy_migrated,
     list_accounts_for_user,
 )
@@ -24,6 +23,46 @@ from email_automation.imap_mailbox import ImapMailbox, imap_inbox_ready
 MAX_CHAT_CHARS = 3900
 RECENT_DEFAULT_LIMIT = 5
 RECENT_ALL_LIMIT = 20
+
+BN_MAIL = "\u09ae\u09c7\u0987\u09b2"
+BN_EMAIL = "\u0987\u09ae\u09c7\u0987\u09b2"
+BN_REPLY = "\u09b0\u09bf\u09aa\u09cd\u09b2\u09be\u0987"
+BN_ANSWER = "\u0989\u09a4\u09cd\u09a4\u09b0"
+BN_INBOX = "\u0987\u09a8\u09ac\u0995\u09cd\u09b8"
+BN_INFO = "\u09a4\u09a5\u09cd\u09af"
+BN_IMPORTANCE = "\u0997\u09c1\u09b0\u09c1\u09a4\u09cd\u09ac"
+BN_URGENT = "\u099c\u09b0\u09c1\u09b0\u09bf"
+BN_LAST = "\u09b6\u09c7\u09b7"
+BN_LATEST = "\u09b8\u09b0\u09cd\u09ac\u09b6\u09c7\u09b7"
+BN_NEW = "\u09a8\u09a4\u09c1\u09a8"
+BN_ALL = "\u09b8\u09ac"
+BN_SKIP = "\u09b8\u09cd\u0995\u09bf\u09aa"
+BN_IGNORE = "\u0987\u0997\u09a8\u09cb\u09b0"
+BN_MORE = "\u09ac\u09c7\u09b6\u09bf"
+BN_UNREAD_A = "\u09aa\u09dc\u09be \u09b9\u09df\u09a8\u09bf"
+BN_UNREAD_B = "\u09aa\u09a1\u09bc\u09be \u09b9\u09af\u09bc\u09a8\u09bf"
+BN_HOW_MANY_A = "\u0995\u09df\u099f\u09be"
+BN_HOW_MANY_B = "\u0995\u09af\u09bc\u099f\u09be"
+BN_COUNT_SUFFIX_A = "\u099f\u09be"
+BN_COUNT_SUFFIX_B = "\u099f\u09bf"
+BN_TWO_A = "\u09e8\u099f\u09be"
+BN_TWO_B = "\u09a6\u09c1\u0987\u099f\u09be"
+BN_THREE_A = "\u09e9\u099f\u09be"
+BN_THREE_B = "\u09a4\u09bf\u09a8\u099f\u09be"
+BN_HI = "\u09b9\u09be\u0987"
+BN_HELLO = "\u09b9\u09cd\u09af\u09be\u09b2\u09cb"
+BN_SALAM = "\u09b8\u09be\u09b2\u09be\u09ae"
+BN_BODY = "\u09ac\u09a1\u09bf"
+BN_WANT_TO_SEE = "\u09a6\u09c7\u0996\u09a4\u09c7 \u099a\u09be\u0987"
+BN_WHAT_WRITTEN = "\u0995\u09bf \u09b2\u09bf\u0996\u09c7\u099b\u09c7"
+BN_FIRST = "\u09aa\u09cd\u09b0\u09a5\u09ae"
+BN_SECOND_A = "\u09a6\u09cd\u09ac\u09bf\u09a4\u09c0\u09df"
+BN_SECOND_B = "\u09a6\u09cd\u09ac\u09bf\u09a4\u09c0\u09af\u09bc"
+BN_THIRD_A = "\u09a4\u09c3\u09a4\u09c0\u09df"
+BN_THIRD_B = "\u09a4\u09c3\u09a4\u09c0\u09af\u09bc"
+BN_PASSWORD_A = "\u09aa\u09be\u09b8\u0993\u09df\u09be\u09b0\u09cd\u09a1"
+BN_PASSWORD_B = "\u09aa\u09be\u09b8\u0993\u09af\u09bc\u09be\u09b0\u09cd\u09a1"
+BN_TOKEN = "\u099f\u09cb\u0995\u09c7\u09a8"
 
 
 @dataclass
@@ -65,6 +104,8 @@ def answer_mail_chat(user, *, text: str, channel: str, sender_name: str = "", co
             return _msg(lang, "scope_refusal")
         if intent == "help":
             return _format_help(lang)
+        if intent == "greeting":
+            return _format_greeting(lang)
         if intent == "thread":
             return format_thread_reply(user, arg, lang=lang)
         if intent == "reply":
@@ -130,6 +171,8 @@ def detect_mail_intent(text: str) -> tuple[str, str]:
     t = raw.lower()
     if not raw:
         return "empty", ""
+    if _is_greeting(t):
+        return "greeting", ""
     if t.startswith("/start") or t in ("/help", "help", "commands", "command"):
         return "help", ""
     if _asks_for_secret(t):
@@ -149,28 +192,41 @@ def detect_mail_intent(text: str) -> tuple[str, str]:
         t,
         (
             "connected emails",
+            "connected email",
+            "connected mail",
+            "connected mailbox",
+            "mailbox list",
+            "mailboxes",
             "email accounts",
+            "email account",
             "accounts dekhao",
             "account gula",
+            "account gulo",
+            "account list",
             "gmail connect",
             "smtp account",
             "smtp connect",
-            "কয়টা gmail",
-            "কয়টা gmail",
-            "কয়টা মেইল",
-            "কয়টা মেইল",
+            "gmail smtp",
+            "koita account",
+            "koyta account",
+            f"{BN_HOW_MANY_B} gmail",
+            f"{BN_HOW_MANY_A} gmail",
+            f"{BN_HOW_MANY_B} {BN_MAIL}",
+            f"{BN_HOW_MANY_A} {BN_MAIL}",
         ),
     ):
         return "accounts", ""
 
     email_match = re.search(r"[\w.\-+]+@[\w.\-]+\.\w+", raw)
-    if email_match and _has_any(t, ("detail", "details", "info", "তথ্য", "মেইল আছে", "mail ache")):
+    if email_match and _has_any(t, ("detail", "details", "info", BN_INFO, f"{BN_MAIL} ache", "mail ache")):
         return "account_detail", email_match.group(0)
 
     if t in ("/important", "/priority", "/starred") or _has_any(
-        t, ("important", "priority", "starred", "গুরুত্ব", "জরুরি", "priority inbox")
+        t, ("important", "priority", "starred", BN_IMPORTANCE, BN_URGENT, "priority inbox", "urgent mail", "joruri")
     ):
         return "important", ""
+    if _looks_like_reply_request(t):
+        return "reply", raw
     if _looks_like_mail_detail_request(t):
         return "thread", raw
     if t in ("/inbox", "/latest", "/recent", "/messages", "/list") or _has_any(
@@ -182,22 +238,28 @@ def detect_mail_intent(text: str) -> tuple[str, str]:
             "latest email",
             "last mail",
             "last email",
+            "updated mail",
+            "updated email",
+            "last inbox",
+            "latest inbox",
             "new mail",
             "new email",
             "inbox",
-            "শেষ মেইল",
-            "নতুন মেইল",
-            "সর্বশেষ",
+            f"{BN_LAST} {BN_MAIL}",
+            f"{BN_NEW} {BN_MAIL}",
+            BN_LATEST,
             "ki mail asche",
             "mail asche",
+            "mail ache",
+            "email asche",
         ),
-    ):
+    ) or _looks_like_recent_request(t):
         return "recent", ""
     if t in ("/ignored", "/rejected", "/reject") or _has_any(
-        t, ("ignored", "rejected", "ignore kor", "reject", "স্কিপ", "ইগনোর")
+        t, ("ignored", "rejected", "ignore kor", "reject", BN_SKIP, BN_IGNORE)
     ):
         return "ignored", ""
-    if _has_any(t, ("pending", "queue", "processing", "unread beshi", "unread বেশি")):
+    if _has_any(t, ("pending", "queue", "processing", "unread beshi", f"unread {BN_MORE}")):
         return "broad", raw
     if t in ("/mail", "/stats", "/dashboard") or _has_any(
         t,
@@ -213,7 +275,7 @@ def detect_mail_intent(text: str) -> tuple[str, str]:
         ),
     ):
         return "stats", ""
-    if _has_any(t, ("reply", "উত্তর", "রিপ্লাই", "ki uttor", "ki reply", "dicho", "diyecho")):
+    if _looks_like_reply_request(t):
         return "reply", raw
     if _is_mail_scope(t):
         return "broad", raw
@@ -225,8 +287,9 @@ def format_recent_mail_reply(user, *, limit: int = RECENT_DEFAULT_LIMIT, lang: s
     threads = _collect_recent_threads(user, limit=limit)
     if not threads:
         return _msg(lang, "no_recent")
-    title = "📬 আপনার সর্বশেষ মেইল:" if lang == "bn" else "📬 Your latest emails:"
-    lines = [title, ""]
+    title = "Latest Mail" if lang == "bn" else "Latest Emails"
+    summary = f"Showing: {len(threads)}"
+    lines = _response_header(title, summary)
     for idx, item in enumerate(threads, start=1):
         lines.extend(_format_thread_summary_lines(item, idx=idx, lang=lang, include_reason=False))
     return _clip("\n".join(lines).strip())
@@ -243,8 +306,9 @@ def format_important_mail_reply(user, *, limit: int = RECENT_DEFAULT_LIMIT, lang
     scored.sort(key=lambda x: (x[0], int(x[2].thread.get("internal_date") or 0)), reverse=True)
     if not scored:
         return _msg(lang, "no_important")
-    title = "⭐ গুরুত্বপূর্ণ মেইল:" if lang == "bn" else "⭐ Important emails:"
-    lines = [title, ""]
+    title = "Important Mail" if lang == "bn" else "Important Emails"
+    summary = f"Showing: {min(len(scored), limit)}"
+    lines = _response_header(title, summary)
     for idx, (_score, reason, item) in enumerate(scored[:limit], start=1):
         lines.extend(_format_thread_summary_lines(item, idx=idx, lang=lang, include_reason=True, reason=reason))
     return _clip("\n".join(lines).strip())
@@ -256,7 +320,7 @@ def format_reply_lookup(user, ref: str = "", *, lang: str | None = None) -> str:
     found = _find_reply_meta(user, ref)
     if not found:
         if ref and (
-            _has_any(ref.lower(), ("last", "gula", "সব", "sob", "shob", "show", "dekhao", "dekhte", "body", "ei "))
+            _has_any(ref.lower(), ("last", "gula", BN_ALL, "sob", "shob", "show", "dekhao", "dekhte", "body", "ei "))
             or _looks_like_natural_ref(ref)
         ):
             return format_processed_activity_reply(user, action_filter="sent", lang=lang)
@@ -266,18 +330,25 @@ def format_reply_lookup(user, ref: str = "", *, lang: str | None = None) -> str:
     reply_subject = str(meta.get("reply_subject") or meta.get("subject") or "(No subject)").strip()
     action = str(meta.get("action") or "").strip().lower()
     when = _format_iso_dt(meta.get("processed_at"), _user_timezone(user))
-    prefix = "✉️ আপনার রিপ্লাই" if lang == "bn" else "✉️ Your reply"
+    prefix = "Your Reply"
     if action == "draft":
-        prefix = "📝 আপনার draft reply" if lang == "bn" else "📝 Your draft reply"
+        prefix = "Your Draft Reply"
     where = _account_label(account) if account is not None else "Mailbox"
-    lines = [f"{prefix} — {where}", f"Subject: {reply_subject}"]
-    if when:
-        lines.append(("সময়: " if lang == "bn" else "Time: ") + when)
-    lines.append("")
-    lines.append("> " + (reply_body or _msg(lang, "no_reply_body")).replace("\n", "\n> "))
+    lines = _response_header(prefix, "Reply content only")
+    lines.extend(
+        _field_lines(
+            [
+                ("Account", where),
+                ("Subject", reply_subject),
+                ("Time", when),
+            ]
+        )
+    )
+    lines.extend(["", "Reply:", _clean_body_block(reply_body or _msg(lang, "no_reply_body"))])
     if message_id:
         lines.append("")
-        lines.append(f"/reply {message_id}")
+        scoped_message_id = f"{account.id}:{message_id}" if account is not None and ":" not in message_id else message_id
+        lines.append(_next_line(f"/reply {scoped_message_id}"))
     return _clip("\n".join(lines).strip())
 
 
@@ -286,22 +357,27 @@ def format_account_list_reply(user, *, lang: str | None = None) -> str:
     accounts = _all_accounts(user)
     if not accounts:
         return _msg(lang, "no_accounts")
-    title = (
-        f"🔗 Connected Accounts — {len(accounts)}টি পাওয়া গেছে:"
-        if lang == "bn"
-        else f"🔗 Connected Accounts — {len(accounts)} found:"
-    )
-    lines = [title, ""]
+    title = "Connected Accounts"
+    found = f"Found: {len(accounts)}"
+    lines = _response_header(title, found)
     for idx, acc in enumerate(accounts, start=1):
         info = _safe_account_info(acc)
         typ = _transport_label(info.get("transport"))
         status = _account_status_label(info, lang=lang)
         last = _last_activity_for_account(user, acc)
-        line = f"{idx}. {info.get('email') or info.get('label') or 'Mailbox'} — {typ} {status}"
-        if last:
-            line += f" | {('Last activity' if lang != 'bn' else 'শেষ activity')}: {last}"
-        lines.append(line)
-        lines.append(f"   /account {acc.id}")
+        lines.append(_numbered_title(idx, str(info.get("email") or info.get("label") or "Mailbox")))
+        lines.extend(
+            _field_lines(
+                [
+                    ("Type", typ),
+                    ("Status", status),
+                    ("Last activity", last),
+                    ("Next", f"/account {acc.id}"),
+                ],
+                indent="   ",
+            )
+        )
+        lines.append("")
     return _clip("\n".join(lines).strip())
 
 
@@ -314,20 +390,25 @@ def format_account_detail_reply(user, ref: str, *, lang: str | None = None) -> s
     threads = _fetch_account_threads(user, acc, max_threads=3)
     recent = threads[1] if threads[1] is not None else []
     unread = sum(1 for item in recent if item.thread.get("unread"))
-    lines = [
-        f"📮 {info.get('email') or info.get('label') or 'Mailbox'}",
-        f"Type: {_transport_label(info.get('transport'))}",
-        f"Status: {_account_status_label(info, lang=lang)}",
-        f"Unread shown: {unread}",
-        f"Recent shown: {len(recent)}",
-    ]
+    lines = _response_header("Account Details", "Mailbox information and recent activity")
+    lines.extend(
+        _field_lines(
+            [
+                ("Email", info.get("email") or info.get("label") or "Mailbox"),
+                ("Type", _transport_label(info.get("transport"))),
+                ("Status", _account_status_label(info, lang=lang)),
+                ("Unread shown", unread),
+                ("Recent shown", len(recent)),
+            ]
+        )
+    )
     last = _last_activity_for_account(user, acc)
     if last:
-        lines.append(f"{'শেষ activity' if lang == 'bn' else 'Last activity'}: {last}")
+        lines.append(_field_line("Last activity", last))
     if threads[2]:
-        lines.append(f"Note: {threads[2]}")
+        lines.append(_field_line("Note", threads[2]))
     if recent:
-        lines.extend(["", "Recent:" if lang != "bn" else "সাম্প্রতিক:"])
+        lines.extend(["", "Recent Emails:"])
         for idx, item in enumerate(recent, start=1):
             lines.extend(_format_thread_summary_lines(item, idx=idx, lang=lang, include_reason=False))
     return _clip("\n".join(lines).strip())
@@ -335,29 +416,52 @@ def format_account_detail_reply(user, ref: str, *, lang: str | None = None) -> s
 
 def format_thread_reply(user, ref: str, *, lang: str | None = None) -> str:
     lang = lang or "en"
+    body_only = _wants_mail_body_only(ref)
     acc_ref, thread_id = _resolve_thread_ref(user, ref)
     messages_info = _fetch_thread_messages(user, thread_id, account_ref=acc_ref)
     if messages_info is None:
         return _msg(lang, "thread_not_found")
     account, email, messages, meta = messages_info
     subj = _short_subject(str((messages[-1] if messages else {}).get("subject") or ""))
-    lines = [f"MailPilot thread — {email or _account_label(account)}", subj, ""]
+    if body_only:
+        inbound = _first_inbound_message(messages)
+        body = (inbound.get("body_text") or inbound.get("snippet") or "").strip() if inbound else ""
+        if not body:
+            return _msg(lang, "no_mail_body")
+        sender = _short_addr(str(inbound.get("from") or "")) if inbound else ""
+        when = _fmt_ts(inbound.get("internal_date"), _user_timezone(user)) if inbound else ""
+        title = "Mail Body"
+        lines = _response_header(title, "Mail body only")
+        lines.extend(
+            _field_lines(
+                [
+                    ("Account", email or _account_label(account)),
+                    ("Subject", subj),
+                    ("From", sender),
+                    ("Date", when),
+                ]
+            )
+        )
+        lines.extend(["", "Body:", _clean_body_block(body), "", _next_line(f"/reply {account.id}:{thread_id}")])
+        return _clip("\n".join(lines).strip())
+    lines = _response_header("Mail Thread", "Conversation details")
+    lines.extend(_field_lines([("Account", email or _account_label(account)), ("Subject", subj)]))
+    lines.append("")
     tz = _user_timezone(user)
-    for m in messages:
+    for idx, m in enumerate(messages, start=1):
         sender = _short_addr(str(m.get("from") or ""))
         when = _fmt_ts(m.get("internal_date"), tz)
         who = "You" if m.get("is_from_me") else sender
         body = (m.get("body_text") or m.get("snippet") or "").strip() or "(No content)"
-        head = f"— {who}"
-        if when:
-            head += f" · {when}"
-        lines.extend([head, body, ""])
+        lines.append(_numbered_title(idx, "Outbound message" if m.get("is_from_me") else "Inbound message"))
+        lines.extend(_field_lines([("From", who), ("Date", when)], indent="   "))
+        lines.extend(["   Body:", _indent_block(_clean_body_block(body)), ""])
     if meta and str(meta.get("action") or "").lower() in ("sent", "draft"):
         rb = str(meta.get("reply_body") or "").strip()
         if rb:
-            title = "Stored MailPilot reply:" if lang != "bn" else "Stored MailPilot reply:"
-            lines.extend([title, rb, ""])
-    lines.append(f"/reply {account.id}:{thread_id}")
+            title = "MailPilot Reply:"
+            lines.extend([title, _clean_body_block(rb), ""])
+    lines.append(_next_line(f"/reply {account.id}:{thread_id}"))
     return _clip("\n".join(lines).strip())
 
 
@@ -366,17 +470,28 @@ def format_mail_overview_reply(user, *, lang: str | None = None) -> str:
     accounts = _all_accounts(user)
     if not accounts:
         return _msg(lang, "no_accounts")
-    lines = ["📊 Mail overview" if lang != "bn" else "📊 মেইল overview", ""]
+    lines = _response_header("Mail Overview", "Mailbox status summary")
     total_recent = total_unread = 0
-    for acc in accounts:
+    for idx, acc in enumerate(accounts, start=1):
         _email, threads, err = _fetch_account_threads(user, acc, max_threads=20)
         recent = len(threads or [])
         unread = sum(1 for item in (threads or []) if item.thread.get("unread"))
         total_recent += recent
         total_unread += unread
         status = err or "ready"
-        lines.append(f"{_account_label(acc)}: recent {recent}, unread {unread}, {status}")
-    lines.extend(["", f"Total recent shown: {total_recent}", f"Total unread shown: {total_unread}"])
+        lines.append(_numbered_title(idx, _account_label(acc)))
+        lines.extend(
+            _field_lines(
+                [
+                    ("Recent shown", recent),
+                    ("Unread shown", unread),
+                    ("Status", status),
+                ],
+                indent="   ",
+            )
+        )
+        lines.append("")
+    lines.extend(_field_lines([("Total recent shown", total_recent), ("Total unread shown", total_unread)]))
     return _clip("\n".join(lines).strip())
 
 
@@ -393,20 +508,25 @@ def format_processed_activity_reply(
         rows = [r for r in rows if str(r[2].get("action") or "").lower() == action_filter]
     if not rows:
         return _msg(lang, "no_activity")
-    title = "Recent activity" if lang != "bn" else "সাম্প্রতিক activity"
-    lines = [title, ""]
+    title = "Recent Activity"
+    lines = _response_header(title, f"Showing: {min(len(rows), limit)}")
     for idx, (acc, message_id, meta) in enumerate(rows[:limit], start=1):
         action = str(meta.get("action") or "").strip() or "unknown"
         subject = _short_subject(str(meta.get("subject") or meta.get("reply_subject") or ""))
         sender = _short_addr(str(meta.get("from_email") or ""))
         when = _format_iso_dt(meta.get("processed_at"), _user_timezone(user))
-        lines.append(f"{idx}. {action} — {subject}")
-        if sender:
-            lines.append(f"   From: {sender}")
-        if when:
-            lines.append(f"   {when}")
-        if message_id:
-            lines.append(f"   /reply {acc.id}:{message_id}")
+        lines.append(_numbered_title(idx, subject))
+        lines.extend(
+            _field_lines(
+                [
+                    ("Status", action),
+                    ("From", sender),
+                    ("Time", when),
+                    ("Next", f"/reply {acc.id}:{message_id}" if message_id else ""),
+                ],
+                indent="   ",
+            )
+        )
         lines.append("")
     return _clip("\n".join(lines).strip())
 
@@ -418,11 +538,11 @@ def format_broad_mail_answer(user, question: str, *, lang: str | None = None) ->
         return _format_queue_reply(user, lang=lang)
     if _has_any(t, ("draft", "drafted")):
         return format_processed_activity_reply(user, action_filter="draft", lang=lang)
-    if _has_any(t, ("sent reply", "last reply", "reply gula", "reply dekhao", "উত্তর", "রিপ্লাই")):
+    if _has_any(t, ("sent reply", "last reply", "reply gula", "reply dekhao", BN_ANSWER, BN_REPLY)):
         return format_processed_activity_reply(user, action_filter="sent", lang=lang)
-    if _has_any(t, ("ignored", "rejected", "ignore", "ইগনোর")):
+    if _has_any(t, ("ignored", "rejected", "ignore", BN_IGNORE)):
         return format_processed_activity_reply(user, action_filter="ignored", lang=lang)
-    if _has_any(t, ("unread", "পড়া হয়নি", "পড়া হয়নি")):
+    if _has_any(t, ("unread", BN_UNREAD_A, BN_UNREAD_B)):
         return _format_unread_by_account(user, lang=lang)
     sender = _extract_email(question)
     if sender:
@@ -510,7 +630,7 @@ def _fetch_thread_messages(user, thread_id: str, *, account_ref: str = ""):
 
 def _resolve_thread_ref(user, ref: str) -> tuple[str, str]:
     raw = (ref or "").strip()
-    acc_ref, thread_id = _split_scoped_ref(raw)
+    acc_ref, thread_id = _split_scoped_ref(raw, command="thread")
     if acc_ref and thread_id:
         return acc_ref, thread_id
     if thread_id and not _looks_like_natural_ref(thread_id):
@@ -582,7 +702,7 @@ def _find_meta_for_ref_in_store(st: StateStore, ref: str, *, require_reply: bool
 
 
 def _find_reply_meta(user, ref: str = ""):
-    acc_ref, item_ref = _split_scoped_ref(ref)
+    acc_ref, item_ref = _split_scoped_ref(ref, command="reply")
     accounts = [_resolve_account_ref(user, acc_ref)] if acc_ref else _all_enabled_accounts(user)
     for acc in [a for a in accounts if a is not None]:
         st = runtime.state_store_for_user(user, account_id=acc.id)
@@ -650,7 +770,7 @@ def _recent_processed_items(user, *, limit: int) -> list[tuple[Any, str, dict[st
 
 
 def _format_queue_reply(user, *, lang: str) -> str:
-    lines = ["Queue / pending" if lang != "bn" else "Queue / pending", ""]
+    lines = _response_header("Queue / Pending" if lang != "bn" else "Queue / Pending", "Pending or processing mail")
     found = False
     for acc in _all_enabled_accounts(user):
         st = runtime.state_store_for_user(user, account_id=acc.id)
@@ -660,24 +780,30 @@ def _format_queue_reply(user, *, lang: str) -> str:
             continue
         found = True
         lines.append(_account_label(acc))
-        for it in pending[:5]:
-            lines.append(f"- {it.get('subject') or it.get('message_id') or 'mail'} ({it.get('status')})")
+        for idx, it in enumerate(pending[:5], start=1):
+            subject = str(it.get("subject") or it.get("message_id") or "mail")
+            lines.append(_numbered_title(idx, _short_subject(subject)))
+            lines.extend(_field_lines([("Status", it.get("status") or "pending")], indent="   "))
+        lines.append("")
     if not found:
         return _msg(lang, "no_pending")
     return _clip("\n".join(lines).strip())
 
 
 def _format_unread_by_account(user, *, lang: str) -> str:
-    lines = ["Unread by account" if lang != "bn" else "Unread by account", ""]
+    lines = _response_header("Unread by Account" if lang != "bn" else "Unread by Account", "Unread counts in the recent window")
     found = False
-    for acc in _all_enabled_accounts(user):
+    for idx, acc in enumerate(_all_enabled_accounts(user), start=1):
         _email, threads, err = _fetch_account_threads(user, acc, max_threads=RECENT_ALL_LIMIT)
+        lines.append(_numbered_title(idx, _account_label(acc)))
         if err:
-            lines.append(f"{_account_label(acc)}: {err}")
+            lines.extend(_field_lines([("Status", err)], indent="   "))
+            lines.append("")
             continue
         unread = sum(1 for item in (threads or []) if item.thread.get("unread"))
         found = found or unread > 0
-        lines.append(f"{_account_label(acc)}: {unread} unread")
+        lines.extend(_field_lines([("Unread", f"{unread} unread"), ("Recent checked", len(threads or []))], indent="   "))
+        lines.append("")
     if not found:
         lines.append("No unread messages in the recent window.")
     return _clip("\n".join(lines).strip())
@@ -687,10 +813,47 @@ def _format_sender_recent(user, sender: str, *, lang: str) -> str:
     items = [item for item in _collect_recent_threads(user, limit=RECENT_ALL_LIMIT) if sender.lower() in str(item.thread.get("from") or "").lower()]
     if not items:
         return _msg(lang, "no_recent")
-    lines = [f"Recent mail from {sender}:", ""]
+    lines = _response_header(f"Recent Mail From {sender}", f"Showing: {min(len(items), RECENT_DEFAULT_LIMIT)}")
     for idx, item in enumerate(items[:RECENT_DEFAULT_LIMIT], start=1):
         lines.extend(_format_thread_summary_lines(item, idx=idx, lang=lang, include_reason=False))
     return _clip("\n".join(lines).strip())
+
+
+def _response_header(title: str, summary: str = "") -> list[str]:
+    lines = [str(title or "MailPilot").strip()]
+    if summary:
+        lines.append(str(summary).strip())
+    lines.append("")
+    return lines
+
+
+def _numbered_title(idx: int, title: str) -> str:
+    return f"{idx}. {_short_subject(str(title or 'Mail'))}"
+
+
+def _field_line(label: str, value: Any, *, indent: str = "") -> str:
+    return f"{indent}{label}: {value}"
+
+
+def _field_lines(fields: list[tuple[str, Any]], *, indent: str = "") -> list[str]:
+    lines: list[str] = []
+    for label, value in fields:
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        lines.append(_field_line(label, value, indent=indent))
+    return lines
+
+
+def _next_line(*actions: str) -> str:
+    clean = [a.strip() for a in actions if str(a or "").strip()]
+    return "Next: " + " | ".join(clean)
+
+
+def _indent_block(text: str, *, indent: str = "   ") -> str:
+    body = _clean_body_block(text)
+    return "\n".join(indent + line if line else "" for line in body.splitlines())
 
 
 def _format_thread_summary_lines(
@@ -708,19 +871,20 @@ def _format_thread_summary_lines(
     when = _fmt_ts(t.get("internal_date"), _user_timezone(getattr(item.account, "user", None)))
     ref = f"{item.account.id}:{t.get('thread_id') or ''}".strip()
     lines = [
-        f"{idx}. 📌 Subject: {subject}",
-        f"   👤 From: {sender}",
+        _numbered_title(idx, subject),
     ]
-    if when:
-        lines.append(f"   📅 Date: {when}")
-    lines.append(f"   📝 Preview: {preview}")
-    lines.append(f"   📮 Account: {item.account_email or item.account_label}")
     status = _status_from_meta(item.meta) if item.meta else _status_from_thread(t)
-    if status:
-        lines.append(f"   Status: {status}")
-    if include_reason and reason:
-        lines.append(f"   🏷️ Reason: {reason}")
-    lines.append(f"   /thread {ref} · /reply {ref}")
+    fields = [
+        ("From", sender),
+        ("Date", when),
+        ("Preview", preview),
+        ("Account", item.account_email or item.account_label),
+        ("Status", status),
+    ]
+    if include_reason:
+        fields.append(("Reason", reason))
+    fields.append(("Next", f"/thread {ref} | /reply {ref}"))
+    lines.extend(_field_lines(fields, indent="   "))
     lines.append("")
     return lines
 
@@ -777,7 +941,13 @@ def _all_accounts(user) -> list[Any]:
 
 def _all_enabled_accounts(user) -> list[Any]:
     ensure_legacy_migrated(user)
-    return list(enabled_accounts_for_active_mode(user))
+    accounts = list(list_accounts_for_user(user))
+    return [acc for acc in accounts if acc.is_enabled or _is_chat_usable_account(acc)]
+
+
+def _is_chat_usable_account(acc) -> bool:
+    info = _safe_account_info(acc)
+    return bool(info.get("inbox_ready") or info.get("smtp_last_test_ok"))
 
 
 def _resolve_account_ref(user, ref: str):
@@ -801,13 +971,18 @@ def _resolve_account_ref(user, ref: str):
     return None
 
 
-def _split_scoped_ref(ref: str) -> tuple[str, str]:
+def _split_scoped_ref(ref: str, *, command: str = "") -> tuple[str, str]:
     raw = (ref or "").strip()
-    if ":" not in raw:
-        return "", raw
-    head, tail = raw.split(":", 1)
-    if head.strip().isdigit():
-        return head.strip(), tail.strip()
+    if command in ("thread", "reply"):
+        preferred = re.search(rf"/{command}\s+(\d+):([^\s|]+)", raw, flags=re.I)
+        if preferred:
+            return preferred.group(1).strip(), preferred.group(2).strip()
+    any_command = re.search(r"/(?:thread|reply)\s+(\d+):([^\s|]+)", raw, flags=re.I)
+    if any_command:
+        return any_command.group(1).strip(), any_command.group(2).strip()
+    full_match = re.fullmatch(r"(\d+):([^\s|]+)", raw)
+    if full_match:
+        return full_match.group(1).strip(), full_match.group(2).strip()
     return "", raw
 
 
@@ -864,15 +1039,15 @@ def _status_from_thread(thread: dict[str, Any]) -> str:
 
 
 def _account_status_label(info: dict[str, Any], *, lang: str) -> str:
-    if not info.get("is_enabled"):
-        return "⚠️ Inactive"
     if info.get("oauth_email_mismatch"):
-        return "⚠️ OAuth mismatch"
+        return "OAuth mismatch"
     if info.get("inbox_ready"):
-        return "✅ Active"
+        return "Active" if info.get("is_enabled") else "Ready"
     if info.get("transport") == TRANSPORT_SMTP and info.get("smtp_last_test_ok"):
-        return "✅ SMTP ready"
-    return "⚠️ Not ready"
+        return "SMTP ready"
+    if not info.get("is_enabled"):
+        return "Inactive"
+    return "Not ready"
 
 
 def _transport_label(transport: Any) -> str:
@@ -941,6 +1116,24 @@ def _preview(text: str) -> str:
     return s if len(s) <= 220 else s[:217].rstrip() + "..."
 
 
+def _clean_body_block(text: str) -> str:
+    body = (text or "").strip()
+    if not body:
+        return "(No content)"
+    lines = [ln.rstrip() for ln in body.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    compact: list[str] = []
+    blank = False
+    for line in lines:
+        if not line.strip():
+            if not blank:
+                compact.append("")
+            blank = True
+            continue
+        compact.append(line)
+        blank = False
+    return "\n".join(compact).strip()
+
+
 def _extract_email(text: str) -> str:
     m = re.search(r"[\w.\-+]+@[\w.\-]+\.\w+", text or "")
     return m.group(0) if m else ""
@@ -948,11 +1141,88 @@ def _extract_email(text: str) -> str:
 
 def _limit_from_query(text: str) -> int:
     t = (text or "").lower()
+    count = _extract_requested_count(t)
+    if count is not None:
+        return max(1, min(RECENT_ALL_LIMIT, count))
     if _has_any(t, ("just last", "only last", "last mail send", "last email send", "shudhu last", "sudhu last")):
         return 1
-    if _has_any(t, ("show all", "all", "সব", "sob", "shob")):
+    if _looks_like_single_latest_request(t):
+        return 1
+    if _has_any(t, ("show all", "all", BN_ALL, "sob", "shob")):
         return RECENT_ALL_LIMIT
     return RECENT_DEFAULT_LIMIT
+
+
+def _looks_like_recent_request(text: str) -> bool:
+    t = (text or "").lower()
+    has_mail = _has_any(t, ("mail", "email", BN_MAIL, BN_EMAIL))
+    has_recent_word = _has_any(t, ("last", "latest", "updated", "new", "recent", BN_LAST, BN_LATEST, BN_NEW))
+    return bool(has_mail and has_recent_word)
+
+
+def _looks_like_single_latest_request(text: str) -> bool:
+    t = (text or "").lower()
+    if _has_any(t, ("show all", "all", BN_ALL, "sob", "shob")):
+        return False
+    if _extract_requested_count(t) is not None:
+        return False
+    return _looks_like_recent_request(t)
+
+
+def _extract_requested_count(text: str) -> int | None:
+    t = (text or "").lower()
+    m = re.search(rf"\b(?:last|latest|recent|{BN_LAST}|{BN_LATEST})\s+(\d{{1,2}})\b", t)
+    if not m:
+        m = re.search(rf"\b(\d{{1,2}})\s*(?:ta|{BN_COUNT_SUFFIX_A}|{BN_COUNT_SUFFIX_B}|mail|email|mails|emails)\b", t)
+    if m:
+        try:
+            return int(m.group(1))
+        except ValueError:
+            return None
+    word_counts = {
+        "duita": 2,
+        "duta": 2,
+        "dui ta": 2,
+        "two": 2,
+        BN_TWO_A: 2,
+        BN_TWO_B: 2,
+        "tin ta": 3,
+        "tinta": 3,
+        "three": 3,
+        BN_THREE_A: 3,
+        BN_THREE_B: 3,
+    }
+    for word, count in word_counts.items():
+        if word in t:
+            return count
+    return None
+
+
+def _is_greeting(text: str) -> bool:
+    t = re.sub(r"[^a-zA-Z\u0980-\u09ff]+", "", (text or "").lower())
+    greetings = {
+        "hi",
+        "hii",
+        "hlw",
+        "hello",
+        "hey",
+        "assalamuailaikum",
+        "assalamualaikum",
+        "salam",
+        BN_HI,
+        BN_HELLO,
+        BN_SALAM,
+    }
+    return t in greetings
+
+
+def _looks_like_reply_request(text: str) -> bool:
+    t = (text or "").lower()
+    if not _has_any(t, ("reply", "replied", BN_ANSWER, BN_REPLY, "ki uttor", "ki reply", "dicho", "diyecho", "sent korecho", "pathiyecho", "reply diche")):
+        return False
+    if _has_any(t, ("mail er body", "mailer body", "mail body", "email body", f"{BN_MAIL}er body", f"{BN_MAIL} body", f"{BN_MAIL} {BN_BODY}")):
+        return False
+    return True
 
 
 def _looks_like_mail_detail_request(text: str) -> bool:
@@ -965,30 +1235,54 @@ def _looks_like_mail_detail_request(text: str) -> bool:
             "detail",
             "details",
             "body",
+            "mail body",
+            "email body",
             "full mail",
             "full email",
             "ki likheche",
             "ki likhese",
             "ki lekha",
+            "ki lekha ache",
             "mail e",
             "mailer body",
             "mail er body",
+            "body show",
+            "body dekhao",
             "show 1st",
             "1st mail",
             "first mail",
+            "second mail",
+            "third mail",
             "serial 1",
+            "serial 2",
             "subject hosche",
             "subject hocche",
-            "দেখতে চাই",
-            "বডি",
-            "কি লিখেছে",
+            BN_WANT_TO_SEE,
+            BN_BODY,
+            BN_WHAT_WRITTEN,
         ),
     )
 
 
+def _wants_mail_body_only(text: str) -> bool:
+    t = (text or "").split("\n\n", 1)[0].lower()
+    if not _has_any(t, ("body", "full mail", "full email", "ki likheche", "ki likhese", "ki lekha", BN_BODY, BN_WHAT_WRITTEN)):
+        return False
+    if _looks_like_reply_request(t):
+        return False
+    return True
+
+
+def _first_inbound_message(messages: list[dict[str, Any]]) -> dict[str, Any]:
+    for m in messages or []:
+        if not m.get("is_from_me"):
+            return m
+    return (messages or [{}])[0]
+
+
 def _looks_like_natural_ref(text: str) -> bool:
     t = (text or "").lower()
-    return _looks_like_mail_detail_request(t) or bool(re.search(r"\b(first|second|third|serial|subject|mail|body)\b", t))
+    return _looks_like_mail_detail_request(t) or bool(re.search(r"\b(first|second|third|serial|subject|mail|email|body|ei|eta|this)\b", t))
 
 
 def _extract_ordinal(text: str) -> int | None:
@@ -1008,11 +1302,11 @@ def _extract_ordinal(text: str) -> int | None:
         "prothom": 1,
         "ditiyo": 2,
         "tritiyo": 3,
-        "প্রথম": 1,
-        "দ্বিতীয়": 2,
-        "দ্বিতীয়": 2,
-        "তৃতীয়": 3,
-        "তৃতীয়": 3,
+        BN_FIRST: 1,
+        BN_SECOND_A: 2,
+        BN_SECOND_B: 2,
+        BN_THIRD_A: 3,
+        BN_THIRD_B: 3,
     }
     for word, value in word_map.items():
         if word in t:
@@ -1023,7 +1317,11 @@ def _extract_ordinal(text: str) -> int | None:
 def _normalize_lookup_text(text: str) -> str:
     q = (text or "").lower()
     q = re.sub(r"/thread|/reply", " ", q)
-    q = re.sub(r"\b(subject|hosche|hocche|details?|detail|body|mail|email|er|ta|daw|dao|show|please|serial|number|no)\b", " ", q)
+    q = re.sub(
+        r"\b(subject|hosche|hocche|details?|detail|body|mail|email|er|ta|daw|dao|show|please|serial|number|no|ei|eta|this|konta|asche|ache|bolo|bolen)\b",
+        " ",
+        q,
+    )
     q = re.sub(r"\b\d+(?:st|nd|rd|th)?\b", " ", q)
     q = re.sub(r"[^\w@.\-\u0980-\u09ff]+", " ", q)
     return re.sub(r"\s+", " ", q).strip()
@@ -1064,9 +1362,9 @@ def _asks_for_secret(t: str) -> bool:
             "credential",
             "credentials",
             "secret",
-            "পাসওয়ার্ড",
-            "পাসওয়ার্ড",
-            "টোকেন",
+            BN_PASSWORD_A,
+            BN_PASSWORD_B,
+            BN_TOKEN,
         ),
     )
 
@@ -1087,11 +1385,11 @@ def _is_mail_scope(t: str) -> bool:
             "account",
             "unread",
             "sender",
-            "মেইল",
-            "ইমেইল",
-            "রিপ্লাই",
-            "উত্তর",
-            "ইনবক্স",
+            BN_MAIL,
+            BN_EMAIL,
+            BN_REPLY,
+            BN_ANSWER,
+            BN_INBOX,
         ),
     )
 
@@ -1103,16 +1401,16 @@ def _has_any(text: str, needles: tuple[str, ...]) -> bool:
 def _format_help(lang: str) -> str:
     if lang == "bn":
         return _clip(
-            "MailPilot assistant ready.\n"
-            "আপনি জিজ্ঞেস করতে পারেন:\n"
+            "MailPilot email assistant ready.\n"
+            "Apni jiggesh korte paren:\n"
             "- recent mail ki asche\n"
             "- important mail dekhao\n"
             "- Invoice mail er reply ki diyecho\n"
             "- connected emails dekhao\n"
-            "- /thread <id> বা /reply <id>"
+            "- /thread <id> or /reply <id>"
         )
     return _clip(
-        "MailPilot assistant is ready.\n"
+        "MailPilot email assistant is ready.\n"
         "Try:\n"
         "- recent mail\n"
         "- important mail\n"
@@ -1122,21 +1420,46 @@ def _format_help(lang: str) -> str:
     )
 
 
+def _format_greeting(lang: str) -> str:
+    if lang == "bn":
+        return _clip(
+            "MailPilot email assistant ready.\n\n"
+            "Ami email management niye help korte pari:\n"
+            "1. Recent or latest mail dekhate\n"
+            "2. Last 2/3 mail dekhate\n"
+            "3. Kono mail-er body/details open korte\n"
+            "4. Kono mail-e pathano reply dekhate\n"
+            "5. Connected Gmail/SMTP accounts dekhate\n\n"
+            "Example: `last mail dekhaw` or `last duita mail daw`"
+        )
+    return _clip(
+        "MailPilot email assistant is ready.\n\n"
+        "I can help with email management tasks:\n"
+        "1. Show your latest email\n"
+        "2. Show the last 2/3 emails\n"
+        "3. Open an email body/details\n"
+        "4. Show the reply sent for an email\n"
+        "5. List connected Gmail/SMTP accounts\n\n"
+        "Example: `show last mail` or `show last two emails`"
+    )
+
+
 def _msg(lang: str, key: str) -> str:
     bn = {
-        "empty": "দয়া করে একটি email-management প্রশ্ন পাঠান।",
-        "secret_refusal": "নিরাপত্তার কারণে credentials শেয়ার করা সম্ভব নয়।",
-        "scope_refusal": "আমি শুধুমাত্র email management এর জন্য তৈরি। অন্য বিষয়ে সাহায্য করতে পারব না।",
-        "unavailable": "এই তথ্য এই মুহূর্তে পাওয়া যাচ্ছে না। অনুগ্রহ করে আবার চেষ্টা করুন।",
-        "no_recent": "সাম্প্রতিক কোনো মেইল পাওয়া যাচ্ছে না।",
-        "no_important": "এই মুহূর্তে কোনো important mail পাওয়া যাচ্ছে না।",
-        "no_reply": "এই মেইলে এখনো কোনো রিপ্লাই পাঠানো হয়নি।",
-        "no_reply_body": "Reply body পাওয়া যায়নি।",
-        "no_accounts": "কোনো connected email account পাওয়া যায়নি। Setup থেকে Gmail বা SMTP connect করুন।",
-        "account_not_found": "এই account খুঁজে পাওয়া যায়নি। /accounts দিয়ে account list দেখুন।",
-        "thread_not_found": "এই thread খুঁজে পাওয়া যায়নি। /inbox দিয়ে recent mail list দেখুন।",
-        "no_activity": "সাম্প্রতিক activity পাওয়া যাচ্ছে না।",
-        "no_pending": "এই মুহূর্তে কোনো pending mail পাওয়া যাচ্ছে না।",
+        "empty": "Please send an email-management question.",
+        "secret_refusal": "Security reason-e credentials share kora jabe na.",
+        "scope_refusal": "Ami sudhu email management-er jonno built. Onno topic-e help korte parbo na.",
+        "unavailable": "Ei information ekhon available na. Please abar try korun.",
+        "no_recent": "Recent kono email available nei.",
+        "no_important": "Ekhon kono important mail available nei.",
+        "no_reply": "Ei email-er jonno ekhono kono reply sent or drafted hoyni.",
+        "no_reply_body": "Reply body unavailable.",
+        "no_accounts": "Connected email account found hoyni. Setup theke Gmail or SMTP connect korun.",
+        "account_not_found": "Ei account find kora jayni. /accounts diye account list dekhun.",
+        "thread_not_found": "Ei thread find kora jayni. /inbox diye recent mail list dekhun.",
+        "no_mail_body": "Ei email-er body unavailable.",
+        "no_activity": "Recent activity available nei.",
+        "no_pending": "Ekhon kono pending mail available nei.",
     }
     en = {
         "empty": "Please send an email-management question.",
@@ -1150,6 +1473,7 @@ def _msg(lang: str, key: str) -> str:
         "no_accounts": "No connected email account was found. Connect Gmail or SMTP in Setup.",
         "account_not_found": "I could not find that account. Use /accounts to see the list.",
         "thread_not_found": "I could not find that thread. Use /inbox to see recent mail.",
+        "no_mail_body": "The body for this email is unavailable.",
         "no_activity": "No recent activity is available.",
         "no_pending": "No pending mail is available right now.",
     }
