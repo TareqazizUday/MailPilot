@@ -30,10 +30,10 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "core.apps.CoreConfig",
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "core.apps.CoreConfig",
     "api.apps.ApiConfig",
 ]
 

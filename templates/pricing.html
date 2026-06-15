@@ -35,19 +35,33 @@
     .orb3 { width: 400px; height: 400px; background: rgba(56,189,248,0.07); top: 50%; left: 40%; }
     {% include "components/marketing_nav_css.html" %}
     {% include "components/marketing_page_layout_css.html" %}
-    .page-head { max-width: 1120px; margin: 0 auto 18px; text-align: center; }
-    .tag {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px; border-radius: 999px;
-      border: 1px solid rgba(79,110,247,0.35);
-      background: rgba(79,110,247,0.10);
-      color: #a5b4fc;
-      font-size: 0.78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
+    main.mp-marketing-main { text-align: center; }
+    .section-tag {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: #a78bfa; margin-bottom: 14px;
     }
-    .page-head h1 { margin-top: 14px; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -1px; line-height: 1.15; }
-    .sub { margin: 10px auto 0; color: rgba(148,163,184,0.90); line-height: 1.7; max-width: 760px; }
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800;
+      letter-spacing: -1px; line-height: 1.2;
+    }
+    .pricing-head-row {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; flex-wrap: wrap; max-width: 1120px; margin: 0 auto;
+      text-align: left;
+    }
+    .pricing-head-copy { flex: 1; min-width: 240px; text-align: center; }
+    .pricing-head-copy .section-tag,
+    .pricing-head-copy .section-title,
+    .pricing-head-copy .pricing-intro,
+    .pricing-head-copy .pricing-demo-note { margin-left: auto; margin-right: auto; }
+    .pricing-head-copy .pricing-intro,
+    .pricing-head-copy .pricing-demo-note { text-align: center; }
+    .pricing-intro {
+      color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
+      line-height: 1.65;
+    }
     .pricing-demo-note {
-      font-size: 0.8rem; color: rgba(148,163,184,0.85); margin: 10px auto 0;
+      font-size: 0.8rem; color: rgba(148,163,184,0.85); margin-top: 10px;
       max-width: 520px; line-height: 1.5;
     }
     .pricing-card-soon {
@@ -228,6 +242,9 @@
 
     {% include "components/footer_css.html" %}
 
+    @media (max-width: 1100px) {
+      .pricing-head-row { justify-content: center; text-align: center; }
+    }
     @media (max-width: 768px) {
       .pricing-grid { margin-top: 36px; }
       .pricing-card { padding: 24px 18px 22px; }
@@ -242,7 +259,7 @@
       .pricing-tier-row { flex-wrap: wrap; row-gap: 6px; }
       .pricing-card.has-badge.is-active::before { top: 36px; }
       .pricing-card-soon { font-size: 0.56rem; padding: 4px 7px; }
-      .page-head h1 { font-size: clamp(1.45rem, 7vw, 1.85rem); }
+      .section-title { font-size: clamp(1.45rem, 7vw, 1.85rem); }
     }
     @media (prefers-reduced-motion: reduce) {
       .pricing-card.is-active { animation: none; }
@@ -259,11 +276,13 @@
   {% include "components/marketing_nav_js.html" %}
 
   <main class="mp-marketing-main" aria-labelledby="pricing-heading">
-    <div class="page-head">
-      <div class="tag"><span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block;" aria-hidden="true"></span> Pricing</div>
-      <h1 id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h1>
-      <p class="sub">Demo pricing preview—choose a send volume that fits your inbox. Paid checkout launches soon.</p>
-      <p class="pricing-demo-note">Limits count automated <strong>sent</strong> replies per month (draft-only mode does not use send quota).</p>
+    <div class="pricing-head-row">
+      <div class="pricing-head-copy">
+        <div class="section-tag">Pricing</div>
+        <h1 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h1>
+        <p class="pricing-intro">Simple token plans for every inbox size. Connect your inbox in Setup, then let MailPilot draft or send safely.</p>
+        <p class="pricing-demo-note">1 auto-sent reply uses 5 tokens. Draft-only mode, skipped emails, and Setup test emails do not use tokens.</p>
+      </div>
     </div>
 
     <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
@@ -273,16 +292,18 @@
           <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
         </div>
         <div class="pricing-price">$0<span>/mo</span></div>
-        <p class="pricing-period">1 mo trial · then free tier</p>
-        <p class="pricing-desc">Try MailPilot with a full month to connect your inbox, test AI replies, and see relevance filtering in action.</p>
+        <p class="pricing-period">Free forever</p>
+        <p class="pricing-desc">Connect one inbox, test AI replies, and keep draft mode unlimited while you validate relevance filtering.</p>
         <ul class="pricing-features">
-          <li><strong>1 mo</strong> trial access</li>
-          <li><strong>20 sent emails</strong> per month</li>
+          <li><strong>20 tokens</strong> per month (up to 4 auto-sent replies)</li>
+          <li><strong>5 auto-sends/day</strong> safety cap</li>
           <li>1 connected inbox (Gmail or IMAP)</li>
+          <li>Basic KB: 1 crawl or upload</li>
           <li>Keyword filter + LLM relevance</li>
-          <li>Dashboard queue &amp; draft mode</li>
+          <li>Dashboard queue &amp; unlimited drafts</li>
+          <li>No Telegram or WhatsApp</li>
         </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free trial</a>
+        <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free</a>
       </article>
 
       <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
@@ -291,7 +312,7 @@
         </div>
         <div class="pricing-tier-row">
           <div class="pricing-tier">Pro</div>
-          <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+          <span class="pricing-card-soon"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Live when Stripe is configured</span>
         </div>
         <div class="pricing-price-row">
           <span class="pricing-was">$40</span>
@@ -301,35 +322,34 @@
         <p class="pricing-period">Billed monthly · cancel anytime</p>
         <p class="pricing-desc">Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits.</p>
         <ul class="pricing-features">
-          <li><strong>1,000 sent emails</strong> per month</li>
-          <li>pgvector RAG (JSON &amp; text upload)</li>
-          <li>Gmail OAuth + SMTP/IMAP</li>
-          <li>APScheduler or Celery polling</li>
+          <li><strong>1,000 tokens</strong> per month (up to 200 auto-sent replies)</li>
+          <li>Up to 3 active Gmail or SMTP/IMAP inboxes</li>
+          <li>100 auto-sends/day/inbox safety cap</li>
+          <li>Full AI knowledge base (website crawl + file upload)</li>
+          <li>Multi Gmail OAuth + SMTP/IMAP mailbox support</li>
           <li>Per-user encrypted credentials</li>
-          <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
+          <li>Telegram &amp; WhatsApp alerts and commands</li>
         </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta primary">Get Pro</a>
+        <a href="{% if user.is_authenticated %}{% url 'billing_checkout_pro' %}{% else %}{% url 'signup' %}{% endif %}" class="pricing-cta primary">Get Pro</a>
       </article>
+
       <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
         <div class="pricing-card-topbar">
           <span class="pricing-badge">Most popular</span>
         </div>
         <div class="pricing-tier-row">
           <div class="pricing-tier">Custom</div>
-          <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
+          <span class="pricing-card-soon"><i class="fa-solid fa-user-gear" aria-hidden="true"></i> Manual setup</span>
         </div>
         <div class="pricing-price">You choose</div>
         <p class="pricing-period">Set price &amp; send volume</p>
         <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
         <ul class="pricing-features">
-          <li><strong>2,000 sends</strong> (4 Gmail/SMTP) → <strong>$30/mo</strong></li>
-          <li><strong>3,000 sends</strong> (6 Gmail/SMTP) → <strong>$40/mo</strong></li>
+          <li><strong>2,000 tokens</strong> + 4 Gmail/SMTP inboxes → <strong>$30/mo</strong></li>
+          <li><strong>3,000 tokens</strong> + 6 Gmail/SMTP inboxes → <strong>$40/mo</strong></li>
           <li>Or define your own tier (e.g. $50 → 5,000 sends)</li>
-          <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
+          <li>Provider-aware daily safety caps</li>
+          <li>Telegram &amp; WhatsApp alerts and chat commands</li>
           <li>Annual billing option</li>
           <li>Priority onboarding &amp; team seats</li>
         </ul>
@@ -439,4 +459,3 @@
   </script>
 </body>
 </html>
-

@@ -38,6 +38,16 @@
     return { res, j };
   }
 
+  function showPlanError(j, fallback) {
+    const msg = (j && (j.error || j.detail)) || fallback || 'Plan limit reached';
+    if (j && j.upgrade_required) {
+      alert(msg.replace(/_/g, ' ') + '\n\nOpen Pricing to upgrade your MailPilot plan.');
+      if (typeof window.refreshBillingStrip === 'function') window.refreshBillingStrip();
+      return true;
+    }
+    return false;
+  }
+
   async function loadMailAccounts() {
     const { res, j } = await apiJson('/api/mail-accounts/?transport=');
     if (!res.ok || !j.ok) return;
@@ -239,10 +249,11 @@
     document.querySelectorAll('.mb-enable').forEach((inp) => {
       inp.addEventListener('change', async () => {
         const id = inp.dataset.id;
-        await apiJson('/api/mail-accounts/' + id + '/', {
+        const { res, j } = await apiJson('/api/mail-accounts/' + id + '/', {
           method: 'PATCH',
           body: JSON.stringify({ is_enabled: inp.checked }),
         });
+        if (!res.ok || !j.ok) showPlanError(j, 'Could not update mailbox');
         await loadMailAccounts();
       });
     });
@@ -256,10 +267,11 @@
     const add = document.querySelector('[data-action="add-gmail"]');
     if (add) {
       add.addEventListener('click', async () => {
-        await apiJson('/api/mail-accounts/create', {
+        const { res, j } = await apiJson('/api/mail-accounts/create', {
           method: 'POST',
           body: JSON.stringify({ transport: 'gmail_api' }),
         });
+        if (!res.ok || !j.ok) showPlanError(j, 'Could not add Gmail mailbox');
         await loadMailAccounts();
       });
     }
@@ -361,6 +373,15 @@
       '<input class="fi smtp-from" value="' +
       esc(c.SMTP_FROM_EMAIL || '') +
       '"></div>' +
+      '<div class="fg"><label class="fl">Provider safety profile</label>' +
+      '<select class="fi provider-profile">' +
+      '<option value="smtp_personal"' +
+      ((c.PROVIDER_PROFILE || 'smtp_personal') === 'smtp_personal' ? ' selected' : '') +
+      '>Personal SMTP · 100/day safety cap</option>' +
+      '<option value="smtp_business"' +
+      (c.PROVIDER_PROFILE === 'smtp_business' ? ' selected' : '') +
+      '>Business SMTP · 1500/day provider cap</option>' +
+      '</select></div>' +
       '<div class="oauth-h" style="margin-top:12px;margin-bottom:8px;">IMAP (read inbox)</div>' +
       '<div class="fg"><label class="fl">IMAP host (optional)</label>' +
       '<input class="fi imap-host" value="' +
@@ -401,6 +422,7 @@
       IMAP_PORT: parseInt(card.querySelector('.imap-port')?.value || '993', 10),
       SMTP_TLS_SERVERNAME: card.querySelector('.smtp-tls-name')?.value || '',
       IMAP_TLS_SERVERNAME: card.querySelector('.imap-tls-name')?.value || '',
+      PROVIDER_PROFILE: card.querySelector('.provider-profile')?.value || 'smtp_personal',
       SMTP_USE_TLS: true,
       SMTP_USE_SSL: false,
       SMTP_VERIFY_TLS: true,
@@ -414,10 +436,11 @@
   function wireSmtpCards() {
     document.querySelectorAll('.mb-enable-smtp').forEach((inp) => {
       inp.addEventListener('change', async () => {
-        await apiJson('/api/mail-accounts/' + inp.dataset.id + '/', {
+        const { res, j } = await apiJson('/api/mail-accounts/' + inp.dataset.id + '/', {
           method: 'PATCH',
           body: JSON.stringify({ is_enabled: inp.checked }),
         });
+        if (!res.ok || !j.ok) showPlanError(j, 'Could not update mailbox');
         await loadMailAccounts();
       });
     });
@@ -484,7 +507,8 @@
       });
     });
     document.querySelector('[data-action="add-smtp"]')?.addEventListener('click', async () => {
-      await apiJson('/api/mail-accounts/create', { method: 'POST', body: JSON.stringify({ transport: 'smtp' }) });
+      const { res, j } = await apiJson('/api/mail-accounts/create', { method: 'POST', body: JSON.stringify({ transport: 'smtp' }) });
+      if (!res.ok || !j.ok) showPlanError(j, 'Could not add SMTP mailbox');
       await loadMailAccounts();
     });
   }

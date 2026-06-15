@@ -68,6 +68,22 @@ def api_mail_accounts_create(request):
     if count_accounts(request.user, transport) >= MAX_SLOTS_PER_TRANSPORT:
         return JsonResponse({"ok": False, "error": "max_slots_reached"}, status=400)
     try:
+        from core.billing import can_enable_mailbox
+
+        gate = can_enable_mailbox(request.user)
+        if not gate.allowed:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": gate.reason or "plan_inbox_limit_reached",
+                    "upgrade_required": True,
+                    "billing": gate.summary or {},
+                },
+                status=403,
+            )
+    except Exception:
+        pass
+    try:
         acc = create_account(
             request.user,
             transport=transport,
@@ -99,8 +115,19 @@ def api_mail_accounts_detail(request, account_id: int):
             from core.mail_accounts import can_enable_more
 
             if not can_enable_more(request.user, acc.transport, excluding_account_id=acc.id):
+                try:
+                    from core.billing import usage_summary
+
+                    billing = usage_summary(request.user)
+                except Exception:
+                    billing = {}
                 return JsonResponse(
-                    {"ok": False, "error": "max_active_accounts_reached"},
+                    {
+                        "ok": False,
+                        "error": "plan_inbox_limit_reached",
+                        "upgrade_required": True,
+                        "billing": billing,
+                    },
                     status=400,
                 )
         acc.is_enabled = want_on
@@ -127,6 +154,7 @@ def api_mail_accounts_detail(request, account_id: int):
         "SMTP_LAST_TEST_OK",
         "SMTP_LAST_TEST_AT",
         "SMTP_LAST_TEST_ERROR",
+        "PROVIDER_PROFILE",
     }
     patch = {k: v for k, v in body.items() if k in allowed or k in ("SMTP_PASSWORD", "IMAP_PASSWORD")}
     if patch:

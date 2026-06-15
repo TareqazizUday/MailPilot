@@ -340,6 +340,12 @@ def signup_view(request: HttpRequest):
             user.first_name = first_name
             user.last_name = last_name
             user.save(update_fields=["first_name", "last_name"])
+            try:
+                from core.billing import get_or_create_subscription
+
+                get_or_create_subscription(user)
+            except Exception:
+                logger.exception("starter subscription create failed user=%s", user.pk)
             login(request, user)
             log_audit(request, "signup", "")
             return redirect(reverse("dashboard"))

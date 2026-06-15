@@ -306,6 +306,7 @@
           <span id="pInfo">—</span>
           <span id="lRun">Last run: —</span>
         </div>
+        <div class="small" id="billingInfo" style="margin-top:8px;color:var(--txm);line-height:1.45;">Plan: checking…</div>
       </div>
       <div class="pnl-hd" style="border-top:1px solid var(--bdr)">
         <span class="pnl-t">Queue</span>
@@ -653,6 +654,28 @@
       return _dashAccountId ? ('?account_id=' + encodeURIComponent(_dashAccountId)) : '';
     }
 
+    async function refreshBillingInfo(){
+      const el = document.getElementById('billingInfo');
+      if(!el) return;
+      try{
+        const res = await fetch('/api/billing/summary' + dashAccountQuery());
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok || !j.billing){
+          el.textContent = 'Plan: unavailable';
+          return;
+        }
+        const b = j.billing;
+        const plan = ((b.plan && b.plan.code) || 'starter').replace(/^\w/, c => c.toUpperCase());
+        const tok = b.tokens || {};
+        const daily = b.daily || {};
+        const tokenTxt = tok.limit == null ? (tok.used + ' tokens used') : (tok.left + '/' + tok.limit + ' monthly tokens left');
+        const dailyTxt = daily.limit == null ? '' : (' · ' + daily.left + '/' + daily.limit + ' sends left today');
+        el.textContent = plan + ' · ' + tokenTxt + dailyTxt;
+      }catch(e){
+        el.textContent = 'Plan: unavailable';
+      }
+    }
+
     function inboxReadyAccount(a){
       if(!a || !a.is_enabled) return false;
       if(a.oauth_email_mismatch) return false;
@@ -716,6 +739,7 @@
       await loadInbox();
       await refreshGmailConnection();
       await refreshPending();
+      await refreshBillingInfo();
     }
 
     async function loadDashAccounts(){
@@ -932,6 +956,7 @@
       await loadDashAccounts();
       await refreshGmailConnection();
       await refreshPending();
+      await refreshBillingInfo();
     }
     async function initDashboard(){
       await refreshDashboard();

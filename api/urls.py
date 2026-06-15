@@ -48,6 +48,7 @@ urlpatterns = [
     path("kb/export-bundle", legacy_views.api_kb_export_bundle, name="api_kb_export_bundle_legacy"),
     path("kb/replace-json", legacy_views.api_kb_replace_json, name="api_kb_replace_json_legacy"),
     path("pending", legacy_views.api_pending, name="api_pending_legacy"),
+    path("billing/summary", legacy_views.api_billing_summary, name="api_billing_summary_legacy"),
     path("admin/config", legacy_views.api_admin_config, name="api_admin_config_legacy"),
     path("smtp/test", legacy_views.api_smtp_test, name="api_smtp_test_legacy"),
     path("smtp/status", legacy_views.api_smtp_status, name="api_smtp_status_legacy"),
