@@ -68,24 +68,22 @@
   }
 
   (function () {
-    var donutNode = document.getElementById("mpChartPlanMix");
-    var donutCard = donutNode && donutNode.closest(".mp-dash-chart-card");
-    var sliceColors = data.plan_mix.colors || [];
-    var sliceStroke = document.documentElement.classList.contains("dark") ? "#0f172a" : "#ffffff";
+    var standardPlanColors = {
+      starter: "#3b82f6",
+      pro: "#10b981",
+      custom: "#8b5cf6",
+    };
+    var fallbackPlanColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b"];
+    var sliceColors = (data.plan_mix.labels || []).map(function (label, idx) {
+      var key = String(label || "").toLowerCase().trim();
+      return standardPlanColors[key] || fallbackPlanColors[idx % fallbackPlanColors.length];
+    });
+    if (!sliceColors.length) {
+      sliceColors = data.plan_mix.colors || fallbackPlanColors;
+    }
+    var sliceStroke = document.documentElement.classList.contains("dark") ? "#1e293b" : "#ffffff";
     var isDark = document.documentElement.classList.contains("dark");
-
-    function setDonutGlow(idx) {
-      if (!donutCard || idx < 0) return;
-      var color = sliceColors[idx] || "#4f6ef7";
-      donutCard.classList.add("is-slice-hover");
-      donutCard.style.setProperty("--mp-donut-glow", hexToRgba(color, 0.42));
-    }
-
-    function clearDonutGlow() {
-      if (!donutCard) return;
-      donutCard.classList.remove("is-slice-hover");
-      donutCard.style.removeProperty("--mp-donut-glow");
-    }
+    var donutHole = isDark ? "#0f172a" : "#ffffff";
 
     mount("mpChartPlanMix", {
       chart: {
@@ -93,47 +91,17 @@
         height: 300,
         fontFamily: font,
         toolbar: { show: false },
-        dropShadow: {
-          enabled: true,
-          top: 6,
-          left: 0,
-          blur: 16,
-          opacity: 0.22,
-          color: "#4f6ef7",
-        },
+        dropShadow: { enabled: false },
         animations: {
           enabled: true,
           easing: "easeinout",
-          speed: 520,
-          animateGradually: { enabled: true, delay: 80 },
-        },
-        events: {
-          dataPointMouseEnter: function (_e, _ctx, config) {
-            setDonutGlow(config.dataPointIndex);
-          },
-          dataPointMouseLeave: function () {
-            clearDonutGlow();
-          },
-          mouseLeave: function () {
-            clearDonutGlow();
-          },
+          speed: 400,
         },
       },
       series: data.plan_mix.series,
       labels: data.plan_mix.labels,
       colors: sliceColors,
-      fill: {
-        type: "gradient",
-        gradient: {
-          shade: "dark",
-          type: "radial",
-          shadeIntensity: 0.45,
-          inverseColors: false,
-          opacityFrom: 1,
-          opacityTo: 0.78,
-          stops: [0, 88, 100],
-        },
-      },
+      fill: { type: "solid", opacity: 1 },
       legend: {
         position: "bottom",
         labels: { colors: "#94a3b8" },
@@ -142,24 +110,19 @@
       dataLabels: {
         enabled: true,
         dropShadow: { enabled: false },
-        style: { fontSize: "12px", fontWeight: 700, colors: ["#f8fafc"] },
+        style: { fontSize: "12px", fontWeight: 700, colors: ["#ffffff"] },
       },
       states: {
-        hover: {
-          filter: { type: "lighten", value: 0.12 },
-        },
-        active: {
-          allowMultipleDataPointsSelection: false,
-          filter: { type: "darken", value: 0.08 },
-        },
+        hover: { filter: { type: "none" } },
+        active: { filter: { type: "none" } },
       },
       plotOptions: {
         pie: {
-          expandOnClick: true,
-          customScale: 0.98,
-          offsetY: 2,
+          expandOnClick: false,
+          customScale: 1,
           donut: {
             size: "68%",
+            background: donutHole,
             labels: {
               show: true,
               name: {
@@ -190,7 +153,7 @@
           },
         },
       },
-      stroke: { show: true, width: 3, colors: [sliceStroke] },
+      stroke: { show: true, width: 2, colors: [sliceStroke] },
       tooltip: {
         theme: tooltipTheme,
         custom: function (ctx) {
