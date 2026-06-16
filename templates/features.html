@@ -100,36 +100,7 @@
     </div>
 
     <div class="features-grid" aria-label="Core features">
-      <div class="feat-card" style="--card-accent:#4f6ef7">
-        <div class="feat-icon" style="background:rgba(79,110,247,0.15)"><i class="fa-regular fa-envelope" aria-hidden="true"></i></div>
-        <div class="feat-title">Multi-Inbox Intelligence</div>
-        <div class="feat-desc">Automatically reads multiple Gmail and SMTP/IMAP inboxes, filters noise, and identifies emails that need a response — powered by LLM relevance scoring.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#a78bfa">
-        <div class="feat-icon" style="background:rgba(167,139,250,0.15)"><i class="fa-solid fa-brain" aria-hidden="true"></i></div>
-        <div class="feat-title">RAG-Powered Replies</div>
-        <div class="feat-desc">Enriches every AI reply with your knowledge base. Answers are grounded in your documentation, website content, and FAQs.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#38bdf8">
-        <div class="feat-icon" style="background:rgba(56,189,248,0.15)"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div>
-        <div class="feat-title">Secure Multi-Tenancy</div>
-        <div class="feat-desc">Per-user isolation — scoped credentials, tenant-prefixed state, and audit logging built in.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#4ade80">
-        <div class="feat-icon" style="background:rgba(74,222,128,0.15)"><i class="fa-solid fa-gear" aria-hidden="true"></i></div>
-        <div class="feat-title">Flexible Scheduling</div>
-        <div class="feat-desc">Runs in-process or scales with Celery + Redis. Periodic polling, manual triggers, and queue support.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#fb923c">
-        <div class="feat-icon" style="background:rgba(251,146,60,0.15)"><i class="fa-solid fa-link" aria-hidden="true"></i></div>
-        <div class="feat-title">Multi Gmail + SMTP/IMAP</div>
-        <div class="feat-desc">Connect multiple Gmail OAuth accounts or SMTP/IMAP mailboxes. Per-user encrypted credentials, token refresh, and callback handling included.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#f472b6">
-        <div class="feat-icon" style="background:rgba(244,114,182,0.15)"><i class="fa-solid fa-chart-column" aria-hidden="true"></i></div>
-        <div class="feat-title">Telegram, WhatsApp &amp; Dashboard</div>
-        <div class="feat-desc">See queue status in the dashboard and use live Telegram or WhatsApp alerts/chat commands for sent replies, drafts, errors, and mailbox actions.</div>
-      </div>
+      {% include "components/marketing_feature_cards.html" %}
     </div>
   </main>
 

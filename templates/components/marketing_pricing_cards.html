@@ -1,0 +1,55 @@
+{% for plan in pricing_plans %}
+<article
+  class="pricing-card{% if plan.top_badge %} has-badge{% endif %}{% if plan.is_featured %} is-active{% endif %}"
+  role="option"
+  tabindex="0"
+  data-plan="{{ plan.plan_code }}"
+  aria-pressed="{% if plan.is_featured %}true{% else %}false{% endif %}"
+  aria-label="{{ plan.tier_label }} plan"
+>
+  {% if plan.top_badge %}
+  <div class="pricing-card-topbar">
+    <span class="pricing-badge">{{ plan.top_badge }}</span>
+  </div>
+  {% endif %}
+  <div class="pricing-tier-row">
+    <div class="pricing-tier">{{ plan.tier_label }}</div>
+    {% if plan.ribbon_type == "free" %}
+    <span class="pricing-card-free"><i class="{{ plan.ribbon_icon_class }}" aria-hidden="true"></i> {{ plan.ribbon_label }}</span>
+    {% elif plan.ribbon_type == "soon" %}
+    <span class="pricing-card-soon"><i class="{{ plan.ribbon_icon_class }}" aria-hidden="true"></i> {{ plan.ribbon_label }}</span>
+    {% endif %}
+  </div>
+  {% if plan.price_was %}
+  <div class="pricing-price-row">
+    <span class="pricing-was">{{ plan.price_was }}</span>
+    <div class="pricing-price">{{ plan.price_display }}{% if plan.price_suffix %}<span>{{ plan.price_suffix }}</span>{% endif %}</div>
+    {% if plan.price_save_label %}<span class="pricing-save">{{ plan.price_save_label }}</span>{% endif %}
+  </div>
+  {% else %}
+  <div class="pricing-price">{{ plan.price_display }}{% if plan.price_suffix %}<span>{{ plan.price_suffix }}</span>{% endif %}</div>
+  {% endif %}
+  <p class="pricing-period">{{ plan.period_text }}</p>
+  <p class="pricing-desc">{{ plan.description }}</p>
+  <ul class="pricing-features">
+    {% for line in plan.feature_lines %}
+    <li>{{ line|safe }}</li>
+    {% endfor %}
+  </ul>
+  {% if plan.plan_code == "starter" %}
+  <a
+    href="{% if user.is_authenticated %}{% if starter_expired %}{% url 'pricing' %}{% else %}{% url 'profile' %}{% endif %}{% else %}{% url 'signup' %}{% endif %}"
+    class="pricing-cta {{ plan.cta_style }}"
+    {% if plan.plan_code == "starter" %}id="starterCta" data-auth="{% if user.is_authenticated %}1{% else %}0{% endif %}"{% endif %}
+  >{% if user.is_authenticated %}{% if starter_expired %}{{ plan.cta_label_starter_expired|default:"Upgrade required" }}{% else %}{{ plan.cta_label_authenticated|default:plan.cta_label }}{% endif %}{% else %}{{ plan.cta_label }}{% endif %}</a>
+  {% elif plan.plan_code == "pro" %}
+  <a href="{% if user.is_authenticated %}{% url 'billing_checkout_pro' %}{% else %}{% url 'signup' %}{% endif %}" class="pricing-cta {{ plan.cta_style }}">{{ plan.cta_label }}</a>
+  {% elif plan.plan_code == "custom" %}
+  <a href="{% url 'custom_plan_builder' %}" class="pricing-cta {{ plan.cta_style }}">{{ plan.cta_label }}</a>
+  {% else %}
+  <a href="{% url 'signup' %}" class="pricing-cta {{ plan.cta_style }}">{{ plan.cta_label }}</a>
+  {% endif %}
+</article>
+{% empty %}
+<p class="pricing-intro" style="grid-column:1/-1;text-align:center;">Pricing plans will appear here once published in admin.</p>
+{% endfor %}

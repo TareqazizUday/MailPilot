@@ -7,7 +7,8 @@ import re
 import threading
 import hashlib
 import hmac
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from django.utils import timezone as dj_timezone
 from typing import Any
 from urllib.parse import quote, urljoin
 
@@ -20,7 +21,7 @@ from django.http import FileResponse, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from django_ratelimit.decorators import ratelimit
 from google_auth_oauthlib.flow import Flow
 from werkzeug.utils import secure_filename
@@ -252,6 +253,21 @@ def landing_page(request):
     ctx = _seo_landing_context(request)
     ctx["contact_sent"] = request.GET.get("contact") == "sent"
     ctx["contact_error"] = (request.GET.get("contact_error") or "").strip()
+    ctx["starter_expired"] = False
+    ctx["current_plan_code"] = ""
+    from core.marketing import (
+        get_pricing_settings,
+        how_it_works_steps_queryset,
+        marketing_features_queryset,
+        marketing_pricing_plans_queryset,
+        marketing_reviews_queryset,
+    )
+
+    ctx["marketing_features"] = marketing_features_queryset(homepage_only=True)
+    ctx["how_it_works_steps"] = how_it_works_steps_queryset(homepage_only=True)
+    ctx["marketing_reviews"] = marketing_reviews_queryset(homepage_only=True)
+    ctx["pricing_settings"] = get_pricing_settings()
+    ctx["pricing_plans"] = marketing_pricing_plans_queryset(homepage_only=True)
     if request.user.is_authenticated:
         from core.user_settings import migrate_legacy_file_config_if_needed
 
@@ -259,6 +275,15 @@ def landing_page(request):
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)
         ctx["connected"] = _mailbox_connected_for_ui(effective, cfg)
+        try:
+            from core.billing import get_or_create_subscription, is_starter_expired
+
+            sub = get_or_create_subscription(request.user)
+            ctx["current_plan_code"] = sub.plan_code
+            ctx["starter_expired"] = is_starter_expired(sub)
+        except Exception:
+            ctx["current_plan_code"] = "starter"
+            ctx["starter_expired"] = False
     return render(request, "landing.html", ctx)
 
 
@@ -377,7 +402,49 @@ def pricing_page(request):
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)
         ctx["connected"] = _mailbox_connected_for_ui(effective, cfg)
+        try:
+            from core.billing import get_or_create_subscription, is_starter_expired
+
+            sub = get_or_create_subscription(request.user)
+            ctx["current_plan_code"] = sub.plan_code
+            ctx["starter_expired"] = is_starter_expired(sub)
+        except Exception:
+            ctx["current_plan_code"] = "starter"
+            ctx["starter_expired"] = False
+    else:
+        ctx["current_plan_code"] = ""
+        ctx["starter_expired"] = False
+    from core.marketing import get_pricing_settings, marketing_pricing_plans_queryset
+
+    ctx["pricing_settings"] = get_pricing_settings()
+    ctx["pricing_plans"] = marketing_pricing_plans_queryset()
     return render(request, "pricing.html", ctx)
+
+
+@require_GET
+def custom_plan_builder_page(request):
+    """Interactive custom plan builder — adjust tokens & inboxes with live pricing."""
+    ctx = _seo_landing_context(request)
+    from core.billing import custom_pricing_config
+
+    config = custom_pricing_config()
+    ctx["custom_config"] = config
+    ctx["custom_config_json"] = json.dumps(config)
+    preset = (request.GET.get("preset") or "").strip().lower()
+    initial_tokens = 2000
+    initial_inboxes = 4
+    for p in ctx["custom_config"].get("presets") or []:
+        if p.get("id") == preset:
+            initial_tokens = int(p.get("tokens") or initial_tokens)
+            initial_inboxes = int(p.get("inboxes") or initial_inboxes)
+            break
+    ctx["initial_tokens"] = initial_tokens
+    ctx["initial_inboxes"] = initial_inboxes
+    if request.user.is_authenticated:
+        effective = runtime.get_effective_settings(request.user)
+        cfg = _user_settings_dict(request)
+        ctx["connected"] = _mailbox_connected_for_ui(effective, cfg)
+    return render(request, "pricing_custom.html", ctx)
 
 
 @require_GET
@@ -386,6 +453,9 @@ def features_page(request):
     Clean URL for features (no `#features` fragment).
     """
     ctx = _seo_landing_context(request)
+    from core.marketing import marketing_features_queryset
+
+    ctx["marketing_features"] = marketing_features_queryset()
     if request.user.is_authenticated:
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)
@@ -399,6 +469,9 @@ def how_it_works_page(request):
     Clean URL for "How it Works" (no fragment).
     """
     ctx = _seo_landing_context(request)
+    from core.marketing import how_it_works_steps_queryset
+
+    ctx["how_it_works_steps"] = how_it_works_steps_queryset()
     if request.user.is_authenticated:
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)
@@ -412,6 +485,9 @@ def reviews_page(request):
     Clean URL for reviews/testimonials (no fragment).
     """
     ctx = _seo_landing_context(request)
+    from core.marketing import marketing_reviews_queryset
+
+    ctx["marketing_reviews"] = marketing_reviews_queryset()
     if request.user.is_authenticated:
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)
@@ -536,6 +612,21 @@ def profile_page(request):
             avatar_url = prof.avatar.url
     except Exception:
         avatar_url = ""
+
+    billing: dict = {}
+    bill_display: dict = {}
+    try:
+        from core.billing import get_or_create_subscription, profile_billing_display, usage_summary
+
+        get_or_create_subscription(request.user)
+        billing = usage_summary(request.user)
+        bill_display = profile_billing_display(billing)
+    except Exception:
+        logger.exception("profile billing summary failed user=%s", request.user.pk)
+        from core.billing import profile_billing_display
+
+        bill_display = profile_billing_display(None)
+
     return render(
         request,
         "profile.html",
@@ -544,6 +635,9 @@ def profile_page(request):
             "connected": connected,
             "is_edit": (request.GET.get("edit") or "").strip() == "1",
             "avatar_url": avatar_url,
+            "billing": billing,
+            "plan_activated": (request.GET.get("plan") or "").strip().lower() in ("starter", "pro", "custom"),
+            **bill_display,
         },
     )
 
@@ -600,14 +694,141 @@ def api_billing_summary(request):
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
+@require_http_methods(["POST"])
+def api_billing_select_plan(request):
+    """Activate a plan for the current user (Starter is free; Pro redirects to checkout)."""
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}") if request.body else {}
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    plan = str(body.get("plan") or "").strip().lower()
+    from core.billing import (
+        PLAN_CUSTOM,
+        PLAN_PRO,
+        PLAN_STARTER,
+        get_or_create_subscription,
+        is_starter_expired,
+        set_subscription_plan,
+        usage_summary,
+    )
+    from core.models import UserSubscription
+
+    if plan == PLAN_PRO:
+        return JsonResponse({"ok": True, "redirect": reverse("billing_checkout_pro")})
+    if plan == PLAN_CUSTOM:
+        return JsonResponse({"ok": True, "redirect": reverse("custom_plan_builder")})
+    if plan != PLAN_STARTER:
+        return JsonResponse({"ok": False, "error": "invalid_plan"}, status=400)
+    try:
+        sub = get_or_create_subscription(request.user)
+        if is_starter_expired(sub):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "starter_trial_expired",
+                    "upgrade_required": True,
+                    "billing": usage_summary(request.user),
+                    "redirect": reverse("pricing"),
+                },
+                status=403,
+            )
+        set_subscription_plan(sub, plan, status=UserSubscription.STATUS_ACTIVE)
+        billing = usage_summary(request.user)
+        return JsonResponse(
+            {
+                "ok": True,
+                "plan": plan,
+                "billing": billing,
+                "redirect": f"{reverse('profile')}?plan={plan}",
+            }
+        )
+    except Exception as e:
+        logger.exception("billing select plan failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@require_GET
+def api_billing_custom_config(request):
+    """Public pricing knobs for the custom plan builder UI."""
+    from core.billing import custom_pricing_config
+
+    return JsonResponse({"ok": True, "config": custom_pricing_config()})
+
+
+@require_http_methods(["GET", "POST"])
+def api_billing_custom_quote(request):
+    """Preview or save a custom plan quote (server-side price validation)."""
+    from core.billing import (
+        CUSTOM_QUOTE_TTL_HOURS,
+        calculate_custom_price_cents,
+        clamp_custom_inputs,
+        custom_daily_send_limit,
+        custom_plan_quote_summary,
+    )
+    from core.models import CustomPlanQuote
+
+    if request.method == "GET":
+        try:
+            tokens = int(request.GET.get("tokens") or 2000)
+            inboxes = int(request.GET.get("inboxes") or 4)
+        except (TypeError, ValueError):
+            return JsonResponse({"ok": False, "error": "invalid_input"}, status=400)
+        return JsonResponse({"ok": True, "quote": custom_plan_quote_summary(tokens, inboxes)})
+
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}") if request.body else {}
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    try:
+        tokens = int(body.get("tokens") or 2000)
+        inboxes = int(body.get("inboxes") or 4)
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "invalid_input"}, status=400)
+
+    summary = custom_plan_quote_summary(tokens, inboxes)
+    tok, boxes = clamp_custom_inputs(tokens, inboxes)
+    price_cents = calculate_custom_price_cents(tok, boxes)
+    now = dj_timezone.now()
+    quote = CustomPlanQuote.objects.create(
+        user=request.user,
+        tokens=tok,
+        inboxes=boxes,
+        price_cents=price_cents,
+        daily_send_limit=custom_daily_send_limit(boxes),
+        status=CustomPlanQuote.STATUS_DRAFT,
+        expires_at=now + timedelta(hours=CUSTOM_QUOTE_TTL_HOURS),
+    )
+    return JsonResponse(
+        {
+            "ok": True,
+            "quote_id": quote.pk,
+            "quote": summary,
+            "checkout_url": reverse("billing_checkout_custom", args=[quote.pk]),
+        }
+    )
+
+
 @login_required(login_url="/login")
 @require_http_methods(["GET", "POST"])
 def billing_checkout_pro(request):
-    """Create a Stripe Checkout session for Pro when Stripe env is configured."""
-    secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
-    price_id = (os.environ.get("STRIPE_PRICE_PRO_MONTHLY") or "").strip()
-    if not secret or not price_id:
+    """Create a Stripe Checkout session for Pro when Stripe is configured."""
+    from core.payment_gateway import billing_demo_mode, get_stripe_credentials, stripe_checkout_ready
+
+    if not stripe_checkout_ready():
+        if billing_demo_mode():
+            return redirect(f"{reverse('billing_demo_checkout')}?plan=pro")
         return redirect(f"{reverse('pricing')}?billing=not_configured")
+    creds = get_stripe_credentials()
+    secret = creds.secret_key
+    price_id = creds.price_pro_monthly
     try:
         import requests
 
@@ -642,11 +863,184 @@ def billing_checkout_pro(request):
 
 
 @login_required(login_url="/login")
+@require_GET
+def billing_custom_request(request):
+    """Open the interactive custom plan builder."""
+    preset = (request.GET.get("preset") or "").strip()
+    if preset:
+        return redirect(f"{reverse('custom_plan_builder')}?preset={preset}")
+    return redirect(reverse("custom_plan_builder"))
+
+
+@login_required(login_url="/login")
+@require_GET
+def billing_checkout_custom(request, quote_id: int):
+    """Stripe Checkout for a saved custom plan quote (dynamic price)."""
+    from core.models import CustomPlanQuote
+    from core.payment_gateway import get_stripe_credentials
+
+    quote = CustomPlanQuote.objects.filter(pk=quote_id, user=request.user).first()
+    if quote is None:
+        return redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
+    if quote.status == CustomPlanQuote.STATUS_PAID:
+        return redirect(f"{reverse('setup')}?billing=success")
+    if quote.expires_at and quote.expires_at < dj_timezone.now():
+        quote.status = CustomPlanQuote.STATUS_EXPIRED
+        quote.save(update_fields=["status", "updated_at"])
+        return redirect(f"{reverse('custom_plan_builder')}?billing=quote_expired")
+
+    from core.payment_gateway import billing_demo_mode, stripe_is_configured
+
+    if not stripe_is_configured():
+        if billing_demo_mode():
+            quote.status = CustomPlanQuote.STATUS_PENDING
+            quote.stripe_session_id = f"demo_{quote.pk}"
+            quote.save(update_fields=["status", "stripe_session_id", "updated_at"])
+            return redirect(f"{reverse('billing_demo_checkout')}?quote={quote.pk}")
+        return redirect(f"{reverse('custom_plan_builder')}?billing=not_configured&quote={quote.pk}")
+
+    creds = get_stripe_credentials()
+    try:
+        import requests
+
+        base = _public_base_url(request)
+        amount = int(quote.price_cents)
+        label = f"MailPilot Custom — {quote.tokens:,} tokens · {quote.inboxes} inbox(es)/mo"
+        data = {
+            "mode": "subscription",
+            "line_items[0][price_data][currency]": "usd",
+            "line_items[0][price_data][unit_amount]": str(amount),
+            "line_items[0][price_data][recurring][interval]": "month",
+            "line_items[0][price_data][product_data][name]": "MailPilot Custom Plan",
+            "line_items[0][price_data][product_data][description]": label[:500],
+            "line_items[0][quantity]": "1",
+            "success_url": f"{base}{reverse('setup')}?billing=success",
+            "cancel_url": f"{base}{reverse('custom_plan_builder')}?billing=cancelled&quote={quote.pk}",
+            "client_reference_id": str(request.user.id),
+            "customer_email": (request.user.email or "").strip(),
+            "metadata[user_id]": str(request.user.id),
+            "metadata[plan_type]": "custom",
+            "metadata[quote_id]": str(quote.pk),
+            "metadata[tokens]": str(quote.tokens),
+            "metadata[inboxes]": str(quote.inboxes),
+        }
+        resp = requests.post(
+            "https://api.stripe.com/v1/checkout/sessions",
+            data=data,
+            auth=(creds.secret_key, ""),
+            timeout=20,
+        )
+        payload = resp.json() if resp.content else {}
+        if not resp.ok:
+            logger.warning("stripe custom checkout failed: %s", payload or resp.text)
+            return redirect(f"{reverse('custom_plan_builder')}?billing=checkout_error")
+        url = str(payload.get("url") or "").strip()
+        session_id = str(payload.get("id") or "").strip()
+        if not url:
+            return redirect(f"{reverse('custom_plan_builder')}?billing=checkout_error")
+        quote.status = CustomPlanQuote.STATUS_PENDING
+        quote.stripe_session_id = session_id
+        quote.save(update_fields=["status", "stripe_session_id", "updated_at"])
+        return redirect(url)
+    except Exception as e:
+        logger.exception("stripe custom checkout exception: %s", e)
+        return redirect(f"{reverse('custom_plan_builder')}?billing=checkout_error")
+
+
+@login_required(login_url="/login")
+@require_GET
+def billing_demo_checkout(request):
+    """Simulated Stripe Checkout for local demo (no real API keys)."""
+    from core.models import CustomPlanQuote
+    from core.payment_gateway import billing_demo_mode
+
+    if not billing_demo_mode():
+        return redirect(f"{reverse('pricing')}?billing=not_configured")
+
+    plan = (request.GET.get("plan") or "").strip().lower()
+    quote_id = (request.GET.get("quote") or "").strip()
+    quote = None
+    if quote_id.isdigit():
+        quote = CustomPlanQuote.objects.filter(pk=int(quote_id), user=request.user).first()
+        if quote is None:
+            return redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
+        plan = "custom"
+
+    if plan not in ("pro", "custom"):
+        return redirect(f"{reverse('pricing')}?billing=invalid_plan")
+
+    if plan == "pro":
+        title = "MailPilot Pro"
+        amount_cents = 2000
+        subtitle = "1,000 tokens · 3 inboxes · monthly"
+    else:
+        title = "MailPilot Custom"
+        amount_cents = int(quote.price_cents)
+        subtitle = f"{quote.tokens:,} tokens · {quote.inboxes} inbox(es) · monthly"
+
+    cancel_url = reverse("pricing") if plan == "pro" else f"{reverse('custom_plan_builder')}?quote={quote.pk}"
+    return render(
+        request,
+        "billing_demo_checkout.html",
+        {
+            "plan": plan,
+            "quote_id": quote.pk if quote else "",
+            "title": title,
+            "subtitle": subtitle,
+            "amount_cents": amount_cents,
+            "amount_usd": f"{amount_cents / 100:.2f}",
+            "cancel_url": cancel_url,
+            "user_email": (request.user.email or "").strip(),
+        },
+    )
+
+
+@login_required(login_url="/login")
+@require_POST
+@csrf_protect
+def billing_demo_complete(request):
+    """Complete a demo checkout — activates Pro or Custom without Stripe."""
+    from core.billing import PLAN_PRO, activate_custom_plan_quote, get_or_create_subscription, set_subscription_plan
+    from core.models import CustomPlanQuote, UserSubscription
+    from core.payment_gateway import billing_demo_mode
+
+    if not billing_demo_mode():
+        return JsonResponse({"ok": False, "error": "demo_disabled"}, status=403)
+
+    plan = (request.POST.get("plan") or "").strip().lower()
+    quote_id = (request.POST.get("quote_id") or "").strip()
+
+    if plan == "pro":
+        sub = get_or_create_subscription(request.user)
+        set_subscription_plan(sub, PLAN_PRO, status=UserSubscription.STATUS_ACTIVE)
+        sub.paid_at = dj_timezone.now()
+        sub.stripe_customer_id = sub.stripe_customer_id or f"demo_cus_{request.user.id}"
+        sub.stripe_subscription_id = sub.stripe_subscription_id or f"demo_sub_pro_{request.user.id}"
+        sub.save(update_fields=["paid_at", "stripe_customer_id", "stripe_subscription_id", "updated_at"])
+    elif plan == "custom" and quote_id.isdigit():
+        quote = CustomPlanQuote.objects.filter(pk=int(quote_id), user=request.user).first()
+        if quote is None:
+            return redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
+        activate_custom_plan_quote(request.user, quote)
+        sub = get_or_create_subscription(request.user)
+        sub.stripe_customer_id = sub.stripe_customer_id or f"demo_cus_{request.user.id}"
+        sub.stripe_subscription_id = sub.stripe_subscription_id or f"demo_sub_custom_{quote.pk}"
+        sub.save(update_fields=["stripe_customer_id", "stripe_subscription_id", "updated_at"])
+    else:
+        return redirect(f"{reverse('pricing')}?billing=invalid_plan")
+
+    return redirect(f"{reverse('setup')}?billing=success&demo=1")
+
+
+@login_required(login_url="/login")
 @require_http_methods(["GET", "POST"])
 def billing_portal(request):
-    secret = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
-    if not secret:
+    from core.payment_gateway import get_stripe_credentials
+
+    creds = get_stripe_credentials()
+    if not creds or not creds.secret_key:
         return redirect(f"{reverse('settings')}?billing=not_configured")
+    secret = creds.secret_key
     try:
         from core.billing import get_or_create_subscription
 
@@ -694,8 +1088,11 @@ def _stripe_signature_ok(raw: bytes, sig_header: str, secret: str) -> bool:
 @csrf_exempt
 @require_http_methods(["POST"])
 def billing_stripe_webhook(request):
+    from core.payment_gateway import get_stripe_credentials
+
     raw = request.body or b""
-    webhook_secret = (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip()
+    creds = get_stripe_credentials()
+    webhook_secret = (creds.webhook_secret if creds else "") or (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip()
     if webhook_secret and not _stripe_signature_ok(raw, request.headers.get("Stripe-Signature", ""), webhook_secret):
         return JsonResponse({"ok": False, "error": "invalid_signature"}, status=400)
     try:
@@ -721,15 +1118,43 @@ def billing_stripe_webhook(request):
         if user is None:
             return JsonResponse({"ok": True, "ignored": "unknown_user"})
         sub = get_or_create_subscription(user)
+        meta = (obj.get("metadata") or {}) if isinstance(obj.get("metadata"), dict) else {}
+        plan_type = str(meta.get("plan_type") or "pro").strip().lower()
 
         if etype == "checkout.session.completed":
-            set_subscription_plan(sub, "pro", status="active")
-            sub.stripe_customer_id = str(obj.get("customer") or sub.stripe_customer_id or "")
-            sub.stripe_subscription_id = str(obj.get("subscription") or sub.stripe_subscription_id or "")
+            if plan_type == "custom":
+                from core.billing import activate_custom_plan_quote
+                from core.models import CustomPlanQuote
+
+                quote_id = str(meta.get("quote_id") or "").strip()
+                quote = None
+                if quote_id.isdigit():
+                    quote = CustomPlanQuote.objects.filter(pk=int(quote_id), user=user).first()
+                if quote is None:
+                    try:
+                        tokens = int(meta.get("tokens") or 0)
+                        inboxes = int(meta.get("inboxes") or 0)
+                    except (TypeError, ValueError):
+                        tokens, inboxes = 0, 0
+                    if tokens and inboxes:
+                        from core.billing import apply_custom_limits
+
+                        apply_custom_limits(sub, tokens=tokens, inboxes=inboxes)
+                        sub.paid_at = dj_timezone.now()
+                else:
+                    activate_custom_plan_quote(user, quote)
+                sub.stripe_customer_id = str(obj.get("customer") or sub.stripe_customer_id or "")
+                sub.stripe_subscription_id = str(obj.get("subscription") or sub.stripe_subscription_id or "")
+            else:
+                set_subscription_plan(sub, "pro", status="active")
+                sub.stripe_customer_id = str(obj.get("customer") or sub.stripe_customer_id or "")
+                sub.stripe_subscription_id = str(obj.get("subscription") or sub.stripe_subscription_id or "")
+                sub.paid_at = dj_timezone.now()
         elif etype in ("customer.subscription.updated", "customer.subscription.created"):
+            code = "custom" if plan_type == "custom" or sub.plan_code == "custom" else "pro"
             set_subscription_plan(
                 sub,
-                "pro",
+                code,
                 status="active" if str(obj.get("status") or "") in ("active", "trialing") else "past_due",
             )
             sub.stripe_customer_id = str(obj.get("customer") or sub.stripe_customer_id or "")

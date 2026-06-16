@@ -1,0 +1,299 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MailPilot — Build your Custom plan</title>
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#060818" />
+  {% include "components/favicon.html" %}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #060818;
+      --accent: #4f6ef7;
+      --accent2: #a78bfa;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.09);
+    }
+    html, body { height: 100%; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
+    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+    .orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; }
+    .orb1 { width: 600px; height: 600px; background: rgba(79,110,247,0.12); top: -200px; left: -200px; }
+    .orb2 { width: 500px; height: 500px; background: rgba(167,139,250,0.10); bottom: 10%; right: -150px; }
+    {% include "components/marketing_nav_css.html" %}
+    {% include "components/marketing_page_layout_css.html" %}
+    main.mp-marketing-main { text-align: left; max-width: 960px; margin: 0 auto; }
+    .section-tag {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: #a78bfa; margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem); font-weight: 800;
+      letter-spacing: -1px; line-height: 1.2; margin-bottom: 10px;
+    }
+    .intro { color: var(--muted); font-size: 1rem; line-height: 1.65; max-width: 640px; margin-bottom: 28px; }
+    .builder-grid {
+      display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start;
+    }
+    @media (max-width: 860px) { .builder-grid { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 20px; padding: 24px; backdrop-filter: blur(12px);
+    }
+    .panel h2 { font-size: 1rem; font-weight: 700; margin-bottom: 18px; }
+    .field { margin-bottom: 22px; }
+    .field label {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;
+    }
+    .field label span.val { color: #a78bfa; font-variant-numeric: tabular-nums; }
+    input[type=range] {
+      width: 100%; height: 6px; border-radius: 4px; appearance: none;
+      background: rgba(255,255,255,0.12); outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      appearance: none; width: 20px; height: 20px; border-radius: 50%;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      cursor: pointer; box-shadow: 0 2px 10px rgba(79,110,247,0.5);
+    }
+    .presets { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+    .preset-btn {
+      padding: 8px 14px; border-radius: 50px; font-size: 0.8rem; font-weight: 600;
+      border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);
+      color: var(--text); cursor: pointer; transition: background 0.2s, border-color 0.2s;
+    }
+    .preset-btn:hover, .preset-btn.is-active {
+      background: rgba(79,110,247,0.2); border-color: rgba(79,110,247,0.5);
+    }
+    .summary-price {
+      font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .summary-price span { font-size: 1rem; font-weight: 600; -webkit-text-fill-color: var(--muted); }
+    .summary-list { list-style: none; margin: 18px 0 22px; }
+    .summary-list li {
+      font-size: 0.84rem; color: var(--muted); padding: 7px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; justify-content: space-between; gap: 12px;
+    }
+    .summary-list li strong { color: var(--text); font-weight: 600; }
+    .formula-note {
+      font-size: 0.75rem; color: rgba(148,163,184,0.85); line-height: 1.5; margin-bottom: 18px;
+    }
+    .cta {
+      display: block; width: 100%; text-align: center; padding: 14px 20px; border-radius: 50px;
+      font-size: 0.95rem; font-weight: 700; text-decoration: none; border: none; cursor: pointer;
+      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
+      color: #fff; box-shadow: 0 4px 20px rgba(79,110,247,0.35);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .cta:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,110,247,0.45); }
+    .cta:disabled { opacity: 0.55; cursor: not-allowed; }
+    .cta.secondary {
+      background: rgba(255,255,255,0.06); color: var(--text);
+      border: 1px solid var(--glass-border); box-shadow: none; margin-top: 10px;
+    }
+    .alert {
+      padding: 12px 16px; border-radius: 12px; font-size: 0.85rem; margin-bottom: 20px;
+      border: 1px solid rgba(251,191,36,0.35); background: rgba(251,191,36,0.1); color: #fde68a;
+    }
+    .alert.error { border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.1); color: #fecaca; }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 8px; color: var(--muted);
+      text-decoration: none; font-size: 0.85rem; margin-bottom: 24px;
+    }
+    .back-link:hover { color: var(--text); }
+    {% include "components/footer_css.html" %}
+  </style>
+</head>
+<body>
+  <div class="orb orb1" aria-hidden="true"></div>
+  <div class="orb orb2" aria-hidden="true"></div>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  {% include "components/marketing_nav.html" %}
+  {% include "components/marketing_nav_js.html" %}
+
+  <main class="mp-marketing-main" aria-labelledby="custom-heading">
+    <a href="{% url 'pricing' %}" class="back-link"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to pricing</a>
+    <div class="section-tag">Custom plan</div>
+    <h1 class="section-title" id="custom-heading">Build your own <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">MailPilot plan</span></h1>
+    <p class="intro">Adjust monthly tokens and inbox slots. Price updates live — pay with Stripe when checkout is configured, or contact us for a manual quote.</p>
+
+    <div id="billingAlert" class="alert" style="display:none" role="status"></div>
+
+    <div class="builder-grid">
+      <section class="panel" aria-label="Plan configuration">
+        <h2>Configure limits</h2>
+        <div class="presets" id="presetRow" role="group" aria-label="Quick presets"></div>
+        <div class="field">
+          <label for="tokensRange">Monthly tokens <span class="val" id="tokensVal">{{ initial_tokens|default:2000 }}</span></label>
+          <input type="range" id="tokensRange" min="1000" max="20000" step="100" value="{{ initial_tokens|default:2000 }}" />
+        </div>
+        <div class="field">
+          <label for="inboxesRange">Active inboxes (Gmail / SMTP) <span class="val" id="inboxesVal">{{ initial_inboxes|default:4 }}</span></label>
+          <input type="range" id="inboxesRange" min="1" max="12" step="1" value="{{ initial_inboxes|default:4 }}" />
+        </div>
+        <p class="formula-note">Pricing: $10 base + $5 per 1,000 tokens + $2.50 per inbox. Minimum $20/mo. Draft mode does not use tokens.</p>
+      </section>
+
+      <aside class="panel" aria-label="Quote summary">
+        <h2>Your quote</h2>
+        <div class="summary-price" id="priceDisplay">$—<span>/mo</span></div>
+        <ul class="summary-list" id="summaryList">
+          <li><span>Auto-sends / mo</span><strong id="sendsMax">—</strong></li>
+          <li><span>Daily send cap / inbox</span><strong id="dailyCap">—</strong></li>
+          <li><span>Tokens per auto-send</span><strong id="perSend">5</strong></li>
+          <li><span>Telegram &amp; WhatsApp</span><strong>Included</strong></li>
+        </ul>
+        {% if user.is_authenticated %}
+        <button type="button" class="cta" id="continueBtn">Continue to checkout</button>
+        <a href="{% url 'landing_contact' %}?plan=custom" class="cta secondary" id="contactFallback">Or request a manual quote</a>
+        {% else %}
+        <a href="{% url 'signup' %}?next={% url 'custom_plan_builder' %}" class="cta">Sign up to continue</a>
+        {% endif %}
+      </aside>
+    </div>
+  </main>
+
+  {% include "components/footer.html" %}
+
+  <script>
+    (function () {
+      const cfg = {{ custom_config_json|safe }};
+      const isAuth = {% if user.is_authenticated %}true{% else %}false{% endif %};
+      const tokensRange = document.getElementById('tokensRange');
+      const inboxesRange = document.getElementById('inboxesRange');
+      const tokensVal = document.getElementById('tokensVal');
+      const inboxesVal = document.getElementById('inboxesVal');
+      const priceDisplay = document.getElementById('priceDisplay');
+      const sendsMax = document.getElementById('sendsMax');
+      const dailyCap = document.getElementById('dailyCap');
+      const perSend = document.getElementById('perSend');
+      const presetRow = document.getElementById('presetRow');
+      const continueBtn = document.getElementById('continueBtn');
+      const billingAlert = document.getElementById('billingAlert');
+      const contactFallback = document.getElementById('contactFallback');
+
+      if (cfg.min_tokens) tokensRange.min = cfg.min_tokens;
+      if (cfg.max_tokens) tokensRange.max = cfg.max_tokens;
+      if (cfg.min_inboxes) inboxesRange.min = cfg.min_inboxes;
+      if (cfg.max_inboxes) inboxesRange.max = cfg.max_inboxes;
+      if (cfg.tokens_per_send) perSend.textContent = cfg.tokens_per_send;
+
+      function csrfToken() {
+        const m = document.cookie.match(/csrftoken=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+      }
+
+      function showAlert(msg, isError) {
+        if (!billingAlert) return;
+        billingAlert.textContent = msg;
+        billingAlert.className = 'alert' + (isError ? ' error' : '');
+        billingAlert.style.display = 'block';
+      }
+
+      const billingParam = new URLSearchParams(window.location.search).get('billing');
+      if (billingParam === 'not_configured') {
+        showAlert('Stripe is not configured yet. Save your quote and use “Request a manual quote”, or ask an admin to enable checkout.');
+      } else if (billingParam === 'cancelled') {
+        showAlert('Checkout was cancelled. Adjust your plan and try again.');
+      } else if (billingParam === 'quote_expired') {
+        showAlert('That quote expired. Build a new one below.', true);
+      } else if (billingParam === 'checkout_error') {
+        showAlert('Checkout could not be started. Try again or contact us.', true);
+      }
+
+      function formatUsd(cents) {
+        return '$' + (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
+      }
+
+      let quoteTimer = null;
+      let lastQuote = null;
+
+      async function refreshQuote() {
+        const tokens = parseInt(tokensRange.value, 10);
+        const inboxes = parseInt(inboxesRange.value, 10);
+        tokensVal.textContent = tokens.toLocaleString();
+        inboxesVal.textContent = String(inboxes);
+        try {
+          const res = await fetch('/api/billing/custom-quote?tokens=' + tokens + '&inboxes=' + inboxes, { credentials: 'same-origin' });
+          const j = await res.json();
+          if (!j.ok || !j.quote) return;
+          lastQuote = j.quote;
+          priceDisplay.innerHTML = formatUsd(j.quote.price_cents) + '<span>/mo</span>';
+          sendsMax.textContent = j.quote.sends_max.toLocaleString();
+          dailyCap.textContent = j.quote.daily_send_limit.toLocaleString();
+          if (contactFallback && lastQuote) {
+            const msg = encodeURIComponent(
+              'Custom plan request: ' + j.quote.tokens + ' tokens, ' + j.quote.inboxes + ' inboxes, ' + formatUsd(j.quote.price_cents) + '/mo'
+            );
+            contactFallback.href = '{% url "landing_contact" %}?plan=custom&message=' + msg;
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      function scheduleQuote() {
+        clearTimeout(quoteTimer);
+        quoteTimer = setTimeout(refreshQuote, 120);
+      }
+
+      (cfg.presets || []).forEach(function (p) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'preset-btn';
+        btn.textContent = p.label || (p.tokens + ' tok / ' + p.inboxes + ' inbox');
+        btn.dataset.tokens = p.tokens;
+        btn.dataset.inboxes = p.inboxes;
+        btn.addEventListener('click', function () {
+          tokensRange.value = p.tokens;
+          inboxesRange.value = p.inboxes;
+          presetRow.querySelectorAll('.preset-btn').forEach(function (b) { b.classList.remove('is-active'); });
+          btn.classList.add('is-active');
+          scheduleQuote();
+        });
+        presetRow.appendChild(btn);
+      });
+
+      tokensRange.addEventListener('input', scheduleQuote);
+      inboxesRange.addEventListener('input', scheduleQuote);
+      refreshQuote();
+
+      if (continueBtn && isAuth) {
+        continueBtn.addEventListener('click', async function () {
+          continueBtn.disabled = true;
+          try {
+            const res = await fetch('/api/billing/custom-quote', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+              body: JSON.stringify({
+                tokens: parseInt(tokensRange.value, 10),
+                inboxes: parseInt(inboxesRange.value, 10),
+              }),
+            });
+            const j = await res.json();
+            if (!res.ok || !j.ok) throw new Error(j.error || 'quote_failed');
+            if (j.checkout_url) {
+              window.location.href = j.checkout_url;
+              return;
+            }
+          } catch (e) {
+            showAlert('Could not save your quote. Please try again.', true);
+          }
+          continueBtn.disabled = false;
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

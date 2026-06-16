@@ -2338,7 +2338,12 @@
         const plan = ((b.plan && b.plan.code) || 'starter').replace(/^\w/, c => c.toUpperCase());
         const tok = b.tokens || {};
         const inbox = b.active_inboxes || {};
-        const tokenTxt = tok.limit == null ? (tok.used + ' tokens used') : (tok.used + '/' + tok.limit + ' tokens used');
+        const trial = b.starter_trial || {};
+        let tokenTxt = tok.limit == null ? (tok.used + ' tokens used') : (tok.used + '/' + tok.limit + ' tokens used');
+        if(trial.lifetime){
+          tokenTxt = trial.sends_used + '/' + trial.sends_limit + ' trial auto-sends';
+          if(trial.expired) tokenTxt += ' (trial ended)';
+        }
         const inboxTxt = inbox.limit == null ? (inbox.used + ' inboxes active') : (inbox.used + '/' + inbox.limit + ' inbox active');
         el.textContent = plan + ' · ' + tokenTxt + ' · ' + inboxTxt;
       }catch(e){

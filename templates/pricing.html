@@ -276,96 +276,30 @@
   {% include "components/marketing_nav_js.html" %}
 
   <main class="mp-marketing-main" aria-labelledby="pricing-heading">
-    <div class="pricing-head-row">
-      <div class="pricing-head-copy">
-        <div class="section-tag">Pricing</div>
-        <h1 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h1>
-        <p class="pricing-intro">Simple token plans for every inbox size. Connect your inbox in Setup, then let MailPilot draft or send safely.</p>
-        <p class="pricing-demo-note">1 auto-sent reply uses 5 tokens. Draft-only mode, skipped emails, and Setup test emails do not use tokens.</p>
-      </div>
-    </div>
+    {% include "components/marketing_pricing_head.html" with pricing_heading_tag="h1" %}
 
     <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
-      <article class="pricing-card" role="option" tabindex="0" data-plan="starter" aria-pressed="false" aria-label="Starter plan">
-        <div class="pricing-tier-row">
-          <div class="pricing-tier">Starter</div>
-          <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
-        </div>
-        <div class="pricing-price">$0<span>/mo</span></div>
-        <p class="pricing-period">Free forever</p>
-        <p class="pricing-desc">Connect one inbox, test AI replies, and keep draft mode unlimited while you validate relevance filtering.</p>
-        <ul class="pricing-features">
-          <li><strong>20 tokens</strong> per month (up to 4 auto-sent replies)</li>
-          <li><strong>5 auto-sends/day</strong> safety cap</li>
-          <li>1 connected inbox (Gmail or IMAP)</li>
-          <li>Basic KB: 1 crawl or upload</li>
-          <li>Keyword filter + LLM relevance</li>
-          <li>Dashboard queue &amp; unlimited drafts</li>
-          <li>No Telegram or WhatsApp</li>
-        </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free</a>
-      </article>
-
-      <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
-        <div class="pricing-card-topbar">
-          <span class="pricing-badge">50% launch offer</span>
-        </div>
-        <div class="pricing-tier-row">
-          <div class="pricing-tier">Pro</div>
-          <span class="pricing-card-soon"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Live when Stripe is configured</span>
-        </div>
-        <div class="pricing-price-row">
-          <span class="pricing-was">$40</span>
-          <div class="pricing-price">$20<span>/mo</span></div>
-          <span class="pricing-save">Save 50%</span>
-        </div>
-        <p class="pricing-period">Billed monthly · cancel anytime</p>
-        <p class="pricing-desc">Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits.</p>
-        <ul class="pricing-features">
-          <li><strong>1,000 tokens</strong> per month (up to 200 auto-sent replies)</li>
-          <li>Up to 3 active Gmail or SMTP/IMAP inboxes</li>
-          <li>100 auto-sends/day/inbox safety cap</li>
-          <li>Full AI knowledge base (website crawl + file upload)</li>
-          <li>Multi Gmail OAuth + SMTP/IMAP mailbox support</li>
-          <li>Per-user encrypted credentials</li>
-          <li>Telegram &amp; WhatsApp alerts and commands</li>
-        </ul>
-        <a href="{% if user.is_authenticated %}{% url 'billing_checkout_pro' %}{% else %}{% url 'signup' %}{% endif %}" class="pricing-cta primary">Get Pro</a>
-      </article>
-
-      <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
-        <div class="pricing-card-topbar">
-          <span class="pricing-badge">Most popular</span>
-        </div>
-        <div class="pricing-tier-row">
-          <div class="pricing-tier">Custom</div>
-          <span class="pricing-card-soon"><i class="fa-solid fa-user-gear" aria-hidden="true"></i> Manual setup</span>
-        </div>
-        <div class="pricing-price">You choose</div>
-        <p class="pricing-period">Set price &amp; send volume</p>
-        <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
-        <ul class="pricing-features">
-          <li><strong>2,000 tokens</strong> + 4 Gmail/SMTP inboxes → <strong>$30/mo</strong></li>
-          <li><strong>3,000 tokens</strong> + 6 Gmail/SMTP inboxes → <strong>$40/mo</strong></li>
-          <li>Or define your own tier (e.g. $50 → 5,000 sends)</li>
-          <li>Provider-aware daily safety caps</li>
-          <li>Telegram &amp; WhatsApp alerts and chat commands</li>
-          <li>Annual billing option</li>
-          <li>Priority onboarding &amp; team seats</li>
-        </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta secondary">Build custom plan</a>
-      </article>
+      {% include "components/marketing_pricing_cards.html" %}
     </div>
   </main>
 
   {% include "components/footer.html" %}
   <script>
-    // Pricing plan selection (click card to highlight)
+    // Pricing plan selection — Starter click activates plan and opens profile tokens
     (function () {
       const grid = document.querySelector('main .pricing-grid');
       if (!grid) return;
       const cards = Array.from(grid.querySelectorAll('.pricing-card[data-plan]'));
       if (!cards.length) return;
+      const isAuth = {{ user.is_authenticated|yesno:"true,false" }};
+      const currentPlan = '{{ current_plan_code|default:""|escapejs }}';
+      const starterExpired = {{ starter_expired|yesno:"true,false" }};
+      const profileUrl = '{% url "profile" %}';
+      const pricingUrl = '{% url "pricing" %}';
+      const csrfToken = () => {
+        const m = document.cookie.match(/csrftoken=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+      };
       function activate(card) {
         cards.forEach((c) => {
           const on = c === card;
@@ -373,22 +307,73 @@
           c.setAttribute('aria-pressed', on ? 'true' : 'false');
         });
       }
+      if (currentPlan) {
+        const cur = cards.find((c) => c.dataset.plan === currentPlan);
+        if (cur) activate(cur);
+      }
+      async function selectPlan(plan) {
+        if (!isAuth) {
+          window.location.href = '{% url "signup" %}';
+          return;
+        }
+        if (plan === 'starter' && starterExpired) {
+          window.location.href = pricingUrl;
+          return;
+        }
+        if (plan === 'custom') {
+          window.location.href = '{% url "custom_plan_builder" %}';
+          return;
+        }
+        try {
+          const res = await fetch('/api/billing/select-plan', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+            body: JSON.stringify({ plan }),
+          });
+          const j = await res.json().catch(() => ({}));
+          if (!res.ok || !j.ok) throw new Error(j.error || 'plan_select_failed');
+          if (j.redirect) {
+            window.location.href = j.redirect;
+            return;
+          }
+          window.location.href = profileUrl + '?plan=' + encodeURIComponent(plan);
+        } catch (e) {
+          if (plan === 'starter') window.location.href = profileUrl;
+        }
+      }
       cards.forEach((card) => {
+        const plan = card.dataset.plan || '';
         card.addEventListener('click', (e) => {
           if (e.target.closest('.pricing-cta')) return;
           activate(card);
+          if (plan === 'starter') selectPlan('starter');
         });
         card.addEventListener('keydown', (e) => {
           if (e.target.closest('.pricing-cta')) return;
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             activate(card);
+            if (plan === 'starter') selectPlan('starter');
           }
         });
         card.querySelectorAll('.pricing-cta').forEach((btn) => {
-          btn.addEventListener('click', (e) => e.stopPropagation());
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (plan === 'starter' && isAuth) {
+              e.preventDefault();
+              selectPlan('starter');
+            }
+          });
         });
       });
+      const starterCta = document.getElementById('starterCta');
+      if (starterCta && isAuth) {
+        starterCta.addEventListener('click', (e) => {
+          e.preventDefault();
+          selectPlan('starter');
+        });
+      }
     })();
   </script>
 

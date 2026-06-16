@@ -6,6 +6,9 @@ from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 # Mailpilot project root: the folder that contains `manage.py`, `.env`, `requirements.txt`, `templates/`, `data/`.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,6 +21,15 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("FLASK_SECRET
 _dbg = (os.environ.get("DJANGO_DEBUG") or os.environ.get("FLASK_DEBUG") or "true").lower()
 DEBUG = _dbg in ("1", "true", "yes")
 
+_billing_demo = (os.environ.get("BILLING_DEMO_MODE") or "").strip().lower()
+if _billing_demo in ("1", "true", "yes"):
+    BILLING_DEMO_MODE = True
+elif _billing_demo in ("0", "false", "no"):
+    BILLING_DEMO_MODE = False
+else:
+    # Local dev: simulate Stripe checkout when real keys are not configured.
+    BILLING_DEMO_MODE = DEBUG
+
 ALLOWED_HOSTS = (
     ["*"]
     if DEBUG
@@ -25,6 +37,10 @@ ALLOWED_HOSTS = (
 )
 
 INSTALLED_APPS = [
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",
+    "unfold.contrib.inlines",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -89,7 +105,7 @@ DATABASES = {
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 LOGIN_URL = "/login"
-LOGIN_REDIRECT_URL = "/dashboard/"
+LOGIN_REDIRECT_URL = "/admin/"
 LOGOUT_REDIRECT_URL = "/login"
 
 AUTH_PASSWORD_VALIDATORS: list = []
@@ -347,4 +363,189 @@ SIMPLE_JWT = {
     ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": False,
+}
+
+# ---- Django Unfold admin UI (https://unfoldadmin.com/) ----
+UNFOLD = {
+    "SITE_TITLE": "MailPilot Admin",
+    "SITE_HEADER": "MailPilot",
+    "SITE_SUBHEADER": "Operations dashboard",
+    "SITE_URL": "/",
+    "SITE_SYMBOL": "mail",
+    "SITE_LOGO": {
+        "light": lambda request: static("img/mailpilot-logo.png"),
+        "dark": lambda request: static("img/mailpilot-logo.png"),
+    },
+    "SITE_ICON": {
+        "light": lambda request: static("img/mailpilot-logo.png"),
+        "dark": lambda request: static("img/mailpilot-logo.png"),
+    },
+    "SITE_FAVICONS": [
+        {
+            "rel": "icon",
+            "type": "image/png",
+            "href": lambda request: static("img/mailpilot-logo.png"),
+        },
+    ],
+    "THEME": "dark",
+    "BORDER_RADIUS": "8px",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "ENVIRONMENT": "core.unfold_admin.environment_callback",
+    "DASHBOARD_CALLBACK": "core.unfold_admin.dashboard_callback",
+    "COLORS": {
+        "primary": {
+            "50": "oklch(97% .02 264)",
+            "100": "oklch(93% .04 264)",
+            "200": "oklch(87% .08 264)",
+            "300": "oklch(78% .12 264)",
+            "400": "oklch(68% .16 264)",
+            "500": "oklch(58% .20 264)",
+            "600": "oklch(50% .18 264)",
+            "700": "oklch(42% .16 264)",
+            "800": "oklch(34% .14 264)",
+            "900": "oklch(28% .12 264)",
+            "950": "oklch(20% .10 264)",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "command_search": False,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": _("Overview"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Dashboard"),
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                    {
+                        "title": _("Features"),
+                        "icon": "auto_awesome",
+                        "link": reverse_lazy("admin:core_marketingfeature_changelist"),
+                    },
+                    {
+                        "title": _("How it works"),
+                        "icon": "route",
+                        "link": reverse_lazy("admin:core_howitworksstep_changelist"),
+                    },
+                    {
+                        "title": _("Reviews"),
+                        "icon": "reviews",
+                        "link": reverse_lazy("admin:core_marketingreview_changelist"),
+                    },
+                    {
+                        "title": _("Pricing"),
+                        "icon": "payments",
+                        "link": reverse_lazy("admin:core_marketingpricingplan_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Users"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Users"),
+                        "icon": "people",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
+                    },
+                    {
+                        "title": _("Groups"),
+                        "icon": "groups",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                    {
+                        "title": _("Profiles"),
+                        "icon": "badge",
+                        "link": reverse_lazy("admin:core_userprofile_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Billing"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Subscriptions"),
+                        "icon": "payments",
+                        "link": reverse_lazy("admin:core_usersubscription_changelist"),
+                    },
+                    {
+                        "title": _("Monthly usage"),
+                        "icon": "data_usage",
+                        "link": reverse_lazy("admin:core_usagecounter_changelist"),
+                    },
+                    {
+                        "title": _("Usage events"),
+                        "icon": "receipt_long",
+                        "link": reverse_lazy("admin:core_usageevent_changelist"),
+                    },
+                    {
+                        "title": _("Daily sends"),
+                        "icon": "send",
+                        "link": reverse_lazy("admin:core_dailysendcounter_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Payment"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Gateway credentials"),
+                        "icon": "credit_card",
+                        "link": reverse_lazy("admin:core_paymentgatewayconfig_changelist"),
+                        "badge": "core.unfold_admin.payment_gateway_badge",
+                        "badge_variant": "warning",
+                    },
+                ],
+            },
+            {
+                "title": _("Mail"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Mail accounts"),
+                        "icon": "mail",
+                        "link": reverse_lazy("admin:core_mailaccount_changelist"),
+                    },
+                    {
+                        "title": _("Mail settings"),
+                        "icon": "settings",
+                        "link": reverse_lazy("admin:core_usermailsettings_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Support"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Contact inbox"),
+                        "icon": "inbox",
+                        "link": reverse_lazy("admin:core_contactsubmission_changelist"),
+                        "badge": "core.unfold_admin.contact_badge_callback",
+                        "badge_variant": "warning",
+                    },
+                    {
+                        "title": _("Audit log"),
+                        "icon": "shield",
+                        "link": reverse_lazy("admin:core_auditlog_changelist"),
+                    },
+                    {
+                        "title": _("Password OTPs"),
+                        "icon": "key",
+                        "link": reverse_lazy("admin:core_passwordresetotp_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+    "STYLES": [
+        lambda request: static("css/mailpilot-admin.css"),
+    ],
 }

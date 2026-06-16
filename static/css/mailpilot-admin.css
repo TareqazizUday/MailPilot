@@ -1,0 +1,108 @@
+/* MailPilot admin overrides (Unfold) */
+
+/* Compact sort-order column in Features / How it works changelists */
+#changelist-form th.column-sort_order,
+#changelist-form td.field-sort_order,
+#result_list th.column-sort_order,
+#result_list td.field-sort_order {
+    width: 5.5rem !important;
+    max-width: 5.5rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#changelist-form td.field-sort_order input,
+#result_list td.field-sort_order input {
+    width: 3rem !important;
+    min-width: 3rem !important;
+    max-width: 3rem !important;
+    padding-left: 0.35rem !important;
+    padding-right: 0.35rem !important;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+/* Admin list badges */
+.mp-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.mp-badge-ok {
+    background: rgba(74, 222, 128, 0.15);
+    color: #86efac;
+}
+
+.mp-badge-warn {
+    background: rgba(251, 146, 60, 0.15);
+    color: #fdba74;
+}
+
+.mp-badge-danger {
+    background: rgba(248, 113, 113, 0.15);
+    color: #fca5a5;
+}
+
+.mp-badge-pro {
+    background: rgba(79, 110, 247, 0.18);
+    color: #a5b4fc;
+}
+
+.mp-badge-starter {
+    background: rgba(56, 189, 248, 0.15);
+    color: #7dd3fc;
+}
+
+.mp-badge-custom {
+    background: rgba(167, 139, 250, 0.15);
+    color: #c4b5fd;
+}
+
+.mp-badge-muted {
+    background: rgba(148, 163, 184, 0.12);
+    color: #94a3b8;
+}
+
+.mp-usage {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.mp-usage-bar {
+    display: inline-block;
+    width: 4.5rem;
+    height: 0.35rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.2);
+    overflow: hidden;
+}
+
+.mp-usage-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+}
+
+.mp-usage-ok i {
+    background: #4ade80;
+}
+
+.mp-usage-warn i {
+    background: #fb923c;
+}
+
+.mp-usage-danger i {
+    background: #f87171;
+}
+
+.mp-usage-label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}

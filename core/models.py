@@ -112,6 +112,13 @@ class UserSubscription(models.Model):
     whatsapp_enabled = models.BooleanField(null=True, blank=True)
     stripe_customer_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
     stripe_subscription_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    starter_lifetime_sends = models.PositiveIntegerField(default=0)
+    starter_expired_at = models.DateTimeField(null=True, blank=True)
+    paid_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Set when Pro/Custom payment is confirmed (Stripe webhook or admin).",
+    )
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -246,6 +253,344 @@ class ContactSubmission(models.Model):
 
     def __str__(self) -> str:
         return f"Contact({self.email}, {self.created_at:%Y-%m-%d})"
+
+
+class MarketingFeature(models.Model):
+    """Public marketing feature cards (/features and homepage)."""
+
+    title = models.CharField(max_length=120)
+    description = models.TextField()
+    icon_class = models.CharField(
+        max_length=80,
+        default="fa-solid fa-star",
+        help_text="Font Awesome class, e.g. fa-solid fa-brain",
+    )
+    accent_color = models.CharField(
+        max_length=7,
+        default="#4f6ef7",
+        help_text="Hex color for card accent, e.g. #4f6ef7",
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+    )
+    is_published = models.BooleanField(default=True, db_index=True)
+    show_on_homepage = models.BooleanField(
+        default=True,
+        help_text="Show on landing page features section",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingfeature"
+        ordering = ["sort_order", "id"]
+        verbose_name = "marketing feature"
+        verbose_name_plural = "marketing features"
+
+    def __str__(self) -> str:
+        return self.title
+
+    @property
+    def icon_background_style(self) -> str:
+        raw = (self.accent_color or "#4f6ef7").strip().lstrip("#")
+        if len(raw) != 6:
+            return "background:rgba(79,110,247,0.15)"
+        try:
+            r = int(raw[0:2], 16)
+            g = int(raw[2:4], 16)
+            b = int(raw[4:6], 16)
+        except ValueError:
+            return "background:rgba(79,110,247,0.15)"
+        return f"background:rgba({r},{g},{b},0.15)"
+
+
+class HowItWorksStep(models.Model):
+    """Workflow steps for /how-it-works and homepage section."""
+
+    ACCENT_BLUE = "blue"
+    ACCENT_SKY = "sky"
+    ACCENT_PURPLE = "purple"
+    ACCENT_PINK = "pink"
+    ACCENT_GREEN = "green"
+    ACCENT_ORANGE = "orange"
+    ACCENT_CHOICES = [
+        (ACCENT_BLUE, "Blue"),
+        (ACCENT_SKY, "Sky"),
+        (ACCENT_PURPLE, "Purple"),
+        (ACCENT_PINK, "Pink"),
+        (ACCENT_GREEN, "Green"),
+        (ACCENT_ORANGE, "Orange"),
+    ]
+
+    title = models.CharField(max_length=120)
+    description = models.TextField()
+    accent = models.CharField(max_length=16, choices=ACCENT_CHOICES, default=ACCENT_BLUE)
+    icon_svg = models.TextField(
+        blank=True,
+        default="",
+        help_text="Inline SVG for homepage cards (optional on dedicated page).",
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+    )
+    is_published = models.BooleanField(default=True, db_index=True)
+    show_on_homepage = models.BooleanField(
+        default=True,
+        help_text="Show on landing page how-it-works section",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_howitworksstep"
+        ordering = ["sort_order", "id"]
+        verbose_name = "how it works step"
+        verbose_name_plural = "how it works"
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class MarketingReview(models.Model):
+    """Customer review / testimonial cards (/reviews and homepage)."""
+
+    quote = models.TextField()
+    metric = models.CharField(max_length=160, blank=True, default="")
+    author_name = models.CharField(max_length=80)
+    author_role = models.CharField(max_length=160)
+    avatar_initials = models.CharField(
+        max_length=4,
+        default="MP",
+        help_text="Initials shown in the avatar circle, e.g. AK",
+    )
+    accent_primary = models.CharField(max_length=7, default="#4f6ef7")
+    accent_secondary = models.CharField(max_length=7, default="#a78bfa")
+    rating = models.PositiveSmallIntegerField(default=5)
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+    )
+    is_published = models.BooleanField(default=True, db_index=True)
+    show_on_homepage = models.BooleanField(
+        default=True,
+        help_text="Show on landing page testimonials section",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingreview"
+        ordering = ["sort_order", "id"]
+        verbose_name = "review"
+        verbose_name_plural = "reviews"
+
+    def __str__(self) -> str:
+        return self.author_name
+
+    @property
+    def stars_display(self) -> str:
+        return "★" * max(1, min(5, int(self.rating or 5)))
+
+    @property
+    def avatar_style_page(self) -> str:
+        a1 = (self.accent_primary or "#4f6ef7").strip()
+        a2 = (self.accent_secondary or "#a78bfa").strip()
+        return f"--a1:{a1};--a2:{a2}"
+
+    @property
+    def avatar_style_home(self) -> str:
+        a1 = (self.accent_primary or "#4f6ef7").strip()
+        a2 = (self.accent_secondary or "#a78bfa").strip()
+        return f"--av1:{a1};--av2:{a2}"
+
+
+class MarketingPricingSettings(models.Model):
+    """Singleton copy for /pricing and homepage pricing section header."""
+
+    singleton_key = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    section_tag = models.CharField(max_length=40, default="Pricing")
+    title_lead = models.CharField(max_length=120, default="Simple plans for")
+    title_highlight = models.CharField(max_length=120, default="every inbox size")
+    intro = models.TextField(
+        default="Simple token plans for every inbox size. Connect your inbox in Setup, then let MailPilot draft or send safely."
+    )
+    demo_note = models.TextField(
+        default="Starter: 20 auto-sends total (80 tokens lifetime). Pro: monthly billing via Stripe. Draft mode does not use tokens."
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingpricingsettings"
+        verbose_name = "pricing page"
+        verbose_name_plural = "pricing page"
+
+    def __str__(self) -> str:
+        return "Pricing page copy"
+
+
+class MarketingPricingPlan(models.Model):
+    """Public pricing plan cards (Starter / Pro / Custom)."""
+
+    PLAN_STARTER = "starter"
+    PLAN_PRO = "pro"
+    PLAN_CUSTOM = "custom"
+    PLAN_CHOICES = [
+        (PLAN_STARTER, "Starter"),
+        (PLAN_PRO, "Pro"),
+        (PLAN_CUSTOM, "Custom"),
+    ]
+
+    RIBBON_NONE = ""
+    RIBBON_FREE = "free"
+    RIBBON_SOON = "soon"
+    RIBBON_CHOICES = [
+        (RIBBON_NONE, "None"),
+        (RIBBON_FREE, "Free badge"),
+        (RIBBON_SOON, "Soon / info badge"),
+    ]
+
+    CTA_PRIMARY = "primary"
+    CTA_SECONDARY = "secondary"
+    CTA_STYLE_CHOICES = [
+        (CTA_PRIMARY, "Primary"),
+        (CTA_SECONDARY, "Secondary"),
+    ]
+
+    plan_code = models.CharField(max_length=16, choices=PLAN_CHOICES, unique=True)
+    tier_label = models.CharField(max_length=40)
+    top_badge = models.CharField(max_length=80, blank=True, default="", help_text="Optional pill above card, e.g. 50% launch offer")
+    ribbon_type = models.CharField(max_length=8, choices=RIBBON_CHOICES, blank=True, default=RIBBON_NONE)
+    ribbon_label = models.CharField(max_length=80, blank=True, default="")
+    ribbon_icon_class = models.CharField(max_length=80, blank=True, default="fa-solid fa-bolt")
+    price_display = models.CharField(max_length=40, help_text='Main price, e.g. $0, $20, or "You choose"')
+    price_suffix = models.CharField(max_length=24, blank=True, default="", help_text="Suffix in smaller text, e.g. /mo")
+    price_was = models.CharField(max_length=24, blank=True, default="", help_text="Strikethrough compare price, e.g. $40")
+    price_save_label = models.CharField(max_length=40, blank=True, default="", help_text='e.g. "Save 50%"')
+    period_text = models.CharField(max_length=160)
+    description = models.TextField()
+    features = models.TextField(help_text="One bullet per line. HTML like <strong> is allowed.")
+    cta_label = models.CharField(max_length=80, help_text="Button label for visitors")
+    cta_label_authenticated = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="Starter: label when logged in (e.g. View my trial)",
+    )
+    cta_label_starter_expired = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="Starter: label when trial expired",
+    )
+    cta_style = models.CharField(max_length=12, choices=CTA_STYLE_CHOICES, default=CTA_SECONDARY)
+    is_featured = models.BooleanField(
+        default=False,
+        help_text="Highlighted card (selected by default on the page)",
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+    )
+    is_published = models.BooleanField(default=True, db_index=True)
+    show_on_homepage = models.BooleanField(
+        default=True,
+        help_text="Show on landing page pricing section",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingpricingplan"
+        ordering = ["sort_order", "id"]
+        verbose_name = "pricing plan"
+        verbose_name_plural = "pricing plans"
+
+    def __str__(self) -> str:
+        return self.tier_label
+
+    @property
+    def feature_lines(self) -> list[str]:
+        return [line.strip() for line in (self.features or "").splitlines() if line.strip()]
+
+
+class CustomPlanQuote(models.Model):
+    """User-built custom plan configuration pending or completed payment."""
+
+    STATUS_DRAFT = "draft"
+    STATUS_PENDING = "pending"
+    STATUS_PAID = "paid"
+    STATUS_EXPIRED = "expired"
+    STATUS_CANCELED = "canceled"
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, "Draft"),
+        (STATUS_PENDING, "Pending payment"),
+        (STATUS_PAID, "Paid"),
+        (STATUS_EXPIRED, "Expired"),
+        (STATUS_CANCELED, "Canceled"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="custom_plan_quotes")
+    tokens = models.PositiveIntegerField()
+    inboxes = models.PositiveIntegerField()
+    price_cents = models.PositiveIntegerField()
+    daily_send_limit = models.PositiveIntegerField(default=100)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
+    stripe_session_id = models.CharField(max_length=255, blank=True, default="")
+    expires_at = models.DateTimeField(null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_customplanquote"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "-created_at"], name="idx_customquote_user_created")]
+
+    def __str__(self) -> str:
+        return f"CustomPlanQuote({self.user_id}, {self.tokens} tok, {self.inboxes} inbox, ${self.price_cents / 100:.2f})"
+
+
+class PaymentGatewayConfig(models.Model):
+    """Singleton Stripe / payment gateway credentials (admin-managed)."""
+
+    PROVIDER_STRIPE = "stripe"
+    PROVIDER_CHOICES = [(PROVIDER_STRIPE, "Stripe")]
+
+    singleton_key = models.PositiveSmallIntegerField(default=1, unique=True)
+    provider = models.CharField(max_length=32, choices=PROVIDER_CHOICES, default=PROVIDER_STRIPE)
+    is_enabled = models.BooleanField(
+        default=False,
+        help_text="When enabled, stored credentials override STRIPE_* environment variables.",
+    )
+    stripe_publishable_key = models.CharField(max_length=255, blank=True, default="")
+    stripe_price_pro_monthly = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="Stripe Price ID for Pro monthly (price_...).",
+    )
+    stripe_secret_key_enc = models.TextField(blank=True, default="")
+    stripe_webhook_secret_enc = models.TextField(blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_paymentgatewayconfig"
+        verbose_name = "payment gateway"
+        verbose_name_plural = "payment gateway"
+
+    def save(self, *args, **kwargs):
+        self.singleton_key = 1
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return "Payment gateway (Stripe)"
 
 
 class AuditLog(models.Model):

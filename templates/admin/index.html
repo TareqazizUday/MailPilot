@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_("Django site admin") }}{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+  <div class="flex flex-col gap-6 mb-8">
+    <div class="bg-primary-600/10 border border-primary-600/20 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between p-6 rounded-default">
+      <div>
+        <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-widest uppercase">
+          MailPilot control center
+        </p>
+        <h2 class="font-semibold mt-1 text-2xl text-important">
+          {% trans "Operations dashboard" %}
+        </h2>
+        <p class="mt-2 text-font-default-light dark:text-font-default-dark text-sm">
+          {% trans "Billing period" %}: <strong>{{ mp_period }}</strong>
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a class="bg-white/5 border border-base-200 font-medium px-4 py-2 rounded-default text-sm dark:border-base-700 hover:bg-white/10" href="/">
+          {% trans "Open app" %}
+        </a>
+        <a class="bg-primary-600 font-medium px-4 py-2 rounded-default text-sm text-white hover:bg-primary-500" href="{% url 'admin:auth_user_changelist' %}">
+          {% trans "All users" %}
+        </a>
+      </div>
+    </div>
+
+    <div class="gap-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+      <div class="bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Users" %}</p>
+        <p class="font-bold mt-2 text-3xl text-important">{{ mp_stats.users }}</p>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{{ mp_stats.subscriptions }} {% trans "with subscription" %}</p>
+      </div>
+      <div class="bg-white border border-primary-600/30 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-primary-600/30">
+        <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Tokens used" %}</p>
+        <p class="font-bold mt-2 text-3xl text-important">{{ mp_stats.tokens_this_month }}</p>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{% trans "This month" %} ({{ mp_period }})</p>
+      </div>
+      <div class="bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Active mailboxes" %}</p>
+        <p class="font-bold mt-2 text-3xl text-important">{{ mp_stats.active_mailboxes }}</p>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{{ mp_stats.pro_plans }} {% trans "Pro plans" %}</p>
+      </div>
+      <div class="bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Auto-sends today" %}</p>
+        <p class="font-bold mt-2 text-3xl text-important">{{ mp_stats.auto_sends_today }}</p>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">
+          {% if mp_stats.open_contacts %}
+            {{ mp_stats.open_contacts }} {% trans "contact form(s) pending" %}
+          {% else %}
+            {% trans "No pending contact forms" %}
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col lg:flex-row lg:gap-8">
+    <div class="grow">
+      {% include "unfold/helpers/app_list_default.html" %}
+    </div>
+    {% include "unfold/helpers/history.html" %}
+  </div>
+{% endblock %}

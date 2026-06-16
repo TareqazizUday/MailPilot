@@ -262,8 +262,9 @@
         {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
       </div>
 
-      <form method="post" action="{% url 'login' %}">
+      <form method="post" action="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">
         {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}" />{% endif %}
 
         <div class="field">
           <label for="username">Username or Gmail</label>

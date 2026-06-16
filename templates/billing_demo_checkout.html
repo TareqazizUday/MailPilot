@@ -1,0 +1,106 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Demo Checkout — MailPilot</title>
+  {% include "components/favicon.html" %}
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #f6f9fc;
+      color: #30313d;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .wrap { width: 100%; max-width: 420px; }
+    .demo-banner {
+      background: #fef3c7; border: 1px solid #fcd34d; color: #92400e;
+      border-radius: 10px; padding: 10px 14px; font-size: 0.82rem;
+      margin-bottom: 16px; text-align: center; font-weight: 600;
+    }
+    .card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(50,50,93,0.08), 0 1px 3px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+    .head {
+      padding: 24px 24px 16px; border-bottom: 1px solid #e6e9ec;
+    }
+    .brand { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .title { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+    .subtitle { font-size: 0.85rem; color: #6b7280; }
+    .price-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 20px 24px; border-bottom: 1px solid #e6e9ec;
+    }
+    .price { font-size: 1.75rem; font-weight: 700; }
+    .price span { font-size: 0.9rem; font-weight: 500; color: #6b7280; }
+    .form { padding: 20px 24px 24px; }
+    label { display: block; font-size: 0.78rem; font-weight: 600; color: #4b5563; margin-bottom: 6px; }
+    input {
+      width: 100%; padding: 11px 12px; border: 1px solid #d1d5db;
+      border-radius: 8px; font-size: 0.95rem; margin-bottom: 14px;
+      background: #fafafa;
+    }
+    input:focus { outline: none; border-color: #635bff; box-shadow: 0 0 0 3px rgba(99,91,255,0.15); }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .pay-btn {
+      width: 100%; margin-top: 8px; padding: 14px; border: none; border-radius: 8px;
+      background: #635bff; color: #fff; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .pay-btn:hover { background: #5145e5; }
+    .cancel {
+      display: block; text-align: center; margin-top: 14px;
+      font-size: 0.85rem; color: #6b7280; text-decoration: none;
+    }
+    .cancel:hover { color: #374151; }
+    .hint { font-size: 0.75rem; color: #9ca3af; margin-top: 12px; text-align: center; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="demo-banner">Demo mode — no real charge. Local testing only.</div>
+    <div class="card">
+      <div class="head">
+        <div class="brand">MailPilot · Demo checkout</div>
+        <div class="title">{{ title }}</div>
+        <div class="subtitle">{{ subtitle }}</div>
+      </div>
+      <div class="price-row">
+        <div>Total due today</div>
+        <div class="price">${{ amount_usd }}<span>/mo</span></div>
+      </div>
+      <form class="form" method="post" action="{% url 'billing_demo_complete' %}">
+        {% csrf_token %}
+        <input type="hidden" name="plan" value="{{ plan }}" />
+        {% if quote_id %}<input type="hidden" name="quote_id" value="{{ quote_id }}" />{% endif %}
+        <label for="email">Email</label>
+        <input id="email" type="email" value="{{ user_email }}" readonly />
+        <label for="card">Card number</label>
+        <input id="card" type="text" value="4242 4242 4242 4242" readonly />
+        <div class="row2">
+          <div>
+            <label for="exp">Expiry</label>
+            <input id="exp" type="text" value="12 / 34" readonly />
+          </div>
+          <div>
+            <label for="cvc">CVC</label>
+            <input id="cvc" type="text" value="123" readonly />
+          </div>
+        </div>
+        <button type="submit" class="pay-btn">Pay ${{ amount_usd }}</button>
+      </form>
+    </div>
+    <a href="{{ cancel_url }}" class="cancel">← Cancel and go back</a>
+    <p class="hint">When you add real Stripe keys in admin, this page is skipped and Stripe Hosted Checkout opens instead.</p>
+  </div>
+</body>
+</html>

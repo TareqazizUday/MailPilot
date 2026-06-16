@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from django.contrib import admin
 from django.conf import settings
 from django.contrib.staticfiles import views as staticfiles_views
 from django.urls import include, path
 from django.views.static import serve as media_serve
 
+from core.admin_site import admin_site
+
 urlpatterns = [
     path("api/", include("api.urls")),
-    path("admin/", admin.site.urls),
+    path("admin/", admin_site.urls),
     path("", include("core.urls")),
 ]
 

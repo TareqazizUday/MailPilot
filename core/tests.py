@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from django.contrib.auth.models import User
-from django.test import SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase
 
 from core.billing import (
+    STARTER_LIFETIME_SEND_LIMIT,
     can_enable_mailbox,
     can_use_integration,
     commit_auto_send,
     get_or_create_subscription,
+    is_starter_expired,
     reserve_auto_send,
     set_subscription_plan,
+    tokens_per_auto_send_for_plan,
     TOKENS_PER_AUTO_SEND,
     usage_summary,
 )
@@ -83,7 +86,7 @@ class BillingTests(TestCase):
 
         self.assertEqual(sub.plan_code, UserSubscription.PLAN_STARTER)
         summary = usage_summary(self.user)
-        self.assertEqual(summary["tokens"]["limit"], 20)
+        self.assertEqual(summary["tokens"]["limit"], 80)
         self.assertEqual(summary["active_inboxes"]["limit"], 1)
         self.assertFalse(summary["features"]["telegram"])
         self.assertFalse(summary["features"]["whatsapp"])
@@ -134,7 +137,7 @@ class BillingTests(TestCase):
         commit_auto_send(reservation)
 
         summary = usage_summary(self.user, account=acc)
-        self.assertEqual(summary["tokens"]["used"], TOKENS_PER_AUTO_SEND)
+        self.assertEqual(summary["tokens"]["used"], tokens_per_auto_send_for_plan(UserSubscription.PLAN_STARTER))
         self.assertEqual(summary["daily"]["used"], 1)
         self.assertEqual(UsageEvent.objects.get(pk=reservation.event_id).status, UsageEvent.STATUS_COMMITTED)
 
@@ -163,6 +166,112 @@ class BillingTests(TestCase):
 
         sub = get_or_create_subscription(self.user)
         set_subscription_plan(sub, UserSubscription.PLAN_PRO)
+        sub.paid_at = sub.updated_at
+        sub.save(update_fields=["paid_at"])
 
         self.assertTrue(can_use_integration(self.user, "telegram").allowed)
         self.assertTrue(can_use_integration(self.user, "whatsapp").allowed)
+
+    def test_starter_expires_after_lifetime_send_limit(self) -> None:
+        acc = MailAccount.objects.create(
+            user=self.user,
+            slot=1,
+            transport=MailAccount.TRANSPORT_GMAIL,
+            label="Gmail 1",
+            is_enabled=True,
+        )
+        sub = get_or_create_subscription(self.user)
+        for i in range(STARTER_LIFETIME_SEND_LIMIT):
+            reservation = reserve_auto_send(self.user, acc, f"msg-{i}")
+            self.assertTrue(reservation.allowed, f"send {i}")
+            commit_auto_send(reservation)
+
+        sub.refresh_from_db()
+        self.assertTrue(is_starter_expired(sub))
+        self.assertIsNotNone(sub.starter_expired_at)
+
+        blocked = reserve_auto_send(self.user, acc, "msg-over")
+        self.assertFalse(blocked.allowed)
+        self.assertEqual(blocked.reason, "starter_trial_expired")
+
+        gate = can_enable_mailbox(self.user)
+        self.assertFalse(gate.allowed)
+        self.assertEqual(gate.reason, "starter_trial_expired")
+
+
+class CustomPlanPricingTests(SimpleTestCase):
+    def test_preset_bundle_prices(self) -> None:
+        from core.billing import calculate_custom_price_cents
+
+        self.assertEqual(calculate_custom_price_cents(2000, 4), 3000)
+        self.assertEqual(calculate_custom_price_cents(3000, 6), 4000)
+
+    def test_min_price_floor(self) -> None:
+        from core.billing import calculate_custom_price_cents
+
+        self.assertEqual(calculate_custom_price_cents(1000, 1), 2000)
+
+    def test_quote_summary_clamps_inputs(self) -> None:
+        from core.billing import custom_plan_quote_summary
+
+        q = custom_plan_quote_summary(999, 0)
+        self.assertEqual(q["tokens"], 1000)
+        self.assertEqual(q["inboxes"], 1)
+
+
+class AdminLoginRedirectTests(TestCase):
+    def setUp(self) -> None:
+        self.staff = User.objects.create_user(username="staffadmin", password="testpass1234")
+        self.staff.is_staff = True
+        self.staff.is_active = True
+        self.staff.save(update_fields=["is_staff", "is_active"])
+
+    def test_admin_login_redirects_to_dashboard(self) -> None:
+        client = Client()
+        response = client.post(
+            "/admin/login/",
+            {"username": "staffadmin", "password": "testpass1234"},
+            follow=False,
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/admin/")
+
+    def test_custom_login_staff_redirects_to_admin(self) -> None:
+        client = Client()
+        response = client.post(
+            "/login",
+            {"username": "staffadmin", "password": "testpass1234"},
+            follow=False,
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/admin/")
+
+    def test_post_login_rejects_admin_login_next_loop(self) -> None:
+        from django.test import RequestFactory
+
+        from core.auth_views import post_login_redirect_url
+
+        request = RequestFactory().get("/")
+        request.META["HTTP_HOST"] = "127.0.0.1:8000"
+        url = post_login_redirect_url(request, self.staff, next_url="/admin/login/?next=/admin/")
+        self.assertEqual(url, "/admin/")
+
+
+class DemoStripeCredentialTests(SimpleTestCase):
+    def test_demo_placeholders_not_checkout_ready(self) -> None:
+        from core.payment_gateway import DEMO_STRIPE_REFERENCE, is_demo_stripe_credentials
+
+        ref = DEMO_STRIPE_REFERENCE
+        self.assertTrue(
+            is_demo_stripe_credentials(
+                secret_key=ref["secret_key"],
+                price_pro_monthly=ref["price_pro_monthly"],
+                publishable_key=ref["publishable_key"],
+            )
+        )
+        self.assertFalse(
+            is_demo_stripe_credentials(
+                secret_key="sk_test_51RealKeyFromStripe",
+                price_pro_monthly="price_1RealFromStripe",
+            )
+        )

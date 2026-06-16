@@ -86,41 +86,12 @@
   <main class="mp-marketing-main">
     <div class="page-head">
       <div class="tag"><span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block;"></span> How it Works</div>
-      <h1>From inbox to reply — <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">in six steps</span></h1>
+      <h1>From inbox to reply — <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">in {% if how_it_works_steps %}{{ how_it_works_steps|length }}{% else %}six{% endif %} steps</span></h1>
       <p class="sub">MailPilot polls your inbox, optionally pre-filters by keywords, retrieves KB context when configured, and uses one LLM call for relevance and reply—then drafts or auto-sends based on REPLY_MODE.</p>
     </div>
 
     <div class="steps" aria-label="Workflow steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-title">Poll inbox</div>
-        <div class="step-desc">Gmail API (recent threads) or IMAP INBOX on a schedule, manual run, or IMAP IDLE for SMTP mailboxes.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-title">Keyword prefilter</div>
-        <div class="step-desc">Optional SERVICE_KEYWORDS skip obvious noise before the LLM runs (same as the worker prefilter).</div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-title">RAG lookup</div>
-        <div class="step-desc">When KB is configured, MailPilot embeds the message and retrieves top pgvector chunks (JSON upload).</div>
-      </div>
-      <div class="step">
-        <div class="step-num">4</div>
-        <div class="step-title">AI relevance &amp; reply</div>
-        <div class="step-desc">A single LLM call returns relevance, confidence, and reply text; RELEVANCE_THRESHOLD must pass.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">5</div>
-        <div class="step-title">Draft or auto-send</div>
-        <div class="step-desc">REPLY_MODE=draft stores the reply for review; send posts via Gmail API or SMTP immediately.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">6</div>
-        <div class="step-title">State &amp; queue</div>
-        <div class="step-desc">ProcessedMeta prevents re-handling; the dashboard queue shows activity. Login/settings events are audit-logged in admin.</div>
-      </div>
+      {% include "components/marketing_hiw_steps_page.html" %}
     </div>
   </main>
 

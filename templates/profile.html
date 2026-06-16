@@ -74,6 +74,30 @@
 
     .prof-wrap .setup-card{width:100%;overflow-x:clip;}
 
+    .bill-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:4px;}
+    @media(max-width:720px){.bill-grid{grid-template-columns:1fr;}}
+    .bill-stat{
+      border:1px solid rgba(255,255,255,0.08);
+      background:rgba(255,255,255,0.02);
+      border-radius:12px;
+      padding:14px;
+      min-width:0;
+    }
+    .bill-stat-k{font-size:0.72rem;font-weight:850;text-transform:uppercase;letter-spacing:0.45px;color:rgba(148,163,184,0.88);margin-bottom:6px;}
+    .bill-stat-v{font-size:1.05rem;font-weight:950;color:rgba(226,232,240,0.96);word-break:break-word;}
+    .bill-stat-s{font-size:0.78rem;color:rgba(148,163,184,0.82);margin-top:4px;line-height:1.45;}
+    .bill-bar-wrap{margin-top:14px;}
+    .bill-bar-label{display:flex;justify-content:space-between;gap:10px;font-size:0.78rem;color:rgba(148,163,184,0.88);margin-bottom:6px;flex-wrap:wrap;}
+    .bill-bar{height:8px;border-radius:999px;background:rgba(255,255,255,0.06);overflow:hidden;border:1px solid rgba(255,255,255,0.06);}
+    .bill-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#4f6ef7,#a78bfa);transition:width .35s ease;}
+    .bill-bar-fill.warn{background:linear-gradient(90deg,#f59e0b,#ef4444);}
+    .bill-note{font-size:0.78rem;color:rgba(148,163,184,0.82);line-height:1.55;margin-top:12px;}
+    .bill-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+    .bill-activated{
+      padding:10px 12px;border-radius:12px;border:1px solid rgba(74,222,128,0.25);
+      background:rgba(74,222,128,0.08);color:#bbf7d0;font-size:0.88rem;margin-bottom:12px;line-height:1.5;
+    }
+
     @media(max-width:768px){
       body .main-wrap{padding:20px 12px 56px;}
       .prof-wrap .setup-card{border-radius:16px;}
@@ -198,6 +222,8 @@
               <textarea class="input textarea" id="no" name="notes" rows="4" maxlength="2000" placeholder="Optional notes (only visible to you)">{{ profile.notes|default:'' }}</textarea>
             </div>
 
+            {% include "components/profile_billing.html" %}
+
             <div class="btn-row">
               <button class="btn-primary2" type="submit"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save changes</button>
               <a class="btn-soft" href="{% url 'settings' %}"><i class="fa-solid fa-gear" aria-hidden="true"></i> Settings</a>
@@ -294,9 +320,61 @@
               <div class="val-muted">{{ profile.notes|default:"—" }}</div>
             </div>
           </div>
+
+          {% include "components/profile_billing.html" %}
           {% endif %}
         </div>
       </div>
     </div>
   </div>
+  <script>
+    async function refreshProfileBilling(){
+      const planEl = document.getElementById('billPlanName');
+      const tokUsedEl = document.getElementById('billTokUsed');
+      const tokLeftEl = document.getElementById('billTokLeft');
+      const tokLimitEl = document.getElementById('billTokLimit');
+      const sendsEl = document.getElementById('billSendsStat');
+      const sendsNoteEl = document.getElementById('billSendsLeftNote');
+      const periodEl = document.getElementById('billPeriod');
+      const barEl = document.getElementById('billTokBar');
+      const barLblEl = document.getElementById('billTokBarLabel');
+      if(!planEl) return;
+      try{
+        const res = await fetch('/api/billing/summary');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok || !j.billing) return;
+        const b = j.billing;
+        const plan = ((b.plan && b.plan.code) || 'starter').replace(/^\w/, c => c.toUpperCase());
+        const tok = b.tokens || {};
+        planEl.textContent = plan;
+        if(periodEl) periodEl.textContent = b.period_key || '—';
+        if(tokUsedEl) tokUsedEl.textContent = String(tok.used ?? 0);
+        if(tokLeftEl) tokLeftEl.textContent = (tok.limit == null && plan.toLowerCase() === 'custom') ? 'Unlimited' : String(tok.left ?? (tok.limit != null ? Math.max(0, tok.limit - (tok.used ?? 0)) : 80));
+        if(tokLimitEl) tokLimitEl.textContent = (tok.limit == null && plan.toLowerCase() === 'custom') ? '∞' : String(tok.limit ?? 80);
+        const perSend = Number(tok.per_send) || (plan.toLowerCase() === 'starter' ? 4 : 5);
+        const limit = tok.limit != null ? Number(tok.limit) : (plan.toLowerCase() === 'custom' ? null : 80);
+        const left = tok.left != null ? Number(tok.left) : (limit != null ? Math.max(0, limit - (tok.used ?? 0)) : null);
+        const sendsMax = limit != null ? Math.floor(limit / perSend) : null;
+        const sendsLeft = left != null ? Math.floor(left / perSend) : null;
+        if(sendsEl){
+          sendsEl.textContent = (sendsLeft == null || sendsMax == null) ? 'Unlimited' : (sendsLeft + '/' + sendsMax);
+        }
+        if(sendsNoteEl && sendsLeft != null) sendsNoteEl.textContent = String(sendsLeft);
+        if(barEl){
+          const limit = tok.limit != null ? Number(tok.limit) : (plan.toLowerCase() === 'custom' ? null : 20);
+          if(limit != null){
+            const used = Math.max(0, Number(tok.used) || 0);
+            const left = tok.left != null ? Number(tok.left) : Math.max(0, limit - used);
+            const pct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
+            barEl.style.width = pct + '%';
+            barEl.classList.toggle('warn', pct >= 80);
+            if(barLblEl) barLblEl.textContent = used + ' used · ' + left + ' left of ' + limit;
+            const wrap = barEl.closest('.bill-bar-wrap');
+            if(wrap) wrap.style.display = '';
+          }
+        }
+      }catch(e){}
+    }
+    document.addEventListener('DOMContentLoaded', refreshProfileBilling);
+  </script>
 {% endblock %}

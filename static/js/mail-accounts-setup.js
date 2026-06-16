@@ -41,7 +41,13 @@
   function showPlanError(j, fallback) {
     const msg = (j && (j.error || j.detail)) || fallback || 'Plan limit reached';
     if (j && j.upgrade_required) {
-      alert(msg.replace(/_/g, ' ') + '\n\nOpen Pricing to upgrade your MailPilot plan.');
+      const hint =
+        j.error === 'starter_trial_expired'
+          ? '\n\nYour free Starter trial (20 auto-sends) has ended. Upgrade to Pro or contact us for Custom.'
+          : j.error === 'payment_required'
+            ? '\n\nComplete payment for your plan before adding mailboxes.'
+            : '\n\nOpen Pricing to upgrade your MailPilot plan.';
+      alert(msg.replace(/_/g, ' ') + hint);
       if (typeof window.refreshBillingStrip === 'function') window.refreshBillingStrip();
       return true;
     }

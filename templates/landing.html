@@ -1653,36 +1653,7 @@
     <p class="section-sub">Built on Django with a powerful email_automation engine — designed for teams and enterprises.</p>
   </div>
   <div class="features-grid">
-    <div class="feat-card" style="--card-accent:#4f6ef7">
-      <div class="feat-icon" style="background:rgba(79,110,247,0.15)"><i class="fa-regular fa-envelope" aria-hidden="true"></i></div>
-      <div class="feat-title">Multi-Inbox Intelligence</div>
-      <div class="feat-desc">Automatically reads multiple Gmail and SMTP/IMAP inboxes, filters noise, and identifies emails that need a response — powered by LLM relevance scoring.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#a78bfa">
-      <div class="feat-icon" style="background:rgba(167,139,250,0.15)"><i class="fa-solid fa-brain" aria-hidden="true"></i></div>
-      <div class="feat-title">RAG-Powered Replies</div>
-      <div class="feat-desc">Enriches every AI reply with your own knowledge base. Answers are grounded in your actual documentation, website content, and FAQs.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#38bdf8">
-      <div class="feat-icon" style="background:rgba(56,189,248,0.15)"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div>
-      <div class="feat-title">Secure Multi-Tenancy</div>
-      <div class="feat-desc">Full user isolation — per-user encrypted credentials (Fernet), scoped state store, tenant-prefixed vector DB, and audit logging built in.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#4ade80">
-      <div class="feat-icon" style="background:rgba(74,222,128,0.15)"><i class="fa-solid fa-gear" aria-hidden="true"></i></div>
-      <div class="feat-title">Flexible Scheduling</div>
-      <div class="feat-desc">Runs via APScheduler in-process or scales out with Celery + Redis. Periodic polling, manual triggers, and priority queues all supported.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#fb923c">
-      <div class="feat-icon" style="background:rgba(251,146,60,0.15)"><i class="fa-solid fa-link" aria-hidden="true"></i></div>
-      <div class="feat-title">Multi Gmail + SMTP/IMAP</div>
-      <div class="feat-desc">Connect multiple Gmail OAuth accounts or SMTP/IMAP mailboxes. Per-user encrypted credentials, automatic token refresh, and OAuth callback handling are included.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#f472b6">
-      <div class="feat-icon" style="background:rgba(244,114,182,0.15)"><i class="fa-solid fa-chart-column" aria-hidden="true"></i></div>
-      <div class="feat-title">Telegram, WhatsApp & Dashboard</div>
-      <div class="feat-desc">Monitor queues in the dashboard and use live Telegram or WhatsApp alerts/chat commands for sent replies, drafts, errors, and mailbox actions.</div>
-    </div>
+    {% include "components/marketing_feature_cards.html" %}
   </div>
 </section>
 
@@ -1694,72 +1665,7 @@
     <p class="section-sub">Six steps matching the live automation pipeline—from inbox poll to reply and per-user state.</p>
   </div>
   <div class="hiw-steps" aria-label="Workflow steps">
-    <article class="hiw-step" data-accent="blue">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-        <span class="hiw-step-badge">01</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 1</span>
-        <h3 class="hiw-step-title">Poll inbox</h3>
-        <p class="hiw-step-desc">Gmail API (recent threads) or IMAP INBOX on a schedule, manual “Run poll”, or IMAP IDLE for faster SMTP inboxes.</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="sky">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        <span class="hiw-step-badge">02</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 2</span>
-        <h3 class="hiw-step-title">Keyword prefilter</h3>
-        <p class="hiw-step-desc">Optional SERVICE_KEYWORDS filter runs first—non-matching mail is skipped before any LLM call.</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="purple">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 7 7 0 0 0-2.526 9.375"/><path d="M12 5a3 3 0 1 1 5.997.125 7 7 0 0 1 2.526 9.375"/><path d="M12 5v14"/><path d="M6 19h12"/></svg>
-        <span class="hiw-step-badge">03</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 3</span>
-        <h3 class="hiw-step-title">RAG lookup</h3>
-        <p class="hiw-step-desc">If your knowledge base is configured, MailPilot finds the most relevant website, text, or JSON content before generating a reply.</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="pink">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
-        <span class="hiw-step-badge">04</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 4</span>
-        <h3 class="hiw-step-title">AI relevance &amp; reply</h3>
-        <p class="hiw-step-desc">One LLM call returns relevance, confidence, and reply text; must pass your RELEVANCE_THRESHOLD.</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="green">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>
-        <span class="hiw-step-badge">05</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 5</span>
-        <h3 class="hiw-step-title">Draft or auto-send</h3>
-        <p class="hiw-step-desc">REPLY_MODE=draft saves the reply for dashboard review; send delivers immediately via Gmail API or SMTP.</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="orange">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 18H3"/><path d="M21 18h-8"/><path d="M11 6H3"/><path d="M21 6h-8"/><path d="M7 12h10"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="6" cy="6" r="2"/></svg>
-        <span class="hiw-step-badge">06</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 6</span>
-        <h3 class="hiw-step-title">State &amp; queue</h3>
-        <p class="hiw-step-desc">Per-user processed state avoids duplicates; the dashboard queue shows sent, draft, and ignored activity (account audit in admin).</p>
-      </div>
-    </article>
+    {% include "components/marketing_hiw_steps_home.html" %}
   </div>
 </section>
 
@@ -1778,128 +1684,16 @@
   </div>
 
   <div class="testimonials-grid">
-    <article class="testimonial-card">
-      <div class="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
-      <p class="testimonial-quote">We were drowning in tier‑1 inbox questions. Replies now pull from our product docs automatically—CSAT went up and our queue actually clears by end of day.</p>
-      <p class="testimonial-metric">First-response time cut by roughly half in six weeks</p>
-      <div class="testimonial-footer">
-        <div class="testimonial-avatar" style="--av1:#4f6ef7;--av2:#6366f1">SC</div>
-        <div>
-          <div class="testimonial-name">Sarah Chen</div>
-          <div class="testimonial-role">VP of Operations · Northline Logistics</div>
-        </div>
-      </div>
-    </article>
-
-    <article class="testimonial-card">
-      <div class="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
-      <p class="testimonial-quote">The RAG piece sold us. Generic AI drafts were embarrassing; grounded answers from our own KB sound like us. Onboarding took an afternoon, not a sprint.</p>
-      <p class="testimonial-metric">Audit trail per rep—compliance finally stopped asking for screenshots</p>
-      <div class="testimonial-footer">
-        <div class="testimonial-avatar" style="--av1:#a78bfa;--av2:#c084fc">MW</div>
-        <div>
-          <div class="testimonial-name">Marcus Webb</div>
-          <div class="testimonial-role">Head of Customer Experience · Brightstack</div>
-        </div>
-      </div>
-    </article>
-
-    <article class="testimonial-card">
-      <div class="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
-      <p class="testimonial-quote">I run a small agency—no room for a 24/7 inbox. MailPilot skips newsletters and cold outreach, and only surfaces what needs a human touch. Game changer.</p>
-      <p class="testimonial-metric">~15 hours a week back for billable work</p>
-      <div class="testimonial-footer">
-        <div class="testimonial-avatar" style="--av1:#38bdf8;--av2:#4f6ef7">ER</div>
-        <div>
-          <div class="testimonial-name">Elena Ruiz</div>
-          <div class="testimonial-role">Founder · Studio Meridian</div>
-        </div>
-      </div>
-    </article>
+    {% include "components/marketing_review_cards_home.html" %}
   </div>
 </section>
 
 <!-- PRICING -->
 <section id="pricing" aria-labelledby="pricing-heading">
-  <div class="pricing-head-row">
-    <div class="pricing-head-copy">
-      <div class="section-tag">Pricing</div>
-      <h2 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h2>
-      <p class="pricing-intro">Simple token plans for every inbox size. Connect your inbox in Setup, then let MailPilot draft or send safely.</p>
-      <p class="pricing-demo-note">1 auto-sent reply uses 5 tokens. Draft-only mode, skipped emails, and Setup test emails do not use tokens.</p>
-    </div>
-  </div>
+  {% include "components/marketing_pricing_head.html" %}
 
   <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
-    <article class="pricing-card" role="option" tabindex="0" data-plan="starter" aria-pressed="false" aria-label="Starter plan">
-      <div class="pricing-tier-row">
-        <div class="pricing-tier">Starter</div>
-        <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
-      </div>
-      <div class="pricing-price">$0<span>/mo</span></div>
-      <p class="pricing-period">Free forever</p>
-      <p class="pricing-desc">Connect one inbox, test AI replies, and keep draft mode unlimited while you validate relevance filtering.</p>
-      <ul class="pricing-features">
-        <li><strong>20 tokens</strong> per month (up to 4 auto-sent replies)</li>
-        <li><strong>5 auto-sends/day</strong> safety cap</li>
-        <li>1 connected inbox (Gmail or IMAP)</li>
-        <li>Basic KB: 1 crawl or upload</li>
-        <li>Keyword filter + LLM relevance</li>
-        <li>Dashboard queue &amp; unlimited drafts</li>
-        <li>No Telegram or WhatsApp</li>
-      </ul>
-      <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free</a>
-    </article>
-
-    <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
-      <div class="pricing-card-topbar">
-        <span class="pricing-badge">50% launch offer</span>
-      </div>
-      <div class="pricing-tier-row">
-        <div class="pricing-tier">Pro</div>
-        <span class="pricing-card-soon"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Live when Stripe is configured</span>
-      </div>
-      <div class="pricing-price-row">
-        <span class="pricing-was">$40</span>
-        <div class="pricing-price">$20<span>/mo</span></div>
-        <span class="pricing-save">Save 50%</span>
-      </div>
-      <p class="pricing-period">Billed monthly · cancel anytime</p>
-      <p class="pricing-desc">Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits.</p>
-      <ul class="pricing-features">
-        <li><strong>1,000 tokens</strong> per month (up to 200 auto-sent replies)</li>
-        <li>Up to 3 active Gmail or SMTP/IMAP inboxes</li>
-        <li>100 auto-sends/day/inbox safety cap</li>
-        <li>Full AI knowledge base (website crawl + file upload)</li>
-        <li>Multi Gmail OAuth + SMTP/IMAP mailbox support</li>
-        <li>Per-user encrypted credentials</li>
-        <li>Telegram &amp; WhatsApp alerts and commands</li>
-      </ul>
-      <a href="{% if user.is_authenticated %}{% url 'billing_checkout_pro' %}{% else %}{% url 'signup' %}{% endif %}" class="pricing-cta primary">Get Pro</a>
-    </article>
-
-    <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
-      <div class="pricing-card-topbar">
-        <span class="pricing-badge">Most popular</span>
-      </div>
-      <div class="pricing-tier-row">
-        <div class="pricing-tier">Custom</div>
-        <span class="pricing-card-soon"><i class="fa-solid fa-user-gear" aria-hidden="true"></i> Manual setup</span>
-      </div>
-      <div class="pricing-price">You choose</div>
-      <p class="pricing-period">Set price &amp; send volume</p>
-      <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
-      <ul class="pricing-features">
-        <li><strong>2,000 tokens</strong> + 4 Gmail/SMTP inboxes → <strong>$30/mo</strong></li>
-        <li><strong>3,000 tokens</strong> + 6 Gmail/SMTP inboxes → <strong>$40/mo</strong></li>
-        <li>Or define your own tier (e.g. $50 → 5,000 sends)</li>
-        <li>Provider-aware daily safety caps</li>
-        <li>Telegram &amp; WhatsApp alerts and chat commands</li>
-        <li>Annual billing option</li>
-        <li>Priority onboarding &amp; team seats</li>
-      </ul>
-      <a href="{% url 'signup' %}" class="pricing-cta secondary">Build custom plan</a>
-    </article>
+    {% include "components/marketing_pricing_cards.html" %}
   </div>
 </section>
 
@@ -2043,7 +1837,7 @@
           <span class="faq-q"><i class="fa-solid fa-gift" aria-hidden="true"></i><span>Is there a free plan?</span></span>
           <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
         </summary>
-        <p class="faq-a">Yes. <strong>Starter</strong> is free forever with 20 monthly tokens, enough for up to 4 auto-sent replies, plus one active inbox, one KB source, and unlimited draft mode.</p>
+        <p class="faq-a">Yes. <strong>Starter</strong> is a free trial: one inbox and up to <strong>20 auto-sent emails</strong> total (80 tokens). When the trial ends, upgrade to Pro (Stripe) or contact us for a Custom plan.</p>
       </details>
 
       <details class="faq-item">
@@ -2059,7 +1853,7 @@
           <span class="faq-q"><i class="fa-solid fa-credit-card" aria-hidden="true"></i><span>How do paid plans work?</span></span>
           <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
         </summary>
-        <p class="faq-a"><strong>Pro</strong> uses hosted Stripe checkout when billing is configured. <strong>Custom</strong> is manually configured for higher token volume, more Gmail/SMTP inboxes, and onboarding support.</p>
+        <p class="faq-a"><strong>Pro</strong> uses Stripe Checkout ($20/mo when configured). <strong>Custom</strong> lets you set tokens and inboxes on the <a href="{% url 'custom_plan_builder' %}">plan builder</a> — pay via Stripe or contact us for a manual quote.</p>
       </details>
     </div>
   </div>
@@ -2213,12 +2007,21 @@ if(card) {
   });
 })();
 
-// Pricing plan selection (click to activate)
+// Pricing plan selection (click to activate + checkout routing)
 (function () {
-  const grid = document.querySelector('#pricing .pricing-grid');
+  const grid = document.querySelector('#pricing .pricing-grid') || document.querySelector('main .pricing-grid');
   if (!grid) return;
   const cards = Array.from(grid.querySelectorAll('.pricing-card[data-plan]'));
   if (!cards.length) return;
+  const isAuth = {{ user.is_authenticated|yesno:"true,false" }};
+  const currentPlan = '{{ current_plan_code|default:""|escapejs }}';
+  const starterExpired = {{ starter_expired|default:False|yesno:"true,false" }};
+  const profileUrl = '{% url "profile" %}';
+  const pricingUrl = '{% url "pricing" %}';
+  const csrfToken = () => {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  };
 
   function activate(card) {
     cards.forEach((c) => {
@@ -2228,20 +2031,72 @@ if(card) {
     });
   }
 
+  if (currentPlan) {
+    const cur = cards.find((c) => c.dataset.plan === currentPlan);
+    if (cur) activate(cur);
+  }
+
+  async function selectPlan(plan) {
+    if (!isAuth) {
+      window.location.href = '{% url "signup" %}';
+      return;
+    }
+    if (plan === 'starter' && starterExpired) {
+      window.location.href = pricingUrl;
+      return;
+    }
+    if (plan === 'custom') {
+      window.location.href = '{% url "custom_plan_builder" %}';
+      return;
+    }
+    try {
+      const res = await fetch('/api/billing/select-plan', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+        body: JSON.stringify({ plan }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.ok) throw new Error(j.error || 'plan_select_failed');
+      if (j.redirect) {
+        window.location.href = j.redirect;
+        return;
+      }
+      window.location.href = profileUrl + '?plan=' + encodeURIComponent(plan);
+    } catch (e) {
+      if (plan === 'starter' && !starterExpired) window.location.href = profileUrl;
+    }
+  }
+
   cards.forEach((card) => {
+    const plan = card.dataset.plan || '';
     card.addEventListener('click', (e) => {
       if (e.target.closest('.pricing-cta')) return;
       activate(card);
+      if (plan === 'starter') selectPlan('starter');
+      if (plan === 'pro') selectPlan('pro');
     });
     card.addEventListener('keydown', (e) => {
       if (e.target.closest('.pricing-cta')) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         activate(card);
+        if (plan === 'starter') selectPlan('starter');
+        if (plan === 'pro') selectPlan('pro');
       }
     });
     card.querySelectorAll('.pricing-cta').forEach((btn) => {
-      btn.addEventListener('click', (e) => e.stopPropagation());
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (plan === 'starter' && isAuth && !starterExpired) {
+          e.preventDefault();
+          selectPlan('starter');
+        }
+        if (plan === 'pro' && isAuth) {
+          e.preventDefault();
+          selectPlan('pro');
+        }
+      });
     });
   });
 })();
@@ -2258,6 +2113,16 @@ if(card) {
       });
     });
   });
+})();
+</script>
+<script>
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('plan') !== 'custom') return;
+  const msg = document.getElementById('contact-message');
+  if(!msg || (msg.value || '').trim()) return;
+  msg.value = 'I would like a Custom MailPilot plan (tokens, inboxes, and monthly price). Please contact me with options.';
+  msg.focus();
 })();
 </script>
 </body>
