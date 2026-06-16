@@ -25,6 +25,19 @@
     if (!node) return;
     var chart = new ApexCharts(node, options);
     chart.render();
+    return chart;
+  }
+
+  function hexToRgba(hex, alpha) {
+    var h = (hex || "").replace("#", "");
+    if (h.length === 3) {
+      h = h.split("").map(function (c) { return c + c; }).join("");
+    }
+    if (h.length !== 6) return "rgba(79,110,247," + alpha + ")";
+    var r = parseInt(h.slice(0, 2), 16);
+    var g = parseInt(h.slice(2, 4), 16);
+    var b = parseInt(h.slice(4, 6), 16);
+    return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
   }
 
   function horizHeight(labelCount) {
@@ -54,51 +67,152 @@
     };
   }
 
-  mount("mpChartPlanMix", {
-    chart: { type: "donut", height: 300, fontFamily: font, toolbar: { show: false } },
-    series: data.plan_mix.series,
-    labels: data.plan_mix.labels,
-    colors: data.plan_mix.colors,
-    legend: { position: "bottom", labels: { colors: "#94a3b8" } },
-    dataLabels: { enabled: true, style: { fontSize: "12px", fontWeight: 600 } },
-    plotOptions: {
-      pie: {
-        donut: {
-          size: "68%",
-          labels: {
-            show: true,
-            total: {
+  (function () {
+    var donutNode = document.getElementById("mpChartPlanMix");
+    var donutCard = donutNode && donutNode.closest(".mp-dash-chart-card");
+    var sliceColors = data.plan_mix.colors || [];
+    var sliceStroke = document.documentElement.classList.contains("dark") ? "#0f172a" : "#ffffff";
+    var isDark = document.documentElement.classList.contains("dark");
+
+    function setDonutGlow(idx) {
+      if (!donutCard || idx < 0) return;
+      var color = sliceColors[idx] || "#4f6ef7";
+      donutCard.classList.add("is-slice-hover");
+      donutCard.style.setProperty("--mp-donut-glow", hexToRgba(color, 0.42));
+    }
+
+    function clearDonutGlow() {
+      if (!donutCard) return;
+      donutCard.classList.remove("is-slice-hover");
+      donutCard.style.removeProperty("--mp-donut-glow");
+    }
+
+    mount("mpChartPlanMix", {
+      chart: {
+        type: "donut",
+        height: 300,
+        fontFamily: font,
+        toolbar: { show: false },
+        dropShadow: {
+          enabled: true,
+          top: 6,
+          left: 0,
+          blur: 16,
+          opacity: 0.22,
+          color: "#4f6ef7",
+        },
+        animations: {
+          enabled: true,
+          easing: "easeinout",
+          speed: 520,
+          animateGradually: { enabled: true, delay: 80 },
+        },
+        events: {
+          dataPointMouseEnter: function (_e, _ctx, config) {
+            setDonutGlow(config.dataPointIndex);
+          },
+          dataPointMouseLeave: function () {
+            clearDonutGlow();
+          },
+          mouseLeave: function () {
+            clearDonutGlow();
+          },
+        },
+      },
+      series: data.plan_mix.series,
+      labels: data.plan_mix.labels,
+      colors: sliceColors,
+      fill: {
+        type: "gradient",
+        gradient: {
+          shade: "dark",
+          type: "radial",
+          shadeIntensity: 0.45,
+          inverseColors: false,
+          opacityFrom: 1,
+          opacityTo: 0.78,
+          stops: [0, 88, 100],
+        },
+      },
+      legend: {
+        position: "bottom",
+        labels: { colors: "#94a3b8" },
+        markers: { width: 10, height: 10, radius: 10 },
+      },
+      dataLabels: {
+        enabled: true,
+        dropShadow: { enabled: false },
+        style: { fontSize: "12px", fontWeight: 700, colors: ["#f8fafc"] },
+      },
+      states: {
+        hover: {
+          filter: { type: "lighten", value: 0.12 },
+        },
+        active: {
+          allowMultipleDataPointsSelection: false,
+          filter: { type: "darken", value: 0.08 },
+        },
+      },
+      plotOptions: {
+        pie: {
+          expandOnClick: true,
+          customScale: 0.98,
+          offsetY: 2,
+          donut: {
+            size: "68%",
+            labels: {
               show: true,
-              label: "Users",
-              color: "#94a3b8",
-              formatter: function (w) {
-                return w.globals.seriesTotals.reduce(function (a, b) { return a + b; }, 0);
+              name: {
+                show: true,
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#94a3b8",
+                offsetY: -4,
+              },
+              value: {
+                show: true,
+                fontSize: "22px",
+                fontWeight: 700,
+                color: isDark ? "#e2e8f0" : "#1e293b",
+                offsetY: 4,
+              },
+              total: {
+                show: true,
+                label: "Users",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#94a3b8",
+                formatter: function (w) {
+                  return w.globals.seriesTotals.reduce(function (a, b) { return a + b; }, 0);
+                },
               },
             },
           },
         },
       },
-    },
-    stroke: { width: 0 },
-    tooltip: {
-      theme: tooltipTheme,
-      custom: function (ctx) {
-        var idx = ctx.seriesIndex;
-        var names = (data.plan_mix.user_names && data.plan_mix.user_names[idx]) || [];
-        var label = data.plan_mix.labels[idx] || "";
-        var count = ctx.series[ctx.seriesIndex];
-        var list = names.length
-          ? names.map(function (n) { return "<li>" + n + "</li>"; }).join("")
-          : "<li>No users</li>";
-        return (
-          '<div class="apexcharts-tooltip-title" style="padding:8px 10px;font-weight:600;">' +
-          label + " (" + count + ")</div>" +
-          '<ul style="margin:0;padding:8px 12px 10px 22px;font-size:12px;line-height:1.5;">' +
-          list + "</ul>"
-        );
+      stroke: { show: true, width: 3, colors: [sliceStroke] },
+      tooltip: {
+        theme: tooltipTheme,
+        custom: function (ctx) {
+          var idx = ctx.seriesIndex;
+          var names = (data.plan_mix.user_names && data.plan_mix.user_names[idx]) || [];
+          var label = data.plan_mix.labels[idx] || "";
+          var count = ctx.series[ctx.seriesIndex];
+          var accent = sliceColors[idx] || "#4f6ef7";
+          var list = names.length
+            ? names.map(function (n) { return "<li>" + n + "</li>"; }).join("")
+            : "<li>No users</li>";
+          return (
+            '<div class="mp-dash-donut-tooltip">' +
+            '<div class="mp-dash-donut-tooltip__head" style="--mp-tip-a:' + accent + ";--mp-tip-b:" + accent + '">' +
+            label + " · " + count + " user" + (count === 1 ? "" : "s") +
+            "</div>" +
+            '<ul class="mp-dash-donut-tooltip__body">' + list + "</ul></div>"
+          );
+        },
       },
-    },
-  });
+    });
+  })();
 
   if (data.users_by_plan && data.users_by_plan.labels && data.users_by_plan.labels.length) {
     mount("mpChartUsersByPlan", Object.assign({

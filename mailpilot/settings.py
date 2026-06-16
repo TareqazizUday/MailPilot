@@ -548,4 +548,7 @@ UNFOLD = {
     "STYLES": [
         lambda request: static("css/mailpilot-admin.css"),
     ],
+    "SCRIPTS": [
+        lambda request: static("js/mailpilot-admin-changelist.js"),
+    ],
 }

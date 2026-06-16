@@ -5,7 +5,9 @@ from datetime import timedelta
 from django.contrib.auth.models import User
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncMonth
+from django.urls import reverse
 from django.utils import timezone
+from urllib.parse import urlencode
 
 from core.billing import current_period_key, has_paid_entitlement, is_starter_expired
 from core.models import (
@@ -55,8 +57,48 @@ def _series_from_month_map(labels: list[str], values: dict[str, int]) -> list[in
     return [int(values.get(label, 0)) for label in labels]
 
 
+def _admin_changelist(route_name: str, params: dict | None = None) -> str:
+    base = reverse(route_name)
+    if not params:
+        return base
+    return f"{base}?{urlencode(params)}"
+
+
+def build_kpi_links(*, period: str, today) -> dict[str, str]:
+    today_s = today.isoformat()
+    return {
+        "users": _admin_changelist("admin:auth_user_changelist"),
+        "subscriptions": _admin_changelist("admin:core_usersubscription_changelist"),
+        "paid": _admin_changelist("admin:core_usersubscription_changelist"),
+        "tokens": _admin_changelist(
+            "admin:core_usagecounter_changelist",
+            {"period_key": period},
+        ),
+        "mailboxes": _admin_changelist(
+            "admin:core_mailaccount_changelist",
+            {"is_enabled__exact": "1"},
+        ),
+        "auto_sends": _admin_changelist(
+            "admin:core_usageevent_changelist",
+            {"date": today_s, "status__exact": UsageEvent.STATUS_COMMITTED},
+        ),
+        "starter_expired": _admin_changelist(
+            "admin:core_usersubscription_changelist",
+            {
+                "plan_code__exact": UserSubscription.PLAN_STARTER,
+                "starter_expired_at__isnull": "False",
+            },
+        ),
+        "contacts": _admin_changelist(
+            "admin:core_contactsubmission_changelist",
+            {"notified_team__exact": "0"},
+        ),
+    }
+
+
 def build_dashboard_stats() -> dict:
     period = current_period_key()
+    today = timezone.localdate()
     tokens_agg = UsageCounter.objects.filter(period_key=period).aggregate(total=Sum("tokens_used"))
 
     subs = UserSubscription.objects.all()
@@ -89,11 +131,13 @@ def build_dashboard_stats() -> dict:
         "active_mailboxes": MailAccount.objects.filter(is_enabled=True).count(),
         "tokens_this_month": int(tokens_agg.get("total") or 0),
         "auto_sends_today": UsageEvent.objects.filter(
-            date=timezone.localdate(),
+            date=today,
             status=UsageEvent.STATUS_COMMITTED,
         ).count(),
         "open_contacts": ContactSubmission.objects.filter(notified_team=False).count(),
         "mrr_estimate_usd": round(mrr_cents / 100, 2),
+        "today": today.isoformat(),
+        "links": build_kpi_links(period=period, today=today),
     }
 
 

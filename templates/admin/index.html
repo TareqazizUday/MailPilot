@@ -72,7 +72,7 @@
 
     <div class="gap-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
 
-      <div class="bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+      <a href="{{ mp_stats.links.users }}" class="mp-dash-kpi-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% trans 'View all users' %}">
 
         <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Users" %}</p>
 
@@ -80,9 +80,9 @@
 
         <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{{ mp_stats.subscriptions }} {% trans "subscribed" %}</p>
 
-      </div>
+      </a>
 
-      <div class="bg-white border border-primary-600/30 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-primary-600/30">
+      <a href="{{ mp_stats.links.paid }}" class="mp-dash-kpi-card mp-dash-kpi-card--accent bg-white border border-primary-600/30 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-primary-600/30" title="{% trans 'View subscriptions' %}">
 
         <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Paid" %}</p>
 
@@ -90,9 +90,9 @@
 
         <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">${{ mp_stats.mrr_estimate_usd }} {% trans "MRR est." %}</p>
 
-      </div>
+      </a>
 
-      <div class="bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+      <a href="{{ mp_stats.links.tokens }}" class="mp-dash-kpi-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% trans 'Token usage this billing period' %}">
 
         <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Tokens" %}</p>
 
@@ -100,9 +100,9 @@
 
         <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{% trans "This month" %}</p>
 
-      </div>
+      </a>
 
-      <div class="bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+      <a href="{{ mp_stats.links.mailboxes }}" class="mp-dash-kpi-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% trans 'Active mail accounts' %}">
 
         <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Mailboxes" %}</p>
 
@@ -110,9 +110,9 @@
 
         <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{{ mp_stats.pro_plans }} Pro · {{ mp_stats.custom_plans }} Custom</p>
 
-      </div>
+      </a>
 
-      <div class="bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+      <a href="{{ mp_stats.links.auto_sends }}" class="mp-dash-kpi-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% trans 'Committed usage events today' %}">
 
         <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Auto-sends" %}</p>
 
@@ -120,9 +120,9 @@
 
         <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{% trans "Today" %}</p>
 
-      </div>
+      </a>
 
-      <div class="bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+      <a href="{% if mp_stats.open_contacts %}{{ mp_stats.links.contacts }}{% else %}{{ mp_stats.links.starter_expired }}{% endif %}" class="mp-dash-kpi-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% if mp_stats.open_contacts %}{% trans 'Pending contact submissions' %}{% else %}{% trans 'Starter trials that expired' %}{% endif %}">
 
         <p class="font-semibold text-font-subtle-light dark:text-font-subtle-dark text-xs tracking-wide uppercase">{% trans "Starter expired" %}</p>
 
@@ -142,7 +142,7 @@
 
         </p>
 
-      </div>
+      </a>
 
     </div>
 
@@ -150,13 +150,13 @@
 
     <div class="gap-4 grid grid-cols-1 xl:grid-cols-2">
 
-      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+      <div class="mp-dash-chart-card mp-dash-chart-card--donut bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
 
         <h3 class="font-semibold text-important text-sm">{% trans "Plan distribution" %}</h3>
 
         <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Active subscriptions by plan" %}</p>
 
-        <div id="mpChartPlanMix" class="mt-3"></div>
+        <div id="mpChartPlanMix" class="mp-dash-donut-host mt-3"></div>
 
       </div>
 
