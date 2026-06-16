@@ -106,3 +106,48 @@
     font-size: 0.75rem;
     color: #94a3b8;
 }
+
+/* Admin dashboard charts */
+.mp-dash-chart-card {
+    min-height: 0;
+}
+
+.mp-dash-table {
+    border-collapse: collapse;
+}
+
+.mp-dash-table th,
+.mp-dash-table td {
+    padding: 0.65rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.mp-dash-table th {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+}
+
+.mp-dash-table tbody tr:hover td {
+    background: rgba(79, 110, 247, 0.06);
+}
+
+.mp-dash-empty {
+    color: #94a3b8;
+    text-align: center;
+    padding: 1.25rem !important;
+}
+
+.mp-dash-user-name {
+    font-weight: 600;
+    color: inherit;
+}
+
+.mp-dash-user-email {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-top: 0.15rem;
+}
