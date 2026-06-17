@@ -423,6 +423,11 @@ UNFOLD = {
                         "link": reverse_lazy("admin:index"),
                     },
                     {
+                        "title": _("Hero inbox"),
+                        "icon": "inbox",
+                        "link": reverse_lazy("admin:core_marketingheroinboxitem_changelist"),
+                    },
+                    {
                         "title": _("Features"),
                         "icon": "auto_awesome",
                         "link": reverse_lazy("admin:core_marketingfeature_changelist"),
@@ -436,6 +441,11 @@ UNFOLD = {
                         "title": _("Reviews"),
                         "icon": "reviews",
                         "link": reverse_lazy("admin:core_marketingreview_changelist"),
+                    },
+                    {
+                        "title": _("FAQ"),
+                        "icon": "help",
+                        "link": reverse_lazy("admin:core_marketingfaqitem_changelist"),
                     },
                     {
                         "title": _("Pricing"),

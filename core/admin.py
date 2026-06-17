@@ -20,6 +20,10 @@ from core.models import (
     MailAccount,
     HowItWorksStep,
     MarketingFeature,
+    MarketingFaqItem,
+    MarketingFaqSettings,
+    MarketingHeroInboxItem,
+    MarketingHeroSettings,
     MarketingReview,
     MarketingPricingPlan,
     MarketingPricingSettings,
@@ -548,6 +552,159 @@ class MarketingReviewAdmin(_MPModelAdmin):
         return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
 
 
+@admin.action(description="Publish selected hero inbox rows")
+def publish_hero_inbox_items(modeladmin, request, queryset):
+    queryset.update(is_published=True)
+    modeladmin.message_user(request, f"Published {queryset.count()} row(s).")
+
+
+@admin.action(description="Unpublish selected hero inbox rows")
+def unpublish_hero_inbox_items(modeladmin, request, queryset):
+    queryset.update(is_published=False)
+    modeladmin.message_user(request, f"Unpublished {queryset.count()} row(s).")
+
+
+class MarketingHeroSettingsAdmin(_MPModelAdmin):
+    list_display = ("card_title", "updated_at")
+    fieldsets = (
+        (None, {"fields": ("card_title", "card_icon_class")}),
+        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
+    )
+    readonly_fields = ("updated_at",)
+
+    def has_add_permission(self, request):
+        return not MarketingHeroSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        obj, _ = MarketingHeroSettings.objects.get_or_create(singleton_key=1)
+        return redirect(reverse("admin:core_marketingherosettings_change", args=(obj.pk,)))
+
+
+class MarketingHeroInboxItemAdmin(_MPModelAdmin):
+    list_display = (
+        "sort_order",
+        "sender_name",
+        "sender_context",
+        "badge_badge",
+        "avatar_preview",
+        "published_badge",
+        "homepage_badge",
+        "updated_at",
+    )
+    list_display_links = ("sender_name",)
+    list_editable = ("sort_order",)
+    list_filter = ("is_published", "show_on_homepage", "badge_type")
+    search_fields = ("sender_name", "sender_context", "subject", "badge_label")
+    ordering = ("sort_order", "id")
+    actions = [publish_hero_inbox_items, unpublish_hero_inbox_items]
+    fieldsets = (
+        (None, {"fields": ("sender_name", "sender_context", "subject")}),
+        ("Avatar", {"fields": ("avatar_initials", "avatar_color_start", "avatar_color_end")}),
+        ("Badge", {"fields": ("badge_type", "badge_label", "badge_icon_class")}),
+        ("Visibility", {"fields": ("sort_order", "is_published", "show_on_homepage")}),
+        ("Meta", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+    @admin.display(description="Badge", ordering="badge_type")
+    def badge_badge(self, obj):
+        tones = {
+            MarketingHeroInboxItem.BADGE_REPLIED: "ok",
+            MarketingHeroInboxItem.BADGE_RAG: "pro",
+            MarketingHeroInboxItem.BADGE_PENDING: "warn",
+            MarketingHeroInboxItem.BADGE_SKIPPED: "muted",
+        }
+        return _badge(obj.get_badge_type_display(), tones.get(obj.badge_type, "muted"))
+
+    @admin.display(description="Avatar")
+    def avatar_preview(self, obj):
+        return format_html(
+            '<span style="display:inline-flex;align-items:center;justify-content:center;'
+            'width:22px;height:22px;border-radius:50%;font-size:0.6rem;font-weight:700;{}">{}</span>',
+            obj.avatar_gradient_style,
+            obj.avatar_initials,
+        )
+
+    @admin.display(description="Published", ordering="is_published")
+    def published_badge(self, obj):
+        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
+
+    @admin.display(description="Homepage", ordering="show_on_homepage")
+    def homepage_badge(self, obj):
+        return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
+
+
+@admin.action(description="Publish selected FAQ items")
+def publish_faq_items(modeladmin, request, queryset):
+    queryset.update(is_published=True)
+    modeladmin.message_user(request, f"Published {queryset.count()} FAQ item(s).")
+
+
+@admin.action(description="Unpublish selected FAQ items")
+def unpublish_faq_items(modeladmin, request, queryset):
+    queryset.update(is_published=False)
+    modeladmin.message_user(request, f"Unpublished {queryset.count()} FAQ item(s).")
+
+
+class MarketingFaqSettingsAdmin(_MPModelAdmin):
+    list_display = ("section_tag", "title_lead", "updated_at")
+    fieldsets = (
+        (None, {"fields": ("section_tag", "title_lead", "title_highlight")}),
+        ("Intro", {"fields": ("intro_html",)}),
+        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
+    )
+    readonly_fields = ("updated_at",)
+
+    def has_add_permission(self, request):
+        return not MarketingFaqSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        obj, _ = MarketingFaqSettings.objects.get_or_create(singleton_key=1)
+        return redirect(reverse("admin:core_marketingfaqsettings_change", args=(obj.pk,)))
+
+
+class MarketingFaqItemAdmin(_MPModelAdmin):
+    list_display = (
+        "sort_order",
+        "question",
+        "icon_preview",
+        "published_badge",
+        "homepage_badge",
+        "updated_at",
+    )
+    list_display_links = ("question",)
+    list_editable = ("sort_order",)
+    list_filter = ("is_published", "show_on_homepage")
+    search_fields = ("question", "answer_html")
+    ordering = ("sort_order", "id")
+    actions = [publish_faq_items, unpublish_faq_items]
+    fieldsets = (
+        (None, {"fields": ("question", "answer_html")}),
+        ("Display", {"fields": ("icon_class", "sort_order")}),
+        ("Visibility", {"fields": ("is_published", "show_on_homepage")}),
+        ("Meta", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+    @admin.display(description="Icon")
+    def icon_preview(self, obj):
+        return format_html('<i class="{}" style="font-size:1.1rem"></i> {}', obj.icon_class, obj.icon_class)
+
+    @admin.display(description="Published", ordering="is_published")
+    def published_badge(self, obj):
+        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
+
+    @admin.display(description="Homepage", ordering="show_on_homepage")
+    def homepage_badge(self, obj):
+        return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
+
+
 @admin.action(description="Publish selected plans")
 def publish_pricing_plans(modeladmin, request, queryset):
     queryset.update(is_published=True)
@@ -939,6 +1096,10 @@ admin_site.register(CustomPlanQuote, CustomPlanQuoteAdmin)
 admin_site.register(MarketingFeature, MarketingFeatureAdmin)
 admin_site.register(HowItWorksStep, HowItWorksStepAdmin)
 admin_site.register(MarketingReview, MarketingReviewAdmin)
+admin_site.register(MarketingHeroSettings, MarketingHeroSettingsAdmin)
+admin_site.register(MarketingHeroInboxItem, MarketingHeroInboxItemAdmin)
+admin_site.register(MarketingFaqSettings, MarketingFaqSettingsAdmin)
+admin_site.register(MarketingFaqItem, MarketingFaqItemAdmin)
 admin_site.register(MarketingPricingSettings, MarketingPricingSettingsAdmin)
 admin_site.register(MarketingPricingPlan, MarketingPricingPlanAdmin)
 admin_site.register(ContactSubmission, ContactSubmissionAdmin)

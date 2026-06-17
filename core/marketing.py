@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.models import HowItWorksStep, MarketingFeature, MarketingPricingPlan, MarketingPricingSettings, MarketingReview
+from core.models import HowItWorksStep, MarketingFaqItem, MarketingFaqSettings, MarketingFeature, MarketingHeroInboxItem, MarketingHeroSettings, MarketingPricingPlan, MarketingPricingSettings, MarketingReview
 
 DEFAULT_MARKETING_FEATURES: list[dict[str, str | int | bool]] = [
     {
@@ -418,4 +418,190 @@ def seed_default_pricing() -> None:
         return
     MarketingPricingPlan.objects.bulk_create(
         [MarketingPricingPlan(**row, is_published=True, show_on_homepage=True) for row in DEFAULT_PRICING_PLANS]
+    )
+
+
+DEFAULT_HERO_SETTINGS = {
+    "card_title": "MailPilot — Live Inbox",
+    "card_icon_class": "fa-solid fa-inbox",
+}
+
+DEFAULT_HERO_INBOX_ITEMS: list[dict[str, str | int | bool]] = [
+    {
+        "sender_name": "Alice Kim",
+        "sender_context": "Product Inquiry",
+        "subject": "What pricing plans do you offer for enterprise?",
+        "avatar_initials": "AK",
+        "avatar_color_start": "#4f6ef7",
+        "avatar_color_end": "#a78bfa",
+        "badge_type": MarketingHeroInboxItem.BADGE_REPLIED,
+        "badge_label": "✓ Auto-Replied",
+        "sort_order": 1,
+    },
+    {
+        "sender_name": "Raj Joshi",
+        "sender_context": "Support Request",
+        "subject": "How do I integrate the Gmail OAuth flow?",
+        "avatar_initials": "RJ",
+        "avatar_color_start": "#38bdf8",
+        "avatar_color_end": "#4f6ef7",
+        "badge_type": MarketingHeroInboxItem.BADGE_RAG,
+        "badge_label": "RAG Enhanced",
+        "badge_icon_class": "fa-solid fa-brain",
+        "sort_order": 2,
+    },
+    {
+        "sender_name": "Maria Lopez",
+        "sender_context": "Partnership",
+        "subject": "Interested in co-marketing collaboration...",
+        "avatar_initials": "ML",
+        "avatar_color_start": "#a78bfa",
+        "avatar_color_end": "#ec4899",
+        "badge_type": MarketingHeroInboxItem.BADGE_PENDING,
+        "badge_label": "⏳ In Queue",
+        "sort_order": 3,
+    },
+    {
+        "sender_name": "Newsletter",
+        "sender_context": "Daily Digest",
+        "subject": "Top stories in AI this week...",
+        "avatar_initials": "NO",
+        "avatar_color_start": "#94a3b8",
+        "avatar_color_end": "#475569",
+        "badge_type": MarketingHeroInboxItem.BADGE_SKIPPED,
+        "badge_label": "— Skipped",
+        "sort_order": 4,
+    },
+]
+
+
+def get_hero_settings() -> MarketingHeroSettings:
+    obj, _ = MarketingHeroSettings.objects.get_or_create(
+        singleton_key=1,
+        defaults=DEFAULT_HERO_SETTINGS,
+    )
+    return obj
+
+
+def marketing_hero_inbox_queryset(*, homepage_only: bool = False):
+    qs = MarketingHeroInboxItem.objects.filter(is_published=True).order_by("sort_order", "pk")
+    if homepage_only:
+        qs = qs.filter(show_on_homepage=True)
+    return qs
+
+
+def seed_default_hero_inbox() -> None:
+    if not MarketingHeroSettings.objects.exists():
+        MarketingHeroSettings.objects.create(singleton_key=1, **DEFAULT_HERO_SETTINGS)
+    if MarketingHeroInboxItem.objects.exists():
+        return
+    MarketingHeroInboxItem.objects.bulk_create(
+        [MarketingHeroInboxItem(**row, is_published=True, show_on_homepage=True) for row in DEFAULT_HERO_INBOX_ITEMS]
+    )
+
+
+DEFAULT_FAQ_SETTINGS = {
+    "section_tag": "FAQ",
+    "title_lead": "Common",
+    "title_highlight": "questions",
+    "intro_html": (
+        'Quick answers about setup, routing, knowledge base, and billing. Still stuck? '
+        'Use the <a href="#contact" style="color:#a5b4fc;">contact form</a> on this page.'
+    ),
+}
+
+DEFAULT_FAQ_ITEMS: list[dict[str, str | int | bool]] = [
+    {
+        "question": "What does MailPilot do?",
+        "answer_html": (
+            "MailPilot connects to your Gmail or IMAP inbox, filters incoming mail with keywords "
+            "and AI relevance, grounds replies in your knowledge base, and can send or draft "
+            "responses automatically."
+        ),
+        "icon_class": "fa-solid fa-envelope",
+        "sort_order": 1,
+    },
+    {
+        "question": "Does it reply to every email?",
+        "answer_html": (
+            "No. You set <strong>keywords</strong> and a <strong>relevance threshold</strong> so only "
+            "service-related messages are handled. Unrelated mail is ignored. Start with "
+            "<strong>draft</strong> mode to review before enabling auto-send."
+        ),
+        "icon_class": "fa-solid fa-filter",
+        "sort_order": 2,
+    },
+    {
+        "question": "Gmail or SMTP/IMAP—which should I use?",
+        "answer_html": (
+            "<strong>Gmail OAuth</strong> is the fastest setup for Google Workspace or personal Gmail. "
+            "Use <strong>SMTP + IMAP</strong> for other providers. Pro and Custom plans can run multiple "
+            "active mailboxes, and each connection can be tested in Setup before going live."
+        ),
+        "icon_class": "fa-brands fa-google",
+        "sort_order": 3,
+    },
+    {
+        "question": "How does the knowledge base work?",
+        "answer_html": (
+            "Upload JSON or text, or crawl your website. MailPilot finds the best matching content "
+            "and uses it to ground each AI reply in your real business information."
+        ),
+        "icon_class": "fa-solid fa-brain",
+        "sort_order": 4,
+    },
+    {
+        "question": "Is there a free plan?",
+        "answer_html": (
+            "Yes. <strong>Starter</strong> is a free trial: one inbox and up to "
+            "<strong>20 auto-sent emails</strong> total (80 tokens). When the trial ends, upgrade to "
+            "Pro (Stripe) or contact us for a Custom plan."
+        ),
+        "icon_class": "fa-solid fa-gift",
+        "sort_order": 5,
+    },
+    {
+        "question": "How is my data protected?",
+        "answer_html": (
+            'Credentials and API keys are stored encrypted per account. See our '
+            '<a href="/privacy">Privacy Policy</a> for more detail.'
+        ),
+        "icon_class": "fa-solid fa-shield-halved",
+        "sort_order": 6,
+    },
+    {
+        "question": "How do paid plans work?",
+        "answer_html": (
+            "<strong>Pro</strong> uses Stripe Checkout ($20/mo when configured). "
+            "<strong>Custom</strong> lets you set tokens and inboxes on the "
+            '<a href="/pricing/custom">plan builder</a> — pay via Stripe or contact us for a manual quote.'
+        ),
+        "icon_class": "fa-solid fa-credit-card",
+        "sort_order": 7,
+    },
+]
+
+
+def get_faq_settings() -> MarketingFaqSettings:
+    obj, _ = MarketingFaqSettings.objects.get_or_create(
+        singleton_key=1,
+        defaults=DEFAULT_FAQ_SETTINGS,
+    )
+    return obj
+
+
+def marketing_faq_queryset(*, homepage_only: bool = False):
+    qs = MarketingFaqItem.objects.filter(is_published=True).order_by("sort_order", "pk")
+    if homepage_only:
+        qs = qs.filter(show_on_homepage=True)
+    return qs
+
+
+def seed_default_faq() -> None:
+    if not MarketingFaqSettings.objects.exists():
+        MarketingFaqSettings.objects.create(singleton_key=1, **DEFAULT_FAQ_SETTINGS)
+    if MarketingFaqItem.objects.exists():
+        return
+    MarketingFaqItem.objects.bulk_create(
+        [MarketingFaqItem(**row, is_published=True, show_on_homepage=True) for row in DEFAULT_FAQ_ITEMS]
     )

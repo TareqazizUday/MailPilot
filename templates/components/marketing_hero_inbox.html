@@ -1,0 +1,19 @@
+{% for item in hero_inbox_items %}
+<div class="email-item" style="animation-delay: calc(0.55s + {{ forloop.counter0 }} * 0.13s)">
+  <div class="email-avatar" style="{{ item.avatar_gradient_style }}">{{ item.avatar_initials }}</div>
+  <div class="email-meta">
+    <div class="email-from">{{ item.sender_display }}</div>
+    <div class="email-subject">{{ item.subject }}</div>
+  </div>
+  <div class="email-badge {{ item.badge_css_class }}">
+    {% if item.badge_icon_class %}<i class="{{ item.badge_icon_class }}" aria-hidden="true"></i> {% endif %}{{ item.badge_label }}
+  </div>
+</div>
+{% empty %}
+<div class="email-item">
+  <div class="email-meta">
+    <div class="email-from">Inbox preview</div>
+    <div class="email-subject">Add hero inbox rows in admin to show demo emails here.</div>
+  </div>
+</div>
+{% endfor %}

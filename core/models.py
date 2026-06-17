@@ -519,6 +519,158 @@ class MarketingPricingPlan(models.Model):
         return [line.strip() for line in (self.features or "").splitlines() if line.strip()]
 
 
+class MarketingHeroSettings(models.Model):
+    """Singleton copy for homepage hero inbox preview card."""
+
+    singleton_key = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    card_title = models.CharField(max_length=120, default="MailPilot — Live Inbox")
+    card_icon_class = models.CharField(
+        max_length=80,
+        default="fa-solid fa-inbox",
+        help_text="Font Awesome class for the card title icon",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingherosettings"
+        verbose_name = "hero inbox card"
+        verbose_name_plural = "hero inbox card"
+
+    def __str__(self) -> str:
+        return self.card_title
+
+
+class MarketingHeroInboxItem(models.Model):
+    """Demo inbox rows in the landing page hero card."""
+
+    BADGE_REPLIED = "replied"
+    BADGE_RAG = "rag"
+    BADGE_PENDING = "pending"
+    BADGE_SKIPPED = "skipped"
+    BADGE_CHOICES = [
+        (BADGE_REPLIED, "Auto-replied"),
+        (BADGE_RAG, "RAG enhanced"),
+        (BADGE_PENDING, "In queue"),
+        (BADGE_SKIPPED, "Skipped"),
+    ]
+
+    sender_name = models.CharField(max_length=80)
+    sender_context = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="Short label after the name, e.g. Product Inquiry",
+    )
+    subject = models.CharField(max_length=200)
+    avatar_initials = models.CharField(max_length=4, default="AK")
+    avatar_color_start = models.CharField(max_length=7, default="#4f6ef7")
+    avatar_color_end = models.CharField(max_length=7, default="#a78bfa")
+    badge_type = models.CharField(max_length=16, choices=BADGE_CHOICES, default=BADGE_REPLIED)
+    badge_label = models.CharField(max_length=40, default="✓ Auto-Replied")
+    badge_icon_class = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="Optional Font Awesome icon before badge text (e.g. fa-solid fa-brain)",
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+    )
+    is_published = models.BooleanField(default=True, db_index=True)
+    show_on_homepage = models.BooleanField(
+        default=True,
+        help_text="Show on landing page hero inbox card",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingheroinboxitem"
+        ordering = ["sort_order", "id"]
+        verbose_name = "hero inbox row"
+        verbose_name_plural = "hero inbox rows"
+
+    def __str__(self) -> str:
+        return self.sender_name
+
+    @property
+    def sender_display(self) -> str:
+        ctx = (self.sender_context or "").strip()
+        if ctx:
+            return f"{self.sender_name} — {ctx}"
+        return self.sender_name
+
+    @property
+    def avatar_gradient_style(self) -> str:
+        a1 = (self.avatar_color_start or "#4f6ef7").strip()
+        a2 = (self.avatar_color_end or "#a78bfa").strip()
+        return f"background:linear-gradient(135deg,{a1},{a2})"
+
+    @property
+    def badge_css_class(self) -> str:
+        return f"badge-{self.badge_type}"
+
+
+class MarketingFaqSettings(models.Model):
+    """Singleton copy for landing page FAQ section header."""
+
+    singleton_key = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    section_tag = models.CharField(max_length=40, default="FAQ")
+    title_lead = models.CharField(max_length=80, default="Common")
+    title_highlight = models.CharField(max_length=80, default="questions")
+    intro_html = models.TextField(
+        blank=True,
+        default="",
+        help_text="Short intro under the title. Basic HTML allowed (e.g. links).",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingfaqsettings"
+        verbose_name = "FAQ page"
+        verbose_name_plural = "FAQ page"
+
+    def __str__(self) -> str:
+        return "FAQ section"
+
+
+class MarketingFaqItem(models.Model):
+    """FAQ accordion rows on the landing page."""
+
+    question = models.CharField(max_length=200)
+    answer_html = models.TextField(
+        help_text="Answer body. Basic HTML allowed (strong, a, etc.).",
+    )
+    icon_class = models.CharField(
+        max_length=80,
+        default="fa-solid fa-circle-question",
+        help_text="Font Awesome class shown before the question",
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+    )
+    is_published = models.BooleanField(default=True, db_index=True)
+    show_on_homepage = models.BooleanField(
+        default=True,
+        help_text="Show on landing page FAQ section",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingfaqitem"
+        ordering = ["sort_order", "id"]
+        verbose_name = "FAQ item"
+        verbose_name_plural = "FAQ items"
+
+    def __str__(self) -> str:
+        return self.question
+
+
 class CustomPlanQuote(models.Model):
     """User-built custom plan configuration pending or completed payment."""
 

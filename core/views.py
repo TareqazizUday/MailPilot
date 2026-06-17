@@ -256,9 +256,13 @@ def landing_page(request):
     ctx["starter_expired"] = False
     ctx["current_plan_code"] = ""
     from core.marketing import (
+        get_faq_settings,
+        get_hero_settings,
         get_pricing_settings,
         how_it_works_steps_queryset,
         marketing_features_queryset,
+        marketing_faq_queryset,
+        marketing_hero_inbox_queryset,
         marketing_pricing_plans_queryset,
         marketing_reviews_queryset,
     )
@@ -266,6 +270,10 @@ def landing_page(request):
     ctx["marketing_features"] = marketing_features_queryset(homepage_only=True)
     ctx["how_it_works_steps"] = how_it_works_steps_queryset(homepage_only=True)
     ctx["marketing_reviews"] = marketing_reviews_queryset(homepage_only=True)
+    ctx["hero_settings"] = get_hero_settings()
+    ctx["hero_inbox_items"] = marketing_hero_inbox_queryset(homepage_only=True)
+    ctx["faq_settings"] = get_faq_settings()
+    ctx["faq_items"] = marketing_faq_queryset(homepage_only=True)
     ctx["pricing_settings"] = get_pricing_settings()
     ctx["pricing_plans"] = marketing_pricing_plans_queryset(homepage_only=True)
     if request.user.is_authenticated:
