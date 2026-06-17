@@ -36,33 +36,27 @@
     {% include "components/marketing_nav_css.html" %}
     {% include "components/marketing_page_layout_css.html" %}
     main.mp-marketing-main { text-align: center; }
-    .section-tag {
-      font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px;
-      text-transform: uppercase; color: #a78bfa; margin-bottom: 14px;
+    .page-head { max-width: 1120px; margin: 0 auto 18px; text-align: center; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 999px;
+      border: 1px solid rgba(79,110,247,0.35);
+      background: rgba(79,110,247,0.10);
+      color: #a5b4fc;
+      font-size: 0.78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
     }
-    .section-title {
+    .page-head .section-title {
+      margin-top: 14px;
       font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800;
       letter-spacing: -1px; line-height: 1.2;
     }
-    .pricing-head-row {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 20px; flex-wrap: wrap; max-width: 1120px; margin: 0 auto;
-      text-align: left;
-    }
-    .pricing-head-copy { flex: 1; min-width: 240px; text-align: center; }
-    .pricing-head-copy .section-tag,
-    .pricing-head-copy .section-title,
-    .pricing-head-copy .pricing-intro,
-    .pricing-head-copy .pricing-demo-note { margin-left: auto; margin-right: auto; }
-    .pricing-head-copy .pricing-intro,
-    .pricing-head-copy .pricing-demo-note { text-align: center; }
     .pricing-intro {
-      color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
+      color: var(--muted); font-size: 1rem; margin: 10px auto 0; max-width: 760px;
       line-height: 1.65;
     }
     .pricing-demo-note {
-      font-size: 0.8rem; color: rgba(148,163,184,0.85); margin-top: 10px;
-      max-width: 520px; line-height: 1.5;
+      font-size: 0.8rem; color: rgba(148,163,184,0.85); margin: 10px auto 0;
+      max-width: 760px; line-height: 1.5;
     }
     .pricing-card-soon {
       display: inline-flex; align-items: center; gap: 5px;
@@ -243,7 +237,7 @@
     {% include "components/footer_css.html" %}
 
     @media (max-width: 1100px) {
-      .pricing-head-row { justify-content: center; text-align: center; }
+      .page-head { text-align: center; }
     }
     @media (max-width: 768px) {
       .pricing-grid { margin-top: 36px; }
@@ -276,7 +270,7 @@
   {% include "components/marketing_nav_js.html" %}
 
   <main class="mp-marketing-main" aria-labelledby="pricing-heading">
-    {% include "components/marketing_pricing_head.html" with pricing_heading_tag="h1" %}
+    {% include "components/marketing_pricing_head.html" with pricing_heading_tag="h1" pricing_pill_tag=True %}
 
     <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
       {% include "components/marketing_pricing_cards.html" %}
