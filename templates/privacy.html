@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MailPilot — Privacy Policy</title>
+  <title>MailPilot — {{ privacy_page.title }}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
     @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css');
@@ -45,21 +45,17 @@
       backdrop-filter: blur(14px);
       box-shadow: 0 28px 56px rgba(0,0,0,0.35);
     }
-    .brand {
-      font-size: 1.05rem;
-      font-weight: 900;
-      letter-spacing: -0.6px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
     h1 { margin-top: 18px; font-size: clamp(1.45rem, 5vw, 2rem); letter-spacing: -1px; }
     .meta { margin-top: 8px; color: rgba(148,163,184,0.82); font-size: 0.9rem; line-height: 1.6; }
     .meta strong { color: var(--text); font-weight: 700; }
     hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 22px 0; }
     h2 { margin-top: 18px; font-size: 1.05rem; letter-spacing: -0.2px; }
     p, li { color: rgba(148,163,184,0.92); line-height: 1.75; font-size: 0.95rem; }
-    ul { margin: 10px 0 0 18px; }
-    li { margin: 6px 0; }
+    .legal-body h2:first-child { margin-top: 0; }
+    .legal-body p { margin-top: 0; }
+    .legal-body p + p { margin-top: 10px; }
+    .legal-body ul { margin: 10px 0 0 18px; }
+    .legal-body li { margin: 6px 0; }
     .notice {
       margin-top: 16px;
       padding: 14px 14px;
@@ -85,64 +81,16 @@
 
   <div class="wrap mp-marketing-wrap">
     <article class="card">
-      <h1>Privacy Policy</h1>
+      <h1>{{ privacy_page.title }}</h1>
       <div class="meta">
-        <div><strong>Effective date:</strong> April 13, 2026</div>
-        <div>This Policy explains how MailPilot collects, uses, and shares information when you use the Service.</div>
+        <div><strong>Effective date:</strong> {{ privacy_page.effective_date|date:"F j, Y" }}</div>
       </div>
 
-      <div class="notice">
-        This is a launch-ready template. If you process email content, OAuth tokens, or customer data in production, tailor retention periods, subprocessors, and legal bases (GDPR/CCPA as applicable).
-      </div>
-
-      <hr/>
-
-      <h2>1) Information we collect</h2>
-      <ul>
-        <li><strong>Account data</strong>: name, email address, and authentication details.</li>
-        <li><strong>Connected mailbox data</strong>: mailbox identifiers, OAuth tokens (when applicable), and configuration needed to connect.</li>
-        <li><strong>Email content and metadata</strong>: subject lines, sender/recipient info, message bodies, and attachments only as needed to provide automation features you enable.</li>
-        <li><strong>Usage data</strong>: pages viewed, features used, logs, and diagnostics.</li>
-      </ul>
-
-      <h2>2) How we use information</h2>
-      <ul>
-        <li>Provide, maintain, and improve the Service (including drafting replies and relevance filtering).</li>
-        <li>Authenticate users, prevent abuse, and enforce security controls.</li>
-        <li>Operate support, audits, and incident response.</li>
-      </ul>
-
-      <h2>3) AI / automated processing</h2>
-      <p>When you enable automation, the Service may process email content to generate drafts and recommendations. You remain responsible for messages that are sent and for reviewing your automation settings.</p>
-
-      <h2>4) Sharing and disclosure</h2>
-      <p>We do not sell your personal information. We may share information with:</p>
-      <ul>
-        <li><strong>Service providers</strong> (hosting, monitoring, email APIs) who process data on our behalf.</li>
-        <li><strong>Legal and safety</strong> where required by law or to protect rights and safety.</li>
-      </ul>
-
-      <h2>5) Data retention</h2>
-      <p>We retain information only as long as necessary for the purposes described in this Policy, unless a longer retention period is required by law. When you disconnect a mailbox, tokens and configuration may be removed according to your settings and operational constraints.</p>
-
-      <h2>6) Security</h2>
-      <p>We use reasonable safeguards designed to protect information. No security measure is perfect; you are responsible for securing your account credentials.</p>
-
-      <h2>7) Your choices</h2>
-      <ul>
-        <li>Update your account information in the app.</li>
-        <li>Disconnect mailbox integrations you no longer want to use.</li>
-        <li>Request deletion of your account (add a support contact method for production).</li>
-      </ul>
-
-      <h2>8) International transfers</h2>
-      <p>Your information may be processed in countries other than your own depending on where the Service and its providers operate.</p>
-
-      <h2>9) Changes to this Policy</h2>
-      <p>We may update this Policy from time to time. The effective date above reflects the latest version.</p>
-
-      <h2>10) Contact</h2>
-      <p>For privacy questions, add a support email address or contact channel here when you go live.</p>
+      {% if privacy_page.is_published and privacy_page.body_html %}
+      <div class="legal-body">{{ privacy_page.body_html|safe }}</div>
+      {% else %}
+      <p>Privacy content is being prepared. Check back soon or contact support.</p>
+      {% endif %}
 
     </article>
   </div>
@@ -150,4 +98,3 @@
   {% include "components/footer.html" %}
 </body>
 </html>
-

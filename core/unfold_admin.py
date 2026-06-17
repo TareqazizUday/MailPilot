@@ -30,3 +30,9 @@ def payment_gateway_badge(request):
     from core.payment_gateway import stripe_checkout_ready
 
     return "" if stripe_checkout_ready() else "!"
+
+
+def paypal_gateway_badge(request):
+    from core.payment_gateway import paypal_checkout_ready
+
+    return "" if paypal_checkout_ready() else "!"

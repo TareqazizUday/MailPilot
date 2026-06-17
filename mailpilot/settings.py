@@ -452,6 +452,16 @@ UNFOLD = {
                         "icon": "payments",
                         "link": reverse_lazy("admin:core_marketingpricingplan_changelist"),
                     },
+                    {
+                        "title": _("Terms"),
+                        "icon": "gavel",
+                        "link": reverse_lazy("admin:core_legaltermssettings_changelist"),
+                    },
+                    {
+                        "title": _("Privacy"),
+                        "icon": "policy",
+                        "link": reverse_lazy("admin:core_legalprivacysettings_changelist"),
+                    },
                 ],
             },
             {
@@ -506,10 +516,17 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {
-                        "title": _("Gateway credentials"),
+                        "title": _("Stripe"),
                         "icon": "credit_card",
-                        "link": reverse_lazy("admin:core_paymentgatewayconfig_changelist"),
+                        "link": reverse_lazy("admin:core_stripe_changelist"),
                         "badge": "core.unfold_admin.payment_gateway_badge",
+                        "badge_variant": "warning",
+                    },
+                    {
+                        "title": _("PayPal"),
+                        "icon": "account_balance_wallet",
+                        "link": reverse_lazy("admin:core_paypal_changelist"),
+                        "badge": "core.unfold_admin.paypal_gateway_badge",
                         "badge_variant": "warning",
                     },
                 ],

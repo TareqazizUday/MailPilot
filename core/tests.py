@@ -275,3 +275,35 @@ class DemoStripeCredentialTests(SimpleTestCase):
                 price_pro_monthly="price_1RealFromStripe",
             )
         )
+
+
+class DemoPayPalCredentialTests(SimpleTestCase):
+    def test_demo_placeholders_not_checkout_ready(self) -> None:
+        from core.payment_gateway import DEMO_PAYPAL_REFERENCE, is_demo_paypal_credentials
+
+        ref = DEMO_PAYPAL_REFERENCE
+        self.assertTrue(
+            is_demo_paypal_credentials(
+                client_id=ref["client_id"],
+                client_secret=ref["client_secret"],
+                plan_pro_monthly=ref["plan_pro_monthly"],
+            )
+        )
+        self.assertFalse(
+            is_demo_paypal_credentials(
+                client_id="real_client_id_from_paypal",
+                client_secret="real_secret_from_paypal",
+                plan_pro_monthly="P-RealPlanFromPayPal",
+            )
+        )
+
+
+class PaymentProviderChoiceTests(SimpleTestCase):
+    def test_demo_mode_exposes_both_providers(self) -> None:
+        from django.test import override_settings
+
+        from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, available_payment_providers
+
+        with override_settings(BILLING_DEMO_MODE=True):
+            providers = available_payment_providers()
+        self.assertEqual(providers, [PAYMENT_STRIPE, PAYMENT_PAYPAL])

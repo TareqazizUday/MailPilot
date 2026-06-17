@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from django.contrib.auth.models import User
 from django.db import models
 
@@ -112,6 +114,13 @@ class UserSubscription(models.Model):
     whatsapp_enabled = models.BooleanField(null=True, blank=True)
     stripe_customer_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
     stripe_subscription_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    payment_provider = models.CharField(
+        max_length=16,
+        blank=True,
+        default="",
+        help_text="Last successful checkout provider: stripe or paypal.",
+    )
+    paypal_subscription_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
     starter_lifetime_sends = models.PositiveIntegerField(default=0)
     starter_expired_at = models.DateTimeField(null=True, blank=True)
     paid_at = models.DateTimeField(
@@ -671,6 +680,92 @@ class MarketingFaqItem(models.Model):
         return self.question
 
 
+class LegalTermsSettings(models.Model):
+    """Singleton content for /terms."""
+
+    singleton_key = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    title = models.CharField(max_length=120, default="Terms of Service")
+    effective_date = models.DateField(default=date(2026, 4, 13))
+    intro_html = models.TextField(
+        blank=True,
+        default="",
+        help_text="Deprecated — use body_html. Kept for legacy migrations only.",
+    )
+    notice_html = models.TextField(
+        blank=True,
+        default="",
+        help_text="Deprecated — use body_html. Kept for legacy migrations only.",
+    )
+    body_html = models.TextField(
+        blank=True,
+        default="",
+        help_text="Full terms page content (single rich-text document).",
+    )
+    is_published = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_legaltermssettings"
+        verbose_name = "terms page"
+        verbose_name_plural = "terms page"
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class LegalTermsSection(models.Model):
+    """Ordered section blocks on the terms page."""
+
+    page = models.ForeignKey(
+        LegalTermsSettings,
+        on_delete=models.CASCADE,
+        related_name="sections",
+        default=1,
+    )
+    heading = models.CharField(max_length=200)
+    body_html = models.TextField(help_text="Section body. Basic HTML allowed (p, ul, li, strong, a).")
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+    )
+    is_published = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_legaltermssection"
+        ordering = ["sort_order", "id"]
+        verbose_name = "terms section"
+        verbose_name_plural = "terms sections"
+
+    def __str__(self) -> str:
+        return self.heading
+
+
+class LegalPrivacySettings(models.Model):
+    """Singleton content for /privacy."""
+
+    singleton_key = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    title = models.CharField(max_length=120, default="Privacy Policy")
+    effective_date = models.DateField(default=date(2026, 4, 13))
+    body_html = models.TextField(
+        blank=True,
+        default="",
+        help_text="Full privacy page content (single rich-text document).",
+    )
+    is_published = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_legalprivacysettings"
+        verbose_name = "privacy page"
+        verbose_name_plural = "privacy page"
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class CustomPlanQuote(models.Model):
     """User-built custom plan configuration pending or completed payment."""
 
@@ -708,8 +803,8 @@ class CustomPlanQuote(models.Model):
         return f"CustomPlanQuote({self.user_id}, {self.tokens} tok, {self.inboxes} inbox, ${self.price_cents / 100:.2f})"
 
 
-class PaymentGatewayConfig(models.Model):
-    """Singleton Stripe / payment gateway credentials (admin-managed)."""
+class Stripe(models.Model):
+    """Singleton Stripe credentials (admin-managed)."""
 
     PROVIDER_STRIPE = "stripe"
     PROVIDER_CHOICES = [(PROVIDER_STRIPE, "Stripe")]
@@ -734,15 +829,57 @@ class PaymentGatewayConfig(models.Model):
 
     class Meta:
         db_table = "core_paymentgatewayconfig"
-        verbose_name = "payment gateway"
-        verbose_name_plural = "payment gateway"
+        verbose_name = "Stripe"
+        verbose_name_plural = "Stripe"
 
     def save(self, *args, **kwargs):
         self.singleton_key = 1
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
-        return "Payment gateway (Stripe)"
+        return "Stripe"
+
+
+class PayPal(models.Model):
+    """Singleton PayPal credentials (admin-managed)."""
+
+    singleton_key = models.PositiveSmallIntegerField(default=1, unique=True)
+    is_enabled = models.BooleanField(
+        default=False,
+        help_text="When enabled, stored credentials override PAYPAL_* environment variables.",
+    )
+    sandbox_mode = models.BooleanField(
+        default=True,
+        help_text="Use PayPal Sandbox (api-m.sandbox.paypal.com). Disable for live payments.",
+    )
+    client_id = models.CharField(max_length=255, blank=True, default="")
+    plan_pro_monthly = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="PayPal Plan ID for Pro monthly subscription (P-...).",
+    )
+    client_secret_enc = models.TextField(blank=True, default="")
+    webhook_id = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="PayPal Webhook ID from the Developer Dashboard.",
+    )
+    notes = models.TextField(blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_paypalgatewayconfig"
+        verbose_name = "PayPal"
+        verbose_name_plural = "PayPal"
+
+    def save(self, *args, **kwargs):
+        self.singleton_key = 1
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return "PayPal"
 
 
 class AuditLog(models.Model):

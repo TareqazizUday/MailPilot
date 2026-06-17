@@ -27,6 +27,7 @@ urlpatterns = [
     path("favicon.ico", views.favicon),
     path("healthz", views.healthz),
     path("billing/checkout/pro", views.billing_checkout_pro, name="billing_checkout_pro"),
+    path("billing/checkout/choose", views.billing_choose_payment, name="billing_choose_payment"),
     path("billing/checkout/custom/<int:quote_id>", views.billing_checkout_custom, name="billing_checkout_custom"),
     path("billing/demo/checkout", views.billing_demo_checkout, name="billing_demo_checkout"),
     path("billing/demo/complete", views.billing_demo_complete, name="billing_demo_complete"),

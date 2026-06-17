@@ -19,6 +19,8 @@ from core.models import (
     DailySendCounter,
     MailAccount,
     HowItWorksStep,
+    LegalTermsSettings,
+    LegalPrivacySettings,
     MarketingFeature,
     MarketingFaqItem,
     MarketingFaqSettings,
@@ -28,14 +30,16 @@ from core.models import (
     MarketingPricingPlan,
     MarketingPricingSettings,
     PasswordResetOTP,
-    PaymentGatewayConfig,
+    Stripe,
+    PayPal,
     UsageCounter,
     UsageEvent,
     UserMailSettings,
     UserProfile,
     UserSubscription,
 )
-from core.payment_gateway import masked_stripe_secret, masked_stripe_webhook
+from core.payment_gateway import masked_paypal_secret, masked_stripe_secret, masked_stripe_webhook
+from core.widgets import CKEditorWidget
 
 
 admin_site.site_header = "MailPilot Admin"
@@ -637,6 +641,90 @@ class MarketingHeroInboxItemAdmin(_MPModelAdmin):
         return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
 
 
+class LegalTermsSettingsForm(forms.ModelForm):
+    class Meta:
+        model = LegalTermsSettings
+        fields = ("title", "effective_date", "is_published", "body_html")
+        widgets = {
+            "body_html": CKEditorWidget(attrs={"rows": 24}),
+        }
+
+
+class LegalTermsSettingsAdmin(_MPModelAdmin):
+    form = LegalTermsSettingsForm
+    list_display = ("title", "effective_date", "published_badge", "updated_at")
+    fieldsets = (
+        (None, {"fields": ("title", "effective_date", "is_published")}),
+        ("Content", {"fields": ("body_html",)}),
+        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
+    )
+    readonly_fields = ("updated_at",)
+
+    def has_add_permission(self, request):
+        return not LegalTermsSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        from core.legal_content import get_terms_settings
+
+        obj = get_terms_settings()
+        return redirect(reverse("admin:core_legaltermssettings_change", args=(obj.pk,)))
+
+    @admin.display(description="Published", ordering="is_published")
+    def published_badge(self, obj):
+        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
+
+    class Media:
+        js = (
+            "https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js",
+            "js/mailpilot-ckeditor-admin.js",
+        )
+
+
+class LegalPrivacySettingsForm(forms.ModelForm):
+    class Meta:
+        model = LegalPrivacySettings
+        fields = ("title", "effective_date", "is_published", "body_html")
+        widgets = {
+            "body_html": CKEditorWidget(attrs={"rows": 24}),
+        }
+
+
+class LegalPrivacySettingsAdmin(_MPModelAdmin):
+    form = LegalPrivacySettingsForm
+    list_display = ("title", "effective_date", "published_badge", "updated_at")
+    fieldsets = (
+        (None, {"fields": ("title", "effective_date", "is_published")}),
+        ("Content", {"fields": ("body_html",)}),
+        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
+    )
+    readonly_fields = ("updated_at",)
+
+    def has_add_permission(self, request):
+        return not LegalPrivacySettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        from core.legal_content import get_privacy_settings
+
+        obj = get_privacy_settings()
+        return redirect(reverse("admin:core_legalprivacysettings_change", args=(obj.pk,)))
+
+    @admin.display(description="Published", ordering="is_published")
+    def published_badge(self, obj):
+        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
+
+    class Media:
+        js = (
+            "https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js",
+            "js/mailpilot-ckeditor-admin.js",
+        )
+
+
 @admin.action(description="Publish selected FAQ items")
 def publish_faq_items(modeladmin, request, queryset):
     queryset.update(is_published=True)
@@ -861,7 +949,7 @@ class PasswordResetOTPAdmin(_MPModelAdmin):
         return _badge("Valid", "ok")
 
 
-class PaymentGatewayConfigForm(forms.ModelForm):
+class StripeConfigForm(forms.ModelForm):
     stripe_secret_key = forms.CharField(
         required=False,
         label="Stripe secret key",
@@ -890,7 +978,7 @@ class PaymentGatewayConfigForm(forms.ModelForm):
     )
 
     class Meta:
-        model = PaymentGatewayConfig
+        model = Stripe
         fields = (
             "is_enabled",
             "provider",
@@ -972,8 +1060,8 @@ class PaymentGatewayConfigForm(forms.ModelForm):
             self.initial["notes"] = "DEMO Stripe credentials — replace with real keys before production."
 
 
-class PaymentGatewayConfigAdmin(_MPModelAdmin):
-    form = PaymentGatewayConfigForm
+class StripeConfigAdmin(_MPModelAdmin):
+    form = StripeConfigForm
     compressed_fields = False
     list_fullwidth = True
     list_display = ("provider", "is_enabled", "config_status", "updated_at")
@@ -1015,14 +1103,14 @@ class PaymentGatewayConfigAdmin(_MPModelAdmin):
     )
 
     def has_add_permission(self, request):
-        return not PaymentGatewayConfig.objects.exists()
+        return not Stripe.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
         return False
 
     def changelist_view(self, request, extra_context=None):
-        obj, _ = PaymentGatewayConfig.objects.get_or_create(singleton_key=1)
-        return redirect(reverse("admin:core_paymentgatewayconfig_change", args=(obj.pk,)))
+        obj, _ = Stripe.objects.get_or_create(singleton_key=1)
+        return redirect(reverse("admin:core_stripe_change", args=(obj.pk,)))
 
     @admin.display(description="Status")
     def config_status(self, obj):
@@ -1083,6 +1171,195 @@ class PaymentGatewayConfigAdmin(_MPModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+class PayPalConfigForm(forms.ModelForm):
+    client_secret = forms.CharField(
+        required=False,
+        label="PayPal client secret",
+        help_text="Save demo values now; later replace with real secret from PayPal Developer Dashboard.",
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "off",
+                "spellcheck": "false",
+                "class": "vTextField",
+                "style": "font-family: ui-monospace, monospace; width: 100%;",
+            }
+        ),
+    )
+
+    class Meta:
+        model = PayPal
+        fields = (
+            "is_enabled",
+            "sandbox_mode",
+            "client_id",
+            "plan_pro_monthly",
+            "webhook_id",
+            "notes",
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.crypto import decrypt_str
+        from core.payment_gateway import (
+            DEMO_PAYPAL_REFERENCE,
+            billing_demo_mode,
+            is_demo_paypal_credentials,
+        )
+
+        ref = DEMO_PAYPAL_REFERENCE
+        mono = {
+            "style": "font-family: ui-monospace, monospace; width: 100%;",
+            "class": "vTextField",
+            "spellcheck": "false",
+        }
+
+        for name in ("client_id", "plan_pro_monthly", "webhook_id", "client_secret"):
+            self.fields[name].widget.attrs.update(mono)
+
+        inst = self.instance
+        if not inst or not inst.pk:
+            if billing_demo_mode():
+                for key, field in (
+                    ("client_id", "client_id"),
+                    ("plan_pro_monthly", "plan_pro_monthly"),
+                    ("webhook_id", "webhook_id"),
+                    ("client_secret", "client_secret"),
+                ):
+                    self.initial[field] = ref[key]
+            return
+
+        cid = (inst.client_id or "").strip()
+        plan = (inst.plan_pro_monthly or "").strip()
+        webhook = (inst.webhook_id or "").strip()
+        secret = decrypt_str(inst.client_secret_enc).strip()
+        saved_demo = is_demo_paypal_credentials(
+            client_id=cid,
+            client_secret=secret,
+            plan_pro_monthly=plan,
+            webhook_id=webhook,
+        )
+
+        def _set(field: str, value: str, *, demo_fallback: str) -> None:
+            if value:
+                self.initial[field] = value
+            elif billing_demo_mode():
+                self.initial[field] = demo_fallback
+
+        _set("client_id", cid, demo_fallback=ref["client_id"])
+        _set("plan_pro_monthly", plan, demo_fallback=ref["plan_pro_monthly"])
+        _set("webhook_id", webhook, demo_fallback=ref["webhook_id"])
+        if secret and (saved_demo or billing_demo_mode()):
+            self.initial["client_secret"] = secret
+        elif billing_demo_mode():
+            self.initial["client_secret"] = ref["client_secret"]
+        elif secret:
+            self.fields["client_secret"].widget.attrs["placeholder"] = "Saved — enter new value to replace"
+
+        if saved_demo and not (inst.notes or "").strip():
+            self.initial["notes"] = "DEMO PayPal credentials — replace with real keys before production."
+
+
+class PayPalConfigAdmin(_MPModelAdmin):
+    form = PayPalConfigForm
+    compressed_fields = False
+    list_fullwidth = True
+    list_display = ("sandbox_mode", "is_enabled", "config_status", "updated_at")
+    readonly_fields = (
+        "config_status",
+        "masked_client_secret",
+        "updated_at",
+    )
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "is_enabled",
+                    "sandbox_mode",
+                    "config_status",
+                ),
+                "description": "Enable to use database credentials. When disabled, MailPilot falls back to PAYPAL_* values from the server environment.",
+            },
+        ),
+        (
+            "PayPal credentials",
+            {
+                "fields": (
+                    "client_id",
+                    "client_secret",
+                    "plan_pro_monthly",
+                    "webhook_id",
+                    "masked_client_secret",
+                ),
+                "description": "Pre-filled demo placeholders on localhost — Save, then replace with real PayPal Developer Dashboard keys.",
+            },
+        ),
+        ("Notes", {"fields": ("notes",), "classes": ("collapse",)}),
+        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
+    )
+
+    def has_add_permission(self, request):
+        return not PayPal.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        obj, _ = PayPal.objects.get_or_create(singleton_key=1)
+        return redirect(reverse("admin:core_paypal_change", args=(obj.pk,)))
+
+    @admin.display(description="Status")
+    def config_status(self, obj):
+        from core.crypto import decrypt_str
+        from core.payment_gateway import (
+            billing_demo_mode,
+            get_paypal_credentials,
+            is_demo_paypal_credentials,
+            paypal_checkout_ready,
+        )
+
+        creds = get_paypal_credentials()
+        if paypal_checkout_ready():
+            mode = "Sandbox" if (creds and creds.sandbox_mode) else "Live"
+            return _badge(f"Checkout ready ({mode})", "ok")
+        if creds and is_demo_paypal_credentials(
+            client_id=creds.client_id,
+            client_secret=creds.client_secret,
+            plan_pro_monthly=creds.plan_pro_monthly,
+            webhook_id=creds.webhook_id,
+        ):
+            return _badge("Demo saved — replace keys", "warn")
+        if obj.is_enabled:
+            secret = decrypt_str(obj.client_secret_enc).strip()
+            if secret and is_demo_paypal_credentials(
+                client_id=(obj.client_id or "").strip(),
+                client_secret=secret,
+                plan_pro_monthly=(obj.plan_pro_monthly or "").strip(),
+                webhook_id=(obj.webhook_id or "").strip(),
+            ):
+                return _badge("Demo saved — replace keys", "warn")
+        if billing_demo_mode():
+            return _badge("Demo mode (local)", "pro")
+        if not obj.is_enabled:
+            if creds and creds.source == "env":
+                return _badge("Using .env", "warn")
+            return _badge("Disabled", "muted")
+        if creds and creds.client_secret:
+            return _badge("Secret set (add client ID + plan)", "warn")
+        return _badge("Missing client secret", "danger")
+
+    @admin.display(description="Current client secret")
+    def masked_client_secret(self, obj):
+        return masked_paypal_secret(obj.client_secret_enc)
+
+    def save_model(self, request, obj, form, change):
+        secret = (form.cleaned_data.get("client_secret") or "").strip()
+        if secret:
+            obj.client_secret_enc = encrypt_str(secret)
+        obj.singleton_key = 1
+        super().save_model(request, obj, form, change)
+
+
 admin_site.register(User, MailPilotUserAdmin)
 admin_site.register(Group, MailPilotGroupAdmin)
 admin_site.register(UserProfile, UserProfileAdmin)
@@ -1100,9 +1377,12 @@ admin_site.register(MarketingHeroSettings, MarketingHeroSettingsAdmin)
 admin_site.register(MarketingHeroInboxItem, MarketingHeroInboxItemAdmin)
 admin_site.register(MarketingFaqSettings, MarketingFaqSettingsAdmin)
 admin_site.register(MarketingFaqItem, MarketingFaqItemAdmin)
+admin_site.register(LegalTermsSettings, LegalTermsSettingsAdmin)
+admin_site.register(LegalPrivacySettings, LegalPrivacySettingsAdmin)
 admin_site.register(MarketingPricingSettings, MarketingPricingSettingsAdmin)
 admin_site.register(MarketingPricingPlan, MarketingPricingPlanAdmin)
 admin_site.register(ContactSubmission, ContactSubmissionAdmin)
 admin_site.register(AuditLog, AuditLogAdmin)
 admin_site.register(PasswordResetOTP, PasswordResetOTPAdmin)
-admin_site.register(PaymentGatewayConfig, PaymentGatewayConfigAdmin)
+admin_site.register(Stripe, StripeConfigAdmin)
+admin_site.register(PayPal, PayPalConfigAdmin)

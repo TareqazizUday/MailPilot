@@ -381,7 +381,10 @@ def sitemap_xml(request):
 
 @require_GET
 def terms_page(request):
-    ctx: dict[str, Any] = {}
+    from core.legal_content import get_terms_settings
+
+    terms = get_terms_settings()
+    ctx: dict[str, Any] = {"terms_page": terms}
     if request.user.is_authenticated:
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)
@@ -391,7 +394,10 @@ def terms_page(request):
 
 @require_GET
 def privacy_page(request):
-    ctx: dict[str, Any] = {}
+    from core.legal_content import get_privacy_settings
+
+    privacy = get_privacy_settings()
+    ctx: dict[str, Any] = {"privacy_page": privacy}
     if request.user.is_authenticated:
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)
@@ -824,16 +830,111 @@ def api_billing_custom_quote(request):
     )
 
 
-@login_required(login_url="/login")
-@require_http_methods(["GET", "POST"])
-def billing_checkout_pro(request):
-    """Create a Stripe Checkout session for Pro when Stripe is configured."""
-    from core.payment_gateway import billing_demo_mode, get_stripe_credentials, stripe_checkout_ready
+def _billing_checkout_summary(*, plan: str, quote=None) -> dict[str, Any]:
+    if plan == "pro":
+        return {
+            "plan": "pro",
+            "title": "MailPilot Pro",
+            "amount_cents": 2000,
+            "subtitle": "1,000 tokens · 3 inboxes · monthly",
+            "cancel_url": reverse("pricing"),
+        }
+    return {
+        "plan": "custom",
+        "title": "MailPilot Custom",
+        "amount_cents": int(quote.price_cents),
+        "subtitle": f"{quote.tokens:,} tokens · {quote.inboxes} inbox(es) · monthly",
+        "cancel_url": f"{reverse('custom_plan_builder')}?quote={quote.pk}",
+        "quote_id": quote.pk,
+    }
 
-    if not stripe_checkout_ready():
-        if billing_demo_mode():
-            return redirect(f"{reverse('billing_demo_checkout')}?plan=pro")
+
+def _billing_resolve_checkout_target(request, *, plan_param: str = "", quote_param: str = ""):
+    from core.models import CustomPlanQuote
+
+    quote_id = (quote_param or request.GET.get("quote") or request.POST.get("quote_id") or "").strip()
+    plan = (plan_param or request.GET.get("plan") or request.POST.get("plan") or "").strip().lower()
+    quote = None
+    if quote_id.isdigit():
+        quote = CustomPlanQuote.objects.filter(pk=int(quote_id), user=request.user).first()
+        if quote is None:
+            return None, None, redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
+        if quote.status == CustomPlanQuote.STATUS_PAID:
+            return None, None, redirect(f"{reverse('setup')}?billing=success")
+        if quote.expires_at and quote.expires_at < dj_timezone.now():
+            quote.status = CustomPlanQuote.STATUS_EXPIRED
+            quote.save(update_fields=["status", "updated_at"])
+            return None, None, redirect(f"{reverse('custom_plan_builder')}?billing=quote_expired")
+        plan = "custom"
+    if plan not in ("pro", "custom"):
+        return None, None, redirect(f"{reverse('pricing')}?billing=invalid_plan")
+    if plan == "custom" and quote is None:
+        return None, None, redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
+    return plan, quote, None
+
+
+def _billing_begin_checkout(request, *, plan: str = "pro", quote=None):
+    from core.payment_gateway import available_payment_providers
+
+    providers = available_payment_providers()
+    if not providers:
+        if plan == "custom" and quote is not None:
+            return redirect(f"{reverse('custom_plan_builder')}?billing=not_configured&quote={quote.pk}")
         return redirect(f"{reverse('pricing')}?billing=not_configured")
+    if len(providers) > 1:
+        params = f"plan={plan}"
+        if quote is not None:
+            params = f"quote={quote.pk}"
+        return redirect(f"{reverse('billing_choose_payment')}?{params}")
+    return _billing_checkout_provider(request, providers[0], plan=plan, quote=quote)
+
+
+def _billing_checkout_provider(request, provider: str, *, plan: str = "pro", quote=None):
+    from core.payment_gateway import (
+        PAYMENT_PAYPAL,
+        PAYMENT_STRIPE,
+        available_payment_providers,
+        billing_demo_mode,
+        paypal_checkout_ready,
+        stripe_checkout_ready,
+    )
+
+    if provider not in available_payment_providers():
+        return redirect(f"{reverse('pricing')}?billing=invalid_provider")
+
+    if provider == PAYMENT_STRIPE:
+        if stripe_checkout_ready():
+            if plan == "custom":
+                return _stripe_checkout_custom(request, quote)
+            return _stripe_checkout_pro(request)
+        if billing_demo_mode():
+            return _billing_demo_checkout_redirect(plan=plan, quote=quote, provider=PAYMENT_STRIPE)
+
+    if provider == PAYMENT_PAYPAL:
+        if paypal_checkout_ready() and not billing_demo_mode():
+            return redirect(f"{reverse('pricing')}?billing=paypal_live_soon")
+        if billing_demo_mode() or paypal_checkout_ready():
+            return _billing_demo_checkout_redirect(plan=plan, quote=quote, provider=PAYMENT_PAYPAL)
+
+    if plan == "custom" and quote is not None:
+        return redirect(f"{reverse('custom_plan_builder')}?billing=not_configured&quote={quote.pk}")
+    return redirect(f"{reverse('pricing')}?billing=not_configured")
+
+
+def _billing_demo_checkout_redirect(*, plan: str, quote=None, provider: str):
+    from core.models import CustomPlanQuote
+
+    if quote is not None:
+        quote.status = CustomPlanQuote.STATUS_PENDING
+        quote.stripe_session_id = quote.stripe_session_id or f"demo_{quote.pk}"
+        quote.save(update_fields=["status", "stripe_session_id", "updated_at"])
+        return redirect(f"{reverse('billing_demo_checkout')}?quote={quote.pk}&provider={provider}")
+    return redirect(f"{reverse('billing_demo_checkout')}?plan={plan}&provider={provider}")
+
+
+def _stripe_checkout_pro(request):
+    from core.payment_gateway import get_stripe_credentials
+
     creds = get_stripe_credentials()
     secret = creds.secret_key
     price_id = creds.price_pro_monthly
@@ -870,42 +971,8 @@ def billing_checkout_pro(request):
         return redirect(f"{reverse('pricing')}?billing=checkout_error")
 
 
-@login_required(login_url="/login")
-@require_GET
-def billing_custom_request(request):
-    """Open the interactive custom plan builder."""
-    preset = (request.GET.get("preset") or "").strip()
-    if preset:
-        return redirect(f"{reverse('custom_plan_builder')}?preset={preset}")
-    return redirect(reverse("custom_plan_builder"))
-
-
-@login_required(login_url="/login")
-@require_GET
-def billing_checkout_custom(request, quote_id: int):
-    """Stripe Checkout for a saved custom plan quote (dynamic price)."""
-    from core.models import CustomPlanQuote
+def _stripe_checkout_custom(request, quote):
     from core.payment_gateway import get_stripe_credentials
-
-    quote = CustomPlanQuote.objects.filter(pk=quote_id, user=request.user).first()
-    if quote is None:
-        return redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
-    if quote.status == CustomPlanQuote.STATUS_PAID:
-        return redirect(f"{reverse('setup')}?billing=success")
-    if quote.expires_at and quote.expires_at < dj_timezone.now():
-        quote.status = CustomPlanQuote.STATUS_EXPIRED
-        quote.save(update_fields=["status", "updated_at"])
-        return redirect(f"{reverse('custom_plan_builder')}?billing=quote_expired")
-
-    from core.payment_gateway import billing_demo_mode, stripe_is_configured
-
-    if not stripe_is_configured():
-        if billing_demo_mode():
-            quote.status = CustomPlanQuote.STATUS_PENDING
-            quote.stripe_session_id = f"demo_{quote.pk}"
-            quote.save(update_fields=["status", "stripe_session_id", "updated_at"])
-            return redirect(f"{reverse('billing_demo_checkout')}?quote={quote.pk}")
-        return redirect(f"{reverse('custom_plan_builder')}?billing=not_configured&quote={quote.pk}")
 
     creds = get_stripe_credentials()
     try:
@@ -956,49 +1023,114 @@ def billing_checkout_custom(request, quote_id: int):
 
 
 @login_required(login_url="/login")
+@require_http_methods(["GET", "POST"])
+def billing_choose_payment(request):
+    """Let the user pick Stripe or PayPal when more than one provider is available."""
+    from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, available_payment_providers, provider_label
+
+    plan, quote, deny = _billing_resolve_checkout_target(request)
+    if deny is not None:
+        return deny
+
+    providers = available_payment_providers()
+    if not providers:
+        return _billing_begin_checkout(request, plan=plan, quote=quote)
+    if len(providers) == 1:
+        return _billing_checkout_provider(request, providers[0], plan=plan, quote=quote)
+
+    summary = _billing_checkout_summary(plan=plan, quote=quote)
+
+    if request.method == "POST":
+        provider = (request.POST.get("provider") or "").strip().lower()
+        if provider not in providers:
+            summary["error"] = "Choose a payment method to continue."
+        else:
+            return _billing_checkout_provider(request, provider, plan=plan, quote=quote)
+
+    provider_options = [
+        {
+            "code": PAYMENT_STRIPE,
+            "label": provider_label(PAYMENT_STRIPE),
+            "hint": "Card checkout",
+        },
+        {
+            "code": PAYMENT_PAYPAL,
+            "label": provider_label(PAYMENT_PAYPAL),
+            "hint": "PayPal balance or card",
+        },
+    ]
+    provider_options = [opt for opt in provider_options if opt["code"] in providers]
+
+    return render(
+        request,
+        "billing_choose_payment.html",
+        {
+            **summary,
+            "amount_usd": f"{summary['amount_cents'] / 100:.2f}",
+            "provider_options": provider_options,
+            "user_email": (request.user.email or "").strip(),
+        },
+    )
+
+
+@login_required(login_url="/login")
+@require_http_methods(["GET", "POST"])
+def billing_checkout_pro(request):
+    """Start Pro checkout — routes to provider choice or Stripe Checkout."""
+    plan, quote, deny = _billing_resolve_checkout_target(request, plan_param="pro")
+    if deny is not None:
+        return deny
+    return _billing_begin_checkout(request, plan=plan, quote=quote)
+
+
+@login_required(login_url="/login")
+@require_GET
+def billing_custom_request(request):
+    """Open the interactive custom plan builder."""
+    preset = (request.GET.get("preset") or "").strip()
+    if preset:
+        return redirect(f"{reverse('custom_plan_builder')}?preset={preset}")
+    return redirect(reverse("custom_plan_builder"))
+
+
+@login_required(login_url="/login")
+@require_GET
+def billing_checkout_custom(request, quote_id: int):
+    """Checkout for a saved custom plan quote — routes to provider choice or Stripe."""
+    plan, quote, deny = _billing_resolve_checkout_target(request, quote_param=str(quote_id))
+    if deny is not None:
+        return deny
+    return _billing_begin_checkout(request, plan=plan, quote=quote)
+
+
+@login_required(login_url="/login")
 @require_GET
 def billing_demo_checkout(request):
-    """Simulated Stripe Checkout for local demo (no real API keys)."""
-    from core.models import CustomPlanQuote
-    from core.payment_gateway import billing_demo_mode
+    """Simulated checkout for local demo (Stripe or PayPal UI)."""
+    from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, billing_demo_mode, provider_label
 
     if not billing_demo_mode():
         return redirect(f"{reverse('pricing')}?billing=not_configured")
 
-    plan = (request.GET.get("plan") or "").strip().lower()
-    quote_id = (request.GET.get("quote") or "").strip()
-    quote = None
-    if quote_id.isdigit():
-        quote = CustomPlanQuote.objects.filter(pk=int(quote_id), user=request.user).first()
-        if quote is None:
-            return redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
-        plan = "custom"
+    plan, quote, deny = _billing_resolve_checkout_target(request)
+    if deny is not None:
+        return deny
 
-    if plan not in ("pro", "custom"):
-        return redirect(f"{reverse('pricing')}?billing=invalid_plan")
+    provider = (request.GET.get("provider") or PAYMENT_STRIPE).strip().lower()
+    if provider not in (PAYMENT_STRIPE, PAYMENT_PAYPAL):
+        provider = PAYMENT_STRIPE
 
-    if plan == "pro":
-        title = "MailPilot Pro"
-        amount_cents = 2000
-        subtitle = "1,000 tokens · 3 inboxes · monthly"
-    else:
-        title = "MailPilot Custom"
-        amount_cents = int(quote.price_cents)
-        subtitle = f"{quote.tokens:,} tokens · {quote.inboxes} inbox(es) · monthly"
-
-    cancel_url = reverse("pricing") if plan == "pro" else f"{reverse('custom_plan_builder')}?quote={quote.pk}"
+    summary = _billing_checkout_summary(plan=plan, quote=quote)
     return render(
         request,
         "billing_demo_checkout.html",
         {
-            "plan": plan,
+            **summary,
             "quote_id": quote.pk if quote else "",
-            "title": title,
-            "subtitle": subtitle,
-            "amount_cents": amount_cents,
-            "amount_usd": f"{amount_cents / 100:.2f}",
-            "cancel_url": cancel_url,
+            "amount_usd": f"{summary['amount_cents'] / 100:.2f}",
             "user_email": (request.user.email or "").strip(),
+            "provider": provider,
+            "provider_label": provider_label(provider),
         },
     )
 
@@ -1007,37 +1139,65 @@ def billing_demo_checkout(request):
 @require_POST
 @csrf_protect
 def billing_demo_complete(request):
-    """Complete a demo checkout — activates Pro or Custom without Stripe."""
+    """Complete a demo checkout — activates Pro or Custom without a live gateway."""
     from core.billing import PLAN_PRO, activate_custom_plan_quote, get_or_create_subscription, set_subscription_plan
     from core.models import CustomPlanQuote, UserSubscription
-    from core.payment_gateway import billing_demo_mode
+    from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, billing_demo_mode
 
     if not billing_demo_mode():
         return JsonResponse({"ok": False, "error": "demo_disabled"}, status=403)
 
     plan = (request.POST.get("plan") or "").strip().lower()
     quote_id = (request.POST.get("quote_id") or "").strip()
+    provider = (request.POST.get("provider") or PAYMENT_STRIPE).strip().lower()
+    if provider not in (PAYMENT_STRIPE, PAYMENT_PAYPAL):
+        provider = PAYMENT_STRIPE
 
     if plan == "pro":
         sub = get_or_create_subscription(request.user)
         set_subscription_plan(sub, PLAN_PRO, status=UserSubscription.STATUS_ACTIVE)
         sub.paid_at = dj_timezone.now()
-        sub.stripe_customer_id = sub.stripe_customer_id or f"demo_cus_{request.user.id}"
-        sub.stripe_subscription_id = sub.stripe_subscription_id or f"demo_sub_pro_{request.user.id}"
-        sub.save(update_fields=["paid_at", "stripe_customer_id", "stripe_subscription_id", "updated_at"])
+        sub.payment_provider = provider
+        if provider == PAYMENT_PAYPAL:
+            sub.paypal_subscription_id = sub.paypal_subscription_id or f"demo_pp_pro_{request.user.id}"
+        else:
+            sub.stripe_customer_id = sub.stripe_customer_id or f"demo_cus_{request.user.id}"
+            sub.stripe_subscription_id = sub.stripe_subscription_id or f"demo_sub_pro_{request.user.id}"
+        sub.save(
+            update_fields=[
+                "paid_at",
+                "payment_provider",
+                "stripe_customer_id",
+                "stripe_subscription_id",
+                "paypal_subscription_id",
+                "updated_at",
+            ]
+        )
     elif plan == "custom" and quote_id.isdigit():
         quote = CustomPlanQuote.objects.filter(pk=int(quote_id), user=request.user).first()
         if quote is None:
             return redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
         activate_custom_plan_quote(request.user, quote)
         sub = get_or_create_subscription(request.user)
-        sub.stripe_customer_id = sub.stripe_customer_id or f"demo_cus_{request.user.id}"
-        sub.stripe_subscription_id = sub.stripe_subscription_id or f"demo_sub_custom_{quote.pk}"
-        sub.save(update_fields=["stripe_customer_id", "stripe_subscription_id", "updated_at"])
+        sub.payment_provider = provider
+        if provider == PAYMENT_PAYPAL:
+            sub.paypal_subscription_id = sub.paypal_subscription_id or f"demo_pp_custom_{quote.pk}"
+        else:
+            sub.stripe_customer_id = sub.stripe_customer_id or f"demo_cus_{request.user.id}"
+            sub.stripe_subscription_id = sub.stripe_subscription_id or f"demo_sub_custom_{quote.pk}"
+        sub.save(
+            update_fields=[
+                "payment_provider",
+                "stripe_customer_id",
+                "stripe_subscription_id",
+                "paypal_subscription_id",
+                "updated_at",
+            ]
+        )
     else:
         return redirect(f"{reverse('pricing')}?billing=invalid_plan")
 
-    return redirect(f"{reverse('setup')}?billing=success&demo=1")
+    return redirect(f"{reverse('setup')}?billing=success&demo=1&provider={provider}")
 
 
 @login_required(login_url="/login")

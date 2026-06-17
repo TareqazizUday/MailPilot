@@ -1,4 +1,79 @@
-/* MailPilot admin overrides (Unfold) */
+/* CKEditor — terms / legal admin (fix Unfold light text on white editor) */
+.mp-ckeditor-admin {
+    width: 100%;
+    min-height: 8rem;
+}
+
+.ck.ck-editor {
+    width: 100% !important;
+}
+
+.ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable),
+.ck.ck-editor__editable.ck-focused:not(.ck-editor__nested-editable) {
+    min-height: 12rem;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+}
+
+.ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) p,
+.ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) li,
+.ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) h2,
+.ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) h3,
+.ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) strong {
+    color: #0f172a !important;
+}
+
+.ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) a {
+    color: #4f6ef7 !important;
+}
+
+.ck.ck-toolbar {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+
+.ck.ck-toolbar .ck-button {
+    color: #334155 !important;
+}
+
+.ck.ck-toolbar .ck-button.ck-on {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+.dark .ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable),
+.dark .ck.ck-editor__editable.ck-focused:not(.ck-editor__nested-editable) {
+    background: #0f172a !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}
+
+.dark .ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) p,
+.dark .ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) li,
+.dark .ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) h2,
+.dark .ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) h3,
+.dark .ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) strong {
+    color: #e2e8f0 !important;
+}
+
+.dark .ck.ck-editor__main > .ck-editor__editable:not(.ck-editor__nested-editable) a {
+    color: #a5b4fc !important;
+}
+
+.dark .ck.ck-toolbar {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+.dark .ck.ck-toolbar .ck-button {
+    color: #e2e8f0 !important;
+}
+
+.dark .ck.ck-toolbar .ck-button.ck-on {
+    background: #334155 !important;
+    color: #f8fafc !important;
+}
 
 /* Compact sort-order column in Features / How it works changelists */
 #changelist-form th.column-sort_order,

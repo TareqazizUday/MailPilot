@@ -1,0 +1,107 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Choose payment — MailPilot</title>
+  {% include "components/favicon.html" %}
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(165deg, #060818, #0d1230);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .wrap { width: 100%; max-width: 520px; }
+    .demo-banner {
+      background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.35); color: #fcd34d;
+      border-radius: 10px; padding: 10px 14px; font-size: 0.82rem;
+      margin-bottom: 16px; text-align: center; font-weight: 600;
+    }
+    .card {
+      background: rgba(13,18,48,0.82);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.35);
+      backdrop-filter: blur(12px);
+    }
+    .eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; margin-bottom: 8px; }
+    h1 { font-size: 1.35rem; margin-bottom: 6px; }
+    .subtitle { color: #94a3b8; font-size: 0.9rem; line-height: 1.55; margin-bottom: 18px; }
+    .price-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 14px 0 18px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 18px;
+    }
+    .price { font-size: 1.6rem; font-weight: 700; }
+    .price span { font-size: 0.85rem; font-weight: 500; color: #94a3b8; }
+    .error {
+      background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35);
+      color: #fecaca; border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; margin-bottom: 14px;
+    }
+    .options { display: grid; gap: 12px; }
+    .option {
+      display: block; width: 100%; text-align: left; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+      background: rgba(255,255,255,0.03); color: inherit; padding: 16px;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    }
+    .option:hover { border-color: rgba(79,110,247,0.45); background: rgba(79,110,247,0.08); transform: translateY(-1px); }
+    .option-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .option-label { font-size: 1rem; font-weight: 700; }
+    .option-hint { margin-top: 6px; font-size: 0.82rem; color: #94a3b8; }
+    .pill {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1;
+    }
+    .pill.stripe { border-color: rgba(99,91,255,0.45); color: #c7d2fe; }
+    .pill.paypal { border-color: rgba(0,112,186,0.45); color: #7dd3fc; }
+    .cancel {
+      display: block; text-align: center; margin-top: 16px;
+      font-size: 0.85rem; color: #94a3b8; text-decoration: none;
+    }
+    .cancel:hover { color: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="demo-banner">Demo mode — pick Stripe or PayPal. No real charge.</div>
+    <div class="card">
+      <div class="eyebrow">Checkout</div>
+      <h1>{{ title }}</h1>
+      <p class="subtitle">{{ subtitle }}</p>
+      <div class="price-row">
+        <div>Total due today</div>
+        <div class="price">${{ amount_usd }}<span>/mo</span></div>
+      </div>
+
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="plan" value="{{ plan }}" />
+        {% if quote_id %}<input type="hidden" name="quote_id" value="{{ quote_id }}" />{% endif %}
+        <div class="options">
+          {% for opt in provider_options %}
+          <button type="submit" name="provider" value="{{ opt.code }}" class="option">
+            <div class="option-top">
+              <div class="option-label">Pay with {{ opt.label }}</div>
+              <span class="pill {{ opt.code }}">{{ opt.label }}</span>
+            </div>
+            <div class="option-hint">{{ opt.hint }}</div>
+          </button>
+          {% endfor %}
+        </div>
+      </form>
+    </div>
+    <a href="{{ cancel_url }}" class="cancel">← Cancel and go back</a>
+  </div>
+</body>
+</html>
