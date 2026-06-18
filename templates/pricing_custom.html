@@ -99,10 +99,6 @@
     }
     .cta:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,110,247,0.45); }
     .cta:disabled { opacity: 0.55; cursor: not-allowed; }
-    .cta.secondary {
-      background: rgba(255,255,255,0.06); color: var(--text);
-      border: 1px solid var(--glass-border); box-shadow: none; margin-top: 10px;
-    }
     .alert {
       padding: 12px 16px; border-radius: 12px; font-size: 0.85rem; margin-bottom: 20px;
       border: 1px solid rgba(251,191,36,0.35); background: rgba(251,191,36,0.1); color: #fde68a;
@@ -127,7 +123,7 @@
     <a href="{% url 'pricing' %}" class="back-link"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to pricing</a>
     <div class="section-tag">Custom plan</div>
     <h1 class="section-title" id="custom-heading">Build your own <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">MailPilot plan</span></h1>
-    <p class="intro">Adjust monthly tokens and inbox slots. Price updates live — pay with Stripe when checkout is configured, or contact us for a manual quote.</p>
+    <p class="intro">Adjust monthly tokens and inbox slots. Price updates live — continue to checkout when you are ready.</p>
 
     <div id="billingAlert" class="alert" style="display:none" role="status"></div>
 
@@ -157,7 +153,6 @@
         </ul>
         {% if user.is_authenticated %}
         <button type="button" class="cta" id="continueBtn">Continue to checkout</button>
-        <a href="{% url 'landing_contact' %}?plan=custom" class="cta secondary" id="contactFallback">Or request a manual quote</a>
         {% else %}
         <a href="{% url 'signup' %}?next={% url 'custom_plan_builder' %}" class="cta">Sign up to continue</a>
         {% endif %}
@@ -182,7 +177,6 @@
       const presetRow = document.getElementById('presetRow');
       const continueBtn = document.getElementById('continueBtn');
       const billingAlert = document.getElementById('billingAlert');
-      const contactFallback = document.getElementById('contactFallback');
 
       if (cfg.min_tokens) tokensRange.min = cfg.min_tokens;
       if (cfg.max_tokens) tokensRange.max = cfg.max_tokens;
@@ -204,13 +198,13 @@
 
       const billingParam = new URLSearchParams(window.location.search).get('billing');
       if (billingParam === 'not_configured') {
-        showAlert('Stripe is not configured yet. Save your quote and use “Request a manual quote”, or ask an admin to enable checkout.');
+        showAlert('Checkout is not configured yet. Ask an admin to enable payment in the dashboard.');
       } else if (billingParam === 'cancelled') {
         showAlert('Checkout was cancelled. Adjust your plan and try again.');
       } else if (billingParam === 'quote_expired') {
         showAlert('That quote expired. Build a new one below.', true);
       } else if (billingParam === 'checkout_error') {
-        showAlert('Checkout could not be started. Try again or contact us.', true);
+        showAlert('Checkout could not be started. Please try again.', true);
       }
 
       function formatUsd(cents) {
@@ -218,7 +212,6 @@
       }
 
       let quoteTimer = null;
-      let lastQuote = null;
 
       async function refreshQuote() {
         const tokens = parseInt(tokensRange.value, 10);
@@ -229,16 +222,9 @@
           const res = await fetch('/api/billing/custom-quote?tokens=' + tokens + '&inboxes=' + inboxes, { credentials: 'same-origin' });
           const j = await res.json();
           if (!j.ok || !j.quote) return;
-          lastQuote = j.quote;
           priceDisplay.innerHTML = formatUsd(j.quote.price_cents) + '<span>/mo</span>';
           sendsMax.textContent = j.quote.sends_max.toLocaleString();
           dailyCap.textContent = j.quote.daily_send_limit.toLocaleString();
-          if (contactFallback && lastQuote) {
-            const msg = encodeURIComponent(
-              'Custom plan request: ' + j.quote.tokens + ' tokens, ' + j.quote.inboxes + ' inboxes, ' + formatUsd(j.quote.price_cents) + '/mo'
-            );
-            contactFallback.href = '{% url "landing_contact" %}?plan=custom&message=' + msg;
-          }
         } catch (e) { /* ignore */ }
       }
 
