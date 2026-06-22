@@ -351,7 +351,10 @@ class CustomPlanQuoteAdmin(_MPModelAdmin):
 
     @admin.display(description="Price")
     def price_display(self, obj):
-        return f"${obj.price_cents / 100:.2f}/mo"
+        from core.pricing_currency import format_cents, normalize_currency
+
+        cur = normalize_currency(getattr(obj, "currency", None) or "usd")
+        return f"{format_cents(obj.price_cents, cur)}/mo"
 
     @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):

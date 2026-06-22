@@ -833,6 +833,11 @@ class CustomPlanQuote(models.Model):
     tokens = models.PositiveIntegerField()
     inboxes = models.PositiveIntegerField()
     price_cents = models.PositiveIntegerField()
+    currency = models.CharField(
+        max_length=3,
+        default="usd",
+        help_text="ISO currency for price_cents (usd, gbp, eur).",
+    )
     billing_interval = models.CharField(max_length=8, default="monthly")
     daily_send_limit = models.PositiveIntegerField(default=100)
     status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)

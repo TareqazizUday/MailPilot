@@ -268,7 +268,7 @@
   {% include "components/marketing_nav.html" %}
   {% include "components/marketing_nav_js.html" %}
 
-  <main id="pricing" class="mp-marketing-main" aria-labelledby="pricing-heading">
+  <main id="pricing" class="mp-marketing-main" aria-labelledby="pricing-heading" data-initial-billing-interval="{{ billing_interval|default:'monthly' }}" data-initial-pricing-currency="{{ pricing_currency|default:'usd' }}">
     {% include "components/marketing_pricing_head.html" with pricing_heading_tag="h1" pricing_pill_tag=True %}
     {% include "components/marketing_pricing_billing_toggle.html" %}
 

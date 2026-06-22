@@ -120,7 +120,7 @@
   {% include "components/marketing_nav.html" %}
   {% include "components/marketing_nav_js.html" %}
 
-  <main id="pricing" class="mp-marketing-main" aria-labelledby="custom-heading" data-initial-billing-interval="{{ billing_interval|default:'monthly' }}">
+  <main id="pricing" class="mp-marketing-main" aria-labelledby="custom-heading" data-initial-billing-interval="{{ billing_interval|default:'monthly' }}" data-initial-pricing-currency="{{ pricing_currency|default:'usd' }}">
     <a href="{% url 'pricing' %}" class="back-link"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to pricing</a>
     <div class="section-tag">Custom plan</div>
     <h1 class="section-title" id="custom-heading">Build your own <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">MailPilot plan</span></h1>
@@ -213,8 +213,9 @@
 
       function formatMoney(cents) {
         const suffix = cfg.interval_suffix || '/mo';
+        const symbol = cfg.currency_symbol || '$';
         const amount = (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
-        return '$' + amount + '<span>' + suffix + '</span>';
+        return symbol + amount + '<span>' + suffix + '</span>';
       }
 
       function currentInterval() {
@@ -237,6 +238,10 @@
       document.addEventListener('mailpilot:billing-interval', function (e) {
         const interval = (e.detail && e.detail.interval) || 'monthly';
         reloadConfig(interval);
+      });
+
+      document.addEventListener('mailpilot:pricing-currency', function () {
+        reloadConfig(currentInterval());
       });
 
       let quoteTimer = null;

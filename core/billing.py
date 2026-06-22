@@ -617,30 +617,44 @@ CUSTOM_PRESETS: list[dict[str, Any]] = [
 ]
 
 
-def custom_pricing_config(*, billing_interval: str = "monthly") -> dict[str, Any]:
+def custom_pricing_config(*, billing_interval: str = "monthly", currency: str = "usd") -> dict[str, Any]:
     from core.billing_interval import BILLING_YEARLY, interval_suffix, normalize_billing_interval
+    from core.pricing_currency import (
+        convert_usd_cents,
+        currency_symbol,
+        format_cents,
+        normalize_currency,
+    )
 
     interval = normalize_billing_interval(billing_interval)
+    cur = normalize_currency(currency)
+    sym = currency_symbol(cur)
     yearly_note = ""
     if interval == BILLING_YEARLY:
         yearly_note = " Yearly total = 10× monthly (2 months free)."
+    base_fee = format_cents(convert_usd_cents(CUSTOM_BASE_FEE_CENTS, cur), cur)
+    per_1k = format_cents(convert_usd_cents(CUSTOM_PER_1000_TOKENS_CENTS, cur), cur)
+    per_inbox = format_cents(convert_usd_cents(CUSTOM_PER_INBOX_CENTS, cur), cur)
+    min_price = format_cents(convert_usd_cents(CUSTOM_MIN_PRICE_CENTS, cur), cur)
     return {
         "billing_interval": interval,
+        "pricing_currency": cur,
+        "currency_symbol": sym,
         "interval_suffix": interval_suffix(interval),
-        "base_fee_cents": CUSTOM_BASE_FEE_CENTS,
-        "per_1000_tokens_cents": CUSTOM_PER_1000_TOKENS_CENTS,
-        "per_inbox_cents": CUSTOM_PER_INBOX_CENTS,
+        "base_fee_cents": convert_usd_cents(CUSTOM_BASE_FEE_CENTS, cur),
+        "per_1000_tokens_cents": convert_usd_cents(CUSTOM_PER_1000_TOKENS_CENTS, cur),
+        "per_inbox_cents": convert_usd_cents(CUSTOM_PER_INBOX_CENTS, cur),
         "min_tokens": CUSTOM_MIN_TOKENS,
         "max_tokens": CUSTOM_MAX_TOKENS,
         "min_inboxes": CUSTOM_MIN_INBOXES,
         "max_inboxes": CUSTOM_MAX_INBOXES,
-        "min_price_cents": CUSTOM_MIN_PRICE_CENTS,
+        "min_price_cents": convert_usd_cents(CUSTOM_MIN_PRICE_CENTS, cur),
         "tokens_per_send": CUSTOM_TOKENS_PER_SEND,
         "presets": CUSTOM_PRESETS,
         "yearly_months_paid": 10,
         "formula_note": (
-            f"Pricing: $10 base + $5 per 1,000 tokens + $2.50 per inbox. "
-            f"Minimum $20/mo. Draft mode does not use tokens.{yearly_note}"
+            f"Pricing: {base_fee} base + {per_1k} per 1,000 tokens + {per_inbox} per inbox. "
+            f"Minimum {min_price}/mo. Draft mode does not use tokens.{yearly_note}"
         ),
     }
 
@@ -665,12 +679,21 @@ def calculate_custom_price_cents(tokens: int, inboxes: int) -> int:
     return max(CUSTOM_MIN_PRICE_CENTS, int(raw))
 
 
-def custom_plan_quote_summary(tokens: int, inboxes: int, *, billing_interval: str = "monthly") -> dict[str, Any]:
+def custom_plan_quote_summary(
+    tokens: int,
+    inboxes: int,
+    *,
+    billing_interval: str = "monthly",
+    currency: str = "usd",
+) -> dict[str, Any]:
     from core.billing_interval import custom_cents_for_interval, interval_suffix, normalize_billing_interval
+    from core.pricing_currency import convert_usd_cents, currency_symbol, normalize_currency
 
     tok, boxes = clamp_custom_inputs(tokens, inboxes)
-    monthly_cents = calculate_custom_price_cents(tok, boxes)
+    monthly_usd_cents = calculate_custom_price_cents(tok, boxes)
     interval = normalize_billing_interval(billing_interval)
+    cur = normalize_currency(currency)
+    monthly_cents = convert_usd_cents(monthly_usd_cents, cur)
     price_cents = custom_cents_for_interval(monthly_cents, interval)
     per_send = CUSTOM_TOKENS_PER_SEND
     sends_max = tok // per_send if per_send else 0
@@ -678,6 +701,8 @@ def custom_plan_quote_summary(tokens: int, inboxes: int, *, billing_interval: st
         "tokens": tok,
         "inboxes": boxes,
         "billing_interval": interval,
+        "pricing_currency": cur,
+        "currency_symbol": currency_symbol(cur),
         "price_cents": price_cents,
         "monthly_price_cents": monthly_cents,
         "price_usd": round(price_cents / 100, 2),
