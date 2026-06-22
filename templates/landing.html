@@ -18,7 +18,7 @@
   <meta property="og:locale" content="en_US" />
   {% if seo_og_image %}
   <meta property="og:image" content="{{ seo_og_image }}" />
-  <meta property="og:image:alt" content="MailPilot — AI email automation for Gmail and IMAP" />
+  <meta property="og:image:alt" content="MailPilot | AI email automation for Gmail and IMAP" />
   {% endif %}
 
   <meta name="twitter:card" content="{% if seo_og_image %}summary_large_image{% else %}summary{% endif %}" />
@@ -647,6 +647,7 @@
       position: relative; z-index: 1;
       padding: clamp(56px, 10vw, 80px) clamp(16px, 5vw, 7%);
       text-align: center;
+      overflow: visible;
     }
     .pricing-head-row {
       display: flex; align-items: flex-start; justify-content: space-between;
@@ -725,6 +726,8 @@
       font-size: 0.8rem; color: rgba(148,163,184,0.85); margin-top: 10px;
       max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.5;
     }
+    {% include "components/marketing_pricing_billing_toggle_css.html" %}
+    {% include "components/marketing_pricing_responsive_css.html" %}
     .pricing-intro {
       color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
       margin-left: auto; margin-right: auto; line-height: 1.65;
@@ -751,7 +754,7 @@
       max-width: 1120px; margin-left: auto; margin-right: auto;
       align-items: stretch;
       overflow: visible;
-      padding-top: 14px;
+      padding-top: 22px;
     }
     .pricing-card {
       background: linear-gradient(165deg, rgba(13,18,48,0.65), rgba(10,14,36,0.5));
@@ -761,17 +764,11 @@
       display: flex; flex-direction: column;
       transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s, background 0.25s;
       position: relative;
-      cursor: pointer;
-      user-select: none;
-      outline: none;
     }
     .pricing-card:hover {
       border-color: rgba(79,110,247,0.35);
       box-shadow: 0 24px 48px rgba(0,0,0,0.35);
       transform: translateY(-4px);
-    }
-    .pricing-card:focus-visible {
-      box-shadow: 0 0 0 3px rgba(79,110,247,0.35), 0 24px 48px rgba(0,0,0,0.35);
     }
     .pricing-card.is-active {
       border-color: rgba(79,110,247,0.65);
@@ -806,9 +803,10 @@
       font-weight: 800;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      padding: 6px 16px;
+      padding: 7px 16px 6px;
       border-radius: 50px;
       white-space: nowrap;
+      line-height: 1.25;
       box-shadow: 0 6px 20px rgba(79,110,247,0.35);
       pointer-events: none;
     }
@@ -858,6 +856,7 @@
     .pricing-cta {
       display: block; text-align: center; padding: 13px 20px; border-radius: 50px;
       font-size: 0.9rem; font-weight: 700; text-decoration: none;
+      cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .pricing-cta.primary {
@@ -870,21 +869,6 @@
       color: var(--text); border: 1px solid var(--glass-border);
     }
     .pricing-cta.secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
-    @media (max-width: 900px) {
-      .pricing-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        max-width: 1120px;
-        gap: 18px;
-      }
-      .pricing-head-row { justify-content: center; text-align: center; }
-    }
-    @media (max-width: 600px) {
-      .pricing-grid {
-        grid-template-columns: 1fr;
-        max-width: min(440px, 100%);
-        gap: 16px;
-      }
-    }
 
     /* ── CONTACT FORM ── */
     #contact {
@@ -1519,7 +1503,6 @@
       .pricing-card.is-active { transform: none; }
       .pricing-card.is-active:hover { transform: none; }
       .stat-num { font-size: clamp(1.65rem, 6vw, 2.2rem); }
-      .pricing-price { font-size: clamp(1.75rem, 7vw, 2.35rem); }
       .contact-panel { grid-template-columns: 1fr; gap: 20px; }
       .contact-row2 { grid-template-columns: 1fr; }
       .cta-box { padding: 48px 24px; }
@@ -1585,7 +1568,7 @@
 <section id="hero" aria-labelledby="hero-heading">
   <div class="hero-badge"><span></span> AI-Powered Email Automation</div>
   <h1 id="hero-heading">Your Inbox,<br/><span class="gradient">Fully Automated.</span></h1>
-  <p class="hero-sub">MailPilot reads your emails, checks relevance, crafts intelligent replies using LLMs + RAG knowledge base — and sends them. All on autopilot.</p>
+  <p class="hero-sub">MailPilot reads your emails, checks relevance, crafts intelligent replies using LLMs + RAG knowledge base - and sends them. All on autopilot.</p>
   <div class="hero-btns">
     <a href="{% url 'signup' %}" class="btn-primary">Start Automating →</a>
     <a href="{% url 'how_it_works' %}" class="btn-secondary">See How It Works</a>
@@ -1595,41 +1578,10 @@
     <div class="hero-card">
       <div class="card-topbar">
         <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
-        <div class="card-topbar-title"><i class="fa-solid fa-inbox" aria-hidden="true"></i> MailPilot — Live Inbox</div>
+        <div class="card-topbar-title"><i class="{{ hero_settings.card_icon_class }}" aria-hidden="true"></i> {{ hero_settings.card_title }}</div>
       </div>
       <div class="email-list">
-        <div class="email-item">
-          <div class="email-avatar" style="background:linear-gradient(135deg,#4f6ef7,#a78bfa)">AK</div>
-          <div class="email-meta">
-            <div class="email-from">Alice Kim — Product Inquiry</div>
-            <div class="email-subject">What pricing plans do you offer for enterprise?</div>
-          </div>
-          <div class="email-badge badge-replied">✓ Auto-Replied</div>
-        </div>
-        <div class="email-item">
-          <div class="email-avatar" style="background:linear-gradient(135deg,#38bdf8,#4f6ef7)">RJ</div>
-          <div class="email-meta">
-            <div class="email-from">Raj Joshi — Support Request</div>
-            <div class="email-subject">How do I integrate the Gmail OAuth flow?</div>
-          </div>
-          <div class="email-badge badge-rag"><i class="fa-solid fa-brain" aria-hidden="true"></i> RAG Enhanced</div>
-        </div>
-        <div class="email-item">
-          <div class="email-avatar" style="background:linear-gradient(135deg,#a78bfa,#ec4899)">ML</div>
-          <div class="email-meta">
-            <div class="email-from">Maria Lopez — Partnership</div>
-            <div class="email-subject">Interested in co-marketing collaboration...</div>
-          </div>
-          <div class="email-badge badge-pending">⏳ In Queue</div>
-        </div>
-        <div class="email-item">
-          <div class="email-avatar" style="background:linear-gradient(135deg,#94a3b8,#475569)">NO</div>
-          <div class="email-meta">
-            <div class="email-from">Newsletter — Daily Digest</div>
-            <div class="email-subject">Top stories in AI this week...</div>
-          </div>
-          <div class="email-badge badge-skipped">— Skipped</div>
-        </div>
+        {% include "components/marketing_hero_inbox.html" %}
       </div>
     </div>
   </div>
@@ -1650,39 +1602,10 @@
   <div class="features-head">
     <div class="section-tag"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Core Features</div>
     <h2 class="section-title">Everything you need to <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">automate email at scale</span></h2>
-    <p class="section-sub">Built on Django with a powerful email_automation engine — designed for teams and enterprises.</p>
+    <p class="section-sub">Built on Django with a powerful email_automation engine - designed for teams and enterprises.</p>
   </div>
   <div class="features-grid">
-    <div class="feat-card" style="--card-accent:#4f6ef7">
-      <div class="feat-icon" style="background:rgba(79,110,247,0.15)"><i class="fa-regular fa-envelope" aria-hidden="true"></i></div>
-      <div class="feat-title">Inbox Intelligence</div>
-      <div class="feat-desc">Automatically reads Gmail and IMAP inboxes, filters noise, and identifies emails that need a response — powered by LLM relevance scoring.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#a78bfa">
-      <div class="feat-icon" style="background:rgba(167,139,250,0.15)"><i class="fa-solid fa-brain" aria-hidden="true"></i></div>
-      <div class="feat-title">RAG-Powered Replies</div>
-      <div class="feat-desc">Enriches every AI reply with your own knowledge base via Postgres + pgvector. Answers are grounded in your actual documentation and FAQs.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#38bdf8">
-      <div class="feat-icon" style="background:rgba(56,189,248,0.15)"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div>
-      <div class="feat-title">Secure Multi-Tenancy</div>
-      <div class="feat-desc">Full user isolation — per-user encrypted credentials (Fernet), scoped state store, tenant-prefixed vector DB, and audit logging built in.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#4ade80">
-      <div class="feat-icon" style="background:rgba(74,222,128,0.15)"><i class="fa-solid fa-gear" aria-hidden="true"></i></div>
-      <div class="feat-title">Flexible Scheduling</div>
-      <div class="feat-desc">Runs via APScheduler in-process or scales out with Celery + Redis. Periodic polling, manual triggers, and priority queues all supported.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#fb923c">
-      <div class="feat-icon" style="background:rgba(251,146,60,0.15)"><i class="fa-solid fa-link" aria-hidden="true"></i></div>
-      <div class="feat-title">Gmail OAuth + SMTP/IMAP</div>
-      <div class="feat-desc">Connect via Google OAuth 2.0 or any SMTP/IMAP provider. Per-user token files, automatic refresh, and OAuth callback handling included.</div>
-    </div>
-    <div class="feat-card" style="--card-accent:#f472b6">
-      <div class="feat-icon" style="background:rgba(244,114,182,0.15)"><i class="fa-solid fa-chart-column" aria-hidden="true"></i></div>
-      <div class="feat-title">Dashboard & Audit Trail</div>
-      <div class="feat-desc">Real-time dashboard showing pending queue, sent replies, skipped emails, and full audit logs — all scoped per user account.</div>
-    </div>
+    {% include "components/marketing_feature_cards.html" %}
   </div>
 </section>
 
@@ -1691,75 +1614,10 @@
   <div class="hiw-head">
     <div class="section-tag"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Workflow</div>
     <h2 class="section-title" id="how-it-works-heading">How MailPilot <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">works</span></h2>
-    <p class="section-sub">Six steps matching the live automation pipeline—from inbox poll to reply and per-user state.</p>
+    <p class="section-sub">Six steps matching the live automation pipeline-from inbox poll to reply and per-user state.</p>
   </div>
   <div class="hiw-steps" aria-label="Workflow steps">
-    <article class="hiw-step" data-accent="blue">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-        <span class="hiw-step-badge">01</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 1</span>
-        <h3 class="hiw-step-title">Poll inbox</h3>
-        <p class="hiw-step-desc">Gmail API (recent threads) or IMAP INBOX on a schedule, manual “Run poll”, or IMAP IDLE for faster SMTP inboxes.</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="sky">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        <span class="hiw-step-badge">02</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 2</span>
-        <h3 class="hiw-step-title">Keyword prefilter</h3>
-        <p class="hiw-step-desc">Optional SERVICE_KEYWORDS filter runs first—non-matching mail is skipped before any LLM call.</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="purple">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 7 7 0 0 0-2.526 9.375"/><path d="M12 5a3 3 0 1 1 5.997.125 7 7 0 0 1 2.526 9.375"/><path d="M12 5v14"/><path d="M6 19h12"/></svg>
-        <span class="hiw-step-badge">03</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 3</span>
-        <h3 class="hiw-step-title">RAG lookup</h3>
-        <p class="hiw-step-desc">If your KB is configured: embed subject+body and pull top chunks from Postgres pgvector (JSON upload).</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="pink">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
-        <span class="hiw-step-badge">04</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 4</span>
-        <h3 class="hiw-step-title">AI relevance &amp; reply</h3>
-        <p class="hiw-step-desc">One LLM call returns relevance, confidence, and reply text; must pass your RELEVANCE_THRESHOLD.</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="green">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>
-        <span class="hiw-step-badge">05</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 5</span>
-        <h3 class="hiw-step-title">Draft or auto-send</h3>
-        <p class="hiw-step-desc">REPLY_MODE=draft saves the reply for dashboard review; send delivers immediately via Gmail API or SMTP.</p>
-      </div>
-    </article>
-    <article class="hiw-step" data-accent="orange">
-      <div class="hiw-step-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 18H3"/><path d="M21 18h-8"/><path d="M11 6H3"/><path d="M21 6h-8"/><path d="M7 12h10"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="6" cy="6" r="2"/></svg>
-        <span class="hiw-step-badge">06</span>
-      </div>
-      <div class="hiw-step-body">
-        <span class="hiw-step-label">Step 6</span>
-        <h3 class="hiw-step-title">State &amp; queue</h3>
-        <p class="hiw-step-desc">Per-user processed state avoids duplicates; the dashboard queue shows sent, draft, and ignored activity (account audit in admin).</p>
-      </div>
-    </article>
+    {% include "components/marketing_hiw_steps_home.html" %}
   </div>
 </section>
 
@@ -1767,7 +1625,7 @@
 <section id="testimonials" aria-labelledby="testimonials-heading">
   <div class="section-tag">Social proof</div>
   <h2 class="section-title" id="testimonials-heading">Trusted by <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">teams who live in email</span></h2>
-  <p class="testimonials-intro">Support, sales, and operations leads use MailPilot-style automation to answer faster—without losing tone or accuracy. Here is what they highlight.</p>
+  <p class="testimonials-intro">Support, sales, and operations leads use MailPilot-style automation to answer faster-without losing tone or accuracy. Here is what they highlight.</p>
 
   <div class="trust-strip" aria-hidden="true">
     <span class="trust-strip-label">Teams at</span>
@@ -1778,130 +1636,20 @@
   </div>
 
   <div class="testimonials-grid">
-    <article class="testimonial-card">
-      <div class="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
-      <p class="testimonial-quote">We were drowning in tier‑1 inbox questions. Replies now pull from our product docs automatically—CSAT went up and our queue actually clears by end of day.</p>
-      <p class="testimonial-metric">First-response time cut by roughly half in six weeks</p>
-      <div class="testimonial-footer">
-        <div class="testimonial-avatar" style="--av1:#4f6ef7;--av2:#6366f1">SC</div>
-        <div>
-          <div class="testimonial-name">Sarah Chen</div>
-          <div class="testimonial-role">VP of Operations · Northline Logistics</div>
-        </div>
-      </div>
-    </article>
-
-    <article class="testimonial-card">
-      <div class="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
-      <p class="testimonial-quote">The RAG piece sold us. Generic AI drafts were embarrassing; grounded answers from our own KB sound like us. Onboarding took an afternoon, not a sprint.</p>
-      <p class="testimonial-metric">Audit trail per rep—compliance finally stopped asking for screenshots</p>
-      <div class="testimonial-footer">
-        <div class="testimonial-avatar" style="--av1:#a78bfa;--av2:#c084fc">MW</div>
-        <div>
-          <div class="testimonial-name">Marcus Webb</div>
-          <div class="testimonial-role">Head of Customer Experience · Brightstack</div>
-        </div>
-      </div>
-    </article>
-
-    <article class="testimonial-card">
-      <div class="testimonial-stars" aria-label="5 out of 5 stars">★★★★★</div>
-      <p class="testimonial-quote">I run a small agency—no room for a 24/7 inbox. MailPilot skips newsletters and cold outreach, and only surfaces what needs a human touch. Game changer.</p>
-      <p class="testimonial-metric">~15 hours a week back for billable work</p>
-      <div class="testimonial-footer">
-        <div class="testimonial-avatar" style="--av1:#38bdf8;--av2:#4f6ef7">ER</div>
-        <div>
-          <div class="testimonial-name">Elena Ruiz</div>
-          <div class="testimonial-role">Founder · Studio Meridian</div>
-        </div>
-      </div>
-    </article>
+    {% include "components/marketing_review_cards_home.html" %}
   </div>
 </section>
 
-<!-- PRICING (demo — billing coming soon) -->
-<section id="pricing" aria-labelledby="pricing-heading">
-  <div class="pricing-head-row">
-    <div class="pricing-head-copy">
-      <div class="section-tag">Pricing</div>
-      <h2 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h2>
-      <p class="pricing-intro">Demo pricing preview—choose a send volume that fits your inbox. Paid checkout launches soon.</p>
-      <p class="pricing-demo-note">Limits count automated <strong>sent</strong> replies per month (draft-only mode does not use send quota).</p>
-    </div>
-  </div>
+<!-- PRICING -->
+<section id="pricing" aria-labelledby="pricing-heading" data-initial-billing-interval="{{ billing_interval|default:'monthly' }}" data-initial-pricing-currency="{{ pricing_currency|default:'usd' }}">
+  {% include "components/marketing_pricing_head.html" %}
+  {% include "components/marketing_pricing_billing_toggle.html" %}
 
   <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
-    <article class="pricing-card" role="option" tabindex="0" data-plan="starter" aria-pressed="false" aria-label="Starter plan">
-      <div class="pricing-tier-row">
-        <div class="pricing-tier">Starter</div>
-        <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
-      </div>
-      <div class="pricing-price">$0<span>/mo</span></div>
-      <p class="pricing-period">1 mo trial · then free tier</p>
-      <p class="pricing-desc">Try MailPilot with a full month to connect your inbox, test AI replies, and see relevance filtering in action.</p>
-      <ul class="pricing-features">
-        <li><strong>1 mo</strong> trial access</li>
-        <li><strong>20 sent emails</strong> per month</li>
-        <li>1 connected inbox (Gmail or IMAP)</li>
-        <li>Keyword filter + LLM relevance</li>
-        <li>Dashboard queue &amp; draft mode</li>
-      </ul>
-      <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free trial</a>
-    </article>
-
-    <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
-      <div class="pricing-card-topbar">
-        <span class="pricing-badge">50% launch offer</span>
-      </div>
-      <div class="pricing-tier-row">
-        <div class="pricing-tier">Pro</div>
-        <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
-      </div>
-      <div class="pricing-price-row">
-        <span class="pricing-was">$40</span>
-        <div class="pricing-price">$20<span>/mo</span></div>
-        <span class="pricing-save">Save 50%</span>
-      </div>
-      <p class="pricing-period">Billed monthly · cancel anytime</p>
-      <p class="pricing-desc">Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits.</p>
-      <ul class="pricing-features">
-        <li><strong>1,000 sent emails</strong> per month</li>
-        <li>pgvector RAG (JSON &amp; text upload)</li>
-        <li>Gmail OAuth + SMTP/IMAP</li>
-        <li>APScheduler or Celery polling</li>
-        <li>Per-user encrypted credentials</li>
-        <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-        <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-        <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
-      </ul>
-      <a href="{% url 'signup' %}" class="pricing-cta primary">Get Pro</a>
-    </article>
-
-    <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
-      <div class="pricing-card-topbar">
-        <span class="pricing-badge">Most popular</span>
-      </div>
-      <div class="pricing-tier-row">
-        <div class="pricing-tier">Custom</div>
-        <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
-      </div>
-      <div class="pricing-price">You choose</div>
-      <p class="pricing-period">Set price &amp; send volume</p>
-      <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
-      <ul class="pricing-features">
-        <li><strong>2,000 sends</strong> (4 Gmail/SMTP) → <strong>$30/mo</strong></li>
-        <li><strong>3,000 sends</strong> (6 Gmail/SMTP) → <strong>$40/mo</strong></li>
-        <li>Or define your own tier (e.g. $50 → 5,000 sends)</li>
-        <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-        <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-        <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
-        <li>Annual billing option</li>
-        <li>Priority onboarding &amp; team seats</li>
-      </ul>
-      <a href="{% url 'signup' %}" class="pricing-cta secondary">Build custom plan</a>
-    </article>
+    {% include "components/marketing_pricing_cards.html" %}
   </div>
 </section>
+{% include "components/marketing_pricing_billing_toggle_js.html" %}
 
 <!-- CONTACT -->
 <section id="contact" aria-labelledby="contact-heading">
@@ -1909,11 +1657,11 @@
     <div class="contact-head">
       <div class="section-tag">Get in touch</div>
       <h2 class="section-title" id="contact-heading">Questions before you <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">sign up?</span></h2>
-      <p class="contact-intro">Share your inbox goals—we typically reply within one business day. Or start your free trial below.</p>
+      <p class="contact-intro">Share your inbox goals-we typically reply within one business day. Or start with the free Starter plan below.</p>
     </div>
 
     {% if contact_sent %}
-    <div class="contact-alert ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Thanks — we received your message and will reply soon.</span></div>
+    <div class="contact-alert ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Thanks - we received your message and will reply soon.</span></div>
     {% elif contact_error %}
     <div class="contact-alert err" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>{% if contact_error == "mail" %}Your message was saved, but we could not send email right now. Please try again or email team@timerni.co.uk directly.{% else %}Please enter your name, a valid email, and a message.{% endif %}</span></div>
     {% endif %}
@@ -1932,7 +1680,7 @@
         </figure>
         <div class="contact-aside-body">
           <h3>We help you launch faster</h3>
-          <p>Ask about Gmail vs IMAP, send limits, knowledge base setup, or team onboarding—we will point you to the right plan.</p>
+          <p>Ask about Gmail vs IMAP, send limits, knowledge base setup, or team onboarding-we will point you to the right plan.</p>
           <ul class="contact-perks">
             <li><i class="fa-solid fa-bolt" aria-hidden="true"></i><span>Free trial guidance &amp; inbox connection tips</span></li>
             <li><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>Credentials encrypted per account</span></li>
@@ -2000,67 +1748,15 @@
 <section id="faq" aria-labelledby="faq-heading">
   <div class="faq-wrap">
     <div class="faq-head">
-      <div class="section-tag">FAQ</div>
-      <h2 class="section-title" id="faq-heading">Common <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">questions</span></h2>
-      <p class="faq-intro">Quick answers about setup, routing, knowledge base, and billing. Still stuck? Use the <a href="#contact" style="color:#a5b4fc;">contact form</a> on this page.</p>
+      <div class="section-tag">{{ faq_settings.section_tag }}</div>
+      <h2 class="section-title" id="faq-heading">{{ faq_settings.title_lead }} <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{{ faq_settings.title_highlight }}</span></h2>
+      {% if faq_settings.intro_html %}
+      <p class="faq-intro">{{ faq_settings.intro_html|safe }}</p>
+      {% endif %}
     </div>
 
     <div class="faq-list">
-      <details class="faq-item">
-        <summary>
-          <span class="faq-q"><i class="fa-solid fa-envelope" aria-hidden="true"></i><span>What does MailPilot do?</span></span>
-          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
-        </summary>
-        <p class="faq-a">MailPilot connects to your Gmail or IMAP inbox, filters incoming mail with keywords and AI relevance, grounds replies in your knowledge base, and can send or draft responses automatically.</p>
-      </details>
-
-      <details class="faq-item">
-        <summary>
-          <span class="faq-q"><i class="fa-solid fa-filter" aria-hidden="true"></i><span>Does it reply to every email?</span></span>
-          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
-        </summary>
-        <p class="faq-a">No. You set <strong>keywords</strong> and a <strong>relevance threshold</strong> so only service-related messages are handled. Unrelated mail is ignored. Start with <strong>draft</strong> mode to review before enabling auto-send.</p>
-      </details>
-
-      <details class="faq-item">
-        <summary>
-          <span class="faq-q"><i class="fa-brands fa-google" aria-hidden="true"></i><span>Gmail or SMTP/IMAP—which should I use?</span></span>
-          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
-        </summary>
-        <p class="faq-a"><strong>Gmail OAuth</strong> is the fastest setup for Google Workspace or personal Gmail. Use <strong>SMTP + IMAP</strong> for other providers. You can test the connection in Setup before going live.</p>
-      </details>
-
-      <details class="faq-item">
-        <summary>
-          <span class="faq-q"><i class="fa-solid fa-brain" aria-hidden="true"></i><span>How does the knowledge base work?</span></span>
-          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
-        </summary>
-        <p class="faq-a">Upload JSON or text, or crawl your website. MailPilot chunks content, stores embeddings in PostgreSQL with pgvector, and pulls the best matches into each AI reply.</p>
-      </details>
-
-      <details class="faq-item">
-        <summary>
-          <span class="faq-q"><i class="fa-solid fa-gift" aria-hidden="true"></i><span>Is there a free trial?</span></span>
-          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
-        </summary>
-        <p class="faq-a">Yes. The <strong>Starter</strong> plan includes a one-month trial with a monthly send limit so you can connect an inbox and test relevance filtering before paid plans launch.</p>
-      </details>
-
-      <details class="faq-item">
-        <summary>
-          <span class="faq-q"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>How is my data protected?</span></span>
-          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
-        </summary>
-        <p class="faq-a">Credentials and API keys are stored encrypted per account. See our <a href="{% url 'privacy' %}">Privacy Policy</a> for more detail.</p>
-      </details>
-
-      <details class="faq-item">
-        <summary>
-          <span class="faq-q"><i class="fa-solid fa-credit-card" aria-hidden="true"></i><span>When will paid plans be available?</span></span>
-          <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
-        </summary>
-        <p class="faq-a">Pro and Custom plans are marked <strong>Coming soon</strong> on pricing. Sign up for the free trial now; contact us for agency or high-volume pricing.</p>
-      </details>
+      {% include "components/marketing_faq.html" %}
     </div>
   </div>
 </section>
@@ -2213,37 +1909,18 @@ if(card) {
   });
 })();
 
-// Pricing plan selection (click to activate)
+// Highlight the user's current plan; navigation is via CTA links only
 (function () {
-  const grid = document.querySelector('#pricing .pricing-grid');
+  const grid = document.querySelector('#pricing .pricing-grid') || document.querySelector('main .pricing-grid');
   if (!grid) return;
-  const cards = Array.from(grid.querySelectorAll('.pricing-card[data-plan]'));
-  if (!cards.length) return;
-
-  function activate(card) {
-    cards.forEach((c) => {
-      const on = c === card;
-      c.classList.toggle('is-active', on);
-      c.setAttribute('aria-pressed', on ? 'true' : 'false');
+  const currentPlan = '{{ current_plan_code|default:""|escapejs }}';
+  if (!currentPlan) return;
+  const cur = grid.querySelector('.pricing-card[data-plan="' + currentPlan + '"]');
+  if (cur) {
+    grid.querySelectorAll('.pricing-card[data-plan]').forEach((c) => {
+      c.classList.toggle('is-active', c === cur);
     });
   }
-
-  cards.forEach((card) => {
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.pricing-cta')) return;
-      activate(card);
-    });
-    card.addEventListener('keydown', (e) => {
-      if (e.target.closest('.pricing-cta')) return;
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        activate(card);
-      }
-    });
-    card.querySelectorAll('.pricing-cta').forEach((btn) => {
-      btn.addEventListener('click', (e) => e.stopPropagation());
-    });
-  });
 })();
 
 // FAQ: one open at a time (optional accordion)
@@ -2258,6 +1935,16 @@ if(card) {
       });
     });
   });
+})();
+</script>
+<script>
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('plan') !== 'custom') return;
+  const msg = document.getElementById('contact-message');
+  if(!msg || (msg.value || '').trim()) return;
+  msg.value = 'I would like a Custom MailPilot plan (tokens, inboxes, and monthly price). Please contact me with options.';
+  msg.focus();
 })();
 </script>
 </body>

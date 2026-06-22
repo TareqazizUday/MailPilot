@@ -1,0 +1,93 @@
+{% for plan in pricing_plans %}
+<article
+  class="pricing-card{% if plan.top_badge %} has-badge{% endif %}{% if plan.is_featured %} is-active{% endif %}"
+  data-plan="{{ plan.plan_code }}"
+  data-monthly-price="{{ plan.price_display }}"
+  data-monthly-suffix="{{ plan.price_suffix }}"
+  data-monthly-was="{{ plan.price_was }}"
+  data-monthly-save="{{ plan.price_save_label }}"
+  data-monthly-period="{{ plan.period_text }}"
+  data-yearly-price="{{ plan.display_yearly_price }}"
+  data-yearly-suffix="{{ plan.display_yearly_suffix }}"
+  data-yearly-was="{{ plan.display_yearly_was }}"
+  data-yearly-save="{{ plan.display_yearly_save }}"
+  data-yearly-period="{{ plan.display_yearly_period }}"
+  data-monthly-price-usd="{{ plan.currency_variants.usd.monthly_price }}"
+  data-monthly-suffix-usd="{{ plan.currency_variants.usd.monthly_suffix }}"
+  data-monthly-was-usd="{{ plan.currency_variants.usd.monthly_was }}"
+  data-monthly-save-usd="{{ plan.currency_variants.usd.monthly_save }}"
+  data-monthly-period-usd="{{ plan.currency_variants.usd.monthly_period }}"
+  data-yearly-price-usd="{{ plan.currency_variants.usd.yearly_price }}"
+  data-yearly-suffix-usd="{{ plan.currency_variants.usd.yearly_suffix }}"
+  data-yearly-was-usd="{{ plan.currency_variants.usd.yearly_was }}"
+  data-yearly-save-usd="{{ plan.currency_variants.usd.yearly_save }}"
+  data-yearly-period-usd="{{ plan.currency_variants.usd.yearly_period }}"
+  data-monthly-price-gbp="{{ plan.currency_variants.gbp.monthly_price }}"
+  data-monthly-suffix-gbp="{{ plan.currency_variants.gbp.monthly_suffix }}"
+  data-monthly-was-gbp="{{ plan.currency_variants.gbp.monthly_was }}"
+  data-monthly-save-gbp="{{ plan.currency_variants.gbp.monthly_save }}"
+  data-monthly-period-gbp="{{ plan.currency_variants.gbp.monthly_period }}"
+  data-yearly-price-gbp="{{ plan.currency_variants.gbp.yearly_price }}"
+  data-yearly-suffix-gbp="{{ plan.currency_variants.gbp.yearly_suffix }}"
+  data-yearly-was-gbp="{{ plan.currency_variants.gbp.yearly_was }}"
+  data-yearly-save-gbp="{{ plan.currency_variants.gbp.yearly_save }}"
+  data-yearly-period-gbp="{{ plan.currency_variants.gbp.yearly_period }}"
+  data-monthly-price-eur="{{ plan.currency_variants.eur.monthly_price }}"
+  data-monthly-suffix-eur="{{ plan.currency_variants.eur.monthly_suffix }}"
+  data-monthly-was-eur="{{ plan.currency_variants.eur.monthly_was }}"
+  data-monthly-save-eur="{{ plan.currency_variants.eur.monthly_save }}"
+  data-monthly-period-eur="{{ plan.currency_variants.eur.monthly_period }}"
+  data-yearly-price-eur="{{ plan.currency_variants.eur.yearly_price }}"
+  data-yearly-suffix-eur="{{ plan.currency_variants.eur.yearly_suffix }}"
+  data-yearly-was-eur="{{ plan.currency_variants.eur.yearly_was }}"
+  data-yearly-save-eur="{{ plan.currency_variants.eur.yearly_save }}"
+  data-yearly-period-eur="{{ plan.currency_variants.eur.yearly_period }}"
+  aria-label="{{ plan.tier_label }} plan"
+>
+  {% if plan.top_badge %}
+  <div class="pricing-card-topbar">
+    <span class="pricing-badge">{{ plan.top_badge }}</span>
+  </div>
+  {% endif %}
+  <div class="pricing-tier-row">
+    <div class="pricing-tier">{{ plan.tier_label }}</div>
+    {% if plan.ribbon_type == "free" %}
+    <span class="pricing-card-free"><i class="{{ plan.ribbon_icon_class }}" aria-hidden="true"></i> {{ plan.ribbon_label }}</span>
+    {% elif plan.ribbon_type == "soon" %}
+    <span class="pricing-card-soon"><i class="{{ plan.ribbon_icon_class }}" aria-hidden="true"></i> {{ plan.ribbon_label }}</span>
+    {% endif %}
+  </div>
+  {% if plan.price_display %}
+  <div class="pricing-price-row" data-pricing-was-row {% if not plan.price_was %}hidden{% endif %}>
+    <span class="pricing-was" data-pricing-was>{{ plan.price_was }}</span>
+    <div class="pricing-price"><span data-pricing-price>{{ plan.price_display }}</span><span data-pricing-suffix>{{ plan.price_suffix }}</span></div>
+    {% if plan.price_save_label %}<span class="pricing-save" data-pricing-save>{{ plan.price_save_label }}</span>{% else %}<span class="pricing-save" data-pricing-save hidden></span>{% endif %}
+  </div>
+  <div class="pricing-price pricing-price-simple" data-pricing-simple-row {% if plan.price_was %}hidden{% endif %}>
+    <span data-pricing-price-simple>{{ plan.price_display }}</span><span data-pricing-suffix-simple>{{ plan.price_suffix }}</span>
+  </div>
+  {% endif %}
+  <p class="pricing-period" data-pricing-period>{{ plan.period_text }}</p>
+  <p class="pricing-desc">{{ plan.description }}</p>
+  <ul class="pricing-features">
+    {% for line in plan.feature_lines %}
+    <li><span class="pricing-feature-text">{{ line|safe }}</span></li>
+    {% endfor %}
+  </ul>
+  {% if plan.plan_code == "starter" %}
+  <a
+    href="{% if user.is_authenticated %}{% if starter_expired %}{% url 'pricing' %}{% else %}{% url 'profile' %}{% endif %}{% else %}{% url 'login' %}{% endif %}"
+    class="pricing-cta {{ plan.cta_style }}"
+    {% if plan.plan_code == "starter" %}id="starterCta" data-auth="{% if user.is_authenticated %}1{% else %}0{% endif %}"{% endif %}
+  >{% if user.is_authenticated %}{% if starter_expired %}{{ plan.cta_label_starter_expired|default:"Upgrade required" }}{% else %}{{ plan.cta_label_authenticated|default:plan.cta_label }}{% endif %}{% else %}{{ plan.cta_label }}{% endif %}</a>
+  {% elif plan.plan_code == "pro" %}
+  <a href="{% if user.is_authenticated %}{% url 'billing_checkout_pro' %}{% else %}{% url 'signup' %}{% endif %}" class="pricing-cta {{ plan.cta_style }}">{{ plan.cta_label }}</a>
+  {% elif plan.plan_code == "custom" %}
+  <a href="{% url 'custom_plan_builder' %}" class="pricing-cta {{ plan.cta_style }}">{{ plan.cta_label }}</a>
+  {% else %}
+  <a href="{% url 'signup' %}" class="pricing-cta {{ plan.cta_style }}">{{ plan.cta_label }}</a>
+  {% endif %}
+</article>
+{% empty %}
+<p class="pricing-intro" style="grid-column:1/-1;text-align:center;">Pricing plans will appear here once published in admin.</p>
+{% endfor %}

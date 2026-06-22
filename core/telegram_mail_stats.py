@@ -210,7 +210,7 @@ def collect_mail_stats(user) -> MailStatsSummary:
 
 def format_mail_stats_reply(user) -> str:
     summary = collect_mail_stats(user)
-    lines = [f"MailPilot inbox — {summary.date_label}", ""]
+    lines = [f"MailPilot inbox - {summary.date_label}", ""]
     if not summary.accounts:
         lines.append("No enabled mailbox found. Connect Gmail or SMTP in Setup.")
         return "\n".join(lines)
@@ -219,7 +219,7 @@ def format_mail_stats_reply(user) -> str:
         name = acc.email or acc.label or "Mailbox"
         lines.append(f"{name} ({'Gmail' if acc.transport == TRANSPORT_GMAIL else 'SMTP'}):")
         if not acc.connected:
-            lines.append(f"  Not connected — {acc.error or 'check Setup'}")
+            lines.append(f"  Not connected - {acc.error or 'check Setup'}")
             lines.append("")
             continue
         lines.append(f"  Inbox today: {acc.inbox_today}")

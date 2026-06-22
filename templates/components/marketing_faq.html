@@ -1,0 +1,11 @@
+{% for item in faq_items %}
+<details class="faq-item">
+  <summary>
+    <span class="faq-q"><i class="{{ item.icon_class }}" aria-hidden="true"></i><span>{{ item.question }}</span></span>
+    <span class="faq-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+  </summary>
+  <p class="faq-a">{{ item.answer_html|safe }}</p>
+</details>
+{% empty %}
+<p class="faq-intro">FAQ items will appear here once published in admin.</p>
+{% endfor %}

@@ -1,0 +1,16 @@
+{% for review in marketing_reviews %}
+<article class="card">
+  <div class="stars" aria-label="{{ review.rating }} out of 5 stars">{{ review.stars_display }}</div>
+  <div class="quote">{{ review.quote }}</div>
+  {% if review.metric %}<div class="metric">{{ review.metric }}</div>{% endif %}
+  <div class="who">
+    <div class="av" style="{{ review.avatar_style_page }}">{{ review.avatar_initials }}</div>
+    <div>
+      <div class="name">{{ review.author_name }}</div>
+      <div class="role">{{ review.author_role }}</div>
+    </div>
+  </div>
+</article>
+{% empty %}
+<p class="sub" style="grid-column:1/-1;text-align:center;">Reviews will appear here once published in admin.</p>
+{% endfor %}

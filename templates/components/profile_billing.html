@@ -1,0 +1,66 @@
+<div class="sec" style="margin-top:14px;" id="profileBillingSec">
+  <div class="sec-title"><i class="fa-solid fa-coins" aria-hidden="true"></i> Plan &amp; tokens</div>
+  {% if plan_activated %}
+  <div class="bill-activated">
+  Plan activated. Your token allowance is shown below{% if bill_plan == "starter" %} - <strong>{{ bill_starter_sends_limit }}</strong> auto-sent emails total on Starter{% endif %}.
+  </div>
+  {% endif %}
+  {% if bill_starter_expired %}
+  <div class="bill-activated" style="border-color:rgba(251,191,36,0.45);background:rgba(251,191,36,0.08);color:#fde68a;">
+    <strong>Starter trial ended.</strong> You used all {{ bill_starter_sends_limit }} auto-sends. Upgrade to <a href="{% url 'billing_checkout_pro' %}" style="color:#a5b4fc;">Pro</a> or <a href="{% url 'billing_custom_request' %}" style="color:#a5b4fc;">Custom</a> to keep sending.
+  </div>
+  {% endif %}
+  <div class="bill-grid">
+    <div class="bill-stat">
+      <div class="bill-stat-k">Current plan</div>
+      <div class="bill-stat-v" id="billPlanName">{{ bill_plan|title }}</div>
+      <div class="bill-stat-s">Period: <span id="billPeriod">{{ bill_period }}</span></div>
+    </div>
+    <div class="bill-stat">
+      <div class="bill-stat-k">Tokens used</div>
+      <div class="bill-stat-v">
+        <span id="billTokUsed">{{ bill_tok_used }}</span>
+        /
+        <span id="billTokLimit">{% if bill_tok_unlimited %}∞{% else %}{{ bill_tok_limit }}{% endif %}</span>
+      </div>
+      <div class="bill-stat-s">
+        <span id="billTokLeft">{% if bill_tok_unlimited %}Unlimited{% else %}{{ bill_tok_left }}{% endif %}</span>
+        {% if not bill_tok_unlimited %} tokens left this month{% endif %}
+      </div>
+    </div>
+    <div class="bill-stat">
+      <div class="bill-stat-k">Auto-send quota</div>
+      <div class="bill-stat-v" id="billSendsStat">
+        {% if bill_tok_unlimited %}Unlimited{% else %}{{ bill_sends_left }}/{{ bill_sends_max }}{% endif %}
+      </div>
+      <div class="bill-stat-s"><span id="billSendsSub">{{ bill_tok_per_send }} tokens per auto-sent email</span></div>
+    </div>
+  </div>
+  {% if not bill_tok_unlimited %}
+  <div class="bill-bar-wrap">
+    <div class="bill-bar-label">
+      <span>Monthly token usage</span>
+      <span id="billTokBarLabel">{{ bill_tok_used }} used · {{ bill_tok_left }} left of {{ bill_tok_limit }}</span>
+    </div>
+    <div class="bill-bar" aria-hidden="true">
+      <div class="bill-bar-fill{% if bill_tok_pct >= 80 %} warn{% endif %}" id="billTokBar" style="width:{{ bill_tok_pct }}%;"></div>
+    </div>
+  </div>
+  {% endif %}
+  <div class="bill-note" id="billNote">
+    {% if bill_plan == "starter" %}
+    <strong>Starter trial:</strong> {{ bill_starter_sends_used }}/{{ bill_starter_sends_limit }} auto-sends used
+    ({{ bill_tok_per_send }} tokens each, {{ bill_tok_limit }} total).{% if bill_starter_expired %}
+    Trial ended - upgrade to send again.{% else %}
+    You have <strong id="billSendsLeftNote">{{ bill_sends_left }}</strong> auto-send{{ bill_sends_left|pluralize }} left.{% endif %}
+    {% else %}
+    Each auto-sent reply uses <strong>{{ bill_tok_per_send }} tokens</strong>. Draft mode does not use tokens.
+    {% endif %}
+    Set <strong>Reply mode → Send</strong> in Setup to test token deduction.
+  </div>
+  <div class="bill-actions">
+    <a class="btn-soft" href="{% url 'pricing' %}"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> View plans</a>
+    <a class="btn-soft" href="{% url 'setup' %}"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Setup &amp; reply mode</a>
+    <a class="btn-soft" href="{% url 'dashboard' %}"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Dashboard</a>
+  </div>
+</div>

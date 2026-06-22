@@ -31,10 +31,15 @@ def count_enabled(user: User, transport: str) -> int:
 
 
 def can_enable_more(user: User, transport: str, *, excluding_account_id: int | None = None) -> bool:
-    qs = list_accounts_for_user(user, transport=transport).filter(is_enabled=True)
-    if excluding_account_id:
-        qs = qs.exclude(pk=excluding_account_id)
-    return qs.count() < max_active_accounts()
+    try:
+        from core.billing import can_enable_mailbox
+
+        return can_enable_mailbox(user, excluding_account_id=excluding_account_id).allowed
+    except Exception:
+        qs = list_accounts_for_user(user, transport=transport).filter(is_enabled=True)
+        if excluding_account_id:
+            qs = qs.exclude(pk=excluding_account_id)
+        return qs.count() < max_active_accounts()
 
 
 TRANSPORT_GMAIL = "gmail_api"
@@ -233,6 +238,16 @@ def create_account(
     slot = next_free_slot(user, transport)
     if slot is None:
         raise ValueError(f"Maximum {MAX_SLOTS_PER_TRANSPORT} {transport} accounts reached")
+    try:
+        from core.billing import can_enable_mailbox
+
+        gate = can_enable_mailbox(user)
+        if not gate.allowed:
+            raise ValueError(gate.reason or "plan_inbox_limit_reached")
+    except ValueError:
+        raise
+    except Exception:
+        pass
 
     cfg: dict[str, Any] = {}
     if transport == TRANSPORT_GMAIL and gmail_address:
@@ -529,7 +544,7 @@ def transport_summary(user: User) -> dict[str, Any]:
     tr = transport_for_mode(mode)
     accounts = list(list_accounts_for_user(user, transport=tr))
     enabled = [a for a in accounts if a.is_enabled]
-    return {
+    summary: dict[str, Any] = {
         "active_mode": mode,
         "send_transport": tr,
         "total_slots": len(accounts),
@@ -537,3 +552,26 @@ def transport_summary(user: User) -> dict[str, Any]:
         "max_slots": MAX_SLOTS_PER_TRANSPORT,
         "max_active": max_active_accounts(),
     }
+    try:
+        from core.billing import can_enable_mailbox, usage_summary
+
+        billing = usage_summary(user)
+        inboxes = billing.get("active_inboxes") or {}
+        plan = billing.get("plan") or {}
+        gate = can_enable_mailbox(user)
+        summary.update(
+            {
+                "plan_code": plan.get("code"),
+                "plan_inbox_limit": inboxes.get("limit"),
+                "plan_inbox_used": inboxes.get("used"),
+                "plan_inbox_left": inboxes.get("left"),
+                "can_add_mailbox": gate.allowed,
+                "gate_reason": gate.reason or "",
+                "payment_required": gate.reason == "payment_required",
+                "starter_trial_expired": bool(plan.get("starter_expired")),
+                "features": billing.get("features") or {},
+            }
+        )
+    except Exception:
+        summary["can_add_mailbox"] = True
+    return summary

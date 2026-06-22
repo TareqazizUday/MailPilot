@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MailPilot — Features</title>
+  <title>MailPilot | Features</title>
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#060818" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -96,40 +96,11 @@
     <div class="page-head">
       <div class="tag"><span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block;"></span> Features</div>
       <h1>Everything you need to <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">automate email</span></h1>
-      <p class="sub">MailPilot gives you relevance filtering, RAG grounding, and safe automation controls—so your team replies faster without losing quality.</p>
+      <p class="sub">MailPilot gives you relevance filtering, RAG grounding, and safe automation controls-so your team replies faster without losing quality.</p>
     </div>
 
     <div class="features-grid" aria-label="Core features">
-      <div class="feat-card" style="--card-accent:#4f6ef7">
-        <div class="feat-icon" style="background:rgba(79,110,247,0.15)"><i class="fa-regular fa-envelope" aria-hidden="true"></i></div>
-        <div class="feat-title">Inbox Intelligence</div>
-        <div class="feat-desc">Automatically reads Gmail and IMAP inboxes, filters noise, and identifies emails that need a response — powered by LLM relevance scoring.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#a78bfa">
-        <div class="feat-icon" style="background:rgba(167,139,250,0.15)"><i class="fa-solid fa-brain" aria-hidden="true"></i></div>
-        <div class="feat-title">RAG-Powered Replies</div>
-        <div class="feat-desc">Enriches every AI reply with your knowledge base via Postgres + pgvector. Answers are grounded in your documentation and FAQs.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#38bdf8">
-        <div class="feat-icon" style="background:rgba(56,189,248,0.15)"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div>
-        <div class="feat-title">Secure Multi-Tenancy</div>
-        <div class="feat-desc">Per-user isolation — scoped credentials, tenant-prefixed state, and audit logging built in.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#4ade80">
-        <div class="feat-icon" style="background:rgba(74,222,128,0.15)"><i class="fa-solid fa-gear" aria-hidden="true"></i></div>
-        <div class="feat-title">Flexible Scheduling</div>
-        <div class="feat-desc">Runs in-process or scales with Celery + Redis. Periodic polling, manual triggers, and queue support.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#fb923c">
-        <div class="feat-icon" style="background:rgba(251,146,60,0.15)"><i class="fa-solid fa-link" aria-hidden="true"></i></div>
-        <div class="feat-title">Gmail OAuth + SMTP/IMAP</div>
-        <div class="feat-desc">Connect via Google OAuth 2.0 or any SMTP/IMAP provider. Token refresh and callback handling included.</div>
-      </div>
-      <div class="feat-card" style="--card-accent:#f472b6">
-        <div class="feat-icon" style="background:rgba(244,114,182,0.15)"><i class="fa-solid fa-chart-column" aria-hidden="true"></i></div>
-        <div class="feat-title">Dashboard &amp; Audit Trail</div>
-        <div class="feat-desc">See pending queue, sent replies, skipped emails, and audit logs — scoped to your account.</div>
-      </div>
+      {% include "components/marketing_feature_cards.html" %}
     </div>
   </main>
 

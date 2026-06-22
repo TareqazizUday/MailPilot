@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MailPilot — Reviews</title>
+  <title>MailPilot | Reviews</title>
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#060818" />
   {% include "components/favicon.html" %}
@@ -90,42 +90,7 @@
     </div>
 
     <div class="reviews-grid" aria-label="Customer reviews">
-      <article class="card">
-        <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
-        <div class="quote">We cut response time by hours. The drafts are surprisingly accurate once we uploaded our FAQ JSON.</div>
-        <div class="metric">~40% fewer “where is…” tickets</div>
-        <div class="who">
-          <div class="av" style="--a1:#38bdf8;--a2:#4f6ef7">AK</div>
-          <div>
-            <div class="name">Ayesha Khan</div>
-            <div class="role">Ops Lead · GrowthDesk</div>
-          </div>
-        </div>
-      </article>
-      <article class="card">
-        <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
-        <div class="quote">The relevance filter is the win. MailPilot skips newsletters and only surfaces what needs action.</div>
-        <div class="metric">~15 hours/week saved</div>
-        <div class="who">
-          <div class="av" style="--a1:#a78bfa;--a2:#ec4899">ER</div>
-          <div>
-            <div class="name">Elena Ruiz</div>
-            <div class="role">Founder · Studio Meridian</div>
-          </div>
-        </div>
-      </article>
-      <article class="card">
-        <div class="stars" aria-label="5 out of 5 stars">★★★★★</div>
-        <div class="quote">RAG grounding makes replies consistent with our docs. We reduced escalations after enabling approval mode.</div>
-        <div class="metric">Fewer escalations, better tone</div>
-        <div class="who">
-          <div class="av" style="--a1:#4ade80;--a2:#22c55e">ML</div>
-          <div>
-            <div class="name">Mehedi Labib</div>
-            <div class="role">CX Manager · Brightstack</div>
-          </div>
-        </div>
-      </article>
+      {% include "components/marketing_review_cards_page.html" %}
     </div>
   </main>
 

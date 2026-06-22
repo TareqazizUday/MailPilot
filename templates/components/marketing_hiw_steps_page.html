@@ -1,0 +1,9 @@
+{% for step in how_it_works_steps %}
+<div class="step">
+  <div class="step-num">{{ forloop.counter }}</div>
+  <div class="step-title">{{ step.title }}</div>
+  <div class="step-desc">{{ step.description }}</div>
+</div>
+{% empty %}
+<p class="sub" style="grid-column:1/-1;">Workflow steps will appear here once published in admin.</p>
+{% endfor %}

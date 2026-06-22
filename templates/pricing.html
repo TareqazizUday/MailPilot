@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MailPilot — Pricing</title>
+  <title>MailPilot | Pricing</title>
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#060818" />
   {% include "components/favicon.html" %}
@@ -36,34 +36,30 @@
     {% include "components/marketing_nav_css.html" %}
     {% include "components/marketing_page_layout_css.html" %}
     main.mp-marketing-main { text-align: center; }
-    .section-tag {
-      font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px;
-      text-transform: uppercase; color: #a78bfa; margin-bottom: 14px;
+    .page-head { max-width: 1120px; margin: 0 auto 18px; text-align: center; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 999px;
+      border: 1px solid rgba(79,110,247,0.35);
+      background: rgba(79,110,247,0.10);
+      color: #a5b4fc;
+      font-size: 0.78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
     }
-    .section-title {
+    .page-head .section-title {
+      margin-top: 14px;
       font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800;
       letter-spacing: -1px; line-height: 1.2;
     }
-    .pricing-head-row {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 20px; flex-wrap: wrap; max-width: 1120px; margin: 0 auto;
-      text-align: left;
-    }
-    .pricing-head-copy { flex: 1; min-width: 240px; text-align: center; }
-    .pricing-head-copy .section-tag,
-    .pricing-head-copy .section-title,
-    .pricing-head-copy .pricing-intro,
-    .pricing-head-copy .pricing-demo-note { margin-left: auto; margin-right: auto; }
-    .pricing-head-copy .pricing-intro,
-    .pricing-head-copy .pricing-demo-note { text-align: center; }
     .pricing-intro {
-      color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
+      color: var(--muted); font-size: 1rem; margin: 10px auto 0; max-width: 760px;
       line-height: 1.65;
     }
     .pricing-demo-note {
-      font-size: 0.8rem; color: rgba(148,163,184,0.85); margin-top: 10px;
-      max-width: 520px; line-height: 1.5;
+      font-size: 0.8rem; color: rgba(148,163,184,0.85); margin: 10px auto 0;
+      max-width: 760px; line-height: 1.5;
     }
+    {% include "components/marketing_pricing_billing_toggle_css.html" %}
+    {% include "components/marketing_pricing_responsive_css.html" %}
     .pricing-card-soon {
       display: inline-flex; align-items: center; gap: 5px;
       padding: 5px 10px; border-radius: 50px;
@@ -132,7 +128,7 @@
       display: grid; grid-template-columns: repeat(3, 1fr);
       gap: 22px; margin-top: 48px; text-align: left;
       max-width: 1120px; margin-left: auto; margin-right: auto;
-      align-items: stretch; overflow: visible; padding-top: 14px;
+      align-items: stretch; overflow: visible; padding-top: 22px;
     }
     .pricing-card {
       background: linear-gradient(165deg, rgba(13,18,48,0.65), rgba(10,14,36,0.5));
@@ -141,15 +137,12 @@
       backdrop-filter: blur(12px);
       display: flex; flex-direction: column;
       transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s, background 0.25s;
-      position: relative; cursor: pointer; user-select: none; outline: none;
+      position: relative;
     }
     .pricing-card:hover {
       border-color: rgba(79,110,247,0.35);
       box-shadow: 0 24px 48px rgba(0,0,0,0.35);
       transform: translateY(-4px);
-    }
-    .pricing-card:focus-visible {
-      box-shadow: 0 0 0 3px rgba(79,110,247,0.35), 0 24px 48px rgba(0,0,0,0.35);
     }
     .pricing-card.is-active {
       border-color: rgba(79,110,247,0.65);
@@ -178,7 +171,8 @@
       color: #fff;
       font-size: clamp(0.58rem, 1.8vw, 0.68rem);
       font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
-      padding: 6px 16px; border-radius: 50px; white-space: nowrap;
+      padding: 7px 16px 6px; border-radius: 50px; white-space: nowrap;
+      line-height: 1.25;
       box-shadow: 0 6px 20px rgba(79,110,247,0.35);
       pointer-events: none;
     }
@@ -214,6 +208,7 @@
     .pricing-cta {
       display: block; text-align: center; padding: 13px 20px; border-radius: 50px;
       font-size: 0.9rem; font-weight: 700; text-decoration: none;
+      cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .pricing-cta.primary {
@@ -243,27 +238,7 @@
     {% include "components/footer_css.html" %}
 
     @media (max-width: 1100px) {
-      .pricing-head-row { justify-content: center; text-align: center; }
-    }
-    @media (max-width: 768px) {
-      .pricing-grid { margin-top: 36px; }
-      .pricing-card { padding: 24px 18px 22px; }
-      .pricing-card.is-active { animation: none; transform: none; }
-      .pricing-card.is-active:hover { transform: none; }
-      .pricing-price { font-size: 2rem; }
-    }
-    @media (max-width: 480px) {
-      .pricing-badge { padding: 5px 10px; font-size: 0.56rem; letter-spacing: 0.04em; }
-      .pricing-card.has-badge { padding-top: 44px; }
-      .pricing-card.is-active .pricing-tier-row { padding-left: 0; padding-top: 28px; }
-      .pricing-tier-row { flex-wrap: wrap; row-gap: 6px; }
-      .pricing-card.has-badge.is-active::before { top: 36px; }
-      .pricing-card-soon { font-size: 0.56rem; padding: 4px 7px; }
-      .section-title { font-size: clamp(1.45rem, 7vw, 1.85rem); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .pricing-card.is-active { animation: none; }
-      .pricing-card-topbar .pricing-badge { animation: none; }
+      .page-head { text-align: center; }
     }
   </style>
 </head>
@@ -275,120 +250,30 @@
   {% include "components/marketing_nav.html" %}
   {% include "components/marketing_nav_js.html" %}
 
-  <main class="mp-marketing-main" aria-labelledby="pricing-heading">
-    <div class="pricing-head-row">
-      <div class="pricing-head-copy">
-        <div class="section-tag">Pricing</div>
-        <h1 class="section-title" id="pricing-heading">Simple plans for <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">every inbox size</span></h1>
-        <p class="pricing-intro">Demo pricing preview—choose a send volume that fits your inbox. Paid checkout launches soon.</p>
-        <p class="pricing-demo-note">Limits count automated <strong>sent</strong> replies per month (draft-only mode does not use send quota).</p>
-      </div>
-    </div>
+  <main id="pricing" class="mp-marketing-main" aria-labelledby="pricing-heading" data-initial-billing-interval="{{ billing_interval|default:'monthly' }}" data-initial-pricing-currency="{{ pricing_currency|default:'usd' }}">
+    {% include "components/marketing_pricing_head.html" with pricing_heading_tag="h1" pricing_pill_tag=True %}
+    {% include "components/marketing_pricing_billing_toggle.html" %}
 
     <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
-      <article class="pricing-card" role="option" tabindex="0" data-plan="starter" aria-pressed="false" aria-label="Starter plan">
-        <div class="pricing-tier-row">
-          <div class="pricing-tier">Starter</div>
-          <span class="pricing-card-free"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Free</span>
-        </div>
-        <div class="pricing-price">$0<span>/mo</span></div>
-        <p class="pricing-period">1 mo trial · then free tier</p>
-        <p class="pricing-desc">Try MailPilot with a full month to connect your inbox, test AI replies, and see relevance filtering in action.</p>
-        <ul class="pricing-features">
-          <li><strong>1 mo</strong> trial access</li>
-          <li><strong>20 sent emails</strong> per month</li>
-          <li>1 connected inbox (Gmail or IMAP)</li>
-          <li>Keyword filter + LLM relevance</li>
-          <li>Dashboard queue &amp; draft mode</li>
-        </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta secondary">Start free trial</a>
-      </article>
-
-      <article class="pricing-card has-badge is-active" role="option" tabindex="0" data-plan="pro" aria-pressed="true" aria-label="Pro plan">
-        <div class="pricing-card-topbar">
-          <span class="pricing-badge">50% launch offer</span>
-        </div>
-        <div class="pricing-tier-row">
-          <div class="pricing-tier">Pro</div>
-          <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
-        </div>
-        <div class="pricing-price-row">
-          <span class="pricing-was">$40</span>
-          <div class="pricing-price">$20<span>/mo</span></div>
-          <span class="pricing-save">Save 50%</span>
-        </div>
-        <p class="pricing-period">Billed monthly · cancel anytime</p>
-        <p class="pricing-desc">Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits.</p>
-        <ul class="pricing-features">
-          <li><strong>1,000 sent emails</strong> per month</li>
-          <li>pgvector RAG (JSON &amp; text upload)</li>
-          <li>Gmail OAuth + SMTP/IMAP</li>
-          <li>APScheduler or Celery polling</li>
-          <li>Per-user encrypted credentials</li>
-          <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
-        </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta primary">Get Pro</a>
-      </article>
-
-      <article class="pricing-card has-badge" role="option" tabindex="0" data-plan="custom" aria-pressed="false" aria-label="Custom plan">
-        <div class="pricing-card-topbar">
-          <span class="pricing-badge">Most popular</span>
-        </div>
-        <div class="pricing-tier-row">
-          <div class="pricing-tier">Custom</div>
-          <span class="pricing-card-soon"><i class="fa-regular fa-clock" aria-hidden="true"></i> Coming soon</span>
-        </div>
-        <div class="pricing-price">You choose</div>
-        <p class="pricing-period">Set price &amp; send volume</p>
-        <p class="pricing-desc">Pick the monthly send cap and price that match your workflow—examples below; final numbers configurable at launch.</p>
-        <ul class="pricing-features">
-          <li><strong>2,000 sends</strong> (4 Gmail/SMTP) → <strong>$30/mo</strong></li>
-          <li><strong>3,000 sends</strong> (6 Gmail/SMTP) → <strong>$40/mo</strong></li>
-          <li>Or define your own tier (e.g. $50 → 5,000 sends)</li>
-          <li>Multiple Gmail accounts <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>Multiple SMTP / IMAP inboxes <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>WhatsApp &amp; Telegram integration <span class="pricing-soon-inline">(coming soon)</span></li>
-          <li>Annual billing option</li>
-          <li>Priority onboarding &amp; team seats</li>
-        </ul>
-        <a href="{% url 'signup' %}" class="pricing-cta secondary">Build custom plan</a>
-      </article>
+      {% include "components/marketing_pricing_cards.html" %}
     </div>
   </main>
+  {% include "components/marketing_pricing_billing_toggle_js.html" %}
 
   {% include "components/footer.html" %}
   <script>
-    // Pricing plan selection (click card to highlight)
+    // Highlight the user's current plan; navigation is via CTA links only
     (function () {
       const grid = document.querySelector('main .pricing-grid');
       if (!grid) return;
-      const cards = Array.from(grid.querySelectorAll('.pricing-card[data-plan]'));
-      if (!cards.length) return;
-      function activate(card) {
-        cards.forEach((c) => {
-          const on = c === card;
-          c.classList.toggle('is-active', on);
-          c.setAttribute('aria-pressed', on ? 'true' : 'false');
+      const currentPlan = '{{ current_plan_code|default:""|escapejs }}';
+      if (!currentPlan) return;
+      const cur = grid.querySelector('.pricing-card[data-plan="' + currentPlan + '"]');
+      if (cur) {
+        grid.querySelectorAll('.pricing-card[data-plan]').forEach((c) => {
+          c.classList.toggle('is-active', c === cur);
         });
       }
-      cards.forEach((card) => {
-        card.addEventListener('click', (e) => {
-          if (e.target.closest('.pricing-cta')) return;
-          activate(card);
-        });
-        card.addEventListener('keydown', (e) => {
-          if (e.target.closest('.pricing-cta')) return;
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            activate(card);
-          }
-        });
-        card.querySelectorAll('.pricing-cta').forEach((btn) => {
-          btn.addEventListener('click', (e) => e.stopPropagation());
-        });
-      });
     })();
   </script>
 
@@ -459,4 +344,3 @@
   </script>
 </body>
 </html>
-

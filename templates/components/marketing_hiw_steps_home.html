@@ -1,0 +1,15 @@
+{% for step in how_it_works_steps %}
+<article class="hiw-step" data-accent="{{ step.accent }}">
+  <div class="hiw-step-icon" aria-hidden="true">
+    {% if step.icon_svg %}{{ step.icon_svg|safe }}{% endif %}
+    <span class="hiw-step-badge">{{ forloop.counter|stringformat:"02d" }}</span>
+  </div>
+  <div class="hiw-step-body">
+    <span class="hiw-step-label">Step {{ forloop.counter }}</span>
+    <h3 class="hiw-step-title">{{ step.title }}</h3>
+    <p class="hiw-step-desc">{{ step.description }}</p>
+  </div>
+</article>
+{% empty %}
+<p class="section-sub" style="grid-column:1/-1;text-align:center;">Workflow steps will appear here once published in admin.</p>
+{% endfor %}

@@ -1,0 +1,16 @@
+{% for review in marketing_reviews %}
+<article class="testimonial-card">
+  <div class="testimonial-stars" aria-label="{{ review.rating }} out of 5 stars">{{ review.stars_display }}</div>
+  <p class="testimonial-quote">{{ review.quote }}</p>
+  {% if review.metric %}<p class="testimonial-metric">{{ review.metric }}</p>{% endif %}
+  <div class="testimonial-footer">
+    <div class="testimonial-avatar" style="{{ review.avatar_style_home }}">{{ review.avatar_initials }}</div>
+    <div>
+      <div class="testimonial-name">{{ review.author_name }}</div>
+      <div class="testimonial-role">{{ review.author_role }}</div>
+    </div>
+  </div>
+</article>
+{% empty %}
+<p class="testimonials-intro" style="grid-column:1/-1;text-align:center;">Reviews will appear here once published in admin.</p>
+{% endfor %}

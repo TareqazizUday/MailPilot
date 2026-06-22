@@ -38,6 +38,28 @@ from core.models import PasswordResetOTP
 logger = logging.getLogger("mailpilot.auth")
 
 _OTP_TTL = timedelta(minutes=15)
+
+
+def post_login_redirect_url(request: HttpRequest, user, *, next_url: str | None = None) -> str:
+    from django.conf import settings
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    admin_index = reverse("admin:index")
+    nxt = (next_url or "").strip()
+    if nxt and "/admin/login" in nxt.rstrip("/"):
+        nxt = ""
+    allowed_hosts = {request.get_host(), *settings.ALLOWED_HOSTS}
+    if nxt and url_has_allowed_host_and_scheme(
+        nxt,
+        allowed_hosts=allowed_hosts,
+        require_https=request.is_secure(),
+    ):
+        return nxt
+    if user.is_staff or user.is_superuser:
+        return admin_index
+    return reverse("dashboard")
+
+
 _OTP_MAX_ATTEMPTS = 5
 _OTP_LENGTH = 6
 
@@ -252,12 +274,15 @@ def password_reset_done_view(request: HttpRequest):
     return render(request, "registration/password_reset_done.html")
 
 
+
 @csrf_protect
 @ratelimit(key="ip", rate="20/m", method="POST", block=True)
 @require_http_methods(["GET", "POST"])
 def login_view(request: HttpRequest):
     if request.user.is_authenticated:
-        return redirect(reverse("dashboard"))
+        return redirect(
+            post_login_redirect_url(request, request.user, next_url=request.GET.get("next"))
+        )
     err = ""
     if request.method == "POST":
         from django.contrib.auth import authenticate
@@ -277,11 +302,11 @@ def login_view(request: HttpRequest):
         if user is not None:
             login(request, user)
             log_audit(request, "login_ok", "")
-            nxt = request.GET.get("next") or reverse("dashboard")
-            return redirect(nxt)
+            nxt = request.POST.get("next") or request.GET.get("next")
+            return redirect(post_login_redirect_url(request, user, next_url=nxt))
         err = "Invalid username or password."
         log_audit(request, "login_failed", "")
-    return render(request, "login.html", {"error": err})
+    return render(request, "login.html", {"error": err, "next": request.GET.get("next") or ""})
 
 
 @csrf_protect
@@ -340,6 +365,12 @@ def signup_view(request: HttpRequest):
             user.first_name = first_name
             user.last_name = last_name
             user.save(update_fields=["first_name", "last_name"])
+            try:
+                from core.billing import get_or_create_subscription
+
+                get_or_create_subscription(user)
+            except Exception:
+                logger.exception("starter subscription create failed user=%s", user.pk)
             login(request, user)
             log_audit(request, "signup", "")
             return redirect(reverse("dashboard"))

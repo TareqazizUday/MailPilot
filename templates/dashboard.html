@@ -231,10 +231,10 @@
     <div class="dash-body">
   <!-- Hidden legacy status elements used by existing JS -->
   <div style="display:none;">
-    <span id="gmailConnectedBadge">—</span>
-    <span id="gmailTokenHint">—</span>
-    <span id="lastRunAt">—</span>
-    <span id="lastError">—</span>
+    <span id="gmailConnectedBadge">-</span>
+    <span id="gmailTokenHint">-</span>
+    <span id="lastRunAt">-</span>
+    <span id="lastError">-</span>
   </div>
 
   <div class="tri" id="inbox-section">
@@ -242,7 +242,7 @@
     <div class="pnl">
       <div class="pnl-hd">
         <span class="pnl-t">Messages</span>
-        <span class="pnl-badge" id="msgCnt">—</span>
+        <span class="pnl-badge" id="msgCnt">-</span>
       </div>
       <div class="dash-mailbox">
         <label class="small dash-mailbox-label" for="dashAccountSelect">Multiple Mailbox</label>
@@ -296,20 +296,21 @@
     <div class="pnl">
       <div class="pnl-hd">
         <span class="pnl-t">Controls</span>
-        <span class="pnl-badge" id="qCnt">—</span>
+        <span class="pnl-badge" id="qCnt">-</span>
       </div>
       <div class="ctrl-sec">
         <button type="button" class="run-btn" id="runPollBtn" onclick="runPollNow()">
           <i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now
         </button>
         <div class="ctrl-row">
-          <span id="pInfo">—</span>
-          <span id="lRun">Last run: —</span>
+          <span id="pInfo">-</span>
+          <span id="lRun">Last run: -</span>
         </div>
+        <div class="small" id="billingInfo" style="margin-top:8px;color:var(--txm);line-height:1.45;">Plan: checking…</div>
       </div>
       <div class="pnl-hd" style="border-top:1px solid var(--bdr)">
         <span class="pnl-t">Queue</span>
-        <span class="pnl-badge" id="pendingInfo">—</span>
+        <span class="pnl-badge" id="pendingInfo">-</span>
       </div>
       <div class="qt-w">
         <table class="qt">
@@ -319,7 +320,7 @@
           </tbody>
         </table>
       </div>
-      <div class="small" id="pendingHint" style="padding: 10px 14px; border-top: 1px solid var(--bdr);">—</div>
+      <div class="small" id="pendingHint" style="padding: 10px 14px; border-top: 1px solid var(--bdr);">-</div>
 
       <!-- Sent records removed (Queue already shows status) -->
     </div>
@@ -442,7 +443,7 @@
 
     function queueRowId(it){
       const raw = String(it.id || it.message_id || '').trim();
-      if(!raw) return '—';
+      if(!raw) return '-';
       return raw.length > 14 ? raw.slice(0, 12) + '…' : raw;
     }
 
@@ -465,7 +466,7 @@
         const body = document.getElementById('pendingBody');
         const sel = document.getElementById('dashAccountSelect');
         const mbLabel = (sel && sel.selectedOptions && sel.selectedOptions[0])
-          ? sel.selectedOptions[0].textContent.replace(/\s*—\s*not connected\s*$/i, '').replace(/\s*—\s*wrong Google account\s*$/i, '').trim()
+          ? sel.selectedOptions[0].textContent.replace(/\s*-\s*not connected\s*$/i, '').replace(/\s*-\s*wrong Google account\s*$/i, '').trim()
           : 'this mailbox';
         const activeCount = items.filter(it => {
           const s = (it.status || 'pending').toLowerCase();
@@ -474,7 +475,7 @@
         if(items.length === 0){
           body.innerHTML = '<tr><td colspan="4" class="small" style="padding: 12px 11px;">No queue activity for this mailbox yet</td></tr>';
           info.textContent = '0';
-          if(hint) hint.textContent = 'Queue for ' + mbLabel + ' — sent replies show Completed; filtered mail shows Reject.';
+          if(hint) hint.textContent = 'Queue for ' + mbLabel + ' - sent replies show Completed; filtered mail shows Reject.';
           const qc = document.getElementById('qCnt'); if(qc) qc.textContent = '0';
           const pi = document.getElementById('pInfo'); if(pi) pi.textContent = '0 items in queue';
           return;
@@ -489,7 +490,7 @@
           const rbClass = reason.includes('approval') ? 'ap' : (reason.includes('risk') || reason.includes('keyword')) ? 'rk' : 'ar';
           const rbLabel = it.reason || 'auto_reply';
           const rowId = queueRowId(it);
-          const from = (it.from_email || '').trim() || '—';
+          const from = (it.from_email || '').trim() || '-';
           return (
             `<tr>
               <td><span class="qt-id" title="${attrEsc(it.message_id || it.id || '')}">${esc(rowId)}</span></td>
@@ -501,7 +502,7 @@
         }).join('');
         info.textContent = String(items.length);
         if(hint){
-          hint.textContent = 'Queue for ' + mbLabel + ' — '
+          hint.textContent = 'Queue for ' + mbLabel + ' - '
             + items.length + ' item(s). Sent → Completed · Rejected → Reject.';
         }
         const qc = document.getElementById('qCnt'); if(qc) qc.textContent = String(items.length);
@@ -520,10 +521,10 @@
     async function refreshStatus(){
       const res = await fetch('/healthz');
       const j = await res.json();
-      document.getElementById('lastRunAt').textContent = j.last_run_at || '—';
-      document.getElementById('lastError').textContent = j.last_error || '—';
+      document.getElementById('lastRunAt').textContent = j.last_run_at || '-';
+      document.getElementById('lastError').textContent = j.last_error || '-';
       const lrEl = document.getElementById('lRun');
-      if(lrEl) lrEl.textContent = 'Last run: ' + (j.last_run_at || '—');
+      if(lrEl) lrEl.textContent = 'Last run: ' + (j.last_run_at || '-');
       _mailPoll.autoOn = (j.mail_poll_backend === 'apscheduler' || j.mail_poll_backend === 'celery');
       _mailPoll.intervalSec = j.mail_poll_interval_seconds || j.mail_poll_beat_seconds || 60;
       _mailPoll.imapIdle = (j.imap_idle_watchers || 0) > 0;
@@ -548,8 +549,8 @@
           await refreshStatus();
           const le = document.getElementById('lastError')?.textContent || '';
           const lr = document.getElementById('lastRunAt')?.textContent || '';
-          if(lr && lr !== '—') break;
-          if(le && le !== '—' && le.trim()) break;
+          if(lr && lr !== '-') break;
+          if(le && le !== '-' && le.trim()) break;
         }
         await refreshPending();
       }catch(e){
@@ -594,7 +595,7 @@
         }
 
         const tokenErr = j.token_error ? (' ' + j.token_error) : '';
-        const base = j.has_token ? 'Signed in with Google.' : 'Not signed in — add Gmail on the Connect page.';
+        const base = j.has_token ? 'Signed in with Google.' : 'Not signed in - add Gmail on the Connect page.';
         if(hint){
           if(imapConnected && !gmailConnected){
             hint.textContent = 'Reading inbox via IMAP (same mailbox as SMTP).';
@@ -632,7 +633,7 @@
         .replace(/</g, '&lt;');
     }
     function fmtTs(ms){
-      if(!ms) return '—';
+      if(!ms) return '-';
       try{ return new Date(ms).toLocaleString(); }catch(e){ return String(ms); }
     }
 
@@ -653,6 +654,28 @@
       return _dashAccountId ? ('?account_id=' + encodeURIComponent(_dashAccountId)) : '';
     }
 
+    async function refreshBillingInfo(){
+      const el = document.getElementById('billingInfo');
+      if(!el) return;
+      try{
+        const res = await fetch('/api/billing/summary' + dashAccountQuery());
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok || !j.billing){
+          el.textContent = 'Plan: unavailable';
+          return;
+        }
+        const b = j.billing;
+        const plan = ((b.plan && b.plan.code) || 'starter').replace(/^\w/, c => c.toUpperCase());
+        const tok = b.tokens || {};
+        const daily = b.daily || {};
+        const tokenTxt = tok.limit == null ? (tok.used + ' tokens used') : (tok.left + '/' + tok.limit + ' monthly tokens left');
+        const dailyTxt = daily.limit == null ? '' : (' · ' + daily.left + '/' + daily.limit + ' sends left today');
+        el.textContent = plan + ' · ' + tokenTxt + dailyTxt;
+      }catch(e){
+        el.textContent = 'Plan: unavailable';
+      }
+    }
+
     function inboxReadyAccount(a){
       if(!a || !a.is_enabled) return false;
       if(a.oauth_email_mismatch) return false;
@@ -671,7 +694,7 @@
         return 'Wrong Google account connected for ' + cfg + '. OAuth is signed in as ' + prof + '. Disconnect on Setup and Connect OAuth again using ' + cfg + '.';
       }
       if(e.includes('429') || /rate limit/i.test(e)){
-        return 'Gmail rate limit — wait a few minutes, then select this mailbox again.';
+        return 'Gmail rate limit - wait a few minutes, then select this mailbox again.';
       }
       return e || 'Could not load inbox';
     }
@@ -682,7 +705,7 @@
       if(!sel || !viewing) return;
       const opt = sel.selectedOptions && sel.selectedOptions[0];
       if(opt){
-        viewing.textContent = 'Viewing inbox for ' + (opt.textContent || 'mailbox').replace(/\s*—\s*not connected\s*$/i, '');
+        viewing.textContent = 'Viewing inbox for ' + (opt.textContent || 'mailbox').replace(/\s*-\s*not connected\s*$/i, '');
       }
     }
 
@@ -703,7 +726,7 @@
     function clearInboxUi(){
       renderThreadRows([]);
       const cnt = document.getElementById('msgCnt');
-      if(cnt) cnt.textContent = '—';
+      if(cnt) cnt.textContent = '-';
       resetReadingPane();
     }
 
@@ -716,6 +739,7 @@
       await loadInbox();
       await refreshGmailConnection();
       await refreshPending();
+      await refreshBillingInfo();
     }
 
     async function loadDashAccounts(){
@@ -734,8 +758,8 @@
           const label = a.email || a.label || ('Slot ' + a.slot);
           const kind = a.transport === 'gmail_api' ? ' (Gmail)' : ' (SMTP)';
           const ready = inboxReadyAccount(a);
-          let suffix = ready ? '' : ' — not connected';
-          if(a.oauth_email_mismatch) suffix = ' — wrong Google account';
+          let suffix = ready ? '' : ' - not connected';
+          if(a.oauth_email_mismatch) suffix = ' - wrong Google account';
           opt.textContent = label + kind + suffix;
           opt.dataset.inboxReady = ready ? '1' : '0';
           sel.appendChild(opt);
@@ -748,7 +772,7 @@
           sessionStorage.setItem('mailpilot_account_id', _dashAccountId);
           updateDashAccountViewing();
         }else if(viewing){
-          viewing.textContent = 'No active mailboxes — enable one on Setup.';
+          viewing.textContent = 'No active mailboxes - enable one on Setup.';
         }
         if(!sel.dataset.changeBound){
           sel.dataset.changeBound = '1';
@@ -765,7 +789,7 @@
       const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
       if(opt && opt.dataset.inboxReady === '0'){
         clearInboxUi();
-        hint.textContent = 'This mailbox is not connected — connect it on Setup first.';
+        hint.textContent = 'This mailbox is not connected - connect it on Setup first.';
         return;
       }
       hint.textContent = 'Loading inbox…';
@@ -802,7 +826,7 @@
           const html = (
             `<button type="button" class="msg-it${t.unread ? ' unr' : ' msg-seen'}" data-tid="${attrEsc(t.thread_id)}" role="option" aria-selected="false">
               <div class="msg-st-row">
-                <div class="msg-fr">${esc(from || '—')}</div>
+                <div class="msg-fr">${esc(from || '-')}</div>
                 ${stBadge}
               </div>
               <div class="msg-sj">${esc(sj || '(No subject)')}</div>
@@ -872,7 +896,7 @@
         const dt = fmtTs(inboundFirst?.internal_date || msgs[0]?.internal_date);
 
         rpS.textContent = subj;
-        rpA.textContent = (fromName || fromEmail || '—').slice(0,1).toUpperCase();
+        rpA.textContent = (fromName || fromEmail || '-').slice(0,1).toUpperCase();
         rpN.textContent = fromName || 'Contact';
         rpM.textContent = fromEmail || from || '';
         rpD.textContent = dt;
@@ -932,6 +956,7 @@
       await loadDashAccounts();
       await refreshGmailConnection();
       await refreshPending();
+      await refreshBillingInfo();
     }
     async function initDashboard(){
       await refreshDashboard();

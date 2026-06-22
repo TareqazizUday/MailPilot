@@ -1,0 +1,25 @@
+{% if pricing_pill_tag %}
+<div class="page-head">
+  <div class="tag"><span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block;"></span> {{ pricing_settings.section_tag }}</div>
+  {% if pricing_heading_tag == "h1" %}
+  <h1 class="section-title" id="pricing-heading">{{ pricing_settings.title_lead }} <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{{ pricing_settings.title_highlight }}</span></h1>
+  {% else %}
+  <h2 class="section-title" id="pricing-heading">{{ pricing_settings.title_lead }} <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{{ pricing_settings.title_highlight }}</span></h2>
+  {% endif %}
+  <p class="pricing-intro">{{ pricing_settings.intro }}</p>
+  {% if pricing_settings.demo_note %}<p class="pricing-demo-note">{{ pricing_settings.demo_note }}</p>{% endif %}
+</div>
+{% else %}
+<div class="pricing-head-row">
+  <div class="pricing-head-copy">
+    <div class="section-tag">{{ pricing_settings.section_tag }}</div>
+    {% if pricing_heading_tag == "h1" %}
+    <h1 class="section-title" id="pricing-heading">{{ pricing_settings.title_lead }} <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{{ pricing_settings.title_highlight }}</span></h1>
+    {% else %}
+    <h2 class="section-title" id="pricing-heading">{{ pricing_settings.title_lead }} <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">{{ pricing_settings.title_highlight }}</span></h2>
+    {% endif %}
+    <p class="pricing-intro">{{ pricing_settings.intro }}</p>
+    {% if pricing_settings.demo_note %}<p class="pricing-demo-note">{{ pricing_settings.demo_note }}</p>{% endif %}
+  </div>
+</div>
+{% endif %}

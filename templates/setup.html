@@ -419,7 +419,7 @@
     .content-aside{position:relative;}
     .content-aside .aside-card{position:sticky;top:86px;}
 
-    /* File uploader – make it more “clickable” */
+    /* File uploader - make it more “clickable” */
     .fu{
       border:2px dashed rgba(255,255,255,0.14);
       border-radius:12px;
@@ -507,6 +507,67 @@
 
     .main-sec{display:none}
     .main-sec.on{display:block}
+
+    .plan-pro-badge{
+      display:none;
+      margin-left:6px;
+      padding:2px 7px;
+      border-radius:999px;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      background:rgba(167,139,250,.18);
+      color:#c4b5fd;
+      border:1px solid rgba(167,139,250,.35);
+      vertical-align:middle;
+    }
+    .plan-pro-badge.show{display:inline-block}
+    .mb-card-locked{
+      cursor:default;
+      opacity:.85;
+      border-style:dashed;
+    }
+    .mb-card-locked a{color:#c4b5fd;font-weight:800}
+    .mb-card-plan-locked{
+      position:relative;
+      opacity:.72;
+    }
+    .mb-card-plan-locked .mb-card-body-lock{
+      pointer-events:none;
+      user-select:none;
+      filter:grayscale(.15);
+    }
+    .mb-card-plan-locked .mb-plan-lock-banner{
+      margin:0 0 10px;
+      padding:9px 11px;
+      border-radius:10px;
+      background:rgba(251,191,36,.08);
+      border:1px solid rgba(251,191,36,.28);
+      color:var(--txm);
+      font-size:12px;
+      line-height:1.45;
+    }
+    .mb-card-slot-locked{
+      padding:14px 16px;
+      text-align:center;
+      font-size:13px;
+      color:var(--txm);
+    }
+    #paymentRequiredBanner{display:none;margin-bottom:14px;border-color:rgba(251,191,36,.25)}
+    #kbPlanLockNotice{display:none;margin-top:10px;border-color:rgba(251,191,36,.22)}
+    #kbPlanLockNotice.show{display:block}
+    .plan-lock-disabled{opacity:.55;pointer-events:none}
+    .setup-upgrade-note{
+      margin:10px 0 0;
+      padding:10px 12px;
+      border-radius:10px;
+      background:rgba(167,139,250,.08);
+      border:1px solid rgba(167,139,250,.22);
+      color:var(--txm);
+      font-size:12px;
+      line-height:1.45;
+    }
   </style>
 {% endblock %}
 
@@ -517,6 +578,14 @@
       <div class="setup-card-sub">
         Connect Gmail, then configure what counts as <strong>service-related</strong> and build your Knowledge Base (website + JSON). Setup is where you control the agent.
       </div>
+    </div>
+
+    <div class="oauth-box tighter" id="billingStrip" style="margin:14px clamp(16px,3vw,32px) 0;">
+      <div class="oauth-h"><i class="fa-solid fa-coins" aria-hidden="true"></i> Plan &amp; tokens</div>
+      <p class="oauth-txt" style="margin:0;">
+        <span id="billingStripText">Checking plan…</span>
+        <a href="{% url 'pricing' %}" style="color:#c4b5fd;text-decoration:none;font-weight:800;margin-left:8px;">Upgrade</a>
+      </p>
     </div>
 
     <!-- Top-level section buttons (styled like mailpilot_setup.html tab bar) -->
@@ -544,14 +613,14 @@
       </button>
       <button class="main-tab" id="btnMainTelegram" type="button" onclick="showMain('telegram')">
         <div>
-          <div class="main-tab-label">Telegram</div>
+          <div class="main-tab-label">Telegram <span class="plan-pro-badge" id="tgProBadge">Pro</span></div>
           <div class="sub">Bot &amp; alerts</div>
         </div>
         <div class="tab-icon" aria-hidden="true"><i class="fa-brands fa-telegram"></i></div>
       </button>
       <button class="main-tab" id="btnMainWhatsapp" type="button" onclick="showMain('whatsapp')">
         <div>
-          <div class="main-tab-label">WhatsApp</div>
+          <div class="main-tab-label">WhatsApp <span class="plan-pro-badge" id="waProBadge">Pro</span></div>
           <div class="sub">Live alerts</div>
         </div>
         <div class="tab-icon" aria-hidden="true"><i class="fa-brands fa-whatsapp"></i></div>
@@ -565,10 +634,11 @@
             <div class="sec">
           <div class="sec-h">
             <div class="s-sub">Email Transport</div>
-            <span class="pill" id="transportPill">—</span>
+            <span class="pill" id="transportPill">-</span>
           </div>
 
           <div id="transportModeBanner" data-highlight-account="{{ highlight_account_id|default:'' }}" data-initial-mode="{{ transport_summary.active_mode|default:'gmail' }}"></div>
+          <div class="oauth-box" id="paymentRequiredBanner" style="display:none;"></div>
 
           {% if oauth_error %}
             <div class="oauth-box" style="border-color: rgba(248,113,113,.18); margin-bottom:14px;">
@@ -583,7 +653,8 @@
           </div>
 
           <div class="panel on" id="pGmail">
-            <div class="hint">Up to <strong>5 Gmail</strong> accounts. Toggle each mailbox on/off. Only accounts in <strong>Gmail mode</strong> (this tab active) run automation.</div>
+            <div class="hint" id="gmailInboxHint">Loading plan limits…</div>
+            <div class="oauth-box" id="gmailPlanNotice" style="display:none;margin-bottom:14px;border-color:rgba(251,191,36,.25);"></div>
             <div class="oauth-box" style="margin-bottom:14px;">
               <div class="oauth-h"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> OAuth redirect URI</div>
               <p class="oauth-txt">Use <strong>Web application</strong> client in Google Cloud Console:</p>
@@ -596,10 +667,11 @@
           </div>
 
           <div class="panel" id="pSmtp">
-            <div class="hint"><strong>SMTP</strong> sends mail; <strong>IMAP</strong> reads inbox on the Dashboard. Up to <strong>5 SMTP</strong> mailboxes — pause any slot without deleting credentials.</div>
+            <div class="hint" id="smtpInboxHint">Loading plan limits…</div>
+            <div class="oauth-box" id="smtpPlanNotice" style="display:none;margin-bottom:14px;border-color:rgba(251,191,36,.25);"></div>
             <div class="oauth-box" style="margin-top:0;">
               <div class="oauth-h"><i class="fa-solid fa-gear" aria-hidden="true"></i> Quick profile</div>
-              <p class="oauth-txt" style="margin:0;">Example: <span class="code-inline">smtp.timerni.com</span> / <span class="code-inline">imap.timerni.com</span> — ports <span class="code-inline">587</span> (TLS) or <span class="code-inline">465</span> (SSL).</p>
+              <p class="oauth-txt" style="margin:0;">Example: <span class="code-inline">smtp.timerni.com</span> / <span class="code-inline">imap.timerni.com</span> - ports <span class="code-inline">587</span> (TLS) or <span class="code-inline">465</span> (SSL).</p>
             </div>
             <div id="smtpAccountsList"></div>
           </div>
@@ -624,7 +696,7 @@
             <div class="sec">
           <div class="sec-h">
             <div class="s-sub">Relevance / Routing</div>
-            <span class="pill" id="routingPill">—</span>
+            <span class="pill" id="routingPill">-</span>
           </div>
           <div class="oauth-box tighter" style="margin-top:0;">
             <div class="oauth-h"><i class="fa-solid fa-filter" aria-hidden="true"></i> What emails should the agent handle?</div>
@@ -701,13 +773,17 @@
           <div class="oauth-box">
             <div class="oauth-h"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> KB Status</div>
             <p class="oauth-txt" style="margin:0;">
-              <span class="small" id="kbMeta" style="margin-left:8px;">—</span>
+              <span class="small" id="kbMeta" style="margin-left:8px;">-</span>
             </p>
+          </div>
+          <div class="oauth-box" id="kbPlanLockNotice">
+            <div class="oauth-h"><i class="fa-solid fa-lock" aria-hidden="true"></i> KB source limit</div>
+            <p class="oauth-txt" style="margin:0;" id="kbPlanLockText">Starter allows one KB source (website crawl or file upload). Clear KB or upgrade to Pro for unlimited sources.</p>
           </div>
           <button class="btn btn-ghost btn-block" type="button" style="margin-top:10px;border-color: rgba(248,113,113,.25); color: #fecdd3;" onclick="clearKb()">
             <i class="fa-solid fa-trash" aria-hidden="true"></i> Delete Knowledge Base
           </button>
-          <div class="mini"><span id="kbClearStatus" class="pill">—</span></div>
+          <div class="mini"><span id="kbClearStatus" class="pill">-</span></div>
 
           <div class="row2" style="margin-top:10px;gap:10px;">
             <button class="btn btn-ghost btn-block" type="button" onclick="downloadKbJson()">
@@ -717,8 +793,9 @@
               <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit KB JSON
             </button>
           </div>
-          <div class="mini"><span id="kbEditStatus" class="pill">—</span></div>
+          <div class="mini"><span id="kbEditStatus" class="pill">-</span></div>
 
+          <div id="kbIngestControls">
           <div class="fg" style="margin-top:14px;">
             <div class="kb-format-row">
               <label class="fl" style="margin:0;" id="kbUploadLabel">Upload knowledge</label>
@@ -738,7 +815,7 @@
             <button class="btn btn-purp btn-block" style="margin-top:10px;" type="button" id="kbUploadBtn" onclick="uploadKbFile()">
               <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload &amp; Ingest JSON
             </button>
-            <div class="mini"><span id="kbUploadStatus" class="pill">—</span></div>
+            <div class="mini"><span id="kbUploadStatus" class="pill">-</span></div>
           </div>
 
           <div class="fg">
@@ -767,7 +844,8 @@
             <div class="mini" style="margin-top:6px;color:var(--txm);font-size:11px;line-height:1.45;">
               Per-user scrape → website_crawl.json + pgvector. Edit in <strong>Edit KB JSON</strong>.
             </div>
-            <div class="mini"><span id="crawlStatus" class="pill">—</span></div>
+            <div class="mini"><span id="crawlStatus" class="pill">-</span></div>
+          </div>
           </div>
             </div>
           </div>
@@ -790,8 +868,9 @@
           </div>
           <div class="oauth-box" style="margin-top:0;">
             <div class="oauth-h"><i class="fa-brands fa-telegram" aria-hidden="true"></i> Connect a Telegram bot</div>
-            <p class="oauth-txt" style="margin:0;">Get mail alerts and chat with your bot — replies use your Knowledge Base + LLM (same as email auto-reply). Email automation is unchanged.</p>
+            <p class="oauth-txt" style="margin:0;">Get mail alerts and chat with your bot - replies use your Knowledge Base + LLM (same as email auto-reply). Email automation is unchanged.</p>
           </div>
+          <p class="setup-upgrade-note" id="tgUpgradeNote" style="display:none;">Telegram is included on <strong>Pro</strong> and <strong>Custom</strong> plans. <a href="/pricing/" style="color:#c4b5fd;font-weight:800;">Upgrade</a> to connect a bot.</p>
 
           <div class="fg" style="margin-top:12px;">
             <label class="fl" for="tgEnabled">
@@ -826,20 +905,20 @@
           </div>
 
           <div class="row2" style="margin-top:10px;gap:10px;">
-            <button class="btn btn-purp btn-block" type="button" onclick="saveTelegram()">
+            <button class="btn btn-purp btn-block" type="button" id="tgSaveBtn" onclick="saveTelegram()">
               <i class="fa-brands fa-telegram" aria-hidden="true"></i> Save Telegram settings
             </button>
-            <button class="btn btn-ghost btn-block" type="button" onclick="testTelegram()">
+            <button class="btn btn-ghost btn-block" type="button" id="tgTestBtn" onclick="testTelegram()">
               <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send test message
             </button>
           </div>
-          <div class="mini"><span id="tgStatus" class="pill">—</span></div>
+          <div class="mini"><span id="tgStatus" class="pill">-</span></div>
             </div>
           </div>
           <div class="content-aside">
             <div class="aside-card">
               <div class="aside-title"><i class="fa-brands fa-telegram" aria-hidden="true"></i> Why Telegram?</div>
-              <div class="aside-desc">Optional alerts alongside your Knowledge Base — no change to Gmail/SMTP polling, routing, or auto-reply behavior.</div>
+              <div class="aside-desc">Optional alerts alongside your Knowledge Base - no change to Gmail/SMTP polling, routing, or auto-reply behavior.</div>
             </div>
           </div>
         </div>
@@ -857,6 +936,7 @@
             <div class="oauth-h"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp Cloud API</div>
             <p class="oauth-txt" style="margin:0;">Same optional alerts and chat commands as Telegram (Meta Business / Cloud API). Email automation is unchanged.</p>
           </div>
+          <p class="setup-upgrade-note" id="waUpgradeNote" style="display:none;">WhatsApp is included on <strong>Pro</strong> and <strong>Custom</strong> plans. <a href="/pricing/" style="color:#c4b5fd;font-weight:800;">Upgrade</a> to connect Cloud API.</p>
 
           <div class="fg" style="margin-top:12px;">
             <label class="fl" for="waEnabled">
@@ -893,7 +973,7 @@
           <div class="fg">
             <label class="fl">Webhook callback URL</label>
             <div class="url-box" role="group" aria-label="WhatsApp webhook URL">
-              <span class="url-txt" id="waWebhookUrl">—</span>
+              <span class="url-txt" id="waWebhookUrl">-</span>
               <button class="cp-btn" type="button" onclick="cpWaWebhook()" title="Copy">Copy</button>
             </div>
           </div>
@@ -907,14 +987,14 @@
           </div>
 
           <div class="row2" style="margin-top:10px;gap:10px;">
-            <button class="btn btn-purp btn-block" type="button" onclick="saveWhatsapp()">
+            <button class="btn btn-purp btn-block" type="button" id="waSaveBtn" onclick="saveWhatsapp()">
               <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Save WhatsApp settings
             </button>
-            <button class="btn btn-ghost btn-block" type="button" onclick="testWhatsapp()">
+            <button class="btn btn-ghost btn-block" type="button" id="waTestBtn" onclick="testWhatsapp()">
               <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send test message
             </button>
           </div>
-          <div class="mini"><span id="waStatus" class="pill">—</span></div>
+          <div class="mini"><span id="waStatus" class="pill">-</span></div>
             </div>
           </div>
           <div class="content-aside">
@@ -951,7 +1031,7 @@
             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save &amp; Replace KB
           </button>
         </div>
-        <div class="mini"><span id="kbEditorPill" class="pill">—</span></div>
+        <div class="mini"><span id="kbEditorPill" class="pill">-</span></div>
       </div>
     </div>
   </div>
@@ -1172,7 +1252,7 @@
 
     function setPill(el, text, cls){
       if(!el) return;
-      const full = (text || '—');
+      const full = (text || '-');
       el.className = 'pill' + (cls ? (' ' + cls) : '');
 
       // Collapse very long messages to avoid breaking the layout.
@@ -1304,7 +1384,7 @@
         // Keep the UI clean: auto-hide after a moment.
         setTimeout(() => {
           const el = document.getElementById('routingStatus');
-          if(el && el.textContent === 'Settings synced') setPill(el, '—', '');
+          if(el && el.textContent === 'Settings synced') setPill(el, '-', '');
         }, 2200);
       }catch(err){
         setPill(pill, 'Network error', 'bad');
@@ -1477,11 +1557,11 @@
         ok = false;
       }
       if(!smtpPortRaw || !Number.isFinite(smtpPort) || smtpPort < 1 || smtpPort > 65535){
-        _smtpSetFieldError('smtpPort', 'Enter a valid SMTP port (1–65535).');
+        _smtpSetFieldError('smtpPort', 'Enter a valid SMTP port (1-65535).');
         ok = false;
       }
       if(!imapPortRaw || !Number.isFinite(imapPort) || imapPort < 1 || imapPort > 65535){
-        _smtpSetFieldError('imapPort', 'Enter a valid IMAP port (1–65535).');
+        _smtpSetFieldError('imapPort', 'Enter a valid IMAP port (1-65535).');
         ok = false;
       }
       return ok;
@@ -1544,12 +1624,12 @@
         const r3 = await fetch('/api/trigger-poll', { method:'POST' });
         const j3 = await r3.json().catch(() => ({}));
         if(!r3.ok || !j3.ok){
-          setPill(pill, 'SMTP OK — inbox run failed: ' + (j3.error || r3.status), 'bad');
+          setPill(pill, 'SMTP OK - inbox run failed: ' + (j3.error || r3.status), 'bad');
           return;
         }
 
         _smtpClearFieldErrors();
-        setPill(pill, 'SMTP connected — automation ran (check Dashboard queue)', 'ok');
+        setPill(pill, 'SMTP connected - automation ran (check Dashboard queue)', 'ok');
         const dbtn = document.getElementById('btnSmtpDisconnect');
         if(dbtn) dbtn.style.display = '';
         syncNavFromServer();
@@ -1661,6 +1741,56 @@
       }
     }
 
+    window._setupBilling = null;
+    window._kbDocCount = 0;
+
+    function applyKbPlanLock(){
+      const b = window._setupBilling;
+      const limit = b && b.kb_sources ? b.kb_sources.limit : null;
+      const docs = window._kbDocCount || 0;
+      const atLimit = limit != null && docs >= Number(limit);
+      document.getElementById('kbPlanLockNotice')?.classList.toggle('show', !!atLimit);
+      document.getElementById('kbIngestControls')?.classList.toggle('plan-lock-disabled', !!atLimit);
+    }
+
+    function applySetupPlanLocks(){
+      const b = window._setupBilling;
+      if(!b) return;
+      const feats = b.features || {};
+      document.getElementById('tgProBadge')?.classList.toggle('show', !feats.telegram);
+      document.getElementById('waProBadge')?.classList.toggle('show', !feats.whatsapp);
+      applyKbPlanLock();
+    }
+
+    function kbPlanErrorPill(j, pill){
+      if(j && j.upgrade_required){
+        const msg = (j.error || 'plan limit').replace(/_/g, ' ');
+        if(pill) setPill(pill, msg, 'bad');
+        if(typeof window.refreshBillingStrip === 'function') window.refreshBillingStrip();
+        return true;
+      }
+      return false;
+    }
+
+    function formatBillingStripText(b){
+      const plan = ((b.plan && b.plan.code) || 'starter').replace(/^\w/, c => c.toUpperCase());
+      const tok = b.tokens || {};
+      const inbox = b.active_inboxes || {};
+      const trial = b.starter_trial || {};
+      const feats = b.features || {};
+      const kb = b.kb_sources || {};
+      let tokenTxt = tok.limit == null ? (tok.used + ' tokens used') : (tok.used + '/' + tok.limit + ' tokens');
+      if(trial.lifetime){
+        tokenTxt = trial.sends_used + '/' + trial.sends_limit + ' trial auto-sends';
+        if(trial.expired) tokenTxt += ' (ended)';
+      }
+      const inboxTxt = inbox.limit == null ? (inbox.used + ' inboxes') : (inbox.used + '/' + inbox.limit + ' inbox');
+      const kbTxt = kb.limit == null ? 'KB unlimited' : 'KB ' + (window._kbDocCount || 0) + '/' + kb.limit;
+      const integTxt = (feats.telegram && feats.whatsapp) ? 'TG+WA on' : ((!feats.telegram && !feats.whatsapp) ? 'TG/WA locked' : 'TG/WA partial');
+      return plan + ' · ' + tokenTxt + ' · ' + inboxTxt + ' · ' + kbTxt + ' · ' + integTxt;
+    }
+    window.formatBillingStripText = formatBillingStripText;
+
     async function refreshKbStatus(){
       const pill = document.getElementById('kbPill');
       const meta = document.getElementById('kbMeta');
@@ -1670,13 +1800,24 @@
         if(!res.ok || !j.ok){
           setPill(pill, (j.error || 'KB not ready'), 'bad');
           if(meta) meta.textContent = '';
+          window._kbDocCount = 0;
+          applyKbPlanLock();
           return;
         }
         setPill(pill, 'Ready', 'ok');
-        if(meta) meta.textContent = `${j.documents || 0} docs · ${j.chunks || 0} chunks`;
+        window._kbDocCount = Number(j.documents || 0);
+        let metaTxt = `${window._kbDocCount} docs · ${j.chunks || 0} chunks`;
+        const lim = window._setupBilling?.kb_sources?.limit;
+        if(lim != null) metaTxt += ` · plan ${window._kbDocCount}/${lim} KB source${Number(lim) === 1 ? '' : 's'}`;
+        if(meta) meta.textContent = metaTxt;
+        applyKbPlanLock();
+        const strip = document.getElementById('billingStripText');
+        if(strip && window._setupBilling) strip.textContent = formatBillingStripText(window._setupBilling);
       }catch(err){
         setPill(pill, 'Network error', 'bad');
         if(meta) meta.textContent = '';
+        window._kbDocCount = 0;
+        applyKbPlanLock();
       }
     }
 
@@ -1687,20 +1828,28 @@
       const chatEl = document.getElementById('tgChatId');
       const notifyEl = document.getElementById('tgNotifyEvents');
       const tokenEl = document.getElementById('tgBotToken');
+      const saveBtn = document.getElementById('tgSaveBtn');
+      const testBtn = document.getElementById('tgTestBtn');
+      const upgradeNote = document.getElementById('tgUpgradeNote');
+      const planAllowed = j.plan_allowed !== false;
+      [enabledEl, replyEl, chatEl, notifyEl, tokenEl, saveBtn, testBtn].forEach(el => { if(el) el.disabled = !planAllowed; });
+      if(upgradeNote) upgradeNote.style.display = planAllowed ? 'none' : '';
       if(enabledEl) enabledEl.checked = j.enabled !== false;
       if(replyEl) replyEl.checked = j.reply_enabled !== false;
       if(chatEl) chatEl.value = j.chat_id || '';
       if(notifyEl) notifyEl.value = j.notify_events || 'all';
       if(tokenEl){
         if(j.has_bot_token){
-          tokenEl.placeholder = (j.bot_token_hint ? 'Saved (' + j.bot_token_hint + ') — enter new to replace' : 'Token saved — enter new to replace');
+          tokenEl.placeholder = (j.bot_token_hint ? 'Saved (' + j.bot_token_hint + ') - enter new to replace' : 'Token saved - enter new to replace');
         }else{
           tokenEl.placeholder = '123456789:ABCdefGHI…';
         }
         tokenEl.value = '';
       }
       if(!pill) return;
-      if(j.configured && j.enabled !== false){
+      if(!planAllowed){
+        setPill(pill, 'Upgrade required', 'bad');
+      }else if(j.configured && j.enabled !== false){
         setPill(pill, 'Connected', 'ok');
       }else if(j.configured){
         setPill(pill, 'Configured (paused)', '');
@@ -1719,7 +1868,7 @@
           return;
         }
         applyTelegramStatus(j);
-        setPill(status, '—', '');
+        setPill(status, '-', '');
       }catch(err){
         setPill(status, 'Network error', 'bad');
       }
@@ -1766,7 +1915,7 @@
           setPill(status, (j.error || 'Test failed'), 'bad');
           return;
         }
-        setPill(status, 'Test sent — check Telegram', 'ok');
+        setPill(status, 'Test sent - check Telegram', 'ok');
       }catch(err){
         setPill(status, 'Network error', 'bad');
       }
@@ -1782,12 +1931,19 @@
       const pill = document.getElementById('waPill');
       const webhook = document.getElementById('waWebhookUrl');
       const tokenEl = document.getElementById('waAccessToken');
+      const vt = document.getElementById('waVerifyToken');
+      const saveBtn = document.getElementById('waSaveBtn');
+      const testBtn = document.getElementById('waTestBtn');
+      const upgradeNote = document.getElementById('waUpgradeNote');
+      const planAllowed = j.plan_allowed !== false;
+      [en, re, pid, to, ne, tokenEl, vt, saveBtn, testBtn].forEach(el => { if(el) el.disabled = !planAllowed; });
+      if(upgradeNote) upgradeNote.style.display = planAllowed ? 'none' : '';
       if(en) en.checked = j.enabled !== false;
       if(re) re.checked = j.reply_enabled !== false;
       if(pid) pid.value = j.phone_number_id || '';
       if(to) to.value = j.to_phone || '';
       if(ne) ne.value = j.notify_events || 'all';
-      if(webhook) webhook.textContent = j.webhook_url || '—';
+      if(webhook) webhook.textContent = j.webhook_url || '-';
       if(tokenEl){
         if(j.has_access_token){
           tokenEl.placeholder = j.access_token_hint ? (j.access_token_hint + ' (saved)') : 'Token saved';
@@ -1796,13 +1952,14 @@
         }
         tokenEl.value = '';
       }
-      const vt = document.getElementById('waVerifyToken');
       if(vt){
         vt.placeholder = j.verify_token_set ? 'Verify token saved' : 'my-secret-verify-token';
         vt.value = '';
       }
       if(!pill) return;
-      if(j.configured && j.enabled !== false){
+      if(!planAllowed){
+        setPill(pill, 'Upgrade required', 'bad');
+      }else if(j.configured && j.enabled !== false){
         setPill(pill, 'Connected', 'ok');
       }else if(j.configured){
         setPill(pill, 'Configured (paused)', '');
@@ -1821,7 +1978,7 @@
           return;
         }
         applyWhatsappStatus(j);
-        setPill(status, '—', '');
+        setPill(status, '-', '');
       }catch(err){
         setPill(status, 'Network error', 'bad');
       }
@@ -1871,7 +2028,7 @@
           setPill(status, (j.error || 'Test failed'), 'bad');
           return;
         }
-        setPill(status, 'Test sent — check WhatsApp', 'ok');
+        setPill(status, 'Test sent - check WhatsApp', 'ok');
       }catch(err){
         setPill(status, 'Network error', 'bad');
       }
@@ -1881,7 +2038,7 @@
     function cpWaWebhook(){
       const el = document.getElementById('waWebhookUrl');
       const txt = (el?.textContent || '').trim();
-      if(!txt || txt === '—') return;
+      if(!txt || txt === '-') return;
       navigator.clipboard?.writeText(txt).then(() => {
         const status = document.getElementById('waStatus');
         setPill(status, 'Webhook URL copied', 'ok');
@@ -1953,7 +2110,7 @@
       const ta = document.getElementById('kbEditorText');
       if(!ta || !_kbBundleCache) return;
       let show;
-      if(_kbEditorView === 'crawl') show = _kbBundleCache.website_crawl || { note: 'No website_crawl data yet — run Crawl & Ingest first.' };
+      if(_kbEditorView === 'crawl') show = _kbBundleCache.website_crawl || { note: 'No website_crawl data yet - run Crawl & Ingest first.' };
       else if(_kbEditorView === 'documents') show = { documents: _kbBundleCache.documents || [] };
       else show = _kbBundleCache;
       ta.value = JSON.stringify(show, null, 2);
@@ -2104,6 +2261,7 @@
         const res = await fetch(url, { method:'POST', body: fd });
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
+          if(kbPlanErrorPill(j, pill)) return;
           setPill(pill, (j.error || 'Upload failed'), 'bad');
           return;
         }
@@ -2181,7 +2339,7 @@
 
     async function pollCrawlStatus(pill, attemptsLeft){
       if(attemptsLeft <= 0){
-        setPill(pill, 'Crawl still running — refresh KB status later', 'info');
+        setPill(pill, 'Crawl still running - refresh KB status later', 'info');
         return;
       }
       try{
@@ -2244,6 +2402,11 @@
         const res = await fetch('/api/kb/crawl', { method:'POST', body: fd });
         const j = await res.json().catch(() => ({}));
         if(!res.ok || !j.ok){
+          if(kbPlanErrorPill(j, pill)){
+            updateCrawlProgress({ phase: 'error', percent: 0, message: j.error || 'Plan limit' }, { error: true });
+            if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
+            return;
+          }
           setPill(pill, (j.error || 'Crawl failed'), 'bad');
           updateCrawlProgress({ phase: 'error', percent: 0, message: j.error || 'Crawl failed' }, { error: true });
           if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
@@ -2306,5 +2469,28 @@
 
     _smtpWireFieldErrorClearing();
   </script>
-  <script src="{% static 'js/mail-accounts-setup.js' %}?v=6"></script>
+  <script src="{% static 'js/mail-accounts-setup.js' %}?v=8"></script>
+  <script>
+    async function refreshBillingStrip(){
+      const el = document.getElementById('billingStripText');
+      if(!el) return;
+      try{
+        const res = await fetch('/api/billing/summary');
+        const j = await res.json().catch(() => ({}));
+        if(!res.ok || !j.ok || !j.billing){
+          el.textContent = 'Plan unavailable';
+          window._setupBilling = null;
+          return;
+        }
+        window._setupBilling = j.billing;
+        applySetupPlanLocks();
+        el.textContent = window.formatBillingStripText(j.billing);
+      }catch(e){
+        el.textContent = 'Plan unavailable';
+        window._setupBilling = null;
+      }
+    }
+    window.refreshBillingStrip = refreshBillingStrip;
+    document.addEventListener('DOMContentLoaded', refreshBillingStrip);
+  </script>
 {% endblock %}

@@ -1,0 +1,13 @@
+{% for feature in marketing_features %}
+  <div class="feat-card" style="--card-accent:{{ feature.accent_color }}">
+    <div class="feat-icon" style="{{ feature.icon_background_style }}">
+      <i class="{{ feature.icon_class }}" aria-hidden="true"></i>
+    </div>
+    <div class="feat-title">{{ feature.title }}</div>
+    <div class="feat-desc">{{ feature.description }}</div>
+  </div>
+{% empty %}
+  <p class="feat-desc" style="grid-column:1/-1;text-align:center;padding:24px 0">
+    No features published yet. Add them in the admin under <strong>Marketing features</strong>.
+  </p>
+{% endfor %}

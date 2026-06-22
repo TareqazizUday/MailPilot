@@ -1,0 +1,280 @@
+{% extends "admin/base.html" %}
+
+{% load i18n static %}
+
+
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_("Django site admin") }}{% endblock %}
+
+
+
+{% block branding %}
+
+  {% include "unfold/helpers/site_branding.html" %}
+
+{% endblock %}
+
+
+
+{% block extrahead %}
+  {{ block.super }}
+{% endblock %}
+
+
+
+{% block content %}
+
+  <div class="flex flex-col gap-6 mb-8 mp-dash-home">
+
+    <div class="mp-dash-hero flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between p-6 rounded-default">
+
+      <div>
+
+        <p class="mp-dash-hero-tag font-semibold text-xs tracking-widest uppercase">
+
+          MailPilot control center
+
+        </p>
+
+        <h2 class="font-semibold mt-1 text-2xl text-important mp-dash-hero-title">
+
+          {% trans "Operations dashboard" %}
+
+        </h2>
+
+        <p class="mt-2 text-font-default-light dark:text-font-default-dark text-sm">
+
+          {% trans "Billing period" %}: <strong>{{ mp_period }}</strong>
+
+        </p>
+
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+
+        <a class="mp-dash-hero-btn mp-dash-hero-btn--ghost font-medium px-4 py-2 rounded-default text-sm" href="/">
+
+          {% trans "Open app" %}
+
+        </a>
+
+        <a class="mp-dash-hero-btn mp-dash-hero-btn--primary font-medium px-4 py-2 rounded-default text-sm" href="{% url 'admin:auth_user_changelist' %}">
+
+          {% trans "All users" %}
+
+        </a>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="gap-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+
+      <a href="{{ mp_stats.links.users }}" class="mp-dash-kpi-card mp-dash-kpi-card--users bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% trans 'View all users' %}">
+
+        <span class="mp-dash-kpi-dot" aria-hidden="true"></span>
+
+        <p class="mp-dash-kpi-label font-semibold text-xs tracking-wide uppercase">{% trans "Users" %}</p>
+
+        <p class="mp-dash-kpi-value font-bold mt-2 text-3xl">{{ mp_stats.users }}</p>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{{ mp_stats.subscriptions }} {% trans "subscribed" %}</p>
+
+      </a>
+
+      <a href="{{ mp_stats.links.paid }}" class="mp-dash-kpi-card mp-dash-kpi-card--paid bg-white border border-primary-600/30 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-primary-600/30" title="{% trans 'View subscriptions' %}">
+
+        <span class="mp-dash-kpi-dot" aria-hidden="true"></span>
+
+        <p class="mp-dash-kpi-label font-semibold text-xs tracking-wide uppercase">{% trans "Paid" %}</p>
+
+        <p class="mp-dash-kpi-value font-bold mt-2 text-3xl">{{ mp_stats.paid_subscribers }}</p>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">${{ mp_stats.mrr_estimate_usd }} {% trans "MRR est." %}</p>
+
+      </a>
+
+      <a href="{{ mp_stats.links.tokens }}" class="mp-dash-kpi-card mp-dash-kpi-card--tokens bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% trans 'Token usage this billing period' %}">
+
+        <span class="mp-dash-kpi-dot" aria-hidden="true"></span>
+
+        <p class="mp-dash-kpi-label font-semibold text-xs tracking-wide uppercase">{% trans "Tokens" %}</p>
+
+        <p class="mp-dash-kpi-value font-bold mt-2 text-3xl">{{ mp_stats.tokens_this_month }}</p>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{% trans "This month" %}</p>
+
+      </a>
+
+      <a href="{{ mp_stats.links.mailboxes }}" class="mp-dash-kpi-card mp-dash-kpi-card--mailboxes bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% trans 'Active mail accounts' %}">
+
+        <span class="mp-dash-kpi-dot" aria-hidden="true"></span>
+
+        <p class="mp-dash-kpi-label font-semibold text-xs tracking-wide uppercase">{% trans "Mailboxes" %}</p>
+
+        <p class="mp-dash-kpi-value font-bold mt-2 text-3xl">{{ mp_stats.active_mailboxes }}</p>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{{ mp_stats.pro_plans }} Pro · {{ mp_stats.custom_plans }} Custom</p>
+
+      </a>
+
+      <a href="{{ mp_stats.links.auto_sends }}" class="mp-dash-kpi-card mp-dash-kpi-card--sends bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% trans 'Committed usage events today' %}">
+
+        <span class="mp-dash-kpi-dot" aria-hidden="true"></span>
+
+        <p class="mp-dash-kpi-label font-semibold text-xs tracking-wide uppercase">{% trans "Auto-sends" %}</p>
+
+        <p class="mp-dash-kpi-value font-bold mt-2 text-3xl">{{ mp_stats.auto_sends_today }}</p>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{% trans "Today" %}</p>
+
+      </a>
+
+      <a href="{% if mp_stats.open_contacts %}{{ mp_stats.links.contacts }}{% else %}{{ mp_stats.links.starter_expired }}{% endif %}" class="mp-dash-kpi-card mp-dash-kpi-card--expired bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% if mp_stats.open_contacts %}{% trans 'Pending contact submissions' %}{% else %}{% trans 'Starter trials that expired' %}{% endif %}">
+
+        <span class="mp-dash-kpi-dot" aria-hidden="true"></span>
+
+        <p class="mp-dash-kpi-label font-semibold text-xs tracking-wide uppercase">{% trans "Starter expired" %}</p>
+
+        <p class="mp-dash-kpi-value font-bold mt-2 text-3xl">{{ mp_stats.starter_expired }}</p>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">
+
+          {% if mp_stats.open_contacts %}
+
+            {{ mp_stats.open_contacts }} {% trans "contacts pending" %}
+
+          {% else %}
+
+            {% trans "Upgrade candidates" %}
+
+          {% endif %}
+
+        </p>
+
+      </a>
+
+    </div>
+
+
+
+    <div class="mp-dash-chart-grid gap-4 grid grid-cols-1 xl:grid-cols-2">
+
+      <div class="mp-dash-chart-card mp-dash-chart-card--donut bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+
+        <h3 class="font-semibold text-important text-sm">{% trans "Plan distribution" %}</h3>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Active subscriptions by plan" %}</p>
+
+        <div id="mpChartPlanMix" class="mp-dash-donut-host mt-3"></div>
+
+      </div>
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <h3 class="font-semibold text-important text-sm">{% trans "Users by plan" %}</h3>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Each subscriber - name and plan" %}</p>
+        <div id="mpChartUsersByPlan" class="mt-3"></div>
+      </div>
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <h3 class="font-semibold text-important text-sm">{% trans "Top token users" %} - {{ mp_period }}</h3>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Tokens used this billing period" %}</p>
+        <div id="mpChartTopUsers" class="mt-3"></div>
+      </div>
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <h3 class="font-semibold text-important text-sm">{% trans "Monthly token usage" %}</h3>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Total tokens consumed per billing period" %}</p>
+        <div id="mpChartTokens" class="mt-3"></div>
+      </div>
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <h3 class="font-semibold text-important text-sm">{% trans "User signups" %}</h3>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "New accounts per month" %}</p>
+        <div id="mpChartSignups" class="mt-3"></div>
+      </div>
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <h3 class="font-semibold text-important text-sm">{% trans "Mailboxes per user" %}</h3>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Gmail and SMTP/IMAP by user" %}</p>
+        <div id="mpChartMailboxesByUser" class="mt-3"></div>
+        <div id="mpChartTransport" class="mt-3 hidden"></div>
+      </div>
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+
+        <h3 class="font-semibold text-important text-sm">{% trans "Telegram & WhatsApp by user" %}</h3>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Users with configured integration tokens" %}</p>
+
+        <div id="mpChartIntegrations" class="mt-3"></div>
+
+      </div>
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+
+        <h3 class="font-semibold text-important text-sm">{% trans "Auto-sends (30 days)" %}</h3>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Committed auto-send events per day" %}</p>
+
+        <div id="mpChartAutoSends" class="mt-3"></div>
+
+      </div>
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800 xl:col-span-2">
+
+        <h3 class="font-semibold text-important text-sm">{% trans "New paid conversions" %}</h3>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Pro + Custom first payments by month (estimate)" %}</p>
+
+        <div id="mpChartPaid" class="mt-3"></div>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="mp-dash-table-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+
+      <h3 class="mp-dash-section-title font-semibold text-sm">{% trans "Top token users" %} - {{ mp_period }}</h3>
+
+      <p class="mt-1 mb-4 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Highest usage this billing period" %}</p>
+
+      <div class="mp-dash-table-wrap overflow-x-auto">
+
+        <table class="mp-dash-table w-full text-sm">
+
+          <thead>
+
+            <tr>
+
+              <th>{% trans "User" %}</th>
+
+              <th>{% trans "Plan" %}</th>
+
+              <th>{% trans "Usage" %}</th>
+
+            </tr>
+
+          </thead>
+
+          <tbody id="mpTopTokenBody"></tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  {{ mp_charts|json_script:"mp-dashboard-charts" }}
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.1/dist/apexcharts.min.js"></script>
+  <script src="{% static 'js/mailpilot-admin-dashboard.js' %}"></script>
+
+{% endblock %}
+
