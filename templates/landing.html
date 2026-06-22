@@ -18,7 +18,7 @@
   <meta property="og:locale" content="en_US" />
   {% if seo_og_image %}
   <meta property="og:image" content="{{ seo_og_image }}" />
-  <meta property="og:image:alt" content="MailPilot — AI email automation for Gmail and IMAP" />
+  <meta property="og:image:alt" content="MailPilot | AI email automation for Gmail and IMAP" />
   {% endif %}
 
   <meta name="twitter:card" content="{% if seo_og_image %}summary_large_image{% else %}summary{% endif %}" />
@@ -647,6 +647,7 @@
       position: relative; z-index: 1;
       padding: clamp(56px, 10vw, 80px) clamp(16px, 5vw, 7%);
       text-align: center;
+      overflow: visible;
     }
     .pricing-head-row {
       display: flex; align-items: flex-start; justify-content: space-between;
@@ -726,6 +727,7 @@
       max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.5;
     }
     {% include "components/marketing_pricing_billing_toggle_css.html" %}
+    {% include "components/marketing_pricing_responsive_css.html" %}
     .pricing-intro {
       color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
       margin-left: auto; margin-right: auto; line-height: 1.65;
@@ -752,7 +754,7 @@
       max-width: 1120px; margin-left: auto; margin-right: auto;
       align-items: stretch;
       overflow: visible;
-      padding-top: 14px;
+      padding-top: 22px;
     }
     .pricing-card {
       background: linear-gradient(165deg, rgba(13,18,48,0.65), rgba(10,14,36,0.5));
@@ -801,9 +803,10 @@
       font-weight: 800;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      padding: 6px 16px;
+      padding: 7px 16px 6px;
       border-radius: 50px;
       white-space: nowrap;
+      line-height: 1.25;
       box-shadow: 0 6px 20px rgba(79,110,247,0.35);
       pointer-events: none;
     }
@@ -866,21 +869,6 @@
       color: var(--text); border: 1px solid var(--glass-border);
     }
     .pricing-cta.secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
-    @media (max-width: 900px) {
-      .pricing-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        max-width: 1120px;
-        gap: 18px;
-      }
-      .pricing-head-row { justify-content: center; text-align: center; }
-    }
-    @media (max-width: 600px) {
-      .pricing-grid {
-        grid-template-columns: 1fr;
-        max-width: min(440px, 100%);
-        gap: 16px;
-      }
-    }
 
     /* ── CONTACT FORM ── */
     #contact {
@@ -1515,7 +1503,6 @@
       .pricing-card.is-active { transform: none; }
       .pricing-card.is-active:hover { transform: none; }
       .stat-num { font-size: clamp(1.65rem, 6vw, 2.2rem); }
-      .pricing-price { font-size: clamp(1.75rem, 7vw, 2.35rem); }
       .contact-panel { grid-template-columns: 1fr; gap: 20px; }
       .contact-row2 { grid-template-columns: 1fr; }
       .cta-box { padding: 48px 24px; }
@@ -1581,7 +1568,7 @@
 <section id="hero" aria-labelledby="hero-heading">
   <div class="hero-badge"><span></span> AI-Powered Email Automation</div>
   <h1 id="hero-heading">Your Inbox,<br/><span class="gradient">Fully Automated.</span></h1>
-  <p class="hero-sub">MailPilot reads your emails, checks relevance, crafts intelligent replies using LLMs + RAG knowledge base — and sends them. All on autopilot.</p>
+  <p class="hero-sub">MailPilot reads your emails, checks relevance, crafts intelligent replies using LLMs + RAG knowledge base - and sends them. All on autopilot.</p>
   <div class="hero-btns">
     <a href="{% url 'signup' %}" class="btn-primary">Start Automating →</a>
     <a href="{% url 'how_it_works' %}" class="btn-secondary">See How It Works</a>
@@ -1615,7 +1602,7 @@
   <div class="features-head">
     <div class="section-tag"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Core Features</div>
     <h2 class="section-title">Everything you need to <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">automate email at scale</span></h2>
-    <p class="section-sub">Built on Django with a powerful email_automation engine — designed for teams and enterprises.</p>
+    <p class="section-sub">Built on Django with a powerful email_automation engine - designed for teams and enterprises.</p>
   </div>
   <div class="features-grid">
     {% include "components/marketing_feature_cards.html" %}
@@ -1627,7 +1614,7 @@
   <div class="hiw-head">
     <div class="section-tag"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Workflow</div>
     <h2 class="section-title" id="how-it-works-heading">How MailPilot <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">works</span></h2>
-    <p class="section-sub">Six steps matching the live automation pipeline—from inbox poll to reply and per-user state.</p>
+    <p class="section-sub">Six steps matching the live automation pipeline-from inbox poll to reply and per-user state.</p>
   </div>
   <div class="hiw-steps" aria-label="Workflow steps">
     {% include "components/marketing_hiw_steps_home.html" %}
@@ -1638,7 +1625,7 @@
 <section id="testimonials" aria-labelledby="testimonials-heading">
   <div class="section-tag">Social proof</div>
   <h2 class="section-title" id="testimonials-heading">Trusted by <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">teams who live in email</span></h2>
-  <p class="testimonials-intro">Support, sales, and operations leads use MailPilot-style automation to answer faster—without losing tone or accuracy. Here is what they highlight.</p>
+  <p class="testimonials-intro">Support, sales, and operations leads use MailPilot-style automation to answer faster-without losing tone or accuracy. Here is what they highlight.</p>
 
   <div class="trust-strip" aria-hidden="true">
     <span class="trust-strip-label">Teams at</span>
@@ -1670,11 +1657,11 @@
     <div class="contact-head">
       <div class="section-tag">Get in touch</div>
       <h2 class="section-title" id="contact-heading">Questions before you <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">sign up?</span></h2>
-      <p class="contact-intro">Share your inbox goals—we typically reply within one business day. Or start with the free Starter plan below.</p>
+      <p class="contact-intro">Share your inbox goals-we typically reply within one business day. Or start with the free Starter plan below.</p>
     </div>
 
     {% if contact_sent %}
-    <div class="contact-alert ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Thanks — we received your message and will reply soon.</span></div>
+    <div class="contact-alert ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Thanks - we received your message and will reply soon.</span></div>
     {% elif contact_error %}
     <div class="contact-alert err" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>{% if contact_error == "mail" %}Your message was saved, but we could not send email right now. Please try again or email team@timerni.co.uk directly.{% else %}Please enter your name, a valid email, and a message.{% endif %}</span></div>
     {% endif %}
@@ -1693,7 +1680,7 @@
         </figure>
         <div class="contact-aside-body">
           <h3>We help you launch faster</h3>
-          <p>Ask about Gmail vs IMAP, send limits, knowledge base setup, or team onboarding—we will point you to the right plan.</p>
+          <p>Ask about Gmail vs IMAP, send limits, knowledge base setup, or team onboarding-we will point you to the right plan.</p>
           <ul class="contact-perks">
             <li><i class="fa-solid fa-bolt" aria-hidden="true"></i><span>Free trial guidance &amp; inbox connection tips</span></li>
             <li><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span>Credentials encrypted per account</span></li>

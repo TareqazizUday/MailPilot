@@ -51,7 +51,7 @@ def _send_team_notification(submission: ContactSubmission, ctx: dict) -> bool:
 
 
 def _send_user_confirmation(submission: ContactSubmission, ctx: dict) -> bool:
-    subject = "We received your message — MailPilot"
+    subject = "We received your message | MailPilot"
     text_body = render_to_string("emails/contact_user_confirm.txt", ctx).strip() + "\n"
     html_body = render_to_string("emails/contact_user_confirm.html", ctx)
     msg = EmailMultiAlternatives(

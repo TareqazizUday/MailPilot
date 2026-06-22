@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MailPilot — Build your Custom plan</title>
+  <title>MailPilot | Build your Custom plan</title>
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#060818" />
   {% include "components/favicon.html" %}
@@ -91,6 +91,7 @@
       font-size: 0.75rem; color: rgba(148,163,184,0.85); line-height: 1.5; margin-bottom: 18px;
     }
     {% include "components/marketing_pricing_billing_toggle_css.html" %}
+    {% include "components/marketing_pricing_responsive_css.html" %}
     .cta {
       display: block; width: 100%; text-align: center; padding: 14px 20px; border-radius: 50px;
       font-size: 0.95rem; font-weight: 700; text-decoration: none; border: none; cursor: pointer;
@@ -124,7 +125,7 @@
     <a href="{% url 'pricing' %}" class="back-link"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to pricing</a>
     <div class="section-tag">Custom plan</div>
     <h1 class="section-title" id="custom-heading">Build your own <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">MailPilot plan</span></h1>
-    <p class="intro">Adjust monthly tokens and inbox slots. Price updates live — continue to checkout when you are ready.</p>
+    <p class="intro">Adjust monthly tokens and inbox slots. Price updates live - continue to checkout when you are ready.</p>
 
     {% include "components/marketing_pricing_billing_toggle.html" %}
 
@@ -147,10 +148,10 @@
 
       <aside class="panel" aria-label="Quote summary">
         <h2>Your quote</h2>
-        <div class="summary-price" id="priceDisplay">$—<span>/mo</span></div>
+        <div class="summary-price" id="priceDisplay">$-<span>/mo</span></div>
         <ul class="summary-list" id="summaryList">
-          <li><span>Auto-sends / mo</span><strong id="sendsMax">—</strong></li>
-          <li><span>Daily send cap / inbox</span><strong id="dailyCap">—</strong></li>
+          <li><span>Auto-sends / mo</span><strong id="sendsMax">-</strong></li>
+          <li><span>Daily send cap / inbox</span><strong id="dailyCap">-</strong></li>
           <li><span>Tokens per auto-send</span><strong id="perSend">5</strong></li>
           <li><span>Telegram &amp; WhatsApp</span><strong>Included</strong></li>
         </ul>

@@ -57,6 +57,7 @@
     <span class="pricing-card-soon"><i class="{{ plan.ribbon_icon_class }}" aria-hidden="true"></i> {{ plan.ribbon_label }}</span>
     {% endif %}
   </div>
+  {% if plan.price_display %}
   <div class="pricing-price-row" data-pricing-was-row {% if not plan.price_was %}hidden{% endif %}>
     <span class="pricing-was" data-pricing-was>{{ plan.price_was }}</span>
     <div class="pricing-price"><span data-pricing-price>{{ plan.price_display }}</span><span data-pricing-suffix>{{ plan.price_suffix }}</span></div>
@@ -65,16 +66,17 @@
   <div class="pricing-price pricing-price-simple" data-pricing-simple-row {% if plan.price_was %}hidden{% endif %}>
     <span data-pricing-price-simple>{{ plan.price_display }}</span><span data-pricing-suffix-simple>{{ plan.price_suffix }}</span>
   </div>
+  {% endif %}
   <p class="pricing-period" data-pricing-period>{{ plan.period_text }}</p>
   <p class="pricing-desc">{{ plan.description }}</p>
   <ul class="pricing-features">
     {% for line in plan.feature_lines %}
-    <li>{{ line|safe }}</li>
+    <li><span class="pricing-feature-text">{{ line|safe }}</span></li>
     {% endfor %}
   </ul>
   {% if plan.plan_code == "starter" %}
   <a
-    href="{% if user.is_authenticated %}{% if starter_expired %}{% url 'pricing' %}{% else %}{% url 'profile' %}{% endif %}{% else %}{% url 'signup' %}{% endif %}"
+    href="{% if user.is_authenticated %}{% if starter_expired %}{% url 'pricing' %}{% else %}{% url 'profile' %}{% endif %}{% else %}{% url 'login' %}{% endif %}"
     class="pricing-cta {{ plan.cta_style }}"
     {% if plan.plan_code == "starter" %}id="starterCta" data-auth="{% if user.is_authenticated %}1{% else %}0{% endif %}"{% endif %}
   >{% if user.is_authenticated %}{% if starter_expired %}{{ plan.cta_label_starter_expired|default:"Upgrade required" }}{% else %}{{ plan.cta_label_authenticated|default:plan.cta_label }}{% endif %}{% else %}{{ plan.cta_label }}{% endif %}</a>

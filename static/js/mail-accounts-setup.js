@@ -115,7 +115,7 @@
             canDisable: true,
             reason: 'over_limit',
             lockNote:
-              'Over plan limit — pause this mailbox to stay within your plan, or <a href="/pricing/">upgrade</a>.',
+              'Over plan limit - pause this mailbox to stay within your plan, or <a href="/pricing/">upgrade</a>.',
           };
         }
       }
@@ -125,7 +125,7 @@
     if (atLimit) {
       const primary = primaryEnabledMailbox();
       let lockNote =
-        'Plan inbox limit reached — pause another mailbox or <a href="/pricing/">upgrade</a>.';
+        'Plan inbox limit reached - pause another mailbox or <a href="/pricing/">upgrade</a>.';
       if (lim === 1 && primary) {
         const transportLabel = primary.transport === 'gmail_api' ? 'Gmail' : 'SMTP';
         lockNote =
@@ -180,7 +180,7 @@
       a.slot +
       ' ' +
       esc(name) +
-      '</strong> — locked on your plan (' +
+      '</strong> - locked on your plan (' +
       transportLabel +
       ' allows 1 active inbox). <a href="/pricing/">Upgrade</a> to use more slots.' +
       '</div>'
@@ -297,7 +297,7 @@
       '</span>' +
       '<span class="mode-muted">' +
       inactive +
-      ' mode inactive — switch tab to use</span>' +
+      ' mode inactive - switch tab to use</span>' +
       '</div>';
   }
 
@@ -380,7 +380,7 @@
       } else {
         html +=
           '<div class="mb-card mb-card-empty mb-card-locked" title="Plan inbox limit reached">' +
-          '<i class="fa-solid fa-lock"></i> Inbox limit reached — <a href="/pricing/">upgrade</a> or pause another mailbox</div>';
+          '<i class="fa-solid fa-lock"></i> Inbox limit reached - <a href="/pricing/">upgrade</a> or pause another mailbox</div>';
       }
     }
     host.innerHTML = html;
@@ -422,7 +422,7 @@
     const mismatchNote = mismatch
       ? '<p class="mb-card-meta" style="color:var(--red);">OAuth is <strong>' +
         esc(a.profile_email || 'another Gmail') +
-        '</strong> — reconnect with <strong>' +
+        '</strong> - reconnect with <strong>' +
         esc(email) +
         '</strong>.</p>'
       : '';
@@ -570,7 +570,7 @@
       } else {
         html +=
           '<div class="mb-card mb-card-empty mb-card-locked" title="Plan inbox limit reached">' +
-          '<i class="fa-solid fa-lock"></i> Inbox limit reached — <a href="/pricing/">upgrade</a> or pause another mailbox</div>';
+          '<i class="fa-solid fa-lock"></i> Inbox limit reached - <a href="/pricing/">upgrade</a> or pause another mailbox</div>';
       }
     }
     host.innerHTML = html;
@@ -612,7 +612,7 @@
       '</div>' +
       '<span class="pill mini-pill" id="smtpStatus-' +
       a.id +
-      '">—</span>';
+      '">-</span>';
     return (
       '<article class="mb-card mb-smtp-card' +
       (paused ? ' mb-paused' : '') +
@@ -647,7 +647,7 @@
   }
 
   function smtpFieldsHtml(a, c) {
-    const passPh = a.has_smtp_password ? 'Re-enter only to change' : 'Required — enter to save';
+    const passPh = a.has_smtp_password ? 'Re-enter only to change' : 'Required - enter to save';
     return (
       '<div class="row2"><div class="fg"><label class="fl">SMTP Host</label>' +
       '<input class="fi smtp-host" value="' +

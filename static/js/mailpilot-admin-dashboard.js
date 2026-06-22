@@ -198,7 +198,7 @@
         y: {
           formatter: function (val, opts) {
             var plan = data.users_by_plan.plans[opts.dataPointIndex] || "";
-            return plan + " — " + val + " tokens";
+            return plan + " - " + val + " tokens";
           },
         },
       },

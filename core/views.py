@@ -114,7 +114,7 @@ def _mailbox_connected_for_ui(
     """True if the user has a usable mailbox path for the *current* transport.
 
     IMAP credentials alone must not imply "connected" when SEND_TRANSPORT is still
-    gmail_api (e.g. stale IMAP fields after saving SMTP once) — that broke the
+    gmail_api (e.g. stale IMAP fields after saving SMTP once) - that broke the
     navbar showing Connected after Gmail OAuth disconnect.
     """
     transport = str(cfg.get("SEND_TRANSPORT") or effective.SEND_TRANSPORT or "").strip()
@@ -452,7 +452,7 @@ def pricing_page(request):
 
 @require_GET
 def custom_plan_builder_page(request):
-    """Interactive custom plan builder — adjust tokens & inboxes with live pricing."""
+    """Interactive custom plan builder - adjust tokens & inboxes with live pricing."""
     from core.billing import custom_pricing_config
     from core.pricing_currency import pricing_context
 
@@ -855,7 +855,7 @@ def api_billing_set_currency(request):
 
 @require_http_methods(["POST"])
 def api_billing_set_interval(request):
-    """Pin monthly/yearly billing interval for checkout (public — session only)."""
+    """Pin monthly/yearly billing interval for checkout (public - session only)."""
     try:
         body = json.loads(request.body.decode("utf-8") or "{}") if request.body else {}
     except Exception:
@@ -1203,7 +1203,7 @@ def _stripe_checkout_custom(request, quote):
         currency = stripe_currency_code(normalize_currency(getattr(quote, "currency", None) or "usd"))
         period = "yr" if interval == "yearly" else "mo"
         label = (
-            f"MailPilot Custom — {quote.tokens:,} tokens · "
+            f"MailPilot Custom - {quote.tokens:,} tokens · "
             f"{quote.inboxes} inbox(es)/{period}"
         )
         data = {
@@ -1302,7 +1302,7 @@ def billing_choose_payment(request):
 @login_required(login_url="/login")
 @require_http_methods(["GET", "POST"])
 def billing_checkout_pro(request):
-    """Start Pro checkout — routes to provider choice or Stripe Checkout."""
+    """Start Pro checkout - routes to provider choice or Stripe Checkout."""
     plan, quote, deny = _billing_resolve_checkout_target(request, plan_param="pro")
     if deny is not None:
         return deny
@@ -1322,7 +1322,7 @@ def billing_custom_request(request):
 @login_required(login_url="/login")
 @require_GET
 def billing_checkout_custom(request, quote_id: int):
-    """Checkout for a saved custom plan quote — routes to provider choice or Stripe."""
+    """Checkout for a saved custom plan quote - routes to provider choice or Stripe."""
     plan, quote, deny = _billing_resolve_checkout_target(request, quote_param=str(quote_id))
     if deny is not None:
         return deny
@@ -1365,7 +1365,7 @@ def billing_demo_checkout(request):
 @require_POST
 @csrf_protect
 def billing_demo_complete(request):
-    """Complete a demo checkout — activates Pro or Custom without a live gateway."""
+    """Complete a demo checkout - activates Pro or Custom without a live gateway."""
     from core.billing import PLAN_PRO, activate_custom_plan_quote, get_or_create_subscription, set_subscription_plan
     from core.models import CustomPlanQuote, UserSubscription
     from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, billing_demo_mode
@@ -2025,7 +2025,7 @@ def api_gmail_inbox(request):
             return JsonResponse(
                 {
                     "ok": False,
-                    "error": f"Gmail rate limit — try again in about {wait} seconds.",
+                    "error": f"Gmail rate limit - try again in about {wait} seconds.",
                     "retry_after_seconds": wait,
                 },
                 status=429,
@@ -2096,7 +2096,7 @@ def api_gmail_thread_detail(request, thread_id: str):
             return JsonResponse(
                 {
                     "ok": False,
-                    "error": f"Gmail rate limit — try again in about {wait} seconds.",
+                    "error": f"Gmail rate limit - try again in about {wait} seconds.",
                     "retry_after_seconds": wait,
                 },
                 status=429,
@@ -2149,7 +2149,7 @@ def api_kb_status(request):
                 {
                     "ok": False,
                     "configured": False,
-                    "error": "No KB database connection. Set DJANGO_DB_* in .env (same DB is fine) or VECTOR_DB_DSN, and run CREATE EXTENSION vector; on that database — see docs/kb-pgvector-setup.md",
+                    "error": "No KB database connection. Set DJANGO_DB_* in .env (same DB is fine) or VECTOR_DB_DSN, and run CREATE EXTENSION vector; on that database - see docs/kb-pgvector-setup.md",
                 }
             )
         vs = _get_vector_store_for_user(request.user, account_id=aid)

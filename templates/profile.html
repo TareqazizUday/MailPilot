@@ -164,7 +164,7 @@
                 <div class="av-name">
                   {% if profile.display_name %}{{ profile.display_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
                 </div>
-                <div class="av-usr">@{{ user.username }} · {{ user.email|default:"—" }}</div>
+                <div class="av-usr">@{{ user.username }} · {{ user.email|default:"-" }}</div>
                 <div class="fu-row">
                   <label class="label" for="avatar">Profile photo</label>
                   <input class="input" id="avatar" name="avatar" type="file" accept="image/*"/>
@@ -279,7 +279,7 @@
               <div class="av-name">
                 {% if profile.display_name %}{{ profile.display_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
               </div>
-              <div class="av-usr">@{{ user.username }} · {{ user.email|default:"—" }}</div>
+              <div class="av-usr">@{{ user.username }} · {{ user.email|default:"-" }}</div>
             </div>
           </div>
 
@@ -288,21 +288,21 @@
             <div class="field-grid">
               <div class="field">
                 <div class="label">Full name</div>
-                <div class="val">{{ user.get_full_name|default:"—" }}</div>
+                <div class="val">{{ user.get_full_name|default:"-" }}</div>
               </div>
               <div class="field">
                 <div class="label">Email</div>
-                <div class="val">{{ user.email|default:"—" }}</div>
+                <div class="val">{{ user.email|default:"-" }}</div>
               </div>
             </div>
             <div class="field-grid">
               <div class="field">
                 <div class="label">Company</div>
-                <div class="val">{{ profile.company|default:"—" }}</div>
+                <div class="val">{{ profile.company|default:"-" }}</div>
               </div>
               <div class="field">
                 <div class="label">Phone</div>
-                <div class="val">{{ profile.phone|default:"—" }}</div>
+                <div class="val">{{ profile.phone|default:"-" }}</div>
               </div>
             </div>
             <div class="field-grid">
@@ -312,12 +312,12 @@
               </div>
               <div class="field">
                 <div class="label">Display name</div>
-                <div class="val">{{ profile.display_name|default:"—" }}</div>
+                <div class="val">{{ profile.display_name|default:"-" }}</div>
               </div>
             </div>
             <div class="field">
               <div class="label">Notes (private)</div>
-              <div class="val-muted">{{ profile.notes|default:"—" }}</div>
+              <div class="val-muted">{{ profile.notes|default:"-" }}</div>
             </div>
           </div>
 
@@ -347,7 +347,7 @@
         const plan = ((b.plan && b.plan.code) || 'starter').replace(/^\w/, c => c.toUpperCase());
         const tok = b.tokens || {};
         planEl.textContent = plan;
-        if(periodEl) periodEl.textContent = b.period_key || '—';
+        if(periodEl) periodEl.textContent = b.period_key || '-';
         if(tokUsedEl) tokUsedEl.textContent = String(tok.used ?? 0);
         if(tokLeftEl) tokLeftEl.textContent = (tok.limit == null && plan.toLowerCase() === 'custom') ? 'Unlimited' : String(tok.left ?? (tok.limit != null ? Math.max(0, tok.limit - (tok.used ?? 0)) : 80));
         if(tokLimitEl) tokLimitEl.textContent = (tok.limit == null && plan.toLowerCase() === 'custom') ? '∞' : String(tok.limit ?? 80);

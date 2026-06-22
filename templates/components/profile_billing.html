@@ -2,7 +2,7 @@
   <div class="sec-title"><i class="fa-solid fa-coins" aria-hidden="true"></i> Plan &amp; tokens</div>
   {% if plan_activated %}
   <div class="bill-activated">
-  Plan activated. Your token allowance is shown below{% if bill_plan == "starter" %} — <strong>{{ bill_starter_sends_limit }}</strong> auto-sent emails total on Starter{% endif %}.
+  Plan activated. Your token allowance is shown below{% if bill_plan == "starter" %} - <strong>{{ bill_starter_sends_limit }}</strong> auto-sent emails total on Starter{% endif %}.
   </div>
   {% endif %}
   {% if bill_starter_expired %}
@@ -51,7 +51,7 @@
     {% if bill_plan == "starter" %}
     <strong>Starter trial:</strong> {{ bill_starter_sends_used }}/{{ bill_starter_sends_limit }} auto-sends used
     ({{ bill_tok_per_send }} tokens each, {{ bill_tok_limit }} total).{% if bill_starter_expired %}
-    Trial ended — upgrade to send again.{% else %}
+    Trial ended - upgrade to send again.{% else %}
     You have <strong id="billSendsLeftNote">{{ bill_sends_left }}</strong> auto-send{{ bill_sends_left|pluralize }} left.{% endif %}
     {% else %}
     Each auto-sent reply uses <strong>{{ bill_tok_per_send }} tokens</strong>. Draft mode does not use tokens.

@@ -7,7 +7,7 @@ DEFAULT_MARKETING_FEATURES: list[dict[str, str | int | bool]] = [
         "title": "Multi-Inbox Intelligence",
         "description": (
             "Automatically reads multiple Gmail and SMTP/IMAP inboxes, filters noise, "
-            "and identifies emails that need a response — powered by LLM relevance scoring."
+            "and identifies emails that need a response - powered by LLM relevance scoring."
         ),
         "icon_class": "fa-regular fa-envelope",
         "accent_color": "#4f6ef7",
@@ -26,7 +26,7 @@ DEFAULT_MARKETING_FEATURES: list[dict[str, str | int | bool]] = [
     {
         "title": "Secure Multi-Tenancy",
         "description": (
-            "Per-user isolation — scoped credentials, tenant-prefixed state, and audit logging built in."
+            "Per-user isolation - scoped credentials, tenant-prefixed state, and audit logging built in."
         ),
         "icon_class": "fa-solid fa-shield-halved",
         "accent_color": "#38bdf8",
@@ -99,7 +99,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
     {
         "title": "Keyword prefilter",
         "description": (
-            "Optional SERVICE_KEYWORDS filter runs first—non-matching mail is skipped before any LLM call."
+            "Optional SERVICE_KEYWORDS filter runs first-non-matching mail is skipped before any LLM call."
         ),
         "accent": HowItWorksStep.ACCENT_SKY,
         "icon_svg": (
@@ -195,7 +195,7 @@ def seed_default_how_it_works_steps() -> None:
 DEFAULT_MARKETING_REVIEWS: list[dict[str, str | int | bool]] = [
     {
         "quote": (
-            "We were drowning in tier‑1 inbox questions. Replies now pull from our product docs automatically—"
+            "We were drowning in tier‑1 inbox questions. Replies now pull from our product docs automatically-"
             "CSAT went up and our queue actually clears by end of day."
         ),
         "metric": "First-response time cut by roughly half in six weeks",
@@ -213,7 +213,7 @@ DEFAULT_MARKETING_REVIEWS: list[dict[str, str | int | bool]] = [
             "The RAG piece sold us. Generic AI drafts were embarrassing; grounded answers from our own KB "
             "sound like us. Onboarding took an afternoon, not a sprint."
         ),
-        "metric": "Audit trail per rep—compliance finally stopped asking for screenshots",
+        "metric": "Audit trail per rep-compliance finally stopped asking for screenshots",
         "author_name": "Marcus Webb",
         "author_role": "Head of Customer Experience · Brightstack",
         "avatar_initials": "MW",
@@ -225,7 +225,7 @@ DEFAULT_MARKETING_REVIEWS: list[dict[str, str | int | bool]] = [
     },
     {
         "quote": (
-            "I run a small agency—no room for a 24/7 inbox. MailPilot skips newsletters and cold outreach, "
+            "I run a small agency-no room for a 24/7 inbox. MailPilot skips newsletters and cold outreach, "
             "and only surfaces what needs a human touch. Game changer."
         ),
         "metric": "~15 hours a week back for billable work",
@@ -308,15 +308,15 @@ DEFAULT_PRICING_SETTINGS = {
     ),
 }
 
-_STARTER_FEATURES = """<strong>80 tokens</strong> lifetime (up to <strong>20</strong> auto-sent replies)
-<strong>20 auto-sends/day</strong> safety cap while active
+_STARTER_FEATURES = """80 tokens lifetime (up to 20 auto-sent replies)
+20 auto-sends/day safety cap while active
 1 connected inbox (Gmail or IMAP)
 Basic KB: 1 crawl or upload
 Keyword filter + LLM relevance
 Dashboard queue & unlimited drafts
 No Telegram or WhatsApp"""
 
-_PRO_FEATURES = """<strong>1,000 tokens</strong> per month (up to 200 auto-sent replies)
+_PRO_FEATURES = """1,000 tokens per month (up to 200 auto-sent replies)
 Up to 3 active Gmail or SMTP/IMAP inboxes
 100 auto-sends/day/inbox safety cap
 Full AI knowledge base (website crawl + file upload)
@@ -324,10 +324,10 @@ Multi Gmail OAuth + SMTP/IMAP mailbox support
 Per-user encrypted credentials
 Telegram & WhatsApp alerts and commands"""
 
-_CUSTOM_FEATURES = """<strong>Custom</strong> monthly tokens — set your own limit
-<strong>Custom</strong> Gmail inboxes — scale as you grow
-<strong>Custom</strong> SMTP/IMAP mailboxes — flexible slots
-Live price in the plan builder — no fixed tier
+_CUSTOM_FEATURES = """<strong>Custom</strong> monthly tokens - set your own limit
+<strong>Custom</strong> Gmail inboxes - scale as you grow
+<strong>Custom</strong> SMTP/IMAP mailboxes - flexible slots
+Live price in the plan builder - no fixed tier
 Provider-aware daily safety caps
 Telegram & WhatsApp alerts and chat commands
 Annual or monthly billing in the builder
@@ -340,8 +340,8 @@ DEFAULT_PRICING_PLANS: list[dict[str, str | int | bool]] = [
         "ribbon_type": MarketingPricingPlan.RIBBON_FREE,
         "ribbon_label": "Free",
         "ribbon_icon_class": "fa-solid fa-circle-check",
-        "price_display": "$0",
-        "price_suffix": "/trial",
+        "price_display": "",
+        "price_suffix": "",
         "period_text": "20 auto-sends total · then upgrade",
         "description": (
             "Connect one inbox, test AI replies, and keep draft mode unlimited. "
@@ -373,7 +373,7 @@ DEFAULT_PRICING_PLANS: list[dict[str, str | int | bool]] = [
         "yearly_price_save_label": "Save 50%",
         "yearly_period_text": "Billed annually · cancel anytime",
         "description": (
-            "Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits."
+            "Production volume for growing teams-RAG knowledge base, polling, and reliable auto-send limits."
         ),
         "features": _PRO_FEATURES,
         "cta_label": "Get Pro",
@@ -388,11 +388,11 @@ DEFAULT_PRICING_PLANS: list[dict[str, str | int | bool]] = [
         "ribbon_type": MarketingPricingPlan.RIBBON_SOON,
         "ribbon_label": "Build your plan",
         "ribbon_icon_class": "fa-solid fa-sliders",
-        "price_display": "You choose",
+        "price_display": "",
         "period_text": "Live price as you adjust",
         "yearly_period_text": "Annual or monthly in the builder",
         "description": (
-            "Slide tokens and inbox count — see your monthly price instantly, then checkout or contact us."
+            "Slide tokens and inbox count - see your monthly price instantly, then checkout or contact us."
         ),
         "features": _CUSTOM_FEATURES,
         "cta_label": "Build Custom plan",
@@ -429,7 +429,7 @@ def seed_default_pricing() -> None:
 
 
 DEFAULT_HERO_SETTINGS = {
-    "card_title": "MailPilot — Live Inbox",
+    "card_title": "MailPilot | Live Inbox",
     "card_icon_class": "fa-solid fa-inbox",
 }
 
@@ -476,7 +476,7 @@ DEFAULT_HERO_INBOX_ITEMS: list[dict[str, str | int | bool]] = [
         "avatar_color_start": "#94a3b8",
         "avatar_color_end": "#475569",
         "badge_type": MarketingHeroInboxItem.BADGE_SKIPPED,
-        "badge_label": "— Skipped",
+        "badge_label": "- Skipped",
         "sort_order": 4,
     },
 ]
@@ -539,7 +539,7 @@ DEFAULT_FAQ_ITEMS: list[dict[str, str | int | bool]] = [
         "sort_order": 2,
     },
     {
-        "question": "Gmail or SMTP/IMAP—which should I use?",
+        "question": "Gmail or SMTP/IMAP-which should I use?",
         "answer_html": (
             "<strong>Gmail OAuth</strong> is the fastest setup for Google Workspace or personal Gmail. "
             "Use <strong>SMTP + IMAP</strong> for other providers. Pro and Custom plans can run multiple "
@@ -581,7 +581,7 @@ DEFAULT_FAQ_ITEMS: list[dict[str, str | int | bool]] = [
         "answer_html": (
             "<strong>Pro</strong> uses Stripe Checkout ($20/mo when configured). "
             "<strong>Custom</strong> lets you set tokens and inboxes on the "
-            '<a href="/pricing/custom">plan builder</a> — pay via Stripe or contact us for a manual quote.'
+            '<a href="/pricing/custom">plan builder</a> - pay via Stripe or contact us for a manual quote.'
         ),
         "icon_class": "fa-solid fa-credit-card",
         "sort_order": 7,

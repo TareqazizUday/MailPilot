@@ -121,7 +121,7 @@ class MailPilotUserAdmin(ModelAdmin, DjangoUserAdmin):
     @admin.display(description="Name")
     def full_name(self, obj):
         name = obj.get_full_name().strip()
-        return name or "—"
+        return name or "-"
 
     @admin.display(description="Plan")
     def plan_badge(self, obj):
@@ -492,7 +492,7 @@ class HowItWorksStepAdmin(_MPModelAdmin):
         from django.utils.safestring import mark_safe
 
         if not (obj.icon_svg or "").strip():
-            return "—"
+            return "-"
         return format_html(
             '<span style="display:inline-block;width:22px;height:22px;color:#a5b4fc">{}</span>',
             mark_safe(obj.icon_svg),
@@ -926,7 +926,7 @@ class ContactSubmissionAdmin(_MPModelAdmin):
         text = (obj.message or "").strip().replace("\n", " ")
         if len(text) > 80:
             return f"{text[:77]}…"
-        return text or "—"
+        return text or "-"
 
 
 class AuditLogAdmin(_MPModelAdmin):
@@ -946,7 +946,7 @@ class AuditLogAdmin(_MPModelAdmin):
         text = (obj.detail or "").strip()
         if len(text) > 60:
             return f"{text[:57]}…"
-        return text or "—"
+        return text or "-"
 
 
 class PasswordResetOTPAdmin(_MPModelAdmin):
@@ -1063,17 +1063,17 @@ class StripeConfigForm(forms.ModelForm):
         elif billing_demo_mode():
             self.initial["stripe_secret_key"] = ref["secret_key"]
         elif secret:
-            self.fields["stripe_secret_key"].widget.attrs["placeholder"] = "Saved — enter new value to replace"
+            self.fields["stripe_secret_key"].widget.attrs["placeholder"] = "Saved - enter new value to replace"
 
         if webhook and (saved_demo or billing_demo_mode()):
             self.initial["stripe_webhook_secret"] = webhook
         elif billing_demo_mode():
             self.initial["stripe_webhook_secret"] = ref["webhook_secret"]
         elif webhook:
-            self.fields["stripe_webhook_secret"].widget.attrs["placeholder"] = "Saved — enter new value to replace"
+            self.fields["stripe_webhook_secret"].widget.attrs["placeholder"] = "Saved - enter new value to replace"
 
         if saved_demo and not (inst.notes or "").strip():
-            self.initial["notes"] = "DEMO Stripe credentials — replace with real keys before production."
+            self.initial["notes"] = "DEMO Stripe credentials - replace with real keys before production."
 
 
 class StripeConfigAdmin(_MPModelAdmin):
@@ -1111,7 +1111,7 @@ class StripeConfigAdmin(_MPModelAdmin):
                     "masked_secret_key",
                     "masked_webhook_secret",
                 ),
-                "description": "Pre-filled demo placeholders on localhost — Save, test checkout, then replace with real Stripe keys.",
+                "description": "Pre-filled demo placeholders on localhost - Save, test checkout, then replace with real Stripe keys.",
             },
         ),
         ("Notes", {"fields": ("notes",), "classes": ("collapse",)}),
@@ -1147,7 +1147,7 @@ class StripeConfigAdmin(_MPModelAdmin):
             publishable_key=creds.publishable_key,
             webhook_secret=creds.webhook_secret,
         ):
-            return _badge("Demo saved — replace keys", "warn")
+            return _badge("Demo saved - replace keys", "warn")
         if obj.is_enabled:
             secret = decrypt_str(obj.stripe_secret_key_enc).strip()
             price = (obj.stripe_price_pro_monthly or "").strip()
@@ -1157,7 +1157,7 @@ class StripeConfigAdmin(_MPModelAdmin):
                 publishable_key=(obj.stripe_publishable_key or "").strip(),
                 webhook_secret=decrypt_str(obj.stripe_webhook_secret_enc).strip(),
             ):
-                return _badge("Demo saved — replace keys", "warn")
+                return _badge("Demo saved - replace keys", "warn")
         if billing_demo_mode():
             return _badge("Demo mode (local)", "pro")
         if not obj.is_enabled:
@@ -1269,10 +1269,10 @@ class PayPalConfigForm(forms.ModelForm):
         elif billing_demo_mode():
             self.initial["client_secret"] = ref["client_secret"]
         elif secret:
-            self.fields["client_secret"].widget.attrs["placeholder"] = "Saved — enter new value to replace"
+            self.fields["client_secret"].widget.attrs["placeholder"] = "Saved - enter new value to replace"
 
         if saved_demo and not (inst.notes or "").strip():
-            self.initial["notes"] = "DEMO PayPal credentials — replace with real keys before production."
+            self.initial["notes"] = "DEMO PayPal credentials - replace with real keys before production."
 
 
 class PayPalConfigAdmin(_MPModelAdmin):
@@ -1307,7 +1307,7 @@ class PayPalConfigAdmin(_MPModelAdmin):
                     "webhook_id",
                     "masked_client_secret",
                 ),
-                "description": "Pre-filled demo placeholders on localhost — Save, then replace with real PayPal Developer Dashboard keys.",
+                "description": "Pre-filled demo placeholders on localhost - Save, then replace with real PayPal Developer Dashboard keys.",
             },
         ),
         ("Notes", {"fields": ("notes",), "classes": ("collapse",)}),
@@ -1344,7 +1344,7 @@ class PayPalConfigAdmin(_MPModelAdmin):
             plan_pro_monthly=creds.plan_pro_monthly,
             webhook_id=creds.webhook_id,
         ):
-            return _badge("Demo saved — replace keys", "warn")
+            return _badge("Demo saved - replace keys", "warn")
         if obj.is_enabled:
             secret = decrypt_str(obj.client_secret_enc).strip()
             if secret and is_demo_paypal_credentials(
@@ -1353,7 +1353,7 @@ class PayPalConfigAdmin(_MPModelAdmin):
                 plan_pro_monthly=(obj.plan_pro_monthly or "").strip(),
                 webhook_id=(obj.webhook_id or "").strip(),
             ):
-                return _badge("Demo saved — replace keys", "warn")
+                return _badge("Demo saved - replace keys", "warn")
         if billing_demo_mode():
             return _badge("Demo mode (local)", "pro")
         if not obj.is_enabled:

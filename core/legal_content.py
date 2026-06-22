@@ -5,7 +5,7 @@ from datetime import date
 from core.models import LegalTermsSettings
 
 DEFAULT_TERMS_BODY_HTML = """<p>These Terms govern your use of MailPilot (“we”, “us”, “our”) and the MailPilot web application (the “Service”).</p>
-<div class="notice"><p>This is a general template to help you launch quickly. For production use—especially if you process customer email, OAuth tokens, or business data—review with legal counsel and tailor it to your jurisdiction, pricing, refunds, and compliance obligations.</p></div>
+<div class="notice"><p>This is a general template to help you launch quickly. For production use-especially if you process customer email, OAuth tokens, or business data-review with legal counsel and tailor it to your jurisdiction, pricing, refunds, and compliance obligations.</p></div>
 <hr>
 <h2>1) Eligibility and accounts</h2>
 <p>You must be able to form a legally binding contract to use the Service. You are responsible for the activity on your account and for keeping your credentials secure.</p>

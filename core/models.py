@@ -282,7 +282,7 @@ class MarketingFeature(models.Model):
     sort_order = models.PositiveIntegerField(
         default=0,
         db_index=True,
-        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+        help_text="Display order (1, 2, 3… - lower numbers appear first).",
     )
     is_published = models.BooleanField(default=True, db_index=True)
     show_on_homepage = models.BooleanField(
@@ -344,7 +344,7 @@ class HowItWorksStep(models.Model):
     sort_order = models.PositiveIntegerField(
         default=0,
         db_index=True,
-        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+        help_text="Display order (1, 2, 3… - lower numbers appear first).",
     )
     is_published = models.BooleanField(default=True, db_index=True)
     show_on_homepage = models.BooleanField(
@@ -382,7 +382,7 @@ class MarketingReview(models.Model):
     sort_order = models.PositiveIntegerField(
         default=0,
         db_index=True,
-        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+        help_text="Display order (1, 2, 3… - lower numbers appear first).",
     )
     is_published = models.BooleanField(default=True, db_index=True)
     show_on_homepage = models.BooleanField(
@@ -529,7 +529,7 @@ class MarketingPricingPlan(models.Model):
     sort_order = models.PositiveIntegerField(
         default=0,
         db_index=True,
-        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+        help_text="Display order (1, 2, 3… - lower numbers appear first).",
     )
     is_published = models.BooleanField(default=True, db_index=True)
     show_on_homepage = models.BooleanField(
@@ -579,7 +579,7 @@ class MarketingHeroSettings(models.Model):
     """Singleton copy for homepage hero inbox preview card."""
 
     singleton_key = models.PositiveSmallIntegerField(primary_key=True, default=1)
-    card_title = models.CharField(max_length=120, default="MailPilot — Live Inbox")
+    card_title = models.CharField(max_length=120, default="MailPilot | Live Inbox")
     card_icon_class = models.CharField(
         max_length=80,
         default="fa-solid fa-inbox",
@@ -632,7 +632,7 @@ class MarketingHeroInboxItem(models.Model):
     sort_order = models.PositiveIntegerField(
         default=0,
         db_index=True,
-        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+        help_text="Display order (1, 2, 3… - lower numbers appear first).",
     )
     is_published = models.BooleanField(default=True, db_index=True)
     show_on_homepage = models.BooleanField(
@@ -655,7 +655,7 @@ class MarketingHeroInboxItem(models.Model):
     def sender_display(self) -> str:
         ctx = (self.sender_context or "").strip()
         if ctx:
-            return f"{self.sender_name} — {ctx}"
+            return f"{self.sender_name} - {ctx}"
         return self.sender_name
 
     @property
@@ -707,7 +707,7 @@ class MarketingFaqItem(models.Model):
     sort_order = models.PositiveIntegerField(
         default=0,
         db_index=True,
-        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+        help_text="Display order (1, 2, 3… - lower numbers appear first).",
     )
     is_published = models.BooleanField(default=True, db_index=True)
     show_on_homepage = models.BooleanField(
@@ -736,12 +736,12 @@ class LegalTermsSettings(models.Model):
     intro_html = models.TextField(
         blank=True,
         default="",
-        help_text="Deprecated — use body_html. Kept for legacy migrations only.",
+        help_text="Deprecated - use body_html. Kept for legacy migrations only.",
     )
     notice_html = models.TextField(
         blank=True,
         default="",
-        help_text="Deprecated — use body_html. Kept for legacy migrations only.",
+        help_text="Deprecated - use body_html. Kept for legacy migrations only.",
     )
     body_html = models.TextField(
         blank=True,
@@ -774,7 +774,7 @@ class LegalTermsSection(models.Model):
     sort_order = models.PositiveIntegerField(
         default=0,
         db_index=True,
-        help_text="Display order (1, 2, 3… — lower numbers appear first).",
+        help_text="Display order (1, 2, 3… - lower numbers appear first).",
     )
     is_published = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)

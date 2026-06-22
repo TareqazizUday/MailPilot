@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MailPilot — Pricing</title>
+  <title>MailPilot | Pricing</title>
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#060818" />
   {% include "components/favicon.html" %}
@@ -59,6 +59,7 @@
       max-width: 760px; line-height: 1.5;
     }
     {% include "components/marketing_pricing_billing_toggle_css.html" %}
+    {% include "components/marketing_pricing_responsive_css.html" %}
     .pricing-card-soon {
       display: inline-flex; align-items: center; gap: 5px;
       padding: 5px 10px; border-radius: 50px;
@@ -127,7 +128,7 @@
       display: grid; grid-template-columns: repeat(3, 1fr);
       gap: 22px; margin-top: 48px; text-align: left;
       max-width: 1120px; margin-left: auto; margin-right: auto;
-      align-items: stretch; overflow: visible; padding-top: 14px;
+      align-items: stretch; overflow: visible; padding-top: 22px;
     }
     .pricing-card {
       background: linear-gradient(165deg, rgba(13,18,48,0.65), rgba(10,14,36,0.5));
@@ -170,7 +171,8 @@
       color: #fff;
       font-size: clamp(0.58rem, 1.8vw, 0.68rem);
       font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
-      padding: 6px 16px; border-radius: 50px; white-space: nowrap;
+      padding: 7px 16px 6px; border-radius: 50px; white-space: nowrap;
+      line-height: 1.25;
       box-shadow: 0 6px 20px rgba(79,110,247,0.35);
       pointer-events: none;
     }
@@ -237,26 +239,6 @@
 
     @media (max-width: 1100px) {
       .page-head { text-align: center; }
-    }
-    @media (max-width: 768px) {
-      .pricing-grid { margin-top: 36px; }
-      .pricing-card { padding: 24px 18px 22px; }
-      .pricing-card.is-active { animation: none; transform: none; }
-      .pricing-card.is-active:hover { transform: none; }
-      .pricing-price { font-size: 2rem; }
-    }
-    @media (max-width: 480px) {
-      .pricing-badge { padding: 5px 10px; font-size: 0.56rem; letter-spacing: 0.04em; }
-      .pricing-card.has-badge { padding-top: 44px; }
-      .pricing-card.is-active .pricing-tier-row { padding-left: 0; padding-top: 28px; }
-      .pricing-tier-row { flex-wrap: wrap; row-gap: 6px; }
-      .pricing-card.has-badge.is-active::before { top: 36px; }
-      .pricing-card-soon { font-size: 0.56rem; padding: 4px 7px; }
-      .section-title { font-size: clamp(1.45rem, 7vw, 1.85rem); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .pricing-card.is-active { animation: none; }
-      .pricing-card-topbar .pricing-badge { animation: none; }
     }
   </style>
 </head>

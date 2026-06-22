@@ -1,42 +1,280 @@
 {% load static %}
-<!-- FOOTER -->
-<footer>
-  <div class="footer-inner">
-    <div class="footer-brand">
-      <div class="footer-brand-title"><span>MailPilot</span> — AI Email Automation</div>
-      <div class="footer-brand-desc">Automate Gmail and IMAP replies with relevance filtering, RAG grounding, and secure multi-tenant controls—built for teams that need consistent, fast responses.</div>
-    </div>
+<footer class="mp-footer" aria-label="Site footer">
+  <div class="mp-footer__inner">
+    <div class="mp-footer__top">
+      <div class="mp-footer__brand">
+        <a href="{% url 'home' %}" class="mp-footer__logo-link" aria-label="MailPilot home">
+          <img
+            src="{% static 'img/mailpilot-logo.png' %}"
+            alt="MailPilot"
+            class="mp-footer__logo"
+            width="120"
+            height="32"
+            decoding="async"
+          />
+        </a>
+        <div class="mp-footer__brand-title"><span>MailPilot</span> - AI Email Automation</div>
+        <p class="mp-footer__tagline">
+          Automate Gmail and IMAP replies with relevance filtering, RAG grounding, and secure
+          multi-tenant controls - built for teams that need consistent, fast responses.
+        </p>
+      </div>
 
-    <div class="footer-cols" aria-label="Footer links">
-      <div>
-        <div class="footer-col-title">Product</div>
-        <ul class="footer-links">
-          <li><a href="{% url 'features' %}">Features</a></li>
-          <li><a href="{% url 'how_it_works' %}">How it Works</a></li>
-          <li><a href="{% url 'pricing' %}">Pricing</a></li>
+      <div class="mp-footer__col">
+        <h3 class="mp-footer__col-title">Product</h3>
+        <ul class="mp-footer__links">
+          <li>
+            <a href="{% url 'features' %}" class="mp-footer__link">
+              <span>Features</span>
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'how_it_works' %}" class="mp-footer__link">
+              <span>How it Works</span>
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'pricing' %}" class="mp-footer__link">
+              <span>Pricing</span>
+            </a>
+          </li>
         </ul>
       </div>
-      <div>
-        <div class="footer-col-title">Account</div>
-        <ul class="footer-links">
-          <li><a href="{% url 'signup' %}">Create account</a></li>
-          <li><a href="{% url 'login' %}">Log in</a></li>
-          <li><a href="{% url 'terms' %}">Terms of Service</a></li>
-          <li><a href="{% url 'privacy' %}">Privacy Policy</a></li>
+
+      <div class="mp-footer__col">
+        <h3 class="mp-footer__col-title">Account</h3>
+        <ul class="mp-footer__links">
+          <li>
+            <a href="{% url 'signup' %}" class="mp-footer__link">
+              <span>Create account</span>
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'login' %}" class="mp-footer__link">
+              <span>Log in</span>
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'terms' %}" class="mp-footer__link">
+              <span>Terms of Service</span>
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'privacy' %}" class="mp-footer__link">
+              <span>Privacy Policy</span>
+            </a>
+          </li>
         </ul>
       </div>
     </div>
-  </div>
 
-  <div class="footer-bottom">
-    <div class="footer-copy">© 2026 <span>MailPilot</span>. All rights reserved.</div>
-    <a class="footer-powered" href="https://timerni.com" target="_blank" rel="noopener noreferrer" aria-label="Powered by Timerni">
-      <span>Powered by</span>
-      <span class="timerni-mark">
-        <img class="timerni-logo" src="{% static 'brand/timerni.png' %}" alt="Timerni logo" loading="lazy" decoding="async" />
-        <span class="timerni-text">Timerni</span>
-      </span>
-    </a>
+    <div class="mp-footer__trust" aria-label="Platform trust scores">
+      <div class="mp-footer__trust-track">
+        <div class="mp-footer__trust-item">
+          <a href="https://www.designrush.com/" class="mp-footer__trust-brand" target="_blank" rel="noopener noreferrer">
+            <span class="mp-footer__trust-brand-text mp-footer__trust-brand-text--caps">DESIGNRUSH</span>
+          </a>
+          <div class="mp-footer__trust-rating">
+            <span class="mp-footer__trust-score">4.8</span>
+            <div class="mp-footer__trust-stars" aria-hidden="true">
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+            </div>
+          </div>
+        </div>
+        <div class="mp-footer__trust-item">
+          <a href="https://clutch.co/" class="mp-footer__trust-brand" target="_blank" rel="noopener noreferrer">
+            <span class="mp-footer__trust-brand-text mp-footer__trust-brand-text--clutch">Clutch</span>
+          </a>
+          <div class="mp-footer__trust-rating">
+            <span class="mp-footer__trust-score">5.0</span>
+            <div class="mp-footer__trust-stars" aria-hidden="true">
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+            </div>
+          </div>
+        </div>
+        <div class="mp-footer__trust-item">
+          <a href="https://www.goodfirms.co/" class="mp-footer__trust-brand" target="_blank" rel="noopener noreferrer">
+            <span class="mp-footer__trust-brand-text mp-footer__trust-brand-text--goodfirms">GoodFirms</span>
+          </a>
+          <div class="mp-footer__trust-rating">
+            <span class="mp-footer__trust-score">4.8</span>
+            <div class="mp-footer__trust-stars" aria-hidden="true">
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+            </div>
+          </div>
+        </div>
+        <div class="mp-footer__trust-item">
+          <a href="https://www.trustpilot.com/" class="mp-footer__trust-brand" target="_blank" rel="noopener noreferrer">
+            <span class="mp-footer__trust-brand-text mp-footer__trust-brand-text--trustpilot">Trustpilot</span>
+          </a>
+          <div class="mp-footer__trust-rating">
+            <span class="mp-footer__trust-score">4.5</span>
+            <div class="mp-footer__trust-stars" aria-hidden="true">
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--off">★</span>
+            </div>
+          </div>
+        </div>
+        <div class="mp-footer__trust-item">
+          <a href="https://www.sortlist.com/" class="mp-footer__trust-brand" target="_blank" rel="noopener noreferrer">
+            <span class="mp-footer__trust-brand-text mp-footer__trust-brand-text--sortlist">sortlist</span>
+          </a>
+          <div class="mp-footer__trust-rating">
+            <span class="mp-footer__trust-score">4.9</span>
+            <div class="mp-footer__trust-stars" aria-hidden="true">
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+              <span class="mp-footer__trust-star mp-footer__trust-star--on">★</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mp-footer__offices">
+      <details class="mp-footer__office-card" open>
+        <summary class="mp-footer__office-head">
+          <span class="mp-footer__office-code">UK</span>
+          <span class="mp-footer__office-head-text">
+            <span class="mp-footer__office-country">United Kingdom</span>
+            <span class="mp-footer__office-region">Portsmouth, England</span>
+          </span>
+          <i class="fa-solid fa-chevron-up mp-footer__office-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="mp-footer__office-body">
+          <div class="mp-footer__office-details">
+            <p class="mp-footer__office-line mp-footer__office-line--address">
+              <i class="fa-solid fa-location-dot mp-footer__office-icon" aria-hidden="true"></i>
+              <span>1-2 Hampshire Terrace, Portsmouth, PO1 2QF</span>
+            </p>
+            <p class="mp-footer__office-line mp-footer__office-line--phone">
+              <i class="fa-solid fa-phone mp-footer__office-icon" aria-hidden="true"></i>
+              <span class="mp-footer__office-phones">
+                <a href="tel:+443330411796" class="mp-footer__office-phone">+44 333 041 1796</a>
+              </span>
+            </p>
+          </div>
+        </div>
+      </details>
+
+      <details class="mp-footer__office-card" open>
+        <summary class="mp-footer__office-head">
+          <span class="mp-footer__office-code">BD</span>
+          <span class="mp-footer__office-head-text">
+            <span class="mp-footer__office-country">Bangladesh</span>
+            <span class="mp-footer__office-region">Dhaka - Uttara</span>
+          </span>
+          <i class="fa-solid fa-chevron-up mp-footer__office-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="mp-footer__office-body">
+          <div class="mp-footer__office-details">
+            <p class="mp-footer__office-line mp-footer__office-line--address">
+              <i class="fa-solid fa-location-dot mp-footer__office-icon" aria-hidden="true"></i>
+              <span>Level-3/A, House-24, Road-10, Sector-10, Uttara, Dhaka-1230</span>
+            </p>
+            <p class="mp-footer__office-line mp-footer__office-line--phone">
+              <i class="fa-solid fa-phone mp-footer__office-icon" aria-hidden="true"></i>
+              <span class="mp-footer__office-phones">
+                <a href="tel:+8801331662244" class="mp-footer__office-phone">+880 1331-662244</a>
+                <span class="mp-footer__office-phone-sep">, </span>
+                <a href="tel:+8801348080697" class="mp-footer__office-phone">+880 1348-080697</a>
+              </span>
+            </p>
+          </div>
+        </div>
+      </details>
+
+      <details class="mp-footer__office-card" open>
+        <summary class="mp-footer__office-head">
+          <span class="mp-footer__office-code">US</span>
+          <span class="mp-footer__office-head-text">
+            <span class="mp-footer__office-country">United States</span>
+            <span class="mp-footer__office-region">New York</span>
+          </span>
+          <i class="fa-solid fa-chevron-up mp-footer__office-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="mp-footer__office-body">
+          <div class="mp-footer__office-details">
+            <p class="mp-footer__office-line mp-footer__office-line--address">
+              <i class="fa-solid fa-location-dot mp-footer__office-icon" aria-hidden="true"></i>
+              <span>New York, NY</span>
+            </p>
+            <p class="mp-footer__office-line mp-footer__office-line--phone">
+              <i class="fa-solid fa-phone mp-footer__office-icon" aria-hidden="true"></i>
+              <span class="mp-footer__office-phones">
+                <a href="tel:+19202806586" class="mp-footer__office-phone">+1 920 280 6586</a>
+              </span>
+            </p>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <div class="mp-footer__bar">
+      <div class="mp-footer__bar-left">
+        <div class="mp-footer__bar-start">
+          <a href="https://tedbotai.com/" class="mp-footer__partner" target="_blank" rel="noopener noreferrer" aria-label="Tedbot AI">
+            <img
+              src="{% static 'img/chatbot.png' %}"
+              alt=""
+              class="mp-footer__partner-logo mp-footer__partner-logo--tedbot"
+              width="20"
+              height="20"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="mp-footer__partner-name">Tedbot AI</span>
+          </a>
+          <a href="https://timerni.com/" class="mp-footer__partner" target="_blank" rel="noopener noreferrer" aria-label="Timerni">
+            <img
+              src="{% static 'img/tri-icon.webp' %}"
+              alt=""
+              class="mp-footer__partner-logo mp-footer__partner-logo--timerni"
+              width="20"
+              height="20"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="mp-footer__partner-name">Timerni</span>
+          </a>
+        </div>
+        <p class="mp-footer__credit">Proudly brought to you by <strong>MailPilot</strong></p>
+      </div>
+
+      <p class="mp-footer__copyright">
+        <span>© 2026</span>
+        <a href="{% url 'home' %}" class="mp-footer__copyright-brand" aria-label="MailPilot">
+          <img
+            src="{% static 'favicon/favicon-32x32.png' %}"
+            alt=""
+            class="mp-footer__copyright-logo"
+            width="20"
+            height="20"
+            loading="lazy"
+            decoding="async"
+          />
+        </a>
+        <span>. All rights reserved.</span>
+      </p>
+    </div>
+
+    <div class="mp-footer__watermark" aria-hidden="true">MAILPILOT</div>
   </div>
 </footer>
-

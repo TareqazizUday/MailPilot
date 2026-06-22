@@ -419,7 +419,7 @@
     .content-aside{position:relative;}
     .content-aside .aside-card{position:sticky;top:86px;}
 
-    /* File uploader – make it more “clickable” */
+    /* File uploader - make it more “clickable” */
     .fu{
       border:2px dashed rgba(255,255,255,0.14);
       border-radius:12px;
@@ -634,7 +634,7 @@
             <div class="sec">
           <div class="sec-h">
             <div class="s-sub">Email Transport</div>
-            <span class="pill" id="transportPill">—</span>
+            <span class="pill" id="transportPill">-</span>
           </div>
 
           <div id="transportModeBanner" data-highlight-account="{{ highlight_account_id|default:'' }}" data-initial-mode="{{ transport_summary.active_mode|default:'gmail' }}"></div>
@@ -671,7 +671,7 @@
             <div class="oauth-box" id="smtpPlanNotice" style="display:none;margin-bottom:14px;border-color:rgba(251,191,36,.25);"></div>
             <div class="oauth-box" style="margin-top:0;">
               <div class="oauth-h"><i class="fa-solid fa-gear" aria-hidden="true"></i> Quick profile</div>
-              <p class="oauth-txt" style="margin:0;">Example: <span class="code-inline">smtp.timerni.com</span> / <span class="code-inline">imap.timerni.com</span> — ports <span class="code-inline">587</span> (TLS) or <span class="code-inline">465</span> (SSL).</p>
+              <p class="oauth-txt" style="margin:0;">Example: <span class="code-inline">smtp.timerni.com</span> / <span class="code-inline">imap.timerni.com</span> - ports <span class="code-inline">587</span> (TLS) or <span class="code-inline">465</span> (SSL).</p>
             </div>
             <div id="smtpAccountsList"></div>
           </div>
@@ -696,7 +696,7 @@
             <div class="sec">
           <div class="sec-h">
             <div class="s-sub">Relevance / Routing</div>
-            <span class="pill" id="routingPill">—</span>
+            <span class="pill" id="routingPill">-</span>
           </div>
           <div class="oauth-box tighter" style="margin-top:0;">
             <div class="oauth-h"><i class="fa-solid fa-filter" aria-hidden="true"></i> What emails should the agent handle?</div>
@@ -773,7 +773,7 @@
           <div class="oauth-box">
             <div class="oauth-h"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i> KB Status</div>
             <p class="oauth-txt" style="margin:0;">
-              <span class="small" id="kbMeta" style="margin-left:8px;">—</span>
+              <span class="small" id="kbMeta" style="margin-left:8px;">-</span>
             </p>
           </div>
           <div class="oauth-box" id="kbPlanLockNotice">
@@ -783,7 +783,7 @@
           <button class="btn btn-ghost btn-block" type="button" style="margin-top:10px;border-color: rgba(248,113,113,.25); color: #fecdd3;" onclick="clearKb()">
             <i class="fa-solid fa-trash" aria-hidden="true"></i> Delete Knowledge Base
           </button>
-          <div class="mini"><span id="kbClearStatus" class="pill">—</span></div>
+          <div class="mini"><span id="kbClearStatus" class="pill">-</span></div>
 
           <div class="row2" style="margin-top:10px;gap:10px;">
             <button class="btn btn-ghost btn-block" type="button" onclick="downloadKbJson()">
@@ -793,7 +793,7 @@
               <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit KB JSON
             </button>
           </div>
-          <div class="mini"><span id="kbEditStatus" class="pill">—</span></div>
+          <div class="mini"><span id="kbEditStatus" class="pill">-</span></div>
 
           <div id="kbIngestControls">
           <div class="fg" style="margin-top:14px;">
@@ -815,7 +815,7 @@
             <button class="btn btn-purp btn-block" style="margin-top:10px;" type="button" id="kbUploadBtn" onclick="uploadKbFile()">
               <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload &amp; Ingest JSON
             </button>
-            <div class="mini"><span id="kbUploadStatus" class="pill">—</span></div>
+            <div class="mini"><span id="kbUploadStatus" class="pill">-</span></div>
           </div>
 
           <div class="fg">
@@ -844,7 +844,7 @@
             <div class="mini" style="margin-top:6px;color:var(--txm);font-size:11px;line-height:1.45;">
               Per-user scrape → website_crawl.json + pgvector. Edit in <strong>Edit KB JSON</strong>.
             </div>
-            <div class="mini"><span id="crawlStatus" class="pill">—</span></div>
+            <div class="mini"><span id="crawlStatus" class="pill">-</span></div>
           </div>
           </div>
             </div>
@@ -868,7 +868,7 @@
           </div>
           <div class="oauth-box" style="margin-top:0;">
             <div class="oauth-h"><i class="fa-brands fa-telegram" aria-hidden="true"></i> Connect a Telegram bot</div>
-            <p class="oauth-txt" style="margin:0;">Get mail alerts and chat with your bot — replies use your Knowledge Base + LLM (same as email auto-reply). Email automation is unchanged.</p>
+            <p class="oauth-txt" style="margin:0;">Get mail alerts and chat with your bot - replies use your Knowledge Base + LLM (same as email auto-reply). Email automation is unchanged.</p>
           </div>
           <p class="setup-upgrade-note" id="tgUpgradeNote" style="display:none;">Telegram is included on <strong>Pro</strong> and <strong>Custom</strong> plans. <a href="/pricing/" style="color:#c4b5fd;font-weight:800;">Upgrade</a> to connect a bot.</p>
 
@@ -912,13 +912,13 @@
               <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send test message
             </button>
           </div>
-          <div class="mini"><span id="tgStatus" class="pill">—</span></div>
+          <div class="mini"><span id="tgStatus" class="pill">-</span></div>
             </div>
           </div>
           <div class="content-aside">
             <div class="aside-card">
               <div class="aside-title"><i class="fa-brands fa-telegram" aria-hidden="true"></i> Why Telegram?</div>
-              <div class="aside-desc">Optional alerts alongside your Knowledge Base — no change to Gmail/SMTP polling, routing, or auto-reply behavior.</div>
+              <div class="aside-desc">Optional alerts alongside your Knowledge Base - no change to Gmail/SMTP polling, routing, or auto-reply behavior.</div>
             </div>
           </div>
         </div>
@@ -973,7 +973,7 @@
           <div class="fg">
             <label class="fl">Webhook callback URL</label>
             <div class="url-box" role="group" aria-label="WhatsApp webhook URL">
-              <span class="url-txt" id="waWebhookUrl">—</span>
+              <span class="url-txt" id="waWebhookUrl">-</span>
               <button class="cp-btn" type="button" onclick="cpWaWebhook()" title="Copy">Copy</button>
             </div>
           </div>
@@ -994,7 +994,7 @@
               <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send test message
             </button>
           </div>
-          <div class="mini"><span id="waStatus" class="pill">—</span></div>
+          <div class="mini"><span id="waStatus" class="pill">-</span></div>
             </div>
           </div>
           <div class="content-aside">
@@ -1031,7 +1031,7 @@
             <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save &amp; Replace KB
           </button>
         </div>
-        <div class="mini"><span id="kbEditorPill" class="pill">—</span></div>
+        <div class="mini"><span id="kbEditorPill" class="pill">-</span></div>
       </div>
     </div>
   </div>
@@ -1252,7 +1252,7 @@
 
     function setPill(el, text, cls){
       if(!el) return;
-      const full = (text || '—');
+      const full = (text || '-');
       el.className = 'pill' + (cls ? (' ' + cls) : '');
 
       // Collapse very long messages to avoid breaking the layout.
@@ -1384,7 +1384,7 @@
         // Keep the UI clean: auto-hide after a moment.
         setTimeout(() => {
           const el = document.getElementById('routingStatus');
-          if(el && el.textContent === 'Settings synced') setPill(el, '—', '');
+          if(el && el.textContent === 'Settings synced') setPill(el, '-', '');
         }, 2200);
       }catch(err){
         setPill(pill, 'Network error', 'bad');
@@ -1557,11 +1557,11 @@
         ok = false;
       }
       if(!smtpPortRaw || !Number.isFinite(smtpPort) || smtpPort < 1 || smtpPort > 65535){
-        _smtpSetFieldError('smtpPort', 'Enter a valid SMTP port (1–65535).');
+        _smtpSetFieldError('smtpPort', 'Enter a valid SMTP port (1-65535).');
         ok = false;
       }
       if(!imapPortRaw || !Number.isFinite(imapPort) || imapPort < 1 || imapPort > 65535){
-        _smtpSetFieldError('imapPort', 'Enter a valid IMAP port (1–65535).');
+        _smtpSetFieldError('imapPort', 'Enter a valid IMAP port (1-65535).');
         ok = false;
       }
       return ok;
@@ -1624,12 +1624,12 @@
         const r3 = await fetch('/api/trigger-poll', { method:'POST' });
         const j3 = await r3.json().catch(() => ({}));
         if(!r3.ok || !j3.ok){
-          setPill(pill, 'SMTP OK — inbox run failed: ' + (j3.error || r3.status), 'bad');
+          setPill(pill, 'SMTP OK - inbox run failed: ' + (j3.error || r3.status), 'bad');
           return;
         }
 
         _smtpClearFieldErrors();
-        setPill(pill, 'SMTP connected — automation ran (check Dashboard queue)', 'ok');
+        setPill(pill, 'SMTP connected - automation ran (check Dashboard queue)', 'ok');
         const dbtn = document.getElementById('btnSmtpDisconnect');
         if(dbtn) dbtn.style.display = '';
         syncNavFromServer();
@@ -1840,7 +1840,7 @@
       if(notifyEl) notifyEl.value = j.notify_events || 'all';
       if(tokenEl){
         if(j.has_bot_token){
-          tokenEl.placeholder = (j.bot_token_hint ? 'Saved (' + j.bot_token_hint + ') — enter new to replace' : 'Token saved — enter new to replace');
+          tokenEl.placeholder = (j.bot_token_hint ? 'Saved (' + j.bot_token_hint + ') - enter new to replace' : 'Token saved - enter new to replace');
         }else{
           tokenEl.placeholder = '123456789:ABCdefGHI…';
         }
@@ -1868,7 +1868,7 @@
           return;
         }
         applyTelegramStatus(j);
-        setPill(status, '—', '');
+        setPill(status, '-', '');
       }catch(err){
         setPill(status, 'Network error', 'bad');
       }
@@ -1915,7 +1915,7 @@
           setPill(status, (j.error || 'Test failed'), 'bad');
           return;
         }
-        setPill(status, 'Test sent — check Telegram', 'ok');
+        setPill(status, 'Test sent - check Telegram', 'ok');
       }catch(err){
         setPill(status, 'Network error', 'bad');
       }
@@ -1943,7 +1943,7 @@
       if(pid) pid.value = j.phone_number_id || '';
       if(to) to.value = j.to_phone || '';
       if(ne) ne.value = j.notify_events || 'all';
-      if(webhook) webhook.textContent = j.webhook_url || '—';
+      if(webhook) webhook.textContent = j.webhook_url || '-';
       if(tokenEl){
         if(j.has_access_token){
           tokenEl.placeholder = j.access_token_hint ? (j.access_token_hint + ' (saved)') : 'Token saved';
@@ -1978,7 +1978,7 @@
           return;
         }
         applyWhatsappStatus(j);
-        setPill(status, '—', '');
+        setPill(status, '-', '');
       }catch(err){
         setPill(status, 'Network error', 'bad');
       }
@@ -2028,7 +2028,7 @@
           setPill(status, (j.error || 'Test failed'), 'bad');
           return;
         }
-        setPill(status, 'Test sent — check WhatsApp', 'ok');
+        setPill(status, 'Test sent - check WhatsApp', 'ok');
       }catch(err){
         setPill(status, 'Network error', 'bad');
       }
@@ -2038,7 +2038,7 @@
     function cpWaWebhook(){
       const el = document.getElementById('waWebhookUrl');
       const txt = (el?.textContent || '').trim();
-      if(!txt || txt === '—') return;
+      if(!txt || txt === '-') return;
       navigator.clipboard?.writeText(txt).then(() => {
         const status = document.getElementById('waStatus');
         setPill(status, 'Webhook URL copied', 'ok');
@@ -2110,7 +2110,7 @@
       const ta = document.getElementById('kbEditorText');
       if(!ta || !_kbBundleCache) return;
       let show;
-      if(_kbEditorView === 'crawl') show = _kbBundleCache.website_crawl || { note: 'No website_crawl data yet — run Crawl & Ingest first.' };
+      if(_kbEditorView === 'crawl') show = _kbBundleCache.website_crawl || { note: 'No website_crawl data yet - run Crawl & Ingest first.' };
       else if(_kbEditorView === 'documents') show = { documents: _kbBundleCache.documents || [] };
       else show = _kbBundleCache;
       ta.value = JSON.stringify(show, null, 2);
@@ -2339,7 +2339,7 @@
 
     async function pollCrawlStatus(pill, attemptsLeft){
       if(attemptsLeft <= 0){
-        setPill(pill, 'Crawl still running — refresh KB status later', 'info');
+        setPill(pill, 'Crawl still running - refresh KB status later', 'info');
         return;
       }
       try{

@@ -173,10 +173,10 @@ def _fetch_inbox_threads(user, *, max_threads: int = _INBOX_LIST_LIMIT) -> tuple
             threads = ImapMailbox(settings=effective).list_inbox_summaries(max_threads=max_threads)
         elif g_ok:
             if not gmail_oauth_matches_configured(effective)[0]:
-                return email, None, "Gmail OAuth mismatch — reconnect on Setup."
+                return email, None, "Gmail OAuth mismatch - reconnect on Setup."
             threads = GmailClient(settings=effective).list_inbox_thread_summaries(max_threads=max_threads)
         else:
-            return email, None, "Mailbox not connected — check Setup."
+            return email, None, "Mailbox not connected - check Setup."
         return email, _annotate_inbox_threads(threads, user, account_id=acc.id), ""
     except Exception as e:
         log.warning("Telegram inbox list failed user=%s: %s", user.id, e)
@@ -186,7 +186,7 @@ def _fetch_inbox_threads(user, *, max_threads: int = _INBOX_LIST_LIMIT) -> tuple
 def _fetch_thread_messages(user, thread_id: str) -> tuple[str, list[dict[str, Any]] | None, str]:
     tid = (thread_id or "").strip()
     if not tid:
-        return "", None, "Usage: /thread <thread_id>\nTip: run /inbox first — each row shows /thread <id>."
+        return "", None, "Usage: /thread <thread_id>\nTip: run /inbox first - each row shows /thread <id>."
     acc = _primary_account(user)
     if acc is None:
         return "", None, "No enabled mailbox found. Connect Gmail or SMTP in Setup."
@@ -202,10 +202,10 @@ def _fetch_thread_messages(user, thread_id: str) -> tuple[str, list[dict[str, An
             data = ImapMailbox(settings=effective).get_thread_for_ui(uid=uid)
         elif g_ok:
             if not gmail_oauth_matches_configured(effective)[0]:
-                return email, None, "Gmail OAuth mismatch — reconnect on Setup."
+                return email, None, "Gmail OAuth mismatch - reconnect on Setup."
             data = GmailClient(settings=effective).get_thread_for_ui(tid)
         else:
-            return email, None, "Mailbox not connected — check Setup."
+            return email, None, "Mailbox not connected - check Setup."
         messages = list(data.get("messages") or [])
         messages.sort(key=lambda m: int(m.get("internal_date") or 0))
         if not messages:
@@ -254,7 +254,7 @@ def _clip(text: str, *, max_chars: int = TELEGRAM_MAX_CHARS) -> str:
     body = (text or "").strip()
     if len(body) <= max_chars:
         return body
-    return body[: max_chars - 40].rstrip() + "\n\n… (truncated — open Dashboard for full content)"
+    return body[: max_chars - 40].rstrip() + "\n\n… (truncated - open Dashboard for full content)"
 
 
 def format_inbox_list_reply(user) -> str:
@@ -262,7 +262,7 @@ def format_inbox_list_reply(user) -> str:
     email, threads, err = _fetch_inbox_threads(user)
     if err:
         return err
-    lines = [f"MailPilot inbox list — {email}", ""]
+    lines = [f"MailPilot inbox list - {email}", ""]
     if not threads:
         lines.append("No messages in this folder.")
         lines.append("")
@@ -296,7 +296,7 @@ def format_ignored_reply(user) -> str:
     email, items, err = _collect_ignored(user)
     if err:
         return err
-    lines = [f"MailPilot ignored mail — {email}", ""]
+    lines = [f"MailPilot ignored mail - {email}", ""]
     if not items:
         lines.append("No ignored messages recorded for this mailbox.")
         lines.append("")
@@ -333,7 +333,7 @@ def format_thread_reply(user, thread_id: str) -> str:
     assert messages is not None
     latest = messages[-1]
     subj = _short_subject(str(latest.get("subject") or messages[0].get("subject") or ""))
-    lines = [f"MailPilot thread — {email}", subj, ""]
+    lines = [f"MailPilot thread - {email}", subj, ""]
     for m in messages:
         sender = _short_addr(str(m.get("from") or ""))
         when = _fmt_ts(m.get("internal_date"), tz)
@@ -342,7 +342,7 @@ def format_thread_reply(user, thread_id: str) -> str:
             snippet = (m.get("snippet") or "").strip()
             body = f"(Preview) {snippet}" if snippet else "(No content)"
         who = "You" if m.get("is_from_me") else sender
-        header = f"— {who}"
+        header = f"- {who}"
         if when:
             header += f" · {when}"
         lines.append(header)
