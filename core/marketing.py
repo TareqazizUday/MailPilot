@@ -324,12 +324,13 @@ Multi Gmail OAuth + SMTP/IMAP mailbox support
 Per-user encrypted credentials
 Telegram & WhatsApp alerts and commands"""
 
-_CUSTOM_FEATURES = """<strong>2,000 tokens</strong> + 4 Gmail/SMTP inboxes → <strong>$30/mo</strong>
-<strong>3,000 tokens</strong> + 5 Gmail/SMTP inboxes → <strong>$40/mo</strong>
-Or define your own tier (e.g. $50 → 5,000 sends)
+_CUSTOM_FEATURES = """<strong>Custom</strong> monthly tokens — set your own limit
+<strong>Custom</strong> Gmail inboxes — scale as you grow
+<strong>Custom</strong> SMTP/IMAP mailboxes — flexible slots
+Live price in the plan builder — no fixed tier
 Provider-aware daily safety caps
 Telegram & WhatsApp alerts and chat commands
-Annual billing option
+Annual or monthly billing in the builder
 Priority onboarding & team seats"""
 
 DEFAULT_PRICING_PLANS: list[dict[str, str | int | bool]] = [
