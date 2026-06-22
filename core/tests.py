@@ -220,6 +220,12 @@ class CustomPlanPricingTests(SimpleTestCase):
 
 
 class AdminLoginRedirectTests(TestCase):
+    def test_admin_without_trailing_slash_redirects(self) -> None:
+        client = Client()
+        response = client.get("/admin", follow=False, secure=True)
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "/admin/")
+
     def setUp(self) -> None:
         self.staff = User.objects.create_user(username="staffadmin", password="testpass1234")
         self.staff.is_staff = True
