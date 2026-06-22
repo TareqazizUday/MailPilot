@@ -97,12 +97,13 @@
       </div>
       <div class="price-row">
         <div>Total due today</div>
-        <div class="price">${{ amount_usd }}<span>/mo</span></div>
+        <div class="price">${{ amount_usd }}<span>{{ interval_suffix }}</span></div>
       </div>
       <form class="form" method="post" action="{% url 'billing_demo_complete' %}">
         {% csrf_token %}
         <input type="hidden" name="plan" value="{{ plan }}" />
         <input type="hidden" name="provider" value="{{ provider }}" />
+        <input type="hidden" name="billing_interval" value="{{ billing_interval }}" />
         {% if quote_id %}<input type="hidden" name="quote_id" value="{{ quote_id }}" />{% endif %}
 
         {% if provider == "paypal" %}

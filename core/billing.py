@@ -606,19 +606,27 @@ CUSTOM_PER_INBOX_CENTS = 250
 CUSTOM_MIN_TOKENS = 1000
 CUSTOM_MAX_TOKENS = 20000
 CUSTOM_MIN_INBOXES = 1
-CUSTOM_MAX_INBOXES = 12
+CUSTOM_MAX_INBOXES = 10
 CUSTOM_MIN_PRICE_CENTS = 2000
 CUSTOM_TOKENS_PER_SEND = 5
 CUSTOM_QUOTE_TTL_HOURS = 48
 
 CUSTOM_PRESETS: list[dict[str, Any]] = [
     {"id": "bundle_a", "label": "$30 bundle", "tokens": 2000, "inboxes": 4},
-    {"id": "bundle_b", "label": "$40 bundle", "tokens": 3000, "inboxes": 6},
+    {"id": "bundle_b", "label": "$40 bundle", "tokens": 3000, "inboxes": 5},
 ]
 
 
-def custom_pricing_config() -> dict[str, Any]:
+def custom_pricing_config(*, billing_interval: str = "monthly") -> dict[str, Any]:
+    from core.billing_interval import BILLING_YEARLY, interval_suffix, normalize_billing_interval
+
+    interval = normalize_billing_interval(billing_interval)
+    yearly_note = ""
+    if interval == BILLING_YEARLY:
+        yearly_note = " Yearly total = 10× monthly (2 months free)."
     return {
+        "billing_interval": interval,
+        "interval_suffix": interval_suffix(interval),
         "base_fee_cents": CUSTOM_BASE_FEE_CENTS,
         "per_1000_tokens_cents": CUSTOM_PER_1000_TOKENS_CENTS,
         "per_inbox_cents": CUSTOM_PER_INBOX_CENTS,
@@ -629,6 +637,11 @@ def custom_pricing_config() -> dict[str, Any]:
         "min_price_cents": CUSTOM_MIN_PRICE_CENTS,
         "tokens_per_send": CUSTOM_TOKENS_PER_SEND,
         "presets": CUSTOM_PRESETS,
+        "yearly_months_paid": 10,
+        "formula_note": (
+            f"Pricing: $10 base + $5 per 1,000 tokens + $2.50 per inbox. "
+            f"Minimum $20/mo. Draft mode does not use tokens.{yearly_note}"
+        ),
     }
 
 
@@ -652,16 +665,23 @@ def calculate_custom_price_cents(tokens: int, inboxes: int) -> int:
     return max(CUSTOM_MIN_PRICE_CENTS, int(raw))
 
 
-def custom_plan_quote_summary(tokens: int, inboxes: int) -> dict[str, Any]:
+def custom_plan_quote_summary(tokens: int, inboxes: int, *, billing_interval: str = "monthly") -> dict[str, Any]:
+    from core.billing_interval import custom_cents_for_interval, interval_suffix, normalize_billing_interval
+
     tok, boxes = clamp_custom_inputs(tokens, inboxes)
-    price_cents = calculate_custom_price_cents(tok, boxes)
+    monthly_cents = calculate_custom_price_cents(tok, boxes)
+    interval = normalize_billing_interval(billing_interval)
+    price_cents = custom_cents_for_interval(monthly_cents, interval)
     per_send = CUSTOM_TOKENS_PER_SEND
     sends_max = tok // per_send if per_send else 0
     return {
         "tokens": tok,
         "inboxes": boxes,
+        "billing_interval": interval,
         "price_cents": price_cents,
+        "monthly_price_cents": monthly_cents,
         "price_usd": round(price_cents / 100, 2),
+        "interval_suffix": interval_suffix(interval),
         "tokens_per_send": per_send,
         "sends_max": sends_max,
         "daily_send_limit": custom_daily_send_limit(boxes),

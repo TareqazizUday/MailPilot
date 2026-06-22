@@ -11,6 +11,7 @@ class StripeCredentials:
     secret_key: str
     webhook_secret: str
     price_pro_monthly: str
+    price_pro_yearly: str
     publishable_key: str
     source: str
 
@@ -37,6 +38,7 @@ def _from_db() -> StripeCredentials | None:
         secret_key=secret_key,
         webhook_secret=decrypt_str(row.stripe_webhook_secret_enc).strip(),
         price_pro_monthly=(row.stripe_price_pro_monthly or "").strip(),
+        price_pro_yearly=(row.stripe_price_pro_yearly or "").strip(),
         publishable_key=(row.stripe_publishable_key or "").strip(),
         source="db",
     )
@@ -50,6 +52,7 @@ def _from_env() -> StripeCredentials | None:
         secret_key=secret_key,
         webhook_secret=(os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip(),
         price_pro_monthly=(os.environ.get("STRIPE_PRICE_PRO_MONTHLY") or "").strip(),
+        price_pro_yearly=(os.environ.get("STRIPE_PRICE_PRO_YEARLY") or "").strip(),
         publishable_key=(os.environ.get("STRIPE_PUBLISHABLE_KEY") or "").strip(),
         source="env",
     )

@@ -725,6 +725,7 @@
       font-size: 0.8rem; color: rgba(148,163,184,0.85); margin-top: 10px;
       max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.5;
     }
+    {% include "components/marketing_pricing_billing_toggle_css.html" %}
     .pricing-intro {
       color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
       margin-left: auto; margin-right: auto; line-height: 1.65;
@@ -761,17 +762,11 @@
       display: flex; flex-direction: column;
       transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s, background 0.25s;
       position: relative;
-      cursor: pointer;
-      user-select: none;
-      outline: none;
     }
     .pricing-card:hover {
       border-color: rgba(79,110,247,0.35);
       box-shadow: 0 24px 48px rgba(0,0,0,0.35);
       transform: translateY(-4px);
-    }
-    .pricing-card:focus-visible {
-      box-shadow: 0 0 0 3px rgba(79,110,247,0.35), 0 24px 48px rgba(0,0,0,0.35);
     }
     .pricing-card.is-active {
       border-color: rgba(79,110,247,0.65);
@@ -858,6 +853,7 @@
     .pricing-cta {
       display: block; text-align: center; padding: 13px 20px; border-radius: 50px;
       font-size: 0.9rem; font-weight: 700; text-decoration: none;
+      cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .pricing-cta.primary {
@@ -1660,11 +1656,13 @@
 <!-- PRICING -->
 <section id="pricing" aria-labelledby="pricing-heading">
   {% include "components/marketing_pricing_head.html" %}
+  {% include "components/marketing_pricing_billing_toggle.html" %}
 
   <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
     {% include "components/marketing_pricing_cards.html" %}
   </div>
 </section>
+{% include "components/marketing_pricing_billing_toggle_js.html" %}
 
 <!-- CONTACT -->
 <section id="contact" aria-labelledby="contact-heading">
@@ -1924,98 +1922,18 @@ if(card) {
   });
 })();
 
-// Pricing plan selection (click to activate + checkout routing)
+// Highlight the user's current plan; navigation is via CTA links only
 (function () {
   const grid = document.querySelector('#pricing .pricing-grid') || document.querySelector('main .pricing-grid');
   if (!grid) return;
-  const cards = Array.from(grid.querySelectorAll('.pricing-card[data-plan]'));
-  if (!cards.length) return;
-  const isAuth = {{ user.is_authenticated|yesno:"true,false" }};
   const currentPlan = '{{ current_plan_code|default:""|escapejs }}';
-  const starterExpired = {{ starter_expired|default:False|yesno:"true,false" }};
-  const profileUrl = '{% url "profile" %}';
-  const pricingUrl = '{% url "pricing" %}';
-  const csrfToken = () => {
-    const m = document.cookie.match(/csrftoken=([^;]+)/);
-    return m ? decodeURIComponent(m[1]) : '';
-  };
-
-  function activate(card) {
-    cards.forEach((c) => {
-      const on = c === card;
-      c.classList.toggle('is-active', on);
-      c.setAttribute('aria-pressed', on ? 'true' : 'false');
+  if (!currentPlan) return;
+  const cur = grid.querySelector('.pricing-card[data-plan="' + currentPlan + '"]');
+  if (cur) {
+    grid.querySelectorAll('.pricing-card[data-plan]').forEach((c) => {
+      c.classList.toggle('is-active', c === cur);
     });
   }
-
-  if (currentPlan) {
-    const cur = cards.find((c) => c.dataset.plan === currentPlan);
-    if (cur) activate(cur);
-  }
-
-  async function selectPlan(plan) {
-    if (!isAuth) {
-      window.location.href = '{% url "signup" %}';
-      return;
-    }
-    if (plan === 'starter' && starterExpired) {
-      window.location.href = pricingUrl;
-      return;
-    }
-    if (plan === 'custom') {
-      window.location.href = '{% url "custom_plan_builder" %}';
-      return;
-    }
-    try {
-      const res = await fetch('/api/billing/select-plan', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
-        body: JSON.stringify({ plan }),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok || !j.ok) throw new Error(j.error || 'plan_select_failed');
-      if (j.redirect) {
-        window.location.href = j.redirect;
-        return;
-      }
-      window.location.href = profileUrl + '?plan=' + encodeURIComponent(plan);
-    } catch (e) {
-      if (plan === 'starter' && !starterExpired) window.location.href = profileUrl;
-    }
-  }
-
-  cards.forEach((card) => {
-    const plan = card.dataset.plan || '';
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.pricing-cta')) return;
-      activate(card);
-      if (plan === 'starter') selectPlan('starter');
-      if (plan === 'pro') selectPlan('pro');
-    });
-    card.addEventListener('keydown', (e) => {
-      if (e.target.closest('.pricing-cta')) return;
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        activate(card);
-        if (plan === 'starter') selectPlan('starter');
-        if (plan === 'pro') selectPlan('pro');
-      }
-    });
-    card.querySelectorAll('.pricing-cta').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (plan === 'starter' && isAuth && !starterExpired) {
-          e.preventDefault();
-          selectPlan('starter');
-        }
-        if (plan === 'pro' && isAuth) {
-          e.preventDefault();
-          selectPlan('pro');
-        }
-      });
-    });
-  });
 })();
 
 // FAQ: one open at a time (optional accordion)

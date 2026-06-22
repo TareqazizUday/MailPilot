@@ -325,7 +325,7 @@ Per-user encrypted credentials
 Telegram & WhatsApp alerts and commands"""
 
 _CUSTOM_FEATURES = """<strong>2,000 tokens</strong> + 4 Gmail/SMTP inboxes → <strong>$30/mo</strong>
-<strong>3,000 tokens</strong> + 6 Gmail/SMTP inboxes → <strong>$40/mo</strong>
+<strong>3,000 tokens</strong> + 5 Gmail/SMTP inboxes → <strong>$40/mo</strong>
 Or define your own tier (e.g. $50 → 5,000 sends)
 Provider-aware daily safety caps
 Telegram & WhatsApp alerts and chat commands
@@ -366,6 +366,11 @@ DEFAULT_PRICING_PLANS: list[dict[str, str | int | bool]] = [
         "price_was": "$40",
         "price_save_label": "Save 50%",
         "period_text": "Billed monthly · cancel anytime",
+        "yearly_price_display": "$200",
+        "yearly_price_suffix": "/yr",
+        "yearly_price_was": "$400",
+        "yearly_price_save_label": "Save 50%",
+        "yearly_period_text": "Billed annually · cancel anytime",
         "description": (
             "Production volume for growing teams—RAG knowledge base, polling, and reliable auto-send limits."
         ),
@@ -384,6 +389,7 @@ DEFAULT_PRICING_PLANS: list[dict[str, str | int | bool]] = [
         "ribbon_icon_class": "fa-solid fa-sliders",
         "price_display": "You choose",
         "period_text": "Live price as you adjust",
+        "yearly_period_text": "Annual or monthly in the builder",
         "description": (
             "Slide tokens and inbox count — see your monthly price instantly, then checkout or contact us."
         ),

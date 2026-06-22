@@ -844,7 +844,20 @@ class MarketingPricingPlanAdmin(_MPModelAdmin):
     actions = [publish_pricing_plans, unpublish_pricing_plans]
     fieldsets = (
         (None, {"fields": ("plan_code", "tier_label", "is_featured")}),
-        ("Pricing", {"fields": ("price_display", "price_suffix", "price_was", "price_save_label", "period_text", "description")}),
+        ("Pricing (monthly)", {"fields": ("price_display", "price_suffix", "price_was", "price_save_label", "period_text")}),
+        (
+            "Pricing (yearly toggle)",
+            {
+                "fields": (
+                    "yearly_price_display",
+                    "yearly_price_suffix",
+                    "yearly_price_was",
+                    "yearly_price_save_label",
+                    "yearly_period_text",
+                ),
+            },
+        ),
+        ("Details", {"fields": ("description",)}),
         ("Badges", {"fields": ("top_badge", "ribbon_type", "ribbon_label", "ribbon_icon_class")}),
         ("Features", {"fields": ("features",)}),
         (

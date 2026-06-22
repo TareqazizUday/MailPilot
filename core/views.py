@@ -440,8 +440,14 @@ def custom_plan_builder_page(request):
     """Interactive custom plan builder — adjust tokens & inboxes with live pricing."""
     ctx = _seo_landing_context(request)
     from core.billing import custom_pricing_config
+    from core.billing_interval import get_billing_interval, set_billing_interval
 
-    config = custom_pricing_config()
+    raw_interval = request.GET.get("interval") or request.GET.get("billing_interval")
+    if raw_interval:
+        set_billing_interval(request, raw_interval)
+    interval = get_billing_interval(request)
+    config = custom_pricing_config(billing_interval=interval)
+    ctx["billing_interval"] = interval
     ctx["custom_config"] = config
     ctx["custom_config_json"] = json.dumps(config)
     preset = (request.GET.get("preset") or "").strip().lower()
@@ -732,9 +738,27 @@ def api_billing_select_plan(request):
     from core.models import UserSubscription
 
     if plan == PLAN_PRO:
-        return JsonResponse({"ok": True, "redirect": reverse("billing_checkout_pro")})
+        from core.billing_interval import checkout_url_with_interval, get_billing_interval, set_billing_interval
+
+        interval = set_billing_interval(request, body.get("billing_interval") or get_billing_interval(request))
+        return JsonResponse(
+            {
+                "ok": True,
+                "billing_interval": interval,
+                "redirect": checkout_url_with_interval(reverse("billing_checkout_pro"), interval),
+            }
+        )
     if plan == PLAN_CUSTOM:
-        return JsonResponse({"ok": True, "redirect": reverse("custom_plan_builder")})
+        from core.billing_interval import checkout_url_with_interval, get_billing_interval, set_billing_interval
+
+        interval = set_billing_interval(request, body.get("billing_interval") or get_billing_interval(request))
+        return JsonResponse(
+            {
+                "ok": True,
+                "billing_interval": interval,
+                "redirect": checkout_url_with_interval(reverse("custom_plan_builder"), interval),
+            }
+        )
     if plan != PLAN_STARTER:
         return JsonResponse({"ok": False, "error": "invalid_plan"}, status=400)
     try:
@@ -766,11 +790,37 @@ def api_billing_select_plan(request):
 
 
 @require_GET
+def api_billing_interval(request):
+    """Return the billing interval pinned for this browser session."""
+    from core.billing_interval import get_billing_interval
+
+    interval = get_billing_interval(request)
+    return JsonResponse({"ok": True, "interval": interval})
+
+
+@require_http_methods(["POST"])
+def api_billing_set_interval(request):
+    """Pin monthly/yearly billing interval for checkout (public — session only)."""
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}") if request.body else {}
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    from core.billing_interval import interval_label, set_billing_interval
+
+    interval = set_billing_interval(request, str(body.get("interval") or ""))
+    return JsonResponse({"ok": True, "interval": interval, "label": interval_label(interval)})
+
+
+@require_GET
 def api_billing_custom_config(request):
     """Public pricing knobs for the custom plan builder UI."""
     from core.billing import custom_pricing_config
+    from core.billing_interval import get_billing_interval
 
-    return JsonResponse({"ok": True, "config": custom_pricing_config()})
+    interval = get_billing_interval(request)
+    return JsonResponse({"ok": True, "config": custom_pricing_config(billing_interval=interval)})
 
 
 @require_http_methods(["GET", "POST"])
@@ -778,20 +828,29 @@ def api_billing_custom_quote(request):
     """Preview or save a custom plan quote (server-side price validation)."""
     from core.billing import (
         CUSTOM_QUOTE_TTL_HOURS,
-        calculate_custom_price_cents,
         clamp_custom_inputs,
         custom_daily_send_limit,
         custom_plan_quote_summary,
     )
     from core.models import CustomPlanQuote
+    from core.billing_interval import get_billing_interval, set_billing_interval
 
+    interval = get_billing_interval(request)
     if request.method == "GET":
         try:
             tokens = int(request.GET.get("tokens") or 2000)
             inboxes = int(request.GET.get("inboxes") or 4)
         except (TypeError, ValueError):
             return JsonResponse({"ok": False, "error": "invalid_input"}, status=400)
-        return JsonResponse({"ok": True, "quote": custom_plan_quote_summary(tokens, inboxes)})
+        raw_interval = request.GET.get("interval") or request.GET.get("billing_interval")
+        if raw_interval:
+            interval = set_billing_interval(request, raw_interval)
+        return JsonResponse(
+            {
+                "ok": True,
+                "quote": custom_plan_quote_summary(tokens, inboxes, billing_interval=interval),
+            }
+        )
 
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
@@ -807,15 +866,17 @@ def api_billing_custom_quote(request):
     except (TypeError, ValueError):
         return JsonResponse({"ok": False, "error": "invalid_input"}, status=400)
 
-    summary = custom_plan_quote_summary(tokens, inboxes)
+    interval = set_billing_interval(request, body.get("billing_interval") or get_billing_interval(request))
+    summary = custom_plan_quote_summary(tokens, inboxes, billing_interval=interval)
     tok, boxes = clamp_custom_inputs(tokens, inboxes)
-    price_cents = calculate_custom_price_cents(tok, boxes)
+    price_cents = summary["price_cents"]
     now = dj_timezone.now()
     quote = CustomPlanQuote.objects.create(
         user=request.user,
         tokens=tok,
         inboxes=boxes,
         price_cents=price_cents,
+        billing_interval=interval,
         daily_send_limit=custom_daily_send_limit(boxes),
         status=CustomPlanQuote.STATUS_DRAFT,
         expires_at=now + timedelta(hours=CUSTOM_QUOTE_TTL_HOURS),
@@ -830,27 +891,46 @@ def api_billing_custom_quote(request):
     )
 
 
-def _billing_checkout_summary(*, plan: str, quote=None) -> dict[str, Any]:
+def _billing_checkout_summary(request, *, plan: str, quote=None) -> dict[str, Any]:
+    from core.billing_interval import get_billing_interval, interval_label, interval_suffix, pro_checkout_cents
+
+    interval = get_billing_interval(request)
     if plan == "pro":
+        amount_cents = pro_checkout_cents(interval)
         return {
             "plan": "pro",
             "title": "MailPilot Pro",
-            "amount_cents": 2000,
-            "subtitle": "1,000 tokens · 3 inboxes · monthly",
+            "billing_interval": interval,
+            "interval_label": interval_label(interval),
+            "interval_suffix": interval_suffix(interval),
+            "amount_cents": amount_cents,
+            "subtitle": f"1,000 tokens · 3 inboxes · {interval_label(interval).lower()}",
             "cancel_url": reverse("pricing"),
         }
+    quote_interval = getattr(quote, "billing_interval", None) or interval
     return {
         "plan": "custom",
         "title": "MailPilot Custom",
+        "billing_interval": quote_interval,
+        "interval_label": interval_label(quote_interval),
+        "interval_suffix": interval_suffix(quote_interval),
         "amount_cents": int(quote.price_cents),
-        "subtitle": f"{quote.tokens:,} tokens · {quote.inboxes} inbox(es) · monthly",
+        "subtitle": (
+            f"{quote.tokens:,} tokens · {quote.inboxes} inbox(es) · "
+            f"{interval_label(quote_interval).lower()}"
+        ),
         "cancel_url": f"{reverse('custom_plan_builder')}?quote={quote.pk}",
         "quote_id": quote.pk,
     }
 
 
 def _billing_resolve_checkout_target(request, *, plan_param: str = "", quote_param: str = ""):
+    from core.billing_interval import set_billing_interval
     from core.models import CustomPlanQuote
+
+    raw_interval = request.GET.get("interval") or request.GET.get("billing_interval")
+    if raw_interval:
+        set_billing_interval(request, raw_interval)
 
     quote_id = (quote_param or request.GET.get("quote") or request.POST.get("quote_id") or "").strip()
     plan = (plan_param or request.GET.get("plan") or request.POST.get("plan") or "").strip().lower()
@@ -882,9 +962,12 @@ def _billing_begin_checkout(request, *, plan: str = "pro", quote=None):
             return redirect(f"{reverse('custom_plan_builder')}?billing=not_configured&quote={quote.pk}")
         return redirect(f"{reverse('pricing')}?billing=not_configured")
     if len(providers) > 1:
-        params = f"plan={plan}"
+        from core.billing_interval import get_billing_interval
+
+        interval = get_billing_interval(request)
+        params = f"plan={plan}&interval={interval}"
         if quote is not None:
-            params = f"quote={quote.pk}"
+            params = f"quote={quote.pk}&interval={interval}"
         return redirect(f"{reverse('billing_choose_payment')}?{params}")
     return _billing_checkout_provider(request, providers[0], plan=plan, quote=quote)
 
@@ -908,50 +991,72 @@ def _billing_checkout_provider(request, provider: str, *, plan: str = "pro", quo
                 return _stripe_checkout_custom(request, quote)
             return _stripe_checkout_pro(request)
         if billing_demo_mode():
-            return _billing_demo_checkout_redirect(plan=plan, quote=quote, provider=PAYMENT_STRIPE)
+            return _billing_demo_checkout_redirect(request, plan=plan, quote=quote, provider=PAYMENT_STRIPE)
 
     if provider == PAYMENT_PAYPAL:
         if paypal_checkout_ready() and not billing_demo_mode():
             return redirect(f"{reverse('pricing')}?billing=paypal_live_soon")
         if billing_demo_mode() or paypal_checkout_ready():
-            return _billing_demo_checkout_redirect(plan=plan, quote=quote, provider=PAYMENT_PAYPAL)
+            return _billing_demo_checkout_redirect(request, plan=plan, quote=quote, provider=PAYMENT_PAYPAL)
 
     if plan == "custom" and quote is not None:
         return redirect(f"{reverse('custom_plan_builder')}?billing=not_configured&quote={quote.pk}")
     return redirect(f"{reverse('pricing')}?billing=not_configured")
 
 
-def _billing_demo_checkout_redirect(*, plan: str, quote=None, provider: str):
+def _billing_demo_checkout_redirect(request, *, plan: str, quote=None, provider: str):
+    from core.billing_interval import get_billing_interval
     from core.models import CustomPlanQuote
 
+    interval = get_billing_interval(request)
     if quote is not None:
         quote.status = CustomPlanQuote.STATUS_PENDING
         quote.stripe_session_id = quote.stripe_session_id or f"demo_{quote.pk}"
         quote.save(update_fields=["status", "stripe_session_id", "updated_at"])
-        return redirect(f"{reverse('billing_demo_checkout')}?quote={quote.pk}&provider={provider}")
-    return redirect(f"{reverse('billing_demo_checkout')}?plan={plan}&provider={provider}")
+        return redirect(
+            f"{reverse('billing_demo_checkout')}?quote={quote.pk}&provider={provider}&interval={interval}"
+        )
+    return redirect(
+        f"{reverse('billing_demo_checkout')}?plan={plan}&provider={provider}&interval={interval}"
+    )
 
 
 def _stripe_checkout_pro(request):
+    from core.billing_interval import get_billing_interval, pro_checkout_cents, stripe_recurring_interval
     from core.payment_gateway import get_stripe_credentials
 
     creds = get_stripe_credentials()
     secret = creds.secret_key
-    price_id = creds.price_pro_monthly
+    interval = get_billing_interval(request)
     try:
         import requests
 
         base = _public_base_url(request)
         data = {
             "mode": "subscription",
-            "line_items[0][price]": price_id,
             "line_items[0][quantity]": "1",
             "success_url": f"{base}{reverse('setup')}?billing=success",
             "cancel_url": f"{base}{reverse('pricing')}?billing=cancelled",
             "client_reference_id": str(request.user.id),
             "customer_email": (request.user.email or "").strip(),
             "metadata[user_id]": str(request.user.id),
+            "metadata[billing_interval]": interval,
         }
+        if interval == "yearly" and creds.price_pro_yearly:
+            data["line_items[0][price]"] = creds.price_pro_yearly
+        elif interval == "yearly":
+            amount = pro_checkout_cents(interval)
+            data.update(
+                {
+                    "line_items[0][price_data][currency]": "usd",
+                    "line_items[0][price_data][unit_amount]": str(amount),
+                    "line_items[0][price_data][recurring][interval]": "year",
+                    "line_items[0][price_data][product_data][name]": "MailPilot Pro",
+                    "line_items[0][price_data][product_data][description]": "1,000 tokens · 3 inboxes · yearly",
+                }
+            )
+        else:
+            data["line_items[0][price]"] = creds.price_pro_monthly
         resp = requests.post(
             "https://api.stripe.com/v1/checkout/sessions",
             data=data,
@@ -972,6 +1077,7 @@ def _stripe_checkout_pro(request):
 
 
 def _stripe_checkout_custom(request, quote):
+    from core.billing_interval import stripe_recurring_interval
     from core.payment_gateway import get_stripe_credentials
 
     creds = get_stripe_credentials()
@@ -980,12 +1086,17 @@ def _stripe_checkout_custom(request, quote):
 
         base = _public_base_url(request)
         amount = int(quote.price_cents)
-        label = f"MailPilot Custom — {quote.tokens:,} tokens · {quote.inboxes} inbox(es)/mo"
+        interval = getattr(quote, "billing_interval", None) or "monthly"
+        period = "yr" if interval == "yearly" else "mo"
+        label = (
+            f"MailPilot Custom — {quote.tokens:,} tokens · "
+            f"{quote.inboxes} inbox(es)/{period}"
+        )
         data = {
             "mode": "subscription",
             "line_items[0][price_data][currency]": "usd",
             "line_items[0][price_data][unit_amount]": str(amount),
-            "line_items[0][price_data][recurring][interval]": "month",
+            "line_items[0][price_data][recurring][interval]": stripe_recurring_interval(interval),
             "line_items[0][price_data][product_data][name]": "MailPilot Custom Plan",
             "line_items[0][price_data][product_data][description]": label[:500],
             "line_items[0][quantity]": "1",
@@ -1038,7 +1149,7 @@ def billing_choose_payment(request):
     if len(providers) == 1:
         return _billing_checkout_provider(request, providers[0], plan=plan, quote=quote)
 
-    summary = _billing_checkout_summary(plan=plan, quote=quote)
+    summary = _billing_checkout_summary(request, plan=plan, quote=quote)
 
     if request.method == "POST":
         provider = (request.POST.get("provider") or "").strip().lower()
@@ -1120,7 +1231,7 @@ def billing_demo_checkout(request):
     if provider not in (PAYMENT_STRIPE, PAYMENT_PAYPAL):
         provider = PAYMENT_STRIPE
 
-    summary = _billing_checkout_summary(plan=plan, quote=quote)
+    summary = _billing_checkout_summary(request, plan=plan, quote=quote)
     return render(
         request,
         "billing_demo_checkout.html",

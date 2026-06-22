@@ -1,0 +1,157 @@
+<script>
+(function () {
+  const section = document.getElementById('pricing') || document.querySelector('main.mp-marketing-main');
+  if (!section) return;
+
+  const buttons = Array.from(section.querySelectorAll('.pricing-billing-btn[data-billing-interval]'));
+  const cards = Array.from(section.querySelectorAll('.pricing-card[data-plan]'));
+  if (!buttons.length) return;
+
+  let userPickedInterval = false;
+
+  function csrfToken() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  function getActiveInterval() {
+    if (window.__mailpilotBillingInterval) {
+      return window.__mailpilotBillingInterval;
+    }
+    const active = buttons.find((btn) => btn.classList.contains('is-active'));
+    return (active && active.dataset.billingInterval) || 'monthly';
+  }
+
+  function getPageInitialInterval() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const fromUrl = params.get('interval') || params.get('billing_interval');
+      if (fromUrl) return fromUrl === 'yearly' ? 'yearly' : 'monthly';
+    } catch (e) { /* ignore */ }
+    const fromData = (section.dataset.initialBillingInterval || '').trim().toLowerCase();
+    if (fromData === 'yearly' || fromData === 'monthly') return fromData;
+    return null;
+  }
+
+  function updateCheckoutLinks(interval) {
+    section.querySelectorAll('a.pricing-cta').forEach((link) => {
+      try {
+        const url = new URL(link.getAttribute('href'), window.location.origin);
+        if (interval === 'yearly') {
+          url.searchParams.set('interval', 'yearly');
+        } else {
+          url.searchParams.delete('interval');
+        }
+        link.setAttribute('href', url.pathname + url.search);
+      } catch (e) { /* ignore */ }
+    });
+  }
+
+  async function persistInterval(interval) {
+    try {
+      await fetch('/api/billing/set-interval', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+        body: JSON.stringify({ interval }),
+      });
+    } catch (e) { /* ignore */ }
+    document.dispatchEvent(new CustomEvent('mailpilot:billing-interval', { detail: { interval } }));
+  }
+
+  function applyInterval(interval, options) {
+    const opts = options || {};
+    const normalized = interval === 'yearly' ? 'yearly' : 'monthly';
+
+    window.__mailpilotBillingInterval = normalized;
+    updateCheckoutLinks(normalized);
+
+    buttons.forEach((btn) => {
+      const on = btn.dataset.billingInterval === normalized;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+
+    if (cards.length) {
+      const prefix = normalized === 'yearly' ? 'yearly' : 'monthly';
+
+      cards.forEach((card) => {
+        const price = card.dataset[prefix + 'Price'] || '';
+        const suffix = card.dataset[prefix + 'Suffix'] || '';
+        const was = card.dataset[prefix + 'Was'] || '';
+        const save = card.dataset[prefix + 'Save'] || '';
+        const period = card.dataset[prefix + 'Period'] || '';
+
+        const wasRow = card.querySelector('[data-pricing-was-row]');
+        const simpleRow = card.querySelector('[data-pricing-simple-row]');
+        const wasEl = card.querySelector('[data-pricing-was]');
+        const saveEl = card.querySelector('[data-pricing-save]');
+        const periodEl = card.querySelector('[data-pricing-period]');
+
+        if (periodEl) periodEl.textContent = period;
+
+        if (was) {
+          if (wasRow) wasRow.hidden = false;
+          if (simpleRow) simpleRow.hidden = true;
+          if (wasEl) wasEl.textContent = was;
+          const priceEl = wasRow && wasRow.querySelector('[data-pricing-price]');
+          const suffixEl = wasRow && wasRow.querySelector('[data-pricing-suffix]');
+          if (priceEl) priceEl.textContent = price;
+          if (suffixEl) suffixEl.textContent = suffix;
+          if (saveEl) {
+            saveEl.textContent = save;
+            saveEl.hidden = !save;
+          }
+        } else {
+          if (wasRow) wasRow.hidden = true;
+          if (simpleRow) simpleRow.hidden = false;
+          const priceEl = simpleRow && simpleRow.querySelector('[data-pricing-price-simple]');
+          const suffixEl = simpleRow && simpleRow.querySelector('[data-pricing-suffix-simple]');
+          if (priceEl) priceEl.textContent = price;
+          if (suffixEl) suffixEl.textContent = suffix;
+        }
+      });
+    }
+
+    if (opts.persist !== false) {
+      persistInterval(normalized);
+    }
+  }
+
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', function () {
+      userPickedInterval = true;
+      applyInterval(btn.dataset.billingInterval || 'monthly');
+    });
+  });
+
+  const pageInterval = getPageInitialInterval();
+  if (pageInterval && !userPickedInterval) {
+    applyInterval(pageInterval, { persist: false });
+  } else {
+    fetch('/api/billing/interval', { credentials: 'same-origin' })
+      .then((res) => res.json())
+      .then((payload) => {
+        if (userPickedInterval) return;
+        const interval = (payload && payload.ok && payload.interval) ? payload.interval : 'monthly';
+        applyInterval(interval, { persist: false });
+      })
+      .catch(() => {
+        if (!userPickedInterval) applyInterval('monthly', { persist: false });
+      });
+  }
+
+  window.getMailpilotBillingInterval = getActiveInterval;
+  window.mailpilotCheckoutUrlWithInterval = function (baseUrl) {
+    const interval = getActiveInterval();
+    if (interval !== 'yearly') return baseUrl;
+    try {
+      const url = new URL(baseUrl, window.location.origin);
+      url.searchParams.set('interval', 'yearly');
+      return url.pathname + url.search;
+    } catch (e) {
+      return baseUrl + (baseUrl.indexOf('?') >= 0 ? '&' : '?') + 'interval=yearly';
+    }
+  };
+})();
+</script>

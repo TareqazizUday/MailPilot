@@ -544,7 +544,7 @@ def transport_summary(user: User) -> dict[str, Any]:
     tr = transport_for_mode(mode)
     accounts = list(list_accounts_for_user(user, transport=tr))
     enabled = [a for a in accounts if a.is_enabled]
-    return {
+    summary: dict[str, Any] = {
         "active_mode": mode,
         "send_transport": tr,
         "total_slots": len(accounts),
@@ -552,3 +552,26 @@ def transport_summary(user: User) -> dict[str, Any]:
         "max_slots": MAX_SLOTS_PER_TRANSPORT,
         "max_active": max_active_accounts(),
     }
+    try:
+        from core.billing import can_enable_mailbox, usage_summary
+
+        billing = usage_summary(user)
+        inboxes = billing.get("active_inboxes") or {}
+        plan = billing.get("plan") or {}
+        gate = can_enable_mailbox(user)
+        summary.update(
+            {
+                "plan_code": plan.get("code"),
+                "plan_inbox_limit": inboxes.get("limit"),
+                "plan_inbox_used": inboxes.get("used"),
+                "plan_inbox_left": inboxes.get("left"),
+                "can_add_mailbox": gate.allowed,
+                "gate_reason": gate.reason or "",
+                "payment_required": gate.reason == "payment_required",
+                "starter_trial_expired": bool(plan.get("starter_expired")),
+                "features": billing.get("features") or {},
+            }
+        )
+    except Exception:
+        summary["can_add_mailbox"] = True
+    return summary

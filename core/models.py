@@ -481,6 +481,31 @@ class MarketingPricingPlan(models.Model):
     price_was = models.CharField(max_length=24, blank=True, default="", help_text="Strikethrough compare price, e.g. $40")
     price_save_label = models.CharField(max_length=40, blank=True, default="", help_text='e.g. "Save 50%"')
     period_text = models.CharField(max_length=160)
+    yearly_price_display = models.CharField(
+        max_length=40,
+        blank=True,
+        default="",
+        help_text='Yearly price shown when toggle is on, e.g. $200. Leave blank to reuse monthly price.',
+    )
+    yearly_price_suffix = models.CharField(
+        max_length=24,
+        blank=True,
+        default="/yr",
+        help_text="Suffix when yearly toggle is on, e.g. /yr",
+    )
+    yearly_price_was = models.CharField(
+        max_length=24,
+        blank=True,
+        default="",
+        help_text="Strikethrough compare price for yearly billing",
+    )
+    yearly_price_save_label = models.CharField(max_length=40, blank=True, default="")
+    yearly_period_text = models.CharField(
+        max_length=160,
+        blank=True,
+        default="",
+        help_text="Period line when yearly toggle is on",
+    )
     description = models.TextField()
     features = models.TextField(help_text="One bullet per line. HTML like <strong> is allowed.")
     cta_label = models.CharField(max_length=80, help_text="Button label for visitors")
@@ -526,6 +551,28 @@ class MarketingPricingPlan(models.Model):
     @property
     def feature_lines(self) -> list[str]:
         return [line.strip() for line in (self.features or "").splitlines() if line.strip()]
+
+    @property
+    def yearly_price_resolved(self) -> str:
+        return (self.yearly_price_display or "").strip() or self.price_display
+
+    @property
+    def yearly_suffix_resolved(self) -> str:
+        if (self.yearly_price_display or "").strip():
+            return (self.yearly_price_suffix or "/yr").strip()
+        return self.price_suffix or ""
+
+    @property
+    def yearly_was_resolved(self) -> str:
+        return (self.yearly_price_was or "").strip()
+
+    @property
+    def yearly_save_resolved(self) -> str:
+        return (self.yearly_price_save_label or "").strip() or (self.price_save_label or "").strip()
+
+    @property
+    def yearly_period_resolved(self) -> str:
+        return (self.yearly_period_text or "").strip() or self.period_text
 
 
 class MarketingHeroSettings(models.Model):
@@ -786,6 +833,7 @@ class CustomPlanQuote(models.Model):
     tokens = models.PositiveIntegerField()
     inboxes = models.PositiveIntegerField()
     price_cents = models.PositiveIntegerField()
+    billing_interval = models.CharField(max_length=8, default="monthly")
     daily_send_limit = models.PositiveIntegerField(default=100)
     status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     stripe_session_id = models.CharField(max_length=255, blank=True, default="")
@@ -821,6 +869,12 @@ class Stripe(models.Model):
         blank=True,
         default="",
         help_text="Stripe Price ID for Pro monthly (price_...).",
+    )
+    stripe_price_pro_yearly = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="Optional Stripe Price ID for Pro yearly (price_...).",
     )
     stripe_secret_key_enc = models.TextField(blank=True, default="")
     stripe_webhook_secret_enc = models.TextField(blank=True, default="")

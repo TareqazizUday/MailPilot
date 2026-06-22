@@ -90,6 +90,7 @@
     .formula-note {
       font-size: 0.75rem; color: rgba(148,163,184,0.85); line-height: 1.5; margin-bottom: 18px;
     }
+    {% include "components/marketing_pricing_billing_toggle_css.html" %}
     .cta {
       display: block; width: 100%; text-align: center; padding: 14px 20px; border-radius: 50px;
       font-size: 0.95rem; font-weight: 700; text-decoration: none; border: none; cursor: pointer;
@@ -119,11 +120,13 @@
   {% include "components/marketing_nav.html" %}
   {% include "components/marketing_nav_js.html" %}
 
-  <main class="mp-marketing-main" aria-labelledby="custom-heading">
+  <main id="pricing" class="mp-marketing-main" aria-labelledby="custom-heading" data-initial-billing-interval="{{ billing_interval|default:'monthly' }}">
     <a href="{% url 'pricing' %}" class="back-link"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to pricing</a>
     <div class="section-tag">Custom plan</div>
     <h1 class="section-title" id="custom-heading">Build your own <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">MailPilot plan</span></h1>
     <p class="intro">Adjust monthly tokens and inbox slots. Price updates live — continue to checkout when you are ready.</p>
+
+    {% include "components/marketing_pricing_billing_toggle.html" %}
 
     <div id="billingAlert" class="alert" style="display:none" role="status"></div>
 
@@ -137,9 +140,9 @@
         </div>
         <div class="field">
           <label for="inboxesRange">Active inboxes (Gmail / SMTP) <span class="val" id="inboxesVal">{{ initial_inboxes|default:4 }}</span></label>
-          <input type="range" id="inboxesRange" min="1" max="12" step="1" value="{{ initial_inboxes|default:4 }}" />
+          <input type="range" id="inboxesRange" min="1" max="10" step="1" value="{{ initial_inboxes|default:4 }}" />
         </div>
-        <p class="formula-note">Pricing: $10 base + $5 per 1,000 tokens + $2.50 per inbox. Minimum $20/mo. Draft mode does not use tokens.</p>
+        <p class="formula-note" id="formulaNote">{{ custom_config.formula_note }}</p>
       </section>
 
       <aside class="panel" aria-label="Quote summary">
@@ -162,9 +165,10 @@
 
   {% include "components/footer.html" %}
 
+  {% include "components/marketing_pricing_billing_toggle_js.html" %}
   <script>
     (function () {
-      const cfg = {{ custom_config_json|safe }};
+      let cfg = {{ custom_config_json|safe }};
       const isAuth = {% if user.is_authenticated %}true{% else %}false{% endif %};
       const tokensRange = document.getElementById('tokensRange');
       const inboxesRange = document.getElementById('inboxesRange');
@@ -207,9 +211,33 @@
         showAlert('Checkout could not be started. Please try again.', true);
       }
 
-      function formatUsd(cents) {
-        return '$' + (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
+      function formatMoney(cents) {
+        const suffix = cfg.interval_suffix || '/mo';
+        const amount = (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
+        return '$' + amount + '<span>' + suffix + '</span>';
       }
+
+      function currentInterval() {
+        return cfg.billing_interval || (window.getMailpilotBillingInterval && window.getMailpilotBillingInterval()) || 'monthly';
+      }
+
+      async function reloadConfig(interval) {
+        try {
+          const res = await fetch('/api/billing/custom-config?interval=' + encodeURIComponent(interval), { credentials: 'same-origin' });
+          const j = await res.json();
+          if (j.ok && j.config) {
+            cfg = j.config;
+            const note = document.getElementById('formulaNote');
+            if (note && cfg.formula_note) note.textContent = cfg.formula_note;
+          }
+        } catch (e) { /* ignore */ }
+        refreshQuote();
+      }
+
+      document.addEventListener('mailpilot:billing-interval', function (e) {
+        const interval = (e.detail && e.detail.interval) || 'monthly';
+        reloadConfig(interval);
+      });
 
       let quoteTimer = null;
 
@@ -219,10 +247,13 @@
         tokensVal.textContent = tokens.toLocaleString();
         inboxesVal.textContent = String(inboxes);
         try {
-          const res = await fetch('/api/billing/custom-quote?tokens=' + tokens + '&inboxes=' + inboxes, { credentials: 'same-origin' });
+          const res = await fetch(
+            '/api/billing/custom-quote?tokens=' + tokens + '&inboxes=' + inboxes + '&interval=' + encodeURIComponent(currentInterval()),
+            { credentials: 'same-origin' }
+          );
           const j = await res.json();
           if (!j.ok || !j.quote) return;
-          priceDisplay.innerHTML = formatUsd(j.quote.price_cents) + '<span>/mo</span>';
+          priceDisplay.innerHTML = formatMoney(j.quote.price_cents);
           sendsMax.textContent = j.quote.sends_max.toLocaleString();
           dailyCap.textContent = j.quote.daily_send_limit.toLocaleString();
         } catch (e) { /* ignore */ }
@@ -265,6 +296,7 @@
               body: JSON.stringify({
                 tokens: parseInt(tokensRange.value, 10),
                 inboxes: parseInt(inboxesRange.value, 10),
+                billing_interval: currentInterval(),
               }),
             });
             const j = await res.json();
