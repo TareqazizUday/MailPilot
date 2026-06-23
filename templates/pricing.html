@@ -112,7 +112,7 @@
     .pricing-soon-inline {
       color: #fde68a; font-size: 0.78em; font-weight: 700; white-space: nowrap;
     }
-    .pricing-price-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .pricing-price-row:not([hidden]) { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
     .pricing-was {
       font-size: 1.15rem; font-weight: 700; color: var(--muted);
       text-decoration: line-through; opacity: 0.75;
