@@ -210,6 +210,13 @@
         showAlert('That quote expired. Build a new one below.', true);
       } else if (billingParam === 'checkout_error') {
         showAlert('Checkout could not be started. Please try again.', true);
+      } else if (billingParam === 'site_url_missing') {
+        showBillingAlert('Checkout cannot start: set SITE_URL in server environment (e.g. https://yourdomain.com).', true);
+      } else if (billingParam === 'stripe_not_ready') {
+        showAlert(
+          'Stripe live checkout is not available yet — your Stripe account cannot accept charges. Complete activation in the Stripe Dashboard, or use test keys (sk_test_) for local testing.',
+          true
+        );
       }
 
       function formatMoney(cents) {

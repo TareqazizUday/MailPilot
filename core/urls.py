@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.urls import path
+from django.views.generic import RedirectView
 
 from core import auth_views, views
 
@@ -29,11 +30,22 @@ urlpatterns = [
     path("billing/checkout/pro", views.billing_checkout_pro, name="billing_checkout_pro"),
     path("billing/checkout/choose", views.billing_choose_payment, name="billing_choose_payment"),
     path("billing/checkout/custom/<int:quote_id>", views.billing_checkout_custom, name="billing_checkout_custom"),
-    path("billing/demo/checkout", views.billing_demo_checkout, name="billing_demo_checkout"),
-    path("billing/demo/complete", views.billing_demo_complete, name="billing_demo_complete"),
+    path("billing/checkout/pay", views.billing_demo_checkout, name="billing_checkout_pay"),
+    path("billing/checkout/complete", views.billing_demo_complete, name="billing_checkout_complete"),
+    path(
+        "billing/demo/checkout",
+        RedirectView.as_view(pattern_name="billing_checkout_pay", query_string=True),
+        name="billing_demo_checkout",
+    ),
+    path(
+        "billing/demo/complete",
+        RedirectView.as_view(pattern_name="billing_checkout_complete", permanent=True),
+        name="billing_demo_complete",
+    ),
     path("billing/custom", views.billing_custom_request, name="billing_custom_request"),
     path("billing/portal", views.billing_portal, name="billing_portal"),
     path("billing/webhook/stripe", views.billing_stripe_webhook, name="billing_stripe_webhook"),
+    path("billing/paypal/return", views.billing_paypal_return, name="billing_paypal_return"),
     path("setup", views.setup_page, name="setup"),
     path("dashboard", views.dashboard_page, name="dashboard"),
     path("profile", views.profile_page, name="profile"),

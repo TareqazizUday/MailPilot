@@ -862,11 +862,26 @@ class Stripe(models.Model):
     PROVIDER_STRIPE = "stripe"
     PROVIDER_CHOICES = [(PROVIDER_STRIPE, "Stripe")]
 
+    STRIPE_KEY_AUTO = "auto"
+    STRIPE_KEY_TEST = "test"
+    STRIPE_KEY_LIVE = "live"
+    STRIPE_KEY_ENVIRONMENT_CHOICES = (
+        (STRIPE_KEY_AUTO, "Auto — test keys when DEBUG, live keys on production"),
+        (STRIPE_KEY_TEST, "Force test keys (localhost / staging)"),
+        (STRIPE_KEY_LIVE, "Force live keys (production)"),
+    )
+
     singleton_key = models.PositiveSmallIntegerField(default=1, unique=True)
     provider = models.CharField(max_length=32, choices=PROVIDER_CHOICES, default=PROVIDER_STRIPE)
     is_enabled = models.BooleanField(
         default=False,
         help_text="When enabled, stored credentials override STRIPE_* environment variables.",
+    )
+    stripe_key_environment = models.CharField(
+        max_length=16,
+        choices=STRIPE_KEY_ENVIRONMENT_CHOICES,
+        default=STRIPE_KEY_AUTO,
+        help_text="Which key set Checkout uses. Auto follows DEBUG (local=test, production=live).",
     )
     stripe_publishable_key = models.CharField(max_length=255, blank=True, default="")
     stripe_price_pro_monthly = models.CharField(
@@ -881,7 +896,26 @@ class Stripe(models.Model):
         default="",
         help_text="Optional Stripe Price ID for Pro yearly (price_...).",
     )
-    stripe_secret_key_enc = models.TextField(blank=True, default="")
+    stripe_secret_key_enc = models.TextField(
+        blank=True,
+        default="",
+        help_text="Encrypted live secret key (sk_live_).",
+    )
+    stripe_restricted_key_enc = models.TextField(
+        blank=True,
+        default="",
+        help_text="Encrypted live restricted key (rk_live_).",
+    )
+    stripe_test_secret_key_enc = models.TextField(
+        blank=True,
+        default="",
+        help_text="Encrypted test secret key (sk_test_).",
+    )
+    stripe_test_restricted_key_enc = models.TextField(
+        blank=True,
+        default="",
+        help_text="Encrypted test restricted key (rk_test_).",
+    )
     stripe_webhook_secret_enc = models.TextField(blank=True, default="")
     notes = models.TextField(blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
@@ -902,23 +936,69 @@ class Stripe(models.Model):
 class PayPal(models.Model):
     """Singleton PayPal credentials (admin-managed)."""
 
+    PAYPAL_ENV_AUTO = "auto"
+    PAYPAL_ENV_SANDBOX = "sandbox"
+    PAYPAL_ENV_LIVE = "live"
+    PAYPAL_ENVIRONMENT_CHOICES = (
+        (PAYPAL_ENV_AUTO, "Auto — sandbox when DEBUG, live on production"),
+        (PAYPAL_ENV_SANDBOX, "Force sandbox (localhost / staging)"),
+        (PAYPAL_ENV_LIVE, "Force live (production)"),
+    )
+
     singleton_key = models.PositiveSmallIntegerField(default=1, unique=True)
     is_enabled = models.BooleanField(
         default=False,
         help_text="When enabled, stored credentials override PAYPAL_* environment variables.",
     )
+    paypal_environment = models.CharField(
+        max_length=16,
+        choices=PAYPAL_ENVIRONMENT_CHOICES,
+        default=PAYPAL_ENV_AUTO,
+        help_text="Which PayPal API to use. Auto follows DEBUG (local=sandbox, production=live).",
+    )
     sandbox_mode = models.BooleanField(
         default=True,
-        help_text="Use PayPal Sandbox (api-m.sandbox.paypal.com). Disable for live payments.",
+        help_text="Legacy flag; prefer PayPal environment above. Used when environment is Auto.",
     )
-    client_id = models.CharField(max_length=255, blank=True, default="")
+    client_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Legacy sandbox client ID; prefer sandbox_client_id.",
+    )
+    sandbox_client_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="PayPal Sandbox Client ID from developer.paypal.com.",
+    )
+    live_client_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="PayPal Live Client ID for production checkout.",
+    )
     plan_pro_monthly = models.CharField(
         max_length=128,
         blank=True,
         default="",
         help_text="PayPal Plan ID for Pro monthly subscription (P-...).",
     )
-    client_secret_enc = models.TextField(blank=True, default="")
+    client_secret_enc = models.TextField(
+        blank=True,
+        default="",
+        help_text="Legacy encrypted secret; prefer sandbox_client_secret_enc.",
+    )
+    sandbox_client_secret_enc = models.TextField(
+        blank=True,
+        default="",
+        help_text="Encrypted PayPal Sandbox client secret.",
+    )
+    live_client_secret_enc = models.TextField(
+        blank=True,
+        default="",
+        help_text="Encrypted PayPal Live client secret.",
+    )
     webhook_id = models.CharField(
         max_length=128,
         blank=True,

@@ -305,11 +305,83 @@ class DemoPayPalCredentialTests(SimpleTestCase):
 
 
 class PaymentProviderChoiceTests(SimpleTestCase):
-    def test_demo_mode_exposes_both_providers(self) -> None:
+    def test_demo_mode_exposes_both_providers_when_no_live_keys(self) -> None:
+        from unittest.mock import patch
+
         from django.test import override_settings
 
         from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, available_payment_providers
 
         with override_settings(BILLING_DEMO_MODE=True):
-            providers = available_payment_providers()
+            with patch("core.payment_gateway.stripe_checkout_ready", return_value=False):
+                with patch("core.payment_gateway.paypal_checkout_ready", return_value=False):
+                    providers = available_payment_providers()
         self.assertEqual(providers, [PAYMENT_STRIPE, PAYMENT_PAYPAL])
+
+    def test_production_shows_paypal_when_configured(self) -> None:
+        from unittest.mock import patch
+
+        from django.test import override_settings
+
+        from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, available_payment_providers
+
+        with override_settings(BILLING_DEMO_MODE=False, DEBUG=False):
+            with patch("core.payment_gateway.stripe_checkout_ready", return_value=True):
+                with patch("core.payment_gateway.stripe_is_configured", return_value=True):
+                    with patch("core.payment_gateway.paypal_checkout_ready", return_value=True):
+                        providers = available_payment_providers()
+        self.assertIn(PAYMENT_STRIPE, providers)
+        self.assertIn(PAYMENT_PAYPAL, providers)
+
+    def test_live_stripe_hides_demo_banner_flag(self) -> None:
+        from unittest.mock import patch
+
+        from django.test import override_settings
+
+        from core.payment_gateway import billing_choose_payment_is_demo
+
+        with override_settings(BILLING_DEMO_MODE=True):
+            with patch("core.payment_gateway.stripe_checkout_ready", return_value=True):
+                self.assertFalse(billing_choose_payment_is_demo())
+
+
+class StripeEnvironmentTests(TestCase):
+    def test_auto_uses_test_when_debug(self) -> None:
+        from django.test import override_settings
+
+        from core.models import Stripe
+        from core.payment_gateway import stripe_resolved_environment
+
+        Stripe.objects.update_or_create(
+            singleton_key=1,
+            defaults={"is_enabled": True, "stripe_key_environment": Stripe.STRIPE_KEY_AUTO},
+        )
+        with override_settings(DEBUG=True):
+            self.assertEqual(stripe_resolved_environment(), "test")
+
+    def test_auto_uses_live_when_not_debug(self) -> None:
+        from django.test import override_settings
+
+        from core.models import Stripe
+        from core.payment_gateway import stripe_resolved_environment
+
+        Stripe.objects.update_or_create(
+            singleton_key=1,
+            defaults={"is_enabled": True, "stripe_key_environment": Stripe.STRIPE_KEY_AUTO},
+        )
+        with override_settings(DEBUG=False):
+            self.assertEqual(stripe_resolved_environment(), "live")
+
+
+class BillingDeployChecksTests(SimpleTestCase):
+    def test_site_url_required_on_production(self) -> None:
+        from django.test import override_settings
+
+        from core.payment_gateway import billing_site_url_missing
+
+        with override_settings(DEBUG=True, SITE_URL=""):
+            self.assertFalse(billing_site_url_missing())
+        with override_settings(DEBUG=False, SITE_URL=""):
+            self.assertTrue(billing_site_url_missing())
+        with override_settings(DEBUG=False, SITE_URL="https://app.example.com"):
+            self.assertFalse(billing_site_url_missing())
