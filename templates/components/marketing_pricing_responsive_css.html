@@ -37,7 +37,11 @@
       min-width: 0;
       row-gap: 4px;
     }
-    .pricing-price {
+    [data-pricing-was-row][hidden],
+    [data-pricing-simple-row][hidden] {
+      display: none !important;
+    }
+    .pricing-price:not([hidden]) {
       display: flex;
       flex-wrap: wrap;
       align-items: baseline;

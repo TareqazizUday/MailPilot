@@ -732,7 +732,7 @@
       color: var(--muted); font-size: 1rem; margin-top: 14px; max-width: 520px;
       margin-left: auto; margin-right: auto; line-height: 1.65;
     }
-    .pricing-price-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .pricing-price-row:not([hidden]) { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
     .pricing-was {
       font-size: 1.15rem; font-weight: 700; color: var(--muted);
       text-decoration: line-through; opacity: 0.75;
