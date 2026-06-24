@@ -11,9 +11,9 @@ from unfold.admin import ModelAdmin, StackedInline
 
 from core.admin_site import admin_site
 from core.billing import apply_plan_defaults, current_period_key, set_subscription_plan
-from core.crypto import encrypt_str
 from core.models import (
     AuditLog,
+    BillingPaymentEvent,
     ContactSubmission,
     CustomPlanQuote,
     DailySendCounter,
@@ -30,15 +30,12 @@ from core.models import (
     MarketingPricingPlan,
     MarketingPricingSettings,
     PasswordResetOTP,
-    Stripe,
-    PayPal,
     UsageCounter,
     UsageEvent,
     UserMailSettings,
     UserProfile,
     UserSubscription,
 )
-from core.payment_gateway import masked_paypal_secret, masked_stripe_restricted, masked_stripe_secret, masked_stripe_webhook
 from core.widgets import CKEditorWidget
 
 
@@ -189,16 +186,23 @@ class UserSubscriptionAdmin(_MPModelAdmin):
         "user",
         "plan_badge",
         "status_badge",
+        "payment_provider_badge",
         "monthly_token_limit",
         "active_inbox_limit",
         "daily_send_limit",
         "integrations",
         "updated_at",
     )
-    list_filter = ("plan_code", "status", "telegram_enabled", "whatsapp_enabled")
+    list_filter = ("plan_code", "status", "payment_provider", "telegram_enabled", "whatsapp_enabled")
     list_select_related = ("user",)
     raw_id_fields = ("user",)
-    search_fields = ("user__username", "user__email", "stripe_customer_id", "stripe_subscription_id")
+    search_fields = (
+        "user__username",
+        "user__email",
+        "stripe_customer_id",
+        "stripe_subscription_id",
+        "paypal_subscription_id",
+    )
     ordering = ("-updated_at",)
     actions = [apply_plan_defaults_action, set_plan_starter, set_plan_pro, reset_monthly_tokens]
     fieldsets = (
@@ -221,8 +225,16 @@ class UserSubscriptionAdmin(_MPModelAdmin):
             {"fields": ("current_period_start", "current_period_end"), "classes": ("collapse",)},
         ),
         (
-            "Stripe",
-            {"fields": ("stripe_customer_id", "stripe_subscription_id", "paid_at"), "classes": ("collapse",)},
+            "Payment providers",
+            {
+                "fields": (
+                    "payment_provider",
+                    "paid_at",
+                    "stripe_customer_id",
+                    "stripe_subscription_id",
+                    "paypal_subscription_id",
+                ),
+            },
         ),
         (
             "Starter trial",
@@ -233,6 +245,14 @@ class UserSubscriptionAdmin(_MPModelAdmin):
             },
         ),
     )
+
+    @admin.display(description="Provider", ordering="payment_provider")
+    def payment_provider_badge(self, obj):
+        raw = (obj.payment_provider or "").strip().lower()
+        if not raw:
+            return _badge("—", "muted")
+        tones = {"stripe": "pro", "paypal": "ok"}
+        return _badge(raw.title(), tones.get(raw, "muted"))
 
     @admin.display(description="Plan", ordering="plan_code")
     def plan_badge(self, obj):
@@ -338,6 +358,91 @@ class UsageEventAdmin(_MPModelAdmin):
             UsageEvent.STATUS_REFUNDED: "muted",
         }
         return _badge(obj.get_status_display(), tones.get(obj.status, "muted"))
+
+
+class BillingPaymentEventAdmin(_MPModelAdmin):
+    list_display = (
+        "created_at",
+        "user",
+        "provider_badge",
+        "event_badge",
+        "plan_code",
+        "amount_display",
+        "status_badge",
+        "ip_address",
+        "external_id_short",
+    )
+    list_filter = ("provider", "event_type", "status", "plan_code", "created_at")
+    list_select_related = ("user",)
+    search_fields = (
+        "user__username",
+        "user__email",
+        "external_id",
+        "ip_address",
+        "detail",
+        "user_agent",
+    )
+    readonly_fields = (
+        "user",
+        "event_type",
+        "provider",
+        "plan_code",
+        "amount_cents",
+        "currency",
+        "status",
+        "external_id",
+        "ip_address",
+        "user_agent",
+        "detail",
+        "created_at",
+    )
+    ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    @admin.display(description="Provider", ordering="provider")
+    def provider_badge(self, obj):
+        raw = (obj.provider or "").strip().lower()
+        if not raw:
+            return _badge("—", "muted")
+        tones = {"stripe": "pro", "paypal": "ok"}
+        return _badge(raw.title(), tones.get(raw, "muted"))
+
+    @admin.display(description="Event", ordering="event_type")
+    def event_badge(self, obj):
+        return _badge(obj.get_event_type_display(), "pro")
+
+    @admin.display(description="Status", ordering="status")
+    def status_badge(self, obj):
+        tones = {
+            BillingPaymentEvent.STATUS_SUCCEEDED: "ok",
+            BillingPaymentEvent.STATUS_PENDING: "warn",
+            BillingPaymentEvent.STATUS_FAILED: "danger",
+            BillingPaymentEvent.STATUS_CANCELED: "muted",
+        }
+        return _badge(obj.get_status_display(), tones.get(obj.status, "muted"))
+
+    @admin.display(description="Amount")
+    def amount_display(self, obj):
+        if obj.amount_cents is None:
+            return "—"
+        cur = (obj.currency or "usd").upper()
+        return f"{cur} {obj.amount_cents / 100:.2f}"
+
+    @admin.display(description="Reference")
+    def external_id_short(self, obj):
+        text = (obj.external_id or "").strip()
+        if len(text) > 24:
+            return f"{text[:21]}…"
+        return text or "—"
 
 
 class CustomPlanQuoteAdmin(_MPModelAdmin):
@@ -965,588 +1070,13 @@ class PasswordResetOTPAdmin(_MPModelAdmin):
         return _badge("Valid", "ok")
 
 
-class StripeConfigForm(forms.ModelForm):
-    clear_test_keys = forms.BooleanField(
-        required=False,
-        label="Clear test keys",
-        help_text="Remove saved sk_test_ / rk_test_ keys.",
-    )
-    clear_live_keys = forms.BooleanField(
-        required=False,
-        label="Clear live keys",
-        help_text="Remove saved sk_live_ / rk_live_ keys.",
-    )
-    stripe_test_restricted_key = forms.CharField(
-        required=False,
-        label="Test restricted key",
-        help_text="rk_test_… from Dashboard → Test mode ON → Restricted keys.",
-        widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
-    )
-    stripe_test_secret_key = forms.CharField(
-        required=False,
-        label="Test secret key",
-        help_text="sk_test_… — required for localhost checkout. Test card: 4242 4242 4242 4242.",
-        widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
-    )
-    stripe_live_restricted_key = forms.CharField(
-        required=False,
-        label="Live restricted key",
-        help_text="rk_live_… from Dashboard → Live mode → Restricted keys.",
-        widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
-    )
-    stripe_live_secret_key = forms.CharField(
-        required=False,
-        label="Live secret key",
-        help_text="sk_live_… — used on production when Key environment is Auto or Force live.",
-        widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
-    )
-    stripe_webhook_secret = forms.CharField(
-        required=False,
-        label="Webhook signing secret",
-        help_text="whsec_… from Stripe Dashboard → Webhooks (optional; can also use STRIPE_WEBHOOK_SECRET in .env).",
-        widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
-    )
-
-    class Meta:
-        model = Stripe
-        fields = ("is_enabled", "stripe_key_environment")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from core.crypto import decrypt_str
-        from core.payment_gateway import is_demo_stripe_credentials
-
-        mono = {
-            "style": "font-family: ui-monospace, monospace; width: 100%;",
-            "class": "vTextField",
-            "spellcheck": "false",
-        }
-        for name in (
-            "stripe_test_restricted_key",
-            "stripe_test_secret_key",
-            "stripe_live_restricted_key",
-            "stripe_live_secret_key",
-            "stripe_webhook_secret",
-        ):
-            self.fields[name].widget.attrs.update(mono)
-
-        inst = self.instance
-        if not inst or not inst.pk:
-            return
-
-        test_rk = decrypt_str(getattr(inst, "stripe_test_restricted_key_enc", "") or "").strip()
-        test_sk = decrypt_str(getattr(inst, "stripe_test_secret_key_enc", "") or "").strip()
-        live_rk = decrypt_str(inst.stripe_restricted_key_enc or "").strip()
-        live_sk = decrypt_str(inst.stripe_secret_key_enc or "").strip()
-
-        if test_rk:
-            self.initial["stripe_test_restricted_key"] = test_rk
-        if test_sk and not is_demo_stripe_credentials(secret_key=test_sk):
-            self.initial["stripe_test_secret_key"] = test_sk
-        if live_rk:
-            self.initial["stripe_live_restricted_key"] = live_rk
-        if live_sk and not is_demo_stripe_credentials(secret_key=live_sk):
-            self.initial["stripe_live_secret_key"] = live_sk
-        webhook = decrypt_str(inst.stripe_webhook_secret_enc or "").strip()
-        if webhook:
-            self.initial["stripe_webhook_secret"] = webhook
-            self.fields["stripe_webhook_secret"].widget.attrs["placeholder"] = "Saved — enter new value to replace"
-
-
-class StripeConfigAdmin(_MPModelAdmin):
-    form = StripeConfigForm
-    compressed_fields = False
-    list_fullwidth = True
-    list_display = ("provider", "is_enabled", "config_status", "updated_at")
-    readonly_fields = (
-        "provider",
-        "active_environment",
-        "config_status",
-        "deployment_guide",
-        "test_keys_summary",
-        "live_keys_summary",
-        "webhook_summary",
-        "updated_at",
-    )
-    fieldsets = (
-        (
-            "Environment",
-            {
-                "fields": (
-                    "is_enabled",
-                    "stripe_key_environment",
-                    "provider",
-                    "active_environment",
-                    "config_status",
-                    "deployment_guide",
-                ),
-                "description": (
-                    "Save both test and live keys here once. "
-                    "Key environment picks which set Checkout uses — Auto switches by server (DEBUG=local test, production=live)."
-                ),
-            },
-        ),
-        (
-            "Local / test keys (sk_test_)",
-            {
-                "fields": (
-                    "test_keys_summary",
-                    "clear_test_keys",
-                    "stripe_test_secret_key",
-                    "stripe_test_restricted_key",
-                ),
-                "description": "Stripe Dashboard → turn Test mode ON → Developers → API keys.",
-            },
-        ),
-        (
-            "Production / live keys (sk_live_)",
-            {
-                "fields": (
-                    "live_keys_summary",
-                    "clear_live_keys",
-                    "stripe_live_secret_key",
-                    "stripe_live_restricted_key",
-                ),
-                "description": "Stripe Dashboard → Live mode → complete card_payments activation before going live.",
-            },
-        ),
-        (
-            "Webhooks (optional)",
-            {
-                "fields": ("webhook_summary", "stripe_webhook_secret"),
-                "description": "Required only if you use Stripe webhooks for subscription events.",
-                "classes": ("collapse",),
-            },
-        ),
-        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
-    )
-
-    def has_add_permission(self, request):
-        return not Stripe.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def changelist_view(self, request, extra_context=None):
-        obj, _ = Stripe.objects.get_or_create(singleton_key=1)
-        return redirect(reverse("admin:core_stripe_change", args=(obj.pk,)))
-
-    @admin.display(description="Active now")
-    def active_environment(self, obj):
-        from django.conf import settings
-
-        from core.payment_gateway import stripe_environment_label, stripe_resolved_environment
-
-        env = stripe_resolved_environment()
-        label = stripe_environment_label()
-        mode = obj.get_stripe_key_environment_display() if obj else "Auto"
-        server = "DEBUG (local)" if settings.DEBUG else "Production"
-        return format_html(
-            "<strong>{}</strong> keys · Admin: {} · Server: {}",
-            label,
-            mode,
-            server,
-        )
-
-    @admin.display(description="Setup guide")
-    def deployment_guide(self, obj):
-        from django.conf import settings
-
-        if settings.DEBUG:
-            local = (
-                "<strong>Local (now):</strong> Key environment = Auto or Force test. "
-                "Save <code>sk_test_</code> above. Checkout uses test keys; card <code>4242 4242 4242 4242</code>."
-            )
-            deploy = (
-                "<strong>After deploy:</strong> Set <code>DEBUG=false</code> on the server. "
-                "Key environment = Auto uses live keys. Ensure <code>sk_live_</code> saved and Stripe card_payments active. "
-                "Set <code>SITE_URL=https://yourdomain.com</code> and keep <code>FIELD_ENCRYPTION_KEY</code> identical to local."
-            )
-        else:
-            local = (
-                "<strong>Production (now):</strong> Auto or Force live uses <code>sk_live_</code>. "
-                "Confirm Stripe Dashboard shows card payments enabled."
-            )
-            deploy = (
-                "<strong>Local dev:</strong> On your machine keep <code>DEBUG=true</code> and save test keys; "
-                "this server uses live keys only when deployed with <code>DEBUG=false</code>."
-            )
-        from django.utils.safestring import mark_safe
-
-        return mark_safe(f"<p>{local}</p><p>{deploy}</p>")
-
-    @admin.display(description="Status")
-    def config_status(self, obj):
-        from core.payment_gateway import (
-            get_stripe_credentials,
-            stripe_checkout_block_reason,
-            stripe_checkout_ready,
-            stripe_environment_label,
-            stripe_keys_status_for_env,
-            stripe_resolved_environment,
-        )
-
-        block = stripe_checkout_block_reason()
-        if stripe_checkout_ready():
-            return _badge(f"Checkout ready ({stripe_environment_label()})", "ok")
-
-        env = stripe_resolved_environment()
-        status = stripe_keys_status_for_env(env)
-        if status["ready"] == "live_blocked" or block:
-            return _badge("Live account cannot accept charges", "danger")
-        if status["ready"] == "missing":
-            if not obj.is_enabled:
-                creds = get_stripe_credentials()
-                if creds and creds.source == "env":
-                    return _badge("Using .env", "warn")
-                return _badge("Disabled", "muted")
-            need = "test" if env == "test" else "live"
-            return _badge(f"Missing {need} secret key", "danger")
-        if status["ready"] == "ok" and env == "test":
-            return _badge("Test keys saved", "warn")
-        if status["ready"] == "saved":
-            return _badge("Live keys saved (activation pending)", "warn")
-        return _badge("Keys saved", "warn")
-
-    @admin.display(description="Test keys (preview)")
-    def test_keys_summary(self, obj):
-        from core.payment_gateway import stripe_keys_status_for_env
-
-        s = stripe_keys_status_for_env("test")
-        if s["secret"] == "—":
-            return "No test keys saved."
-        return f"Secret: {s['secret']} · Restricted: {s['restricted']}"
-
-    @admin.display(description="Live keys (preview)")
-    def live_keys_summary(self, obj):
-        from core.payment_gateway import stripe_keys_status_for_env
-
-        s = stripe_keys_status_for_env("live")
-        if s["secret"] == "—":
-            return "No live keys saved."
-        return f"Secret: {s['secret']} · Restricted: {s['restricted']}"
-
-    @admin.display(description="Webhook (preview)")
-    def webhook_summary(self, obj):
-        from core.payment_gateway import masked_stripe_webhook
-
-        masked = masked_stripe_webhook(obj.stripe_webhook_secret_enc)
-        if masked == "—":
-            return "Not saved (STRIPE_WEBHOOK_SECRET env may still work)."
-        return masked
-
-    def save_model(self, request, obj, form, change):
-        if form.cleaned_data.get("clear_test_keys"):
-            obj.stripe_test_restricted_key_enc = ""
-            obj.stripe_test_secret_key_enc = ""
-        else:
-            test_rk = (form.cleaned_data.get("stripe_test_restricted_key") or "").strip()
-            test_sk = (form.cleaned_data.get("stripe_test_secret_key") or "").strip()
-            if test_rk:
-                obj.stripe_test_restricted_key_enc = encrypt_str(test_rk)
-            if test_sk:
-                obj.stripe_test_secret_key_enc = encrypt_str(test_sk)
-
-        if form.cleaned_data.get("clear_live_keys"):
-            obj.stripe_restricted_key_enc = ""
-            obj.stripe_secret_key_enc = ""
-        else:
-            live_rk = (form.cleaned_data.get("stripe_live_restricted_key") or "").strip()
-            live_sk = (form.cleaned_data.get("stripe_live_secret_key") or "").strip()
-            if live_rk:
-                obj.stripe_restricted_key_enc = encrypt_str(live_rk)
-            if live_sk:
-                obj.stripe_secret_key_enc = encrypt_str(live_sk)
-
-        webhook = (form.cleaned_data.get("stripe_webhook_secret") or "").strip()
-        if webhook:
-            obj.stripe_webhook_secret_enc = encrypt_str(webhook)
-
-        obj.singleton_key = 1
-        super().save_model(request, obj, form, change)
-
-
-class PayPalConfigForm(forms.ModelForm):
-    clear_sandbox_credentials = forms.BooleanField(
-        required=False,
-        label="Clear sandbox credentials",
-        help_text="Remove saved sandbox Client ID and secret.",
-    )
-    clear_live_credentials = forms.BooleanField(
-        required=False,
-        label="Clear live credentials",
-        help_text="Remove saved live Client ID and secret.",
-    )
-    sandbox_client_secret = forms.CharField(
-        required=False,
-        label="Sandbox client secret",
-        help_text="Secret from developer.paypal.com → Apps → Sandbox.",
-        widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
-    )
-    live_client_secret = forms.CharField(
-        required=False,
-        label="Live client secret",
-        help_text="Live secret for production (DEBUG=false).",
-        widget=forms.TextInput(attrs={"autocomplete": "off", "spellcheck": "false"}),
-    )
-
-    class Meta:
-        model = PayPal
-        fields = (
-            "is_enabled",
-            "paypal_environment",
-            "sandbox_client_id",
-            "live_client_id",
-            "plan_pro_monthly",
-            "webhook_id",
-        )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from core.crypto import decrypt_str
-        from core.payment_gateway import is_demo_paypal_credentials
-
-        mono = {
-            "style": "font-family: ui-monospace, monospace; width: 100%;",
-            "class": "vTextField",
-            "spellcheck": "false",
-        }
-        for name in (
-            "sandbox_client_id",
-            "live_client_id",
-            "sandbox_client_secret",
-            "live_client_secret",
-            "plan_pro_monthly",
-            "webhook_id",
-        ):
-            self.fields[name].widget.attrs.update(mono)
-
-        inst = self.instance
-        if not inst or not inst.pk:
-            return
-
-        sandbox_cid = (inst.sandbox_client_id or inst.client_id or "").strip()
-        live_cid = (inst.live_client_id or "").strip()
-        if sandbox_cid:
-            self.initial["sandbox_client_id"] = sandbox_cid
-        if live_cid:
-            self.initial["live_client_id"] = live_cid
-
-        sandbox_secret = decrypt_str(
-            (inst.sandbox_client_secret_enc or inst.client_secret_enc or "")
-        ).strip()
-        live_secret = decrypt_str(inst.live_client_secret_enc or "").strip()
-        if sandbox_secret and not is_demo_paypal_credentials(
-            client_id=sandbox_cid, client_secret=sandbox_secret
-        ):
-            self.initial["sandbox_client_secret"] = sandbox_secret
-            self.fields["sandbox_client_secret"].help_text = "Edit and save to update the sandbox secret."
-        if live_secret and not is_demo_paypal_credentials(client_id=live_cid, client_secret=live_secret):
-            self.initial["live_client_secret"] = live_secret
-            self.fields["live_client_secret"].help_text = "Edit and save to update the live secret."
-
-
-class PayPalConfigAdmin(_MPModelAdmin):
-    form = PayPalConfigForm
-    compressed_fields = False
-    list_fullwidth = True
-    list_display = ("is_enabled", "config_status", "updated_at")
-    readonly_fields = (
-        "active_paypal_environment",
-        "config_status",
-        "paypal_deployment_guide",
-        "sandbox_credentials_summary",
-        "live_credentials_summary",
-        "updated_at",
-    )
-    fieldsets = (
-        (
-            "Environment",
-            {
-                "fields": (
-                    "is_enabled",
-                    "paypal_environment",
-                    "active_paypal_environment",
-                    "config_status",
-                    "paypal_deployment_guide",
-                ),
-                "description": (
-                    "Save sandbox and live credentials separately (like Stripe test/live keys). "
-                    "Auto uses sandbox on localhost (DEBUG) and live API on production."
-                ),
-            },
-        ),
-        (
-            "Sandbox credentials (local testing)",
-            {
-                "fields": (
-                    "sandbox_credentials_summary",
-                    "clear_sandbox_credentials",
-                    "sandbox_client_id",
-                    "sandbox_client_secret",
-                ),
-                "description": "developer.paypal.com → Dashboard → Sandbox → Apps & Credentials.",
-            },
-        ),
-        (
-            "Live credentials (production)",
-            {
-                "fields": (
-                    "live_credentials_summary",
-                    "clear_live_credentials",
-                    "live_client_id",
-                    "live_client_secret",
-                ),
-                "description": "Live Client ID + secret before go-live. Required when DEBUG=false and environment is Auto or Force live.",
-            },
-        ),
-        (
-            "Optional",
-            {
-                "fields": ("plan_pro_monthly", "webhook_id"),
-                "classes": ("collapse",),
-                "description": "PayPal Plan ID (P-…) for Pro monthly USD; otherwise a plan is created at checkout.",
-            },
-        ),
-        ("Legacy", {"fields": ("sandbox_mode", "client_id"), "classes": ("collapse",)}),
-        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
-    )
-
-    def has_add_permission(self, request):
-        return not PayPal.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def changelist_view(self, request, extra_context=None):
-        obj, _ = PayPal.objects.get_or_create(singleton_key=1)
-        return redirect(reverse("admin:core_paypal_change", args=(obj.pk,)))
-
-    @admin.display(description="Active now")
-    def active_paypal_environment(self, obj):
-        from django.conf import settings
-
-        from core.payment_gateway import paypal_environment_label, paypal_resolved_environment
-
-        label = paypal_environment_label()
-        mode = obj.get_paypal_environment_display() if obj else "Auto"
-        server = "DEBUG (local)" if settings.DEBUG else "Production"
-        return format_html(
-            "<strong>{}</strong> API · Admin: {} · Server: {}",
-            label,
-            mode,
-            server,
-        )
-
-    @admin.display(description="Setup guide")
-    def paypal_deployment_guide(self, obj):
-        from django.conf import settings
-
-        if settings.DEBUG:
-            local = (
-                "<strong>Local (now):</strong> PayPal environment = Auto or Force sandbox. "
-                "Use sandbox Client ID + secret from developer.paypal.com."
-            )
-            deploy = (
-                "<strong>After deploy:</strong> Set <code>DEBUG=false</code>. Auto uses <strong>live</strong> credentials above — "
-                "save live Client ID + secret before go-live. Keep sandbox credentials for local dev."
-            )
-        else:
-            local = (
-                "<strong>Production (now):</strong> Auto or Force live uses live PayPal API."
-            )
-            deploy = (
-                "<strong>Local dev:</strong> Keep sandbox credentials; Auto uses sandbox when <code>DEBUG=true</code>."
-            )
-        from django.utils.safestring import mark_safe
-
-        return mark_safe(f"<p>{local}</p><p>{deploy}</p>")
-
-    @admin.display(description="Status")
-    def config_status(self, obj):
-        from core.payment_gateway import (
-            get_paypal_credentials,
-            paypal_checkout_ready,
-            paypal_environment_label,
-            paypal_keys_status_for_env,
-            paypal_resolved_environment,
-        )
-
-        if paypal_checkout_ready():
-            return _badge(f"Checkout ready ({paypal_environment_label()})", "ok")
-
-        env = paypal_resolved_environment()
-        status = paypal_keys_status_for_env(env)
-        if status["ready"] == "missing":
-            if not obj.is_enabled:
-                creds = get_paypal_credentials()
-                if creds and creds.source == "env":
-                    return _badge("Using .env", "warn")
-                return _badge("Disabled", "muted")
-            need = "sandbox" if env == "sandbox" else "live"
-            return _badge(f"Missing {need} credentials", "danger")
-        if status["ready"] == "ok" and env == "sandbox":
-            return _badge("Sandbox credentials saved", "warn")
-        return _badge("Credentials saved", "warn")
-
-    @admin.display(description="Sandbox (preview)")
-    def sandbox_credentials_summary(self, obj):
-        from core.payment_gateway import paypal_keys_status_for_env
-
-        s = paypal_keys_status_for_env("sandbox")
-        if s["secret"] == "—":
-            return "No sandbox credentials saved."
-        return f"Client ID: {s['client_id']} · Secret: {s['secret']}"
-
-    @admin.display(description="Live (preview)")
-    def live_credentials_summary(self, obj):
-        from core.payment_gateway import paypal_keys_status_for_env
-
-        s = paypal_keys_status_for_env("live")
-        if s["secret"] == "—":
-            return "No live credentials saved."
-        return f"Client ID: {s['client_id']} · Secret: {s['secret']}"
-
-    def save_model(self, request, obj, form, change):
-        if form.cleaned_data.get("clear_sandbox_credentials"):
-            obj.sandbox_client_id = ""
-            obj.sandbox_client_secret_enc = ""
-            obj.client_id = ""
-            obj.client_secret_enc = ""
-        else:
-            sandbox_cid = (form.cleaned_data.get("sandbox_client_id") or "").strip()
-            sandbox_secret = (form.cleaned_data.get("sandbox_client_secret") or "").strip()
-            if sandbox_cid:
-                obj.sandbox_client_id = sandbox_cid
-                obj.client_id = sandbox_cid
-            if sandbox_secret:
-                enc = encrypt_str(sandbox_secret)
-                obj.sandbox_client_secret_enc = enc
-                obj.client_secret_enc = enc
-
-        if form.cleaned_data.get("clear_live_credentials"):
-            obj.live_client_id = ""
-            obj.live_client_secret_enc = ""
-        else:
-            live_cid = (form.cleaned_data.get("live_client_id") or "").strip()
-            live_secret = (form.cleaned_data.get("live_client_secret") or "").strip()
-            if live_cid:
-                obj.live_client_id = live_cid
-            if live_secret:
-                obj.live_client_secret_enc = encrypt_str(live_secret)
-
-        env = obj.paypal_environment or PayPal.PAYPAL_ENV_AUTO
-        obj.sandbox_mode = env in (PayPal.PAYPAL_ENV_AUTO, PayPal.PAYPAL_ENV_SANDBOX)
-        obj.singleton_key = 1
-        super().save_model(request, obj, form, change)
-
-
 admin_site.register(User, MailPilotUserAdmin)
 admin_site.register(Group, MailPilotGroupAdmin)
 admin_site.register(UserProfile, UserProfileAdmin)
 admin_site.register(UserMailSettings, UserMailSettingsAdmin)
 admin_site.register(MailAccount, MailAccountAdmin)
 admin_site.register(UserSubscription, UserSubscriptionAdmin)
+admin_site.register(BillingPaymentEvent, BillingPaymentEventAdmin)
 admin_site.register(UsageCounter, UsageCounterAdmin)
 admin_site.register(DailySendCounter, DailySendCounterAdmin)
 admin_site.register(UsageEvent, UsageEventAdmin)
@@ -1565,5 +1095,3 @@ admin_site.register(MarketingPricingPlan, MarketingPricingPlanAdmin)
 admin_site.register(ContactSubmission, ContactSubmissionAdmin)
 admin_site.register(AuditLog, AuditLogAdmin)
 admin_site.register(PasswordResetOTP, PasswordResetOTPAdmin)
-admin_site.register(Stripe, StripeConfigAdmin)
-admin_site.register(PayPal, PayPalConfigAdmin)

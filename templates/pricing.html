@@ -276,13 +276,13 @@
       const billing = new URLSearchParams(window.location.search).get('billing');
       const messages = {
         stripe_not_ready:
-          'Stripe live checkout is not available yet — your Stripe account cannot accept charges. Complete activation in the Stripe Dashboard, or use test keys (sk_test_) for local testing.',
+          'Stripe checkout could not start. Complete card payment activation in your Stripe Dashboard, then try again.',
         site_url_missing:
-          'Checkout cannot start: set SITE_URL in server environment (e.g. https://yourdomain.com) so Stripe redirect URLs are correct.',
+          'Checkout cannot start: set SITE_URL in server environment (e.g. https://yourdomain.com) so payment return URLs are correct.',
         checkout_error:
           'Checkout could not be started. Please try again or contact support.',
         cancelled: 'Checkout was cancelled. You can choose a plan again below.',
-        not_configured: 'Checkout is not configured yet. Ask an admin to enable payment in the dashboard.',
+        not_configured: 'Checkout is not configured yet. Set Stripe and PayPal credentials in the server environment.',
       };
       const msg = messages[billing];
       if (!msg) return;

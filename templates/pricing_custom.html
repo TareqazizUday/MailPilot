@@ -203,7 +203,7 @@
 
       const billingParam = new URLSearchParams(window.location.search).get('billing');
       if (billingParam === 'not_configured') {
-        showAlert('Checkout is not configured yet. Ask an admin to enable payment in the dashboard.');
+        showAlert('Checkout is not configured yet. Set Stripe and PayPal credentials in the server environment.');
       } else if (billingParam === 'cancelled') {
         showAlert('Checkout was cancelled. Adjust your plan and try again.');
       } else if (billingParam === 'quote_expired') {
@@ -214,7 +214,7 @@
         showBillingAlert('Checkout cannot start: set SITE_URL in server environment (e.g. https://yourdomain.com).', true);
       } else if (billingParam === 'stripe_not_ready') {
         showAlert(
-          'Stripe live checkout is not available yet — your Stripe account cannot accept charges. Complete activation in the Stripe Dashboard, or use test keys (sk_test_) for local testing.',
+          'Stripe checkout is not available yet. Complete card payment activation in your Stripe Dashboard, then try again.',
           true
         );
       }

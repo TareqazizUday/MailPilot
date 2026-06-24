@@ -24,12 +24,6 @@
       -webkit-font-smoothing: antialiased;
     }
     .wrap { width: 100%; max-width: 440px; }
-    .demo-banner {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.28);
-      color: #fcd34d; border-radius: 12px; padding: 10px 14px;
-      font-size: 0.8rem; margin-bottom: 16px; font-weight: 500;
-    }
     .card {
       background: rgba(15, 20, 45, 0.75);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -143,15 +137,6 @@
 </head>
 <body>
   <div class="wrap">
-    {% if show_demo_banner %}
-    <div class="demo-banner">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      Demo mode — no real charge
-    </div>
-    {% endif %}
-
     <div class="card">
       <div class="card-head">
         <div class="eyebrow">Secure checkout</div>

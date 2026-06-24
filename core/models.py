@@ -856,6 +856,70 @@ class CustomPlanQuote(models.Model):
         return f"CustomPlanQuote({self.user_id}, {self.tokens} tok, {self.inboxes} inbox, ${self.price_cents / 100:.2f})"
 
 
+class BillingPaymentEvent(models.Model):
+    """Checkout and payment ledger for admin (provider, amount, IP)."""
+
+    EVENT_CHECKOUT_STARTED = "checkout_started"
+    EVENT_CHECKOUT_COMPLETED = "checkout_completed"
+    EVENT_CHECKOUT_FAILED = "checkout_failed"
+    EVENT_WEBHOOK = "webhook"
+    EVENT_CHOICES = [
+        (EVENT_CHECKOUT_STARTED, "Checkout started"),
+        (EVENT_CHECKOUT_COMPLETED, "Checkout completed"),
+        (EVENT_CHECKOUT_FAILED, "Checkout failed"),
+        (EVENT_WEBHOOK, "Webhook"),
+    ]
+
+    PROVIDER_STRIPE = "stripe"
+    PROVIDER_PAYPAL = "paypal"
+    PROVIDER_CHOICES = [
+        (PROVIDER_STRIPE, "Stripe"),
+        (PROVIDER_PAYPAL, "PayPal"),
+    ]
+
+    STATUS_PENDING = "pending"
+    STATUS_SUCCEEDED = "succeeded"
+    STATUS_FAILED = "failed"
+    STATUS_CANCELED = "canceled"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SUCCEEDED, "Succeeded"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_CANCELED, "Canceled"),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="billing_payment_events",
+    )
+    event_type = models.CharField(max_length=32, choices=EVENT_CHOICES, db_index=True)
+    provider = models.CharField(max_length=16, blank=True, default="", db_index=True)
+    plan_code = models.CharField(max_length=24, blank=True, default="", db_index=True)
+    amount_cents = models.PositiveIntegerField(null=True, blank=True)
+    currency = models.CharField(max_length=3, blank=True, default="")
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    external_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True, default="")
+    detail = models.CharField(max_length=512, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "core_billingpaymentevent"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["provider", "-created_at"], name="idx_bp_provider_created"),
+            models.Index(fields=["user", "-created_at"], name="idx_bp_user_created"),
+        ]
+
+    def __str__(self) -> str:
+        who = self.user_id or "?"
+        return f"BillingPaymentEvent({who}, {self.provider}, {self.event_type}, {self.status})"
+
+
 class Stripe(models.Model):
     """Singleton Stripe credentials (admin-managed)."""
 

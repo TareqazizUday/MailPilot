@@ -333,44 +333,63 @@ class PaymentProviderChoiceTests(SimpleTestCase):
         self.assertIn(PAYMENT_STRIPE, providers)
         self.assertIn(PAYMENT_PAYPAL, providers)
 
-    def test_live_stripe_hides_demo_banner_flag(self) -> None:
+    def test_debug_uses_local_checkout_form(self) -> None:
+        from django.test import override_settings
+
+        from core.payment_gateway import billing_use_local_checkout
+
+        with override_settings(DEBUG=True):
+            self.assertTrue(billing_use_local_checkout())
+
+
+class StripeEnvironmentTests(SimpleTestCase):
+    def test_auto_uses_test_when_debug_and_test_key(self) -> None:
+        import os
         from unittest.mock import patch
 
         from django.test import override_settings
 
-        from core.payment_gateway import billing_choose_payment_is_demo
-
-        with override_settings(BILLING_DEMO_MODE=True):
-            with patch("core.payment_gateway.stripe_checkout_ready", return_value=True):
-                self.assertFalse(billing_choose_payment_is_demo())
-
-
-class StripeEnvironmentTests(TestCase):
-    def test_auto_uses_test_when_debug(self) -> None:
-        from django.test import override_settings
-
-        from core.models import Stripe
         from core.payment_gateway import stripe_resolved_environment
 
-        Stripe.objects.update_or_create(
-            singleton_key=1,
-            defaults={"is_enabled": True, "stripe_key_environment": Stripe.STRIPE_KEY_AUTO},
-        )
         with override_settings(DEBUG=True):
-            self.assertEqual(stripe_resolved_environment(), "test")
+            with patch.dict(
+                os.environ,
+                {"STRIPE_KEY_ENVIRONMENT": "auto", "STRIPE_TEST_SECRET_KEY": "sk_test_abc"},
+                clear=False,
+            ):
+                self.assertEqual(stripe_resolved_environment(), "test")
+
+    def test_auto_falls_back_to_live_on_debug_when_only_live_key(self) -> None:
+        import os
+        from unittest.mock import patch
+
+        from django.test import override_settings
+
+        from core.payment_gateway import stripe_resolved_environment
+
+        with override_settings(DEBUG=True):
+            with patch.dict(
+                os.environ,
+                {
+                    "STRIPE_KEY_ENVIRONMENT": "auto",
+                    "STRIPE_LIVE_SECRET_KEY": "sk_live_abc",
+                    "STRIPE_TEST_SECRET_KEY": "",
+                },
+                clear=False,
+            ):
+                self.assertEqual(stripe_resolved_environment(), "live")
 
     def test_auto_uses_live_when_not_debug(self) -> None:
+        import os
+        from unittest.mock import patch
+
         from django.test import override_settings
 
-        from core.models import Stripe
         from core.payment_gateway import stripe_resolved_environment
 
-        Stripe.objects.update_or_create(
-            singleton_key=1,
-            defaults={"is_enabled": True, "stripe_key_environment": Stripe.STRIPE_KEY_AUTO},
-        )
         with override_settings(DEBUG=False):
-            self.assertEqual(stripe_resolved_environment(), "live")
+            with patch.dict(os.environ, {"STRIPE_KEY_ENVIRONMENT": "auto"}, clear=False):
+                self.assertEqual(stripe_resolved_environment(), "live")
 
 
 class BillingDeployChecksTests(SimpleTestCase):
