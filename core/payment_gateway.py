@@ -220,9 +220,7 @@ def stripe_checkout_ready() -> bool:
         return False
     if _credentials_are_demo(creds):
         return False
-    from django.conf import settings
-
-    if not settings.DEBUG and stripe_secret_key_mode(creds.secret_key) == "live":
+    if stripe_secret_key_mode(creds.secret_key) == "live":
         charges = stripe_live_charges_enabled()
         if charges is False:
             return False
@@ -236,10 +234,6 @@ def stripe_checkout_block_reason() -> str | None:
             return "Stripe secret key missing. Set STRIPE_TEST_SECRET_KEY or STRIPE_LIVE_SECRET_KEY in .env."
         return None
     if stripe_secret_key_mode(creds.secret_key) == "test":
-        return None
-    from django.conf import settings
-
-    if settings.DEBUG:
         return None
     charges = stripe_live_charges_enabled()
     if charges is False:
@@ -418,7 +412,8 @@ def billing_site_url_missing() -> bool:
 def available_payment_providers() -> list[str]:
     providers: list[str] = []
     local = billing_use_local_checkout()
-    if stripe_checkout_ready() or local:
+    # List Stripe when a real key exists; checkout still gated by stripe_checkout_ready().
+    if stripe_is_configured() or local:
         providers.append(PAYMENT_STRIPE)
     if paypal_checkout_ready() or local:
         providers.append(PAYMENT_PAYPAL)

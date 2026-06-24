@@ -14,6 +14,30 @@ def _check(ok: bool, *, label: str, detail: str = "", severity: str = "error") -
     }
 
 
+def _is_local_site_url(url: str) -> bool:
+    u = (url or "").strip().lower()
+    if not u:
+        return True
+    return "127.0.0.1" in u or "localhost" in u or u.startswith("http://")
+
+
+def billing_production_site_url() -> str:
+    """HTTPS site for Stripe/PayPal dashboard URLs (webhooks, live redirects)."""
+    from django.conf import settings
+
+    explicit = (os.environ.get("PRODUCTION_SITE_URL") or "").strip().rstrip("/")
+    if explicit:
+        return explicit
+    site = (getattr(settings, "SITE_URL", "") or "").strip().rstrip("/")
+    if site and not _is_local_site_url(site):
+        return site
+    return "https://mailpilot.tedbotai.com"
+
+
+def billing_stripe_webhook_url() -> str:
+    return f"{billing_production_site_url()}/billing/webhook/stripe"
+
+
 def billing_deploy_checks(*, production: bool | None = None) -> list[dict[str, Any]]:
     """
     Validate env + gateway state for live checkout.
@@ -150,15 +174,18 @@ def billing_deploy_checks(*, production: bool | None = None) -> list[dict[str, A
     )
 
     wh = (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip() or (sc.webhook_secret if sc else "")
+    webhook_url = billing_stripe_webhook_url()
+    webhook_detail = f"Stripe Dashboard -> Webhooks -> {webhook_url}"
+    if site and _is_local_site_url(site):
+        webhook_detail += (
+            " · Local test: stripe listen --forward-to "
+            "http://127.0.0.1:8000/billing/webhook/stripe"
+        )
     checks.append(
         _check(
             bool(wh),
             label="STRIPE_WEBHOOK_SECRET (recommended)",
-            detail=(
-                f"Stripe Dashboard → Webhooks → {site}/billing/webhook/stripe"
-                if site
-                else "Endpoint: /billing/webhook/stripe"
-            ),
+            detail=webhook_detail,
             severity="warn",
         )
     )
