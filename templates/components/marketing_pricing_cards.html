@@ -51,9 +51,9 @@
   {% endif %}
   <div class="pricing-tier-row">
     <div class="pricing-tier">{{ plan.tier_label }}</div>
-    {% if plan.ribbon_type == "free" %}
+    {% if plan.ribbon_type == "free" and plan.ribbon_label %}
     <span class="pricing-card-free"><i class="{{ plan.ribbon_icon_class }}" aria-hidden="true"></i> {{ plan.ribbon_label }}</span>
-    {% elif plan.ribbon_type == "soon" %}
+    {% elif plan.ribbon_type == "soon" and plan.ribbon_label %}
     <span class="pricing-card-soon"><i class="{{ plan.ribbon_icon_class }}" aria-hidden="true"></i> {{ plan.ribbon_label }}</span>
     {% endif %}
   </div>

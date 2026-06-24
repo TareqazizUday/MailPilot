@@ -490,9 +490,24 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {
+                        "title": _("Payment gateways"),
+                        "icon": "account_balance",
+                        "link": reverse_lazy("admin:billing_gateways"),
+                    },
+                    {
+                        "title": _("Payment history"),
+                        "icon": "history",
+                        "link": reverse_lazy("admin:core_billingpaymentevent_changelist"),
+                    },
+                    {
                         "title": _("Subscriptions"),
                         "icon": "payments",
                         "link": reverse_lazy("admin:core_usersubscription_changelist"),
+                    },
+                    {
+                        "title": _("Custom plan quotes"),
+                        "icon": "request_quote",
+                        "link": reverse_lazy("admin:core_customplanquote_changelist"),
                     },
                     {
                         "title": _("Monthly usage"),
@@ -508,26 +523,6 @@ UNFOLD = {
                         "title": _("Daily sends"),
                         "icon": "send",
                         "link": reverse_lazy("admin:core_dailysendcounter_changelist"),
-                    },
-                ],
-            },
-            {
-                "title": _("Payment"),
-                "collapsible": True,
-                "items": [
-                    {
-                        "title": _("Stripe"),
-                        "icon": "credit_card",
-                        "link": reverse_lazy("admin:core_stripe_changelist"),
-                        "badge": "core.unfold_admin.payment_gateway_badge",
-                        "badge_variant": "warning",
-                    },
-                    {
-                        "title": _("PayPal"),
-                        "icon": "account_balance_wallet",
-                        "link": reverse_lazy("admin:core_paypal_changelist"),
-                        "badge": "core.unfold_admin.paypal_gateway_badge",
-                        "badge_variant": "warning",
                     },
                 ],
             },

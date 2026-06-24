@@ -10,97 +10,187 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: linear-gradient(165deg, #060818, #0d1230);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 91, 255, 0.18), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(0, 112, 186, 0.1), transparent),
+        linear-gradient(165deg, #060818 0%, #0d1230 50%, #0a0f24 100%);
       color: #e2e8f0;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 24px 16px;
+      -webkit-font-smoothing: antialiased;
     }
-    .wrap { width: 100%; max-width: 520px; }
-    .demo-banner {
-      background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.35); color: #fcd34d;
-      border-radius: 10px; padding: 10px 14px; font-size: 0.82rem;
-      margin-bottom: 16px; text-align: center; font-weight: 600;
-    }
+    .wrap { width: 100%; max-width: 440px; }
     .card {
-      background: rgba(13,18,48,0.82);
-      border: 1px solid rgba(255,255,255,0.09);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 24px 48px rgba(0,0,0,0.35);
-      backdrop-filter: blur(12px);
+      background: rgba(15, 20, 45, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 32px 64px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+      backdrop-filter: blur(16px);
     }
-    .eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; margin-bottom: 8px; }
-    h1 { font-size: 1.35rem; margin-bottom: 6px; }
-    .subtitle { color: #94a3b8; font-size: 0.9rem; line-height: 1.55; margin-bottom: 18px; }
-    .price-row {
-      display: flex; justify-content: space-between; align-items: baseline;
-      padding: 14px 0 18px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 18px;
+    .card-head { padding: 28px 28px 0; }
+    .eyebrow {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em;
+      color: #64748b; margin-bottom: 10px; font-weight: 600;
     }
-    .price { font-size: 1.6rem; font-weight: 700; }
-    .price span { font-size: 0.85rem; font-weight: 500; color: #94a3b8; }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; line-height: 1.55; }
+    .summary {
+      margin: 24px 28px 0; padding: 16px 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .summary-label { font-size: 0.85rem; color: #94a3b8; font-weight: 500; }
+    .price { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em; color: #f8fafc; }
+    .price-suffix { font-size: 0.9rem; font-weight: 500; color: #64748b; margin-left: 2px; }
+    .card-body { padding: 24px 28px 28px; }
+    .section-label {
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #64748b; margin-bottom: 12px;
+    }
     .error {
-      background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35);
-      color: #fecaca; border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; margin-bottom: 14px;
+      background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fecaca; border-radius: 12px; padding: 12px 14px;
+      font-size: 0.85rem; margin-bottom: 16px; line-height: 1.45;
     }
-    .options { display: grid; gap: 12px; }
+    .options { display: grid; gap: 10px; }
     .option {
-      display: block; width: 100%; text-align: left; cursor: pointer;
-      border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-      background: rgba(255,255,255,0.03); color: inherit; padding: 16px;
-      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+      display: flex; align-items: center; gap: 14px; width: 100%;
+      text-align: left; cursor: pointer; font-family: inherit;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 14px; background: rgba(255, 255, 255, 0.03);
+      color: inherit; padding: 14px 16px;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.15s;
     }
-    .option:hover { border-color: rgba(79,110,247,0.45); background: rgba(79,110,247,0.08); transform: translateY(-1px); }
-    .option-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .option-label { font-size: 1rem; font-weight: 700; }
-    .option-hint { margin-top: 6px; font-size: 0.82rem; color: #94a3b8; }
-    .pill {
-      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-      padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1;
+    .option:hover {
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     }
-    .pill.stripe { border-color: rgba(99,91,255,0.45); color: #c7d2fe; }
-    .pill.paypal { border-color: rgba(0,112,186,0.45); color: #7dd3fc; }
+    .option:focus-visible {
+      outline: 2px solid rgba(99, 91, 255, 0.6);
+      outline-offset: 2px;
+    }
+    .option.stripe:hover { border-color: rgba(99, 91, 255, 0.45); }
+    .option.paypal:hover { border-color: rgba(255, 196, 57, 0.45); }
+    .brand-mark {
+      flex-shrink: 0; width: 52px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px; background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+    .logo-text {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1;
+      user-select: none;
+    }
+    .stripe-logo { color: #635bff; text-transform: lowercase; }
+    .paypal-logo { color: #003087; }
+    .paypal-logo .accent { color: #009cde; }
+    .option-copy { flex: 1; min-width: 0; }
+    .option-title {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 2px;
+      line-height: 1.3;
+    }
+    .option-hint {
+      display: block;
+      font-size: 0.8rem;
+      color: #64748b;
+      line-height: 1.4;
+    }
+    .option-arrow {
+      flex-shrink: 0; width: 20px; height: 20px; color: #475569;
+      transition: color 0.2s, transform 0.2s;
+    }
+    .option:hover .option-arrow { color: #94a3b8; transform: translateX(2px); }
+    .secure-note {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin-top: 20px; padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.75rem; color: #64748b;
+    }
+    .secure-note svg { width: 14px; height: 14px; opacity: 0.7; }
     .cancel {
-      display: block; text-align: center; margin-top: 16px;
-      font-size: 0.85rem; color: #94a3b8; text-decoration: none;
+      display: block; text-align: center; margin-top: 18px;
+      font-size: 0.85rem; color: #64748b; text-decoration: none;
+      transition: color 0.15s;
     }
-    .cancel:hover { color: #e2e8f0; }
+    .cancel:hover { color: #cbd5e1; }
+    @media (max-width: 400px) {
+      .card-head, .card-body { padding-left: 20px; padding-right: 20px; }
+      .summary { margin-left: 20px; margin-right: 20px; }
+      .brand-mark { width: 48px; height: 32px; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="demo-banner">Demo mode - pick Stripe or PayPal. No real charge.</div>
     <div class="card">
-      <div class="eyebrow">Checkout</div>
-      <h1>{{ title }}</h1>
-      <p class="subtitle">{{ subtitle }}</p>
-      <div class="price-row">
-        <div>Total due today</div>
-        <div class="price">{{ amount_usd }}<span>{{ interval_suffix }}</span></div>
+      <div class="card-head">
+        <div class="eyebrow">Secure checkout</div>
+        <h1>{{ title }}</h1>
+        <p class="subtitle">{{ subtitle }}</p>
       </div>
 
-      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      <div class="summary">
+        <span class="summary-label">Total due today</span>
+        <div class="price">{{ amount_usd }}<span class="price-suffix">{{ interval_suffix }}</span></div>
+      </div>
 
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="plan" value="{{ plan }}" />
-        {% if quote_id %}<input type="hidden" name="quote_id" value="{{ quote_id }}" />{% endif %}
-        <div class="options">
-          {% for opt in provider_options %}
-          <button type="submit" name="provider" value="{{ opt.code }}" class="option">
-            <div class="option-top">
-              <div class="option-label">Pay with {{ opt.label }}</div>
-              <span class="pill {{ opt.code }}">{{ opt.label }}</span>
-            </div>
-            <div class="option-hint">{{ opt.hint }}</div>
-          </button>
-          {% endfor %}
+      <div class="card-body">
+        {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+
+        <p class="section-label">Payment method</p>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="plan" value="{{ plan }}" />
+          {% if quote_id %}<input type="hidden" name="quote_id" value="{{ quote_id }}" />{% endif %}
+          <div class="options">
+            {% for opt in provider_options %}
+            <button type="submit" name="provider" value="{{ opt.code }}" class="option {{ opt.code }}">
+              {% if opt.code == "stripe" %}
+              <span class="brand-mark stripe" aria-hidden="true">
+                <span class="logo-text stripe-logo">stripe</span>
+              </span>
+              {% elif opt.code == "paypal" %}
+              <span class="brand-mark paypal" aria-hidden="true">
+                <span class="logo-text paypal-logo">Pay<span class="accent">Pal</span></span>
+              </span>
+              {% endif %}
+              <span class="option-copy">
+                <span class="option-title">{{ opt.label }}</span>
+                <span class="option-hint">{{ opt.hint }}</span>
+              </span>
+              <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            {% endfor %}
+          </div>
+        </form>
+
+        <div class="secure-note">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 11V8a4 4 0 1 1 8 0v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Payments are encrypted and processed securely
         </div>
-      </form>
+      </div>
     </div>
+
     <a href="{{ cancel_url }}" class="cancel">← Cancel and go back</a>
   </div>
 </body>

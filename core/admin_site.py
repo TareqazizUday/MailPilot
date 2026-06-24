@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from django.contrib.auth.views import LoginView
 from django.http import HttpResponseRedirect
-from django.urls import reverse
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from unfold.sites import UnfoldAdminSite
@@ -18,6 +19,81 @@ class MailPilotAdminSite(UnfoldAdminSite):
     site_title = "MailPilot Admin"
     index_title = "Operations dashboard"
     enable_nav_sidebar = True
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "billing/gateways/",
+                self.admin_view(self.billing_gateways_view),
+                name="billing_gateways",
+            ),
+        ]
+        return custom + urls
+
+    def billing_gateways_view(self, request):
+        from core.billing_deploy import billing_deploy_checks
+        from core.payment_gateway import (
+            PAYMENT_PAYPAL,
+            PAYMENT_STRIPE,
+            available_payment_providers,
+            billing_use_local_checkout,
+            get_paypal_credentials,
+            get_stripe_credentials,
+            paypal_checkout_ready,
+            paypal_environment_label,
+            paypal_resolved_environment,
+            provider_label,
+            stripe_checkout_block_reason,
+            stripe_checkout_ready,
+            stripe_environment_label,
+            stripe_resolved_environment,
+        )
+
+        stripe_env = stripe_resolved_environment()
+        paypal_env = paypal_resolved_environment()
+        stripe_creds = get_stripe_credentials()
+        paypal_creds = get_paypal_credentials()
+        gateway_rows = []
+        for code in (PAYMENT_STRIPE, PAYMENT_PAYPAL):
+            if code == PAYMENT_STRIPE:
+                ready = stripe_checkout_ready()
+                block = stripe_checkout_block_reason() if not ready else ""
+                gateway_rows.append(
+                    {
+                        "code": code,
+                        "label": provider_label(code),
+                        "environment": stripe_environment_label(),
+                        "configured": bool(stripe_creds and stripe_creds.secret_key),
+                        "checkout_ready": ready,
+                        "block_reason": block,
+                        "source": (stripe_creds.source if stripe_creds else "") or "—",
+                    }
+                )
+            else:
+                ready = paypal_checkout_ready()
+                gateway_rows.append(
+                    {
+                        "code": code,
+                        "label": provider_label(code),
+                        "environment": paypal_environment_label(),
+                        "configured": bool(paypal_creds and paypal_creds.client_secret),
+                        "checkout_ready": ready,
+                        "block_reason": "",
+                        "source": (paypal_creds.source if paypal_creds else "") or "—",
+                    }
+                )
+
+        context = {
+            **self.each_context(request),
+            "title": "Payment gateways",
+            "subtitle": "Credentials are read from server .env only.",
+            "gateway_rows": gateway_rows,
+            "active_providers": available_payment_providers(),
+            "local_checkout": billing_use_local_checkout(),
+            "checks": billing_deploy_checks(),
+        }
+        return TemplateResponse(request, "admin/billing_gateways.html", context)
 
     @method_decorator(never_cache)
     @login_not_required
