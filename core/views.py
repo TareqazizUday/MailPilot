@@ -1272,7 +1272,7 @@ def _stripe_checkout_pro(request):
 def _stripe_checkout_custom(request, quote):
     from core.billing_events import log_billing_payment
     from core.billing_interval import stripe_recurring_interval
-    from core.models import BillingPaymentEvent
+    from core.models import BillingPaymentEvent, CustomPlanQuote
     from core.payment_gateway import PAYMENT_STRIPE, get_stripe_credentials
     from core.pricing_currency import normalize_currency, stripe_currency_code
 
