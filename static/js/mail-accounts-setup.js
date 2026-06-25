@@ -51,7 +51,12 @@
               : j.error === 'plan_kb_source_limit_reached'
                 ? '\n\nStarter allows one KB source (crawl or upload). Clear KB or upgrade to Pro.'
                 : '\n\nOpen Pricing to upgrade your MailPilot plan.';
-      alert(msg.replace(/_/g, ' ') + hint);
+      const toastMsg = (msg.replace(/_/g, ' ') + hint).replace(/\n+/g, ' ').trim();
+      if (typeof window.standardToast === 'function') {
+        window.standardToast(toastMsg, 'warning', 5200);
+      } else {
+        alert(toastMsg);
+      }
       if (typeof window.refreshBillingStrip === 'function') window.refreshBillingStrip();
       return true;
     }

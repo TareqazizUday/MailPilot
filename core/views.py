@@ -1054,17 +1054,17 @@ def _billing_begin_checkout(request, *, plan: str = "pro", quote=None):
         if plan == "custom" and quote is not None:
             return redirect(f"{reverse('custom_plan_builder')}?billing=not_configured&quote={quote.pk}")
         return redirect(f"{reverse('pricing')}?billing=not_configured")
-    if len(providers) > 1:
-        from core.billing_interval import get_billing_interval
-        from core.pricing_currency import get_pricing_currency
+    from core.billing_interval import get_billing_interval
+    from core.pricing_currency import get_pricing_currency
 
-        interval = get_billing_interval(request)
-        currency = get_pricing_currency(request)
-        params = f"plan={plan}&interval={interval}&currency={currency}"
-        if quote is not None:
-            params = f"quote={quote.pk}&interval={interval}&currency={currency}"
-        return redirect(f"{reverse('billing_choose_payment')}?{params}")
-    return _billing_checkout_provider(request, providers[0], plan=plan, quote=quote)
+    # Always route through payment choice page so users can explicitly
+    # pick Stripe or PayPal before checkout starts.
+    interval = get_billing_interval(request)
+    currency = get_pricing_currency(request)
+    params = f"plan={plan}&interval={interval}&currency={currency}"
+    if quote is not None:
+        params = f"quote={quote.pk}&interval={interval}&currency={currency}"
+    return redirect(f"{reverse('billing_choose_payment')}?{params}")
 
 
 def _billing_checkout_provider(request, provider: str, *, plan: str = "pro", quote=None):
@@ -1719,9 +1719,6 @@ def billing_choose_payment(request):
     providers = available_payment_providers()
     if not providers:
         return _billing_begin_checkout(request, plan=plan, quote=quote)
-    if len(providers) == 1:
-        return _billing_checkout_provider(request, providers[0], plan=plan, quote=quote)
-
     summary = _billing_checkout_summary(request, plan=plan, quote=quote)
 
     if request.method == "POST":
