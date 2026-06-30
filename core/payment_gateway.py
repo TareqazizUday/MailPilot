@@ -278,13 +278,24 @@ def paypal_resolved_environment() -> str:
     """Return 'sandbox' or 'live' from PAYPAL_ENVIRONMENT + DEBUG."""
     from django.conf import settings
 
+    def _has_pair(env: str) -> bool:
+        return bool(_paypal_client_id_for_env(env) and _paypal_secret_for_env(env))
+
     choice = (os.environ.get("PAYPAL_ENVIRONMENT") or "auto").strip().lower()
     if choice == "sandbox":
         return "sandbox"
     if choice == "live":
         return "live"
     if choice == "auto":
-        return "sandbox" if settings.DEBUG else "live"
+        # Prefer expected env (sandbox on debug, live on production) but
+        # gracefully fall back to whichever credential pair is available.
+        preferred = "sandbox" if settings.DEBUG else "live"
+        if _has_pair(preferred):
+            return preferred
+        fallback = "live" if preferred == "sandbox" else "sandbox"
+        if _has_pair(fallback):
+            return fallback
+        return preferred
     if _env_bool("PAYPAL_SANDBOX", default=True):
         return "sandbox"
     return "live"

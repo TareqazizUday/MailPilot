@@ -1244,7 +1244,12 @@
       const res = await fetch('/api/gmail/disconnect', { method: 'POST' });
       const j = await res.json().catch(() => ({}));
       if(!res.ok || !j.ok){
-        alert(j.error || 'Failed to disconnect');
+        const msg = j.error || 'Failed to disconnect';
+        if(typeof window.standardToast === 'function'){
+          window.standardToast(msg, 'error', 4200);
+        } else {
+          alert(msg);
+        }
         return;
       }
       location.reload();
