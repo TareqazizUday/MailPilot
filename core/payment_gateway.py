@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from core.crypto import decrypt_str
 
@@ -16,6 +16,23 @@ class StripeCredentials:
     source: str
 
 
+@dataclass(frozen=True)
+class PayPalCredentials:
+    client_id: str
+    client_secret: str
+    plan_pro_monthly: str
+    webhook_id: str
+    sandbox_mode: bool
+    source: str
+
+
+def _env_bool(name: str, *, default: bool = False) -> bool:
+    raw = (os.environ.get(name) or "").strip().lower()
+    if not raw:
+        return default
+    return raw in ("1", "true", "yes")
+
+
 def _mask_secret(value: str, *, prefix_len: int = 7, suffix_len: int = 4) -> str:
     raw = (value or "").strip()
     if not raw:
@@ -25,27 +42,65 @@ def _mask_secret(value: str, *, prefix_len: int = 7, suffix_len: int = 4) -> str
     return f"{raw[:prefix_len]}…{raw[-suffix_len:]}"
 
 
-def _from_db() -> StripeCredentials | None:
-    from core.models import Stripe
+def stripe_resolved_environment() -> str:
+    """Return 'test' or 'live' from STRIPE_KEY_ENVIRONMENT + DEBUG."""
+    from django.conf import settings
 
-    row = Stripe.objects.filter(singleton_key=1).first()
-    if not row or not row.is_enabled:
-        return None
-    secret_key = decrypt_str(row.stripe_secret_key_enc).strip()
-    if not secret_key:
-        return None
-    return StripeCredentials(
-        secret_key=secret_key,
-        webhook_secret=decrypt_str(row.stripe_webhook_secret_enc).strip(),
-        price_pro_monthly=(row.stripe_price_pro_monthly or "").strip(),
-        price_pro_yearly=(row.stripe_price_pro_yearly or "").strip(),
-        publishable_key=(row.stripe_publishable_key or "").strip(),
-        source="db",
+    choice = (os.environ.get("STRIPE_KEY_ENVIRONMENT") or "auto").strip().lower()
+    if choice == "test":
+        return "test"
+    if choice == "live":
+        return "live"
+    if settings.DEBUG:
+        if _stripe_test_secret_raw():
+            return "test"
+        if _stripe_live_secret_raw():
+            return "live"
+        return "test"
+    return "live"
+
+
+def stripe_environment_label() -> str:
+    return "Test" if stripe_resolved_environment() == "test" else "Live"
+
+
+def _stripe_test_secret_raw() -> str:
+    key = (os.environ.get("STRIPE_TEST_SECRET_KEY") or "").strip()
+    if key:
+        return key
+    fallback = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+    return fallback if fallback.startswith("sk_test_") else ""
+
+
+def _stripe_live_secret_raw() -> str:
+    key = (os.environ.get("STRIPE_LIVE_SECRET_KEY") or "").strip()
+    if key:
+        return key
+    fallback = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+    return fallback if fallback.startswith("sk_live_") else ""
+
+
+def _stripe_secret_from_env(env: str) -> str:
+    if env == "test":
+        return _stripe_test_secret_raw()
+    return _stripe_live_secret_raw()
+
+
+def _stripe_publishable_from_env(env: str) -> str:
+    if env == "test":
+        return (
+            (os.environ.get("STRIPE_TEST_PUBLISHABLE_KEY") or "").strip()
+            or (os.environ.get("STRIPE_PUBLISHABLE_KEY") or "").strip()
+        )
+    return (
+        (os.environ.get("STRIPE_LIVE_PUBLISHABLE_KEY") or "").strip()
+        or (os.environ.get("STRIPE_PUBLISHABLE_KEY") or "").strip()
     )
 
 
 def _from_env() -> StripeCredentials | None:
-    secret_key = (os.environ.get("STRIPE_SECRET_KEY") or "").strip()
+    env = stripe_resolved_environment()
+    secret_key = _stripe_secret_from_env(env)
     if not secret_key:
         return None
     return StripeCredentials(
@@ -53,16 +108,23 @@ def _from_env() -> StripeCredentials | None:
         webhook_secret=(os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip(),
         price_pro_monthly=(os.environ.get("STRIPE_PRICE_PRO_MONTHLY") or "").strip(),
         price_pro_yearly=(os.environ.get("STRIPE_PRICE_PRO_YEARLY") or "").strip(),
-        publishable_key=(os.environ.get("STRIPE_PUBLISHABLE_KEY") or "").strip(),
+        publishable_key=_stripe_publishable_from_env(env),
         source="env",
     )
 
 
 def get_stripe_credentials() -> StripeCredentials | None:
-    return _from_db() or _from_env()
+    creds = _from_env()
+    if not creds:
+        return None
+    if not (creds.webhook_secret or "").strip():
+        env_wh = (os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip()
+        if env_wh:
+            creds = replace(creds, webhook_secret=env_wh)
+    return creds
 
 
-# Reference values for local admin — save these, then replace with real Stripe Dashboard keys.
+# Reference values for simulated checkout — not real Stripe keys.
 DEMO_STRIPE_REFERENCE: dict[str, str] = {
     "publishable_key": "pk_test_51DemoMailPilotPublishableKeyFromStripeDashboard",
     "secret_key": "sk_test_51DemoMailPilotSecretKeyFromStripeDashboard",
@@ -83,7 +145,6 @@ def is_demo_stripe_credentials(
     publishable_key: str = "",
     webhook_secret: str = "",
 ) -> bool:
-    """True when saved values are MailPilot demo placeholders (not real Stripe keys)."""
     ref = DEMO_STRIPE_REFERENCE
     parts = (secret_key, price_pro_monthly, publishable_key, webhook_secret)
     if any(p == ref[k] for p, k in zip(parts, ("secret_key", "price_pro_monthly", "publishable_key", "webhook_secret"))):
@@ -107,22 +168,98 @@ def demo_stripe_defaults() -> dict[str, str]:
     return dict(DEMO_STRIPE_REFERENCE)
 
 
+def _stripe_env_secrets() -> list[str]:
+    keys = []
+    for name in ("STRIPE_TEST_SECRET_KEY", "STRIPE_LIVE_SECRET_KEY", "STRIPE_SECRET_KEY"):
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            keys.append(value)
+    return keys
+
+
 def stripe_is_configured() -> bool:
+    for secret in _stripe_env_secrets():
+        if secret and not is_demo_stripe_credentials(secret_key=secret):
+            return True
+    return False
+
+
+def stripe_secret_key_mode(secret_key: str = "") -> str:
+    key = (secret_key or "").strip()
+    if key.startswith("sk_live_"):
+        return "live"
+    if key.startswith("sk_test_"):
+        return "test"
+    return ""
+
+
+def stripe_live_charges_enabled() -> bool | None:
     creds = get_stripe_credentials()
-    return bool(creds and creds.secret_key and not _credentials_are_demo(creds))
+    if not creds or not creds.secret_key.strip().startswith("sk_live_"):
+        return None
+    if _credentials_are_demo(creds):
+        return None
+    try:
+        import requests
+
+        resp = requests.get(
+            "https://api.stripe.com/v1/account",
+            auth=(creds.secret_key, ""),
+            timeout=15,
+        )
+        if resp.ok:
+            return bool(resp.json().get("charges_enabled"))
+    except Exception:
+        pass
+    return None
 
 
 def stripe_checkout_ready() -> bool:
     creds = get_stripe_credentials()
-    if not creds or not creds.secret_key or not creds.price_pro_monthly:
+    if not creds or not creds.secret_key:
         return False
-    return not _credentials_are_demo(creds)
+    if _credentials_are_demo(creds):
+        return False
+    if stripe_secret_key_mode(creds.secret_key) == "live":
+        charges = stripe_live_charges_enabled()
+        if charges is False:
+            return False
+    return True
+
+
+def stripe_checkout_block_reason() -> str | None:
+    creds = get_stripe_credentials()
+    if not creds or not creds.secret_key or _credentials_are_demo(creds):
+        if not _stripe_test_secret_raw() and not _stripe_live_secret_raw():
+            return "Stripe secret key missing. Set STRIPE_TEST_SECRET_KEY or STRIPE_LIVE_SECRET_KEY in .env."
+        return None
+    if stripe_secret_key_mode(creds.secret_key) == "test":
+        return None
+    charges = stripe_live_charges_enabled()
+    if charges is False:
+        return (
+            "Your Stripe live account cannot accept card payments yet "
+            "(card_payments capability is inactive). "
+            "Complete activation in the Stripe Dashboard."
+        )
+    return None
 
 
 def billing_demo_mode() -> bool:
     from django.conf import settings
 
     return bool(getattr(settings, "BILLING_DEMO_MODE", False))
+
+
+def billing_use_local_checkout() -> bool:
+    """Show the in-app payment form (localhost) instead of Stripe/PayPal redirect."""
+    from django.conf import settings
+
+    if _env_bool("BILLING_LIVE_CHECKOUT"):
+        return False
+    if settings.DEBUG:
+        return True
+    return billing_demo_mode()
 
 
 PAYMENT_STRIPE = "stripe"
@@ -133,90 +270,83 @@ PAYMENT_PROVIDER_CHOICES = (
 )
 
 
-def available_payment_providers() -> list[str]:
-    """Providers the user may choose at checkout."""
-    if billing_demo_mode():
-        return [PAYMENT_STRIPE, PAYMENT_PAYPAL]
-    providers: list[str] = []
-    if stripe_checkout_ready():
-        providers.append(PAYMENT_STRIPE)
-    if paypal_checkout_ready():
-        providers.append(PAYMENT_PAYPAL)
-    return providers
+def paypal_supports_live_checkout() -> bool:
+    return True
 
 
-def payment_choice_required() -> bool:
-    return len(available_payment_providers()) > 1
+def paypal_resolved_environment() -> str:
+    """Return 'sandbox' or 'live' from PAYPAL_ENVIRONMENT + DEBUG."""
+    from django.conf import settings
+
+    def _has_pair(env: str) -> bool:
+        return bool(_paypal_client_id_for_env(env) and _paypal_secret_for_env(env))
+
+    choice = (os.environ.get("PAYPAL_ENVIRONMENT") or "auto").strip().lower()
+    if choice == "sandbox":
+        return "sandbox"
+    if choice == "live":
+        return "live"
+    if choice == "auto":
+        # Prefer expected env (sandbox on debug, live on production) but
+        # gracefully fall back to whichever credential pair is available.
+        preferred = "sandbox" if settings.DEBUG else "live"
+        if _has_pair(preferred):
+            return preferred
+        fallback = "live" if preferred == "sandbox" else "sandbox"
+        if _has_pair(fallback):
+            return fallback
+        return preferred
+    if _env_bool("PAYPAL_SANDBOX", default=True):
+        return "sandbox"
+    return "live"
 
 
-def pro_checkout_available() -> bool:
-    return bool(available_payment_providers())
+def paypal_environment_label() -> str:
+    return "Sandbox" if paypal_resolved_environment() == "sandbox" else "Live"
 
 
-def custom_checkout_available() -> bool:
-    return bool(available_payment_providers())
+def _paypal_client_id_for_env(env: str) -> str:
+    if env == "sandbox":
+        return (
+            (os.environ.get("PAYPAL_SANDBOX_CLIENT_ID") or "").strip()
+            or (os.environ.get("PAYPAL_CLIENT_ID") or "").strip()
+        )
+    return (
+        (os.environ.get("PAYPAL_LIVE_CLIENT_ID") or "").strip()
+        or (os.environ.get("PAYPAL_CLIENT_ID") or "").strip()
+    )
 
 
-def provider_label(provider: str) -> str:
-    if provider == PAYMENT_PAYPAL:
-        return "PayPal"
-    return "Stripe"
-
-
-def masked_stripe_secret(enc: str) -> str:
-    return _mask_secret(decrypt_str(enc))
-
-
-def masked_stripe_webhook(enc: str) -> str:
-    return _mask_secret(decrypt_str(enc))
-
-
-@dataclass(frozen=True)
-class PayPalCredentials:
-    client_id: str
-    client_secret: str
-    plan_pro_monthly: str
-    webhook_id: str
-    sandbox_mode: bool
-    source: str
-
-
-def _paypal_from_db() -> PayPalCredentials | None:
-    from core.models import PayPal
-
-    row = PayPal.objects.filter(singleton_key=1).first()
-    if not row or not row.is_enabled:
-        return None
-    client_secret = decrypt_str(row.client_secret_enc).strip()
-    if not client_secret:
-        return None
-    return PayPalCredentials(
-        client_id=(row.client_id or "").strip(),
-        client_secret=client_secret,
-        plan_pro_monthly=(row.plan_pro_monthly or "").strip(),
-        webhook_id=(row.webhook_id or "").strip(),
-        sandbox_mode=bool(row.sandbox_mode),
-        source="db",
+def _paypal_secret_for_env(env: str) -> str:
+    if env == "sandbox":
+        return (
+            (os.environ.get("PAYPAL_SANDBOX_CLIENT_SECRET") or "").strip()
+            or (os.environ.get("PAYPAL_CLIENT_SECRET") or "").strip()
+        )
+    return (
+        (os.environ.get("PAYPAL_LIVE_CLIENT_SECRET") or "").strip()
+        or (os.environ.get("PAYPAL_CLIENT_SECRET") or "").strip()
     )
 
 
 def _paypal_from_env() -> PayPalCredentials | None:
-    client_secret = (os.environ.get("PAYPAL_CLIENT_SECRET") or "").strip()
-    if not client_secret:
+    env = paypal_resolved_environment()
+    client_id = _paypal_client_id_for_env(env)
+    client_secret = _paypal_secret_for_env(env)
+    if not client_secret or not client_id:
         return None
-    sandbox_raw = (os.environ.get("PAYPAL_SANDBOX") or "true").strip().lower()
     return PayPalCredentials(
-        client_id=(os.environ.get("PAYPAL_CLIENT_ID") or "").strip(),
+        client_id=client_id,
         client_secret=client_secret,
         plan_pro_monthly=(os.environ.get("PAYPAL_PLAN_PRO_MONTHLY") or "").strip(),
         webhook_id=(os.environ.get("PAYPAL_WEBHOOK_ID") or "").strip(),
-        sandbox_mode=sandbox_raw in ("1", "true", "yes"),
+        sandbox_mode=env == "sandbox",
         source="env",
     )
 
 
 def get_paypal_credentials() -> PayPalCredentials | None:
-    return _paypal_from_db() or _paypal_from_env()
+    return _paypal_from_env()
 
 
 DEMO_PAYPAL_REFERENCE: dict[str, str] = {
@@ -236,7 +366,6 @@ def is_demo_paypal_credentials(
     plan_pro_monthly: str = "",
     webhook_id: str = "",
 ) -> bool:
-    """True when saved values are MailPilot demo placeholders (not real PayPal keys)."""
     ref = DEMO_PAYPAL_REFERENCE
     parts = (client_id, client_secret, plan_pro_monthly, webhook_id)
     if any(p == ref[k] for p, k in zip(parts, ("client_id", "client_secret", "plan_pro_monthly", "webhook_id"))):
@@ -260,16 +389,89 @@ def demo_paypal_defaults() -> dict[str, str]:
     return dict(DEMO_PAYPAL_REFERENCE)
 
 
+def _paypal_env_credential_pairs() -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for env in ("sandbox", "live"):
+        cid = _paypal_client_id_for_env(env)
+        secret = _paypal_secret_for_env(env)
+        if cid and secret:
+            pairs.append((cid, secret))
+    return pairs
+
+
 def paypal_is_configured() -> bool:
-    creds = get_paypal_credentials()
-    return bool(creds and creds.client_secret and not _paypal_credentials_are_demo(creds))
+    for cid, secret in _paypal_env_credential_pairs():
+        if not is_demo_paypal_credentials(client_id=cid, client_secret=secret):
+            return True
+    return False
+
+
+def paypal_available_at_checkout() -> bool:
+    if paypal_checkout_ready():
+        return True
+    return billing_demo_mode()
+
+
+def billing_site_url_missing() -> bool:
+    from django.conf import settings
+
+    if settings.DEBUG:
+        return False
+    return not (getattr(settings, "SITE_URL", "") or "").strip()
+
+
+def available_payment_providers() -> list[str]:
+    providers: list[str] = []
+    local = billing_use_local_checkout()
+    # List Stripe when a real key exists; checkout still gated by stripe_checkout_ready().
+    if stripe_is_configured() or local:
+        providers.append(PAYMENT_STRIPE)
+    if paypal_checkout_ready() or local:
+        providers.append(PAYMENT_PAYPAL)
+    elif billing_demo_mode():
+        providers.append(PAYMENT_PAYPAL)
+    if providers:
+        return providers
+    if billing_demo_mode():
+        return [PAYMENT_STRIPE, PAYMENT_PAYPAL]
+    return []
+
+
+def payment_choice_required() -> bool:
+    return len(available_payment_providers()) > 1
+
+
+def pro_checkout_available() -> bool:
+    return bool(available_payment_providers())
+
+
+def custom_checkout_available() -> bool:
+    return bool(available_payment_providers())
+
+
+def provider_label(provider: str) -> str:
+    if provider == PAYMENT_PAYPAL:
+        return "PayPal"
+    return "Stripe"
 
 
 def paypal_checkout_ready() -> bool:
     creds = get_paypal_credentials()
-    if not creds or not creds.client_secret or not creds.client_id or not creds.plan_pro_monthly:
+    if not creds or not creds.client_secret or not creds.client_id:
         return False
     return not _paypal_credentials_are_demo(creds)
+
+
+def masked_stripe_secret(enc: str) -> str:
+    return _mask_secret(decrypt_str(enc))
+
+
+def masked_stripe_restricted(enc: str) -> str:
+    return _mask_secret(decrypt_str(enc))
+
+
+def masked_stripe_webhook(enc: str) -> str:
+    return _mask_secret(decrypt_str(enc))
 
 
 def masked_paypal_secret(enc: str) -> str:

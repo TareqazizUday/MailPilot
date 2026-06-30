@@ -1054,17 +1054,17 @@ def _billing_begin_checkout(request, *, plan: str = "pro", quote=None):
         if plan == "custom" and quote is not None:
             return redirect(f"{reverse('custom_plan_builder')}?billing=not_configured&quote={quote.pk}")
         return redirect(f"{reverse('pricing')}?billing=not_configured")
-    if len(providers) > 1:
-        from core.billing_interval import get_billing_interval
-        from core.pricing_currency import get_pricing_currency
+    from core.billing_interval import get_billing_interval
+    from core.pricing_currency import get_pricing_currency
 
-        interval = get_billing_interval(request)
-        currency = get_pricing_currency(request)
-        params = f"plan={plan}&interval={interval}&currency={currency}"
-        if quote is not None:
-            params = f"quote={quote.pk}&interval={interval}&currency={currency}"
-        return redirect(f"{reverse('billing_choose_payment')}?{params}")
-    return _billing_checkout_provider(request, providers[0], plan=plan, quote=quote)
+    # Always route through payment choice page so users can explicitly
+    # pick Stripe or PayPal before checkout starts.
+    interval = get_billing_interval(request)
+    currency = get_pricing_currency(request)
+    params = f"plan={plan}&interval={interval}&currency={currency}"
+    if quote is not None:
+        params = f"quote={quote.pk}&interval={interval}&currency={currency}"
+    return redirect(f"{reverse('billing_choose_payment')}?{params}")
 
 
 def _billing_checkout_provider(request, provider: str, *, plan: str = "pro", quote=None):
@@ -1073,7 +1073,7 @@ def _billing_checkout_provider(request, provider: str, *, plan: str = "pro", quo
         PAYMENT_STRIPE,
         available_payment_providers,
         billing_demo_mode,
-        paypal_checkout_ready,
+        paypal_available_at_checkout,
         stripe_checkout_ready,
     )
 
@@ -1081,6 +1081,23 @@ def _billing_checkout_provider(request, provider: str, *, plan: str = "pro", quo
         return redirect(f"{reverse('pricing')}?billing=invalid_provider")
 
     if provider == PAYMENT_STRIPE:
+        from core.payment_gateway import (
+            billing_site_url_missing,
+            billing_use_local_checkout,
+            stripe_checkout_block_reason,
+        )
+
+        if billing_use_local_checkout():
+            return _billing_demo_checkout_redirect(request, plan=plan, quote=quote, provider=PAYMENT_STRIPE)
+        if billing_site_url_missing():
+            logger.warning("stripe checkout blocked: SITE_URL not set on production")
+            target = reverse("custom_plan_builder") if plan == "custom" and quote else reverse("pricing")
+            return redirect(f"{target}?billing=site_url_missing")
+        block = stripe_checkout_block_reason()
+        if block:
+            logger.warning("stripe checkout blocked: %s", block)
+            target = reverse("custom_plan_builder") if plan == "custom" and quote else reverse("pricing")
+            return redirect(f"{target}?billing=stripe_not_ready")
         if stripe_checkout_ready():
             if plan == "custom":
                 return _stripe_checkout_custom(request, quote)
@@ -1089,9 +1106,21 @@ def _billing_checkout_provider(request, provider: str, *, plan: str = "pro", quo
             return _billing_demo_checkout_redirect(request, plan=plan, quote=quote, provider=PAYMENT_STRIPE)
 
     if provider == PAYMENT_PAYPAL:
-        if paypal_checkout_ready() and not billing_demo_mode():
-            return redirect(f"{reverse('pricing')}?billing=paypal_live_soon")
-        if billing_demo_mode() or paypal_checkout_ready():
+        from core.payment_gateway import billing_site_url_missing, billing_use_local_checkout, paypal_checkout_ready
+
+        if billing_use_local_checkout():
+            return _billing_demo_checkout_redirect(request, plan=plan, quote=quote, provider=PAYMENT_PAYPAL)
+        if not paypal_available_at_checkout():
+            return redirect(f"{reverse('pricing')}?billing=invalid_provider")
+        if billing_site_url_missing() and paypal_checkout_ready():
+            logger.warning("paypal checkout blocked: SITE_URL not set on production")
+            target = reverse("custom_plan_builder") if plan == "custom" and quote else reverse("pricing")
+            return redirect(f"{target}?billing=site_url_missing")
+        if paypal_checkout_ready():
+            if plan == "custom":
+                return _paypal_checkout_custom(request, quote)
+            return _paypal_checkout_pro(request)
+        if billing_demo_mode():
             return _billing_demo_checkout_redirect(request, plan=plan, quote=quote, provider=PAYMENT_PAYPAL)
 
     if plan == "custom" and quote is not None:
@@ -1111,34 +1140,39 @@ def _billing_demo_checkout_redirect(request, *, plan: str, quote=None, provider:
         quote.stripe_session_id = quote.stripe_session_id or f"demo_{quote.pk}"
         quote.save(update_fields=["status", "stripe_session_id", "updated_at"])
         return redirect(
-            f"{reverse('billing_demo_checkout')}?quote={quote.pk}&provider={provider}&interval={interval}&currency={currency}"
+            f"{reverse('billing_checkout_pay')}?quote={quote.pk}&provider={provider}&interval={interval}&currency={currency}"
         )
     return redirect(
-        f"{reverse('billing_demo_checkout')}?plan={plan}&provider={provider}&interval={interval}&currency={currency}"
+        f"{reverse('billing_checkout_pay')}?plan={plan}&provider={provider}&interval={interval}&currency={currency}"
     )
 
 
 def _stripe_checkout_pro(request):
+    from core.billing_events import log_billing_payment
     from core.billing_interval import get_billing_interval, stripe_recurring_interval
-    from core.payment_gateway import get_stripe_credentials
+    from core.models import BillingPaymentEvent
+    from core.payment_gateway import PAYMENT_STRIPE, get_stripe_credentials
     from core.pricing_currency import CURRENCY_USD, get_pricing_currency, pro_checkout_cents, stripe_currency_code
 
     creds = get_stripe_credentials()
     secret = creds.secret_key
     interval = get_billing_interval(request)
     currency = stripe_currency_code(get_pricing_currency(request))
+    amount = pro_checkout_cents(interval, currency)
     try:
         import requests
 
         base = _public_base_url(request)
         data = {
             "mode": "subscription",
+            "payment_method_types[0]": "card",
             "line_items[0][quantity]": "1",
             "success_url": f"{base}{reverse('setup')}?billing=success",
             "cancel_url": f"{base}{reverse('pricing')}?billing=cancelled",
             "client_reference_id": str(request.user.id),
             "customer_email": (request.user.email or "").strip(),
             "metadata[user_id]": str(request.user.id),
+            "metadata[plan_type]": "pro",
             "metadata[billing_interval]": interval,
             "metadata[pricing_currency]": currency,
         }
@@ -1177,20 +1211,69 @@ def _stripe_checkout_pro(request):
         )
         payload = resp.json() if resp.content else {}
         if not resp.ok:
+            err = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+            detail = str(err.get("message") or payload or resp.text)[:512]
             logger.warning("stripe checkout failed: %s", payload or resp.text)
+            log_billing_payment(
+                user=request.user,
+                request=request,
+                event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+                provider=PAYMENT_STRIPE,
+                plan_code="pro",
+                amount_cents=amount,
+                currency=currency,
+                status=BillingPaymentEvent.STATUS_FAILED,
+                detail=detail,
+            )
             return redirect(f"{reverse('pricing')}?billing=checkout_error")
         url = str(payload.get("url") or "").strip()
         if not url:
+            log_billing_payment(
+                user=request.user,
+                request=request,
+                event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+                provider=PAYMENT_STRIPE,
+                plan_code="pro",
+                amount_cents=amount,
+                currency=currency,
+                status=BillingPaymentEvent.STATUS_FAILED,
+                detail="Stripe session missing redirect URL",
+            )
             return redirect(f"{reverse('pricing')}?billing=checkout_error")
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_STARTED,
+            provider=PAYMENT_STRIPE,
+            plan_code="pro",
+            amount_cents=amount,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_PENDING,
+            external_id=str(payload.get("id") or ""),
+            detail=f"interval={interval}",
+        )
         return redirect(url)
     except Exception as e:
         logger.exception("stripe checkout exception: %s", e)
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+            provider=PAYMENT_STRIPE,
+            plan_code="pro",
+            amount_cents=amount,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_FAILED,
+            detail=str(e)[:512],
+        )
         return redirect(f"{reverse('pricing')}?billing=checkout_error")
 
 
 def _stripe_checkout_custom(request, quote):
+    from core.billing_events import log_billing_payment
     from core.billing_interval import stripe_recurring_interval
-    from core.payment_gateway import get_stripe_credentials
+    from core.models import BillingPaymentEvent, CustomPlanQuote
+    from core.payment_gateway import PAYMENT_STRIPE, get_stripe_credentials
     from core.pricing_currency import normalize_currency, stripe_currency_code
 
     creds = get_stripe_credentials()
@@ -1208,6 +1291,7 @@ def _stripe_checkout_custom(request, quote):
         )
         data = {
             "mode": "subscription",
+            "payment_method_types[0]": "card",
             "line_items[0][price_data][currency]": currency,
             "line_items[0][price_data][unit_amount]": str(amount),
             "line_items[0][price_data][recurring][interval]": stripe_recurring_interval(interval),
@@ -1233,26 +1317,400 @@ def _stripe_checkout_custom(request, quote):
         )
         payload = resp.json() if resp.content else {}
         if not resp.ok:
+            err = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+            detail = str(err.get("message") or payload or resp.text)[:512]
             logger.warning("stripe custom checkout failed: %s", payload or resp.text)
+            log_billing_payment(
+                user=request.user,
+                request=request,
+                event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+                provider=PAYMENT_STRIPE,
+                plan_code="custom",
+                amount_cents=amount,
+                currency=currency,
+                status=BillingPaymentEvent.STATUS_FAILED,
+                detail=detail,
+            )
             return redirect(f"{reverse('custom_plan_builder')}?billing=checkout_error")
         url = str(payload.get("url") or "").strip()
         session_id = str(payload.get("id") or "").strip()
         if not url:
+            log_billing_payment(
+                user=request.user,
+                request=request,
+                event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+                provider=PAYMENT_STRIPE,
+                plan_code="custom",
+                amount_cents=amount,
+                currency=currency,
+                status=BillingPaymentEvent.STATUS_FAILED,
+                detail="Stripe session missing redirect URL",
+            )
             return redirect(f"{reverse('custom_plan_builder')}?billing=checkout_error")
         quote.status = CustomPlanQuote.STATUS_PENDING
         quote.stripe_session_id = session_id
         quote.save(update_fields=["status", "stripe_session_id", "updated_at"])
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_STARTED,
+            provider=PAYMENT_STRIPE,
+            plan_code="custom",
+            amount_cents=amount,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_PENDING,
+            external_id=session_id,
+            detail=f"quote={quote.pk}",
+        )
         return redirect(url)
     except Exception as e:
         logger.exception("stripe custom checkout exception: %s", e)
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+            provider=PAYMENT_STRIPE,
+            plan_code="custom",
+            amount_cents=int(getattr(quote, "price_cents", 0) or 0),
+            currency=stripe_currency_code(normalize_currency(getattr(quote, "currency", None) or "usd")),
+            status=BillingPaymentEvent.STATUS_FAILED,
+            detail=str(e)[:512],
+        )
         return redirect(f"{reverse('custom_plan_builder')}?billing=checkout_error")
+
+
+def _paypal_checkout_pro(request):
+    from core.billing_events import log_billing_payment
+    from core.billing_interval import get_billing_interval
+    from core.models import BillingPaymentEvent
+    from core.payment_gateway import PAYMENT_PAYPAL, get_paypal_credentials
+    from core.paypal_api import (
+        PayPalAPIError,
+        paypal_build_custom_id,
+        paypal_create_subscription,
+        paypal_approval_url,
+        paypal_resolve_plan_id,
+    )
+    from core.pricing_currency import get_pricing_currency, pro_checkout_cents, stripe_currency_code
+
+    creds = get_paypal_credentials()
+    if not creds:
+        return redirect(f"{reverse('pricing')}?billing=not_configured")
+    interval = get_billing_interval(request)
+    currency = stripe_currency_code(get_pricing_currency(request))
+    amount_cents = pro_checkout_cents(interval, currency)
+    period = "Yearly" if interval == "yearly" else "Monthly"
+    try:
+        base = _public_base_url(request)
+        plan_id = paypal_resolve_plan_id(
+            creds,
+            name=f"MailPilot Pro {period}",
+            description=f"MailPilot Pro · 1,000 tokens · 3 inboxes · {period.lower()}",
+            amount_cents=amount_cents,
+            currency=currency,
+            interval=interval,
+        )
+        custom_id = paypal_build_custom_id(
+            user_id=request.user.id,
+            plan="pro",
+            interval=interval,
+        )
+        sub_payload = paypal_create_subscription(
+            creds,
+            plan_id=plan_id,
+            email=(request.user.email or "").strip(),
+            return_url=f"{base}{reverse('billing_paypal_return')}?plan=pro",
+            cancel_url=f"{base}{reverse('pricing')}?billing=cancelled",
+            custom_id=custom_id,
+        )
+        url = paypal_approval_url(sub_payload)
+        if not url:
+            log_billing_payment(
+                user=request.user,
+                request=request,
+                event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+                provider=PAYMENT_PAYPAL,
+                plan_code="pro",
+                amount_cents=amount_cents,
+                currency=currency,
+                status=BillingPaymentEvent.STATUS_FAILED,
+                detail="PayPal missing approval URL",
+            )
+            return redirect(f"{reverse('pricing')}?billing=checkout_error")
+        subscription_id = str(sub_payload.get("id") or "")
+        request.session["paypal_checkout"] = {
+            "provider": PAYMENT_PAYPAL,
+            "plan": "pro",
+            "interval": interval,
+            "currency": currency,
+            "subscription_id": subscription_id,
+            "amount_cents": amount_cents,
+        }
+        request.session.modified = True
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_STARTED,
+            provider=PAYMENT_PAYPAL,
+            plan_code="pro",
+            amount_cents=amount_cents,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_PENDING,
+            external_id=subscription_id,
+            detail=f"interval={interval}",
+        )
+        return redirect(url)
+    except PayPalAPIError as e:
+        logger.warning("paypal pro checkout failed: %s %s", e.code, e.payload)
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+            provider=PAYMENT_PAYPAL,
+            plan_code="pro",
+            amount_cents=amount_cents,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_FAILED,
+            detail=str(e.payload or e.code)[:512],
+        )
+        return redirect(f"{reverse('pricing')}?billing=checkout_error")
+    except Exception as e:
+        logger.exception("paypal pro checkout exception: %s", e)
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+            provider=PAYMENT_PAYPAL,
+            plan_code="pro",
+            amount_cents=amount_cents,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_FAILED,
+            detail=str(e)[:512],
+        )
+        return redirect(f"{reverse('pricing')}?billing=checkout_error")
+
+
+def _paypal_checkout_custom(request, quote):
+    from core.billing_events import log_billing_payment
+    from core.billing_interval import interval_label
+    from core.models import BillingPaymentEvent, CustomPlanQuote
+    from core.payment_gateway import PAYMENT_PAYPAL, get_paypal_credentials
+    from core.paypal_api import (
+        PayPalAPIError,
+        paypal_build_custom_id,
+        paypal_create_subscription,
+        paypal_approval_url,
+        paypal_ensure_billing_plan,
+    )
+    from core.pricing_currency import normalize_currency, stripe_currency_code
+
+    creds = get_paypal_credentials()
+    if not creds:
+        return redirect(f"{reverse('custom_plan_builder')}?billing=not_configured&quote={quote.pk}")
+    interval = getattr(quote, "billing_interval", None) or "monthly"
+    currency = stripe_currency_code(normalize_currency(getattr(quote, "currency", None) or "usd"))
+    amount_cents = int(quote.price_cents)
+    period = interval_label(interval).lower()
+    label = f"MailPilot Custom - {quote.tokens:,} tokens · {quote.inboxes} inbox(es) · {period}"
+    try:
+        base = _public_base_url(request)
+        plan_id = paypal_ensure_billing_plan(
+            creds,
+            name=f"MailPilot Custom ({quote.pk})",
+            description=label[:127],
+            amount_cents=amount_cents,
+            currency=currency,
+            interval=interval,
+        )
+        custom_id = paypal_build_custom_id(
+            user_id=request.user.id,
+            plan="custom",
+            interval=interval,
+            quote_id=quote.pk,
+        )
+        sub_payload = paypal_create_subscription(
+            creds,
+            plan_id=plan_id,
+            email=(request.user.email or "").strip(),
+            return_url=f"{base}{reverse('billing_paypal_return')}?plan=custom&quote={quote.pk}",
+            cancel_url=f"{base}{reverse('custom_plan_builder')}?billing=cancelled&quote={quote.pk}",
+            custom_id=custom_id,
+        )
+        url = paypal_approval_url(sub_payload)
+        subscription_id = str(sub_payload.get("id") or "").strip()
+        if not url:
+            log_billing_payment(
+                user=request.user,
+                request=request,
+                event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+                provider=PAYMENT_PAYPAL,
+                plan_code="custom",
+                amount_cents=amount_cents,
+                currency=currency,
+                status=BillingPaymentEvent.STATUS_FAILED,
+                detail="PayPal missing approval URL",
+            )
+            return redirect(f"{reverse('custom_plan_builder')}?billing=checkout_error&quote={quote.pk}")
+        quote.status = CustomPlanQuote.STATUS_PENDING
+        quote.stripe_session_id = subscription_id or quote.stripe_session_id
+        quote.save(update_fields=["status", "stripe_session_id", "updated_at"])
+        request.session["paypal_checkout"] = {
+            "provider": PAYMENT_PAYPAL,
+            "plan": "custom",
+            "quote_id": quote.pk,
+            "subscription_id": subscription_id,
+            "amount_cents": amount_cents,
+            "currency": currency,
+        }
+        request.session.modified = True
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_STARTED,
+            provider=PAYMENT_PAYPAL,
+            plan_code="custom",
+            amount_cents=amount_cents,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_PENDING,
+            external_id=subscription_id,
+            detail=f"quote={quote.pk}",
+        )
+        return redirect(url)
+    except PayPalAPIError as e:
+        logger.warning("paypal custom checkout failed: %s %s", e.code, e.payload)
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+            provider=PAYMENT_PAYPAL,
+            plan_code="custom",
+            amount_cents=amount_cents,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_FAILED,
+            detail=str(e.payload or e.code)[:512],
+        )
+        return redirect(f"{reverse('custom_plan_builder')}?billing=checkout_error&quote={quote.pk}")
+    except Exception as e:
+        logger.exception("paypal custom checkout exception: %s", e)
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_FAILED,
+            provider=PAYMENT_PAYPAL,
+            plan_code="custom",
+            amount_cents=amount_cents,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_FAILED,
+            detail=str(e)[:512],
+        )
+        return redirect(f"{reverse('custom_plan_builder')}?billing=checkout_error&quote={quote.pk}")
+
+
+def _paypal_finalize_subscription(request, subscription_id: str):
+    from core.billing import PLAN_PRO, activate_custom_plan_quote, get_or_create_subscription, set_subscription_plan
+    from core.billing_events import log_billing_payment
+    from core.models import BillingPaymentEvent, CustomPlanQuote, UserSubscription
+    from core.payment_gateway import PAYMENT_PAYPAL, get_paypal_credentials
+    from core.paypal_api import (
+        PayPalAPIError,
+        paypal_get_subscription,
+        paypal_parse_custom_id,
+        paypal_subscription_is_paid,
+    )
+
+    creds = get_paypal_credentials()
+    if not creds or not subscription_id:
+        return None, redirect(f"{reverse('pricing')}?billing=checkout_error")
+
+    try:
+        payload = paypal_get_subscription(creds, subscription_id)
+    except PayPalAPIError:
+        return None, redirect(f"{reverse('pricing')}?billing=checkout_error")
+
+    status = str(payload.get("status") or "")
+    if not paypal_subscription_is_paid(status):
+        return None, redirect(f"{reverse('pricing')}?billing=checkout_error")
+
+    meta = paypal_parse_custom_id(str(payload.get("custom_id") or ""))
+    user_id = meta.get("uid") or ""
+    if not user_id.isdigit() or int(user_id) != request.user.id:
+        return None, redirect(f"{reverse('pricing')}?billing=checkout_error")
+
+    plan = (meta.get("plan") or "pro").strip().lower()
+    sub = get_or_create_subscription(request.user)
+    sub.payment_provider = PAYMENT_PAYPAL
+    sub.paypal_subscription_id = subscription_id
+    checkout_meta = request.session.get("paypal_checkout") or {}
+    amount_cents = checkout_meta.get("amount_cents")
+    currency = (checkout_meta.get("currency") or "").strip()
+
+    def _log_completed() -> None:
+        log_billing_payment(
+            user=request.user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_CHECKOUT_COMPLETED,
+            provider=PAYMENT_PAYPAL,
+            plan_code=plan,
+            amount_cents=int(amount_cents) if amount_cents is not None else None,
+            currency=currency,
+            status=BillingPaymentEvent.STATUS_SUCCEEDED,
+            external_id=subscription_id,
+            detail=f"paypal_status={status}",
+        )
+
+    if plan == "custom":
+        quote_id = (meta.get("quote") or "").strip()
+        quote = None
+        if quote_id.isdigit():
+            quote = CustomPlanQuote.objects.filter(pk=int(quote_id), user=request.user).first()
+        if quote is None:
+            return None, redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
+        activate_custom_plan_quote(request.user, quote)
+        quote.stripe_session_id = subscription_id
+        quote.save(update_fields=["stripe_session_id", "updated_at"])
+        sub.save(update_fields=["payment_provider", "paypal_subscription_id", "updated_at"])
+        _log_completed()
+        return quote, redirect(f"{reverse('setup')}?billing=success&provider=paypal")
+
+    sub.paid_at = dj_timezone.now()
+    set_subscription_plan(sub, PLAN_PRO, status=UserSubscription.STATUS_ACTIVE)
+    sub.save(
+        update_fields=[
+            "payment_provider",
+            "paypal_subscription_id",
+            "paid_at",
+            "updated_at",
+        ]
+    )
+    _log_completed()
+    return sub, redirect(f"{reverse('setup')}?billing=success&provider=paypal")
+
+
+@login_required(login_url="/login")
+@require_http_methods(["GET"])
+def billing_paypal_return(request):
+    """Return URL after PayPal subscription approval."""
+    subscription_id = (
+        (request.GET.get("subscription_id") or "").strip()
+        or (request.session.get("paypal_checkout") or {}).get("subscription_id", "")
+    )
+    if not subscription_id:
+        return redirect(f"{reverse('pricing')}?billing=checkout_error")
+    _, response = _paypal_finalize_subscription(request, subscription_id)
+    request.session.pop("paypal_checkout", None)
+    request.session.modified = True
+    return response
 
 
 @login_required(login_url="/login")
 @require_http_methods(["GET", "POST"])
 def billing_choose_payment(request):
     """Let the user pick Stripe or PayPal when more than one provider is available."""
-    from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, available_payment_providers, provider_label
+    from core.payment_gateway import (
+        PAYMENT_PAYPAL,
+        PAYMENT_STRIPE,
+        available_payment_providers,
+    )
 
     plan, quote, deny = _billing_resolve_checkout_target(request)
     if deny is not None:
@@ -1261,9 +1719,6 @@ def billing_choose_payment(request):
     providers = available_payment_providers()
     if not providers:
         return _billing_begin_checkout(request, plan=plan, quote=quote)
-    if len(providers) == 1:
-        return _billing_checkout_provider(request, providers[0], plan=plan, quote=quote)
-
     summary = _billing_checkout_summary(request, plan=plan, quote=quote)
 
     if request.method == "POST":
@@ -1276,13 +1731,13 @@ def billing_choose_payment(request):
     provider_options = [
         {
             "code": PAYMENT_STRIPE,
-            "label": provider_label(PAYMENT_STRIPE),
-            "hint": "Card checkout",
+            "label": "Credit or debit card",
+            "hint": "Visa, Mastercard, Amex and more",
         },
         {
             "code": PAYMENT_PAYPAL,
-            "label": provider_label(PAYMENT_PAYPAL),
-            "hint": "PayPal balance or card",
+            "label": "PayPal",
+            "hint": "Pay with balance, bank, or linked card",
         },
     ]
     provider_options = [opt for opt in provider_options if opt["code"] in providers]
@@ -1333,9 +1788,9 @@ def billing_checkout_custom(request, quote_id: int):
 @require_GET
 def billing_demo_checkout(request):
     """Simulated checkout for local demo (Stripe or PayPal UI)."""
-    from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, billing_demo_mode, provider_label
+    from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, billing_use_local_checkout, provider_label
 
-    if not billing_demo_mode():
+    if not billing_use_local_checkout():
         return redirect(f"{reverse('pricing')}?billing=not_configured")
 
     plan, quote, deny = _billing_resolve_checkout_target(request)
@@ -1367,10 +1822,11 @@ def billing_demo_checkout(request):
 def billing_demo_complete(request):
     """Complete a demo checkout - activates Pro or Custom without a live gateway."""
     from core.billing import PLAN_PRO, activate_custom_plan_quote, get_or_create_subscription, set_subscription_plan
-    from core.models import CustomPlanQuote, UserSubscription
-    from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, billing_demo_mode
+    from core.billing_events import log_billing_payment
+    from core.models import BillingPaymentEvent, CustomPlanQuote, UserSubscription
+    from core.payment_gateway import PAYMENT_PAYPAL, PAYMENT_STRIPE, billing_use_local_checkout
 
-    if not billing_demo_mode():
+    if not billing_use_local_checkout():
         return JsonResponse({"ok": False, "error": "demo_disabled"}, status=403)
 
     plan = (request.POST.get("plan") or "").strip().lower()
@@ -1379,7 +1835,16 @@ def billing_demo_complete(request):
     if provider not in (PAYMENT_STRIPE, PAYMENT_PAYPAL):
         provider = PAYMENT_STRIPE
 
+    amount_cents = None
+    currency = ""
+
     if plan == "pro":
+        from core.billing_interval import get_billing_interval
+        from core.pricing_currency import get_pricing_currency, pro_checkout_cents, stripe_currency_code
+
+        interval = get_billing_interval(request)
+        currency = stripe_currency_code(get_pricing_currency(request))
+        amount_cents = pro_checkout_cents(interval, currency)
         sub = get_or_create_subscription(request.user)
         set_subscription_plan(sub, PLAN_PRO, status=UserSubscription.STATUS_ACTIVE)
         sub.paid_at = dj_timezone.now()
@@ -1403,6 +1868,10 @@ def billing_demo_complete(request):
         quote = CustomPlanQuote.objects.filter(pk=int(quote_id), user=request.user).first()
         if quote is None:
             return redirect(f"{reverse('custom_plan_builder')}?billing=quote_not_found")
+        amount_cents = int(quote.price_cents)
+        from core.pricing_currency import normalize_currency, stripe_currency_code
+
+        currency = stripe_currency_code(normalize_currency(getattr(quote, "currency", None) or "usd"))
         activate_custom_plan_quote(request.user, quote)
         sub = get_or_create_subscription(request.user)
         sub.payment_provider = provider
@@ -1423,7 +1892,19 @@ def billing_demo_complete(request):
     else:
         return redirect(f"{reverse('pricing')}?billing=invalid_plan")
 
-    return redirect(f"{reverse('setup')}?billing=success&demo=1&provider={provider}")
+    log_billing_payment(
+        user=request.user,
+        request=request,
+        event_type=BillingPaymentEvent.EVENT_CHECKOUT_COMPLETED,
+        provider=provider,
+        plan_code=plan,
+        amount_cents=amount_cents,
+        currency=currency,
+        status=BillingPaymentEvent.STATUS_SUCCEEDED,
+        detail="local_checkout",
+    )
+
+    return redirect(f"{reverse('setup')}?billing=success&provider={provider}")
 
 
 @login_required(login_url="/login")
@@ -1482,7 +1963,9 @@ def _stripe_signature_ok(raw: bytes, sig_header: str, secret: str) -> bool:
 @csrf_exempt
 @require_http_methods(["POST"])
 def billing_stripe_webhook(request):
-    from core.payment_gateway import get_stripe_credentials
+    from core.billing_events import log_billing_payment
+    from core.models import BillingPaymentEvent
+    from core.payment_gateway import PAYMENT_STRIPE, get_stripe_credentials
 
     raw = request.body or b""
     creds = get_stripe_credentials()
@@ -1514,6 +1997,7 @@ def billing_stripe_webhook(request):
         sub = get_or_create_subscription(user)
         meta = (obj.get("metadata") or {}) if isinstance(obj.get("metadata"), dict) else {}
         plan_type = str(meta.get("plan_type") or "pro").strip().lower()
+        sub.payment_provider = PAYMENT_STRIPE
 
         if etype == "checkout.session.completed":
             if plan_type == "custom":
@@ -1566,6 +2050,32 @@ def billing_stripe_webhook(request):
         elif etype == "customer.subscription.deleted":
             set_subscription_plan(sub, "starter", status="canceled")
         sub.save()
+
+        wh_status = BillingPaymentEvent.STATUS_SUCCEEDED
+        if etype == "customer.subscription.deleted":
+            wh_status = BillingPaymentEvent.STATUS_CANCELED
+        elif etype not in ("checkout.session.completed", "customer.subscription.updated", "customer.subscription.created"):
+            wh_status = BillingPaymentEvent.STATUS_PENDING
+
+        amount_cents = None
+        try:
+            amount_cents = int(obj.get("amount_total") or obj.get("amount") or 0) or None
+        except (TypeError, ValueError):
+            amount_cents = None
+        currency = str(obj.get("currency") or meta.get("pricing_currency") or "").strip().lower()
+
+        log_billing_payment(
+            user=user,
+            request=request,
+            event_type=BillingPaymentEvent.EVENT_WEBHOOK,
+            provider=PAYMENT_STRIPE,
+            plan_code=plan_type,
+            amount_cents=amount_cents,
+            currency=currency,
+            status=wh_status,
+            external_id=str(event.get("id") or obj.get("id") or ""),
+            detail=etype[:512],
+        )
         return JsonResponse({"ok": True})
     except Exception as e:
         logger.exception("stripe webhook failed: %s", e)

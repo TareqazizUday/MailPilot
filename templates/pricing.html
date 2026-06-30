@@ -235,6 +235,12 @@
       50% { box-shadow: 0 12px 52px rgba(79,110,247,0.38), 0 0 0 2px rgba(167,139,250,0.5); }
     }
 
+    .mp-billing-alert {
+      max-width: 960px; margin: 0 auto 20px; padding: 12px 16px; border-radius: 10px;
+      font-size: 0.9rem; line-height: 1.5; text-align: center;
+      background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #fecaca;
+    }
+
     {% include "components/footer_css.html" %}
 
     @media (max-width: 1100px) {
@@ -254,6 +260,8 @@
     {% include "components/marketing_pricing_head.html" with pricing_heading_tag="h1" pricing_pill_tag=True %}
     {% include "components/marketing_pricing_billing_toggle.html" %}
 
+    <div id="billingAlert" class="mp-billing-alert" role="status" hidden></div>
+
     <div class="pricing-grid" role="listbox" aria-label="Choose a pricing plan">
       {% include "components/marketing_pricing_cards.html" %}
     </div>
@@ -261,6 +269,27 @@
   {% include "components/marketing_pricing_billing_toggle_js.html" %}
 
   {% include "components/footer.html" %}
+  <script>
+    (function () {
+      const el = document.getElementById('billingAlert');
+      if (!el) return;
+      const billing = new URLSearchParams(window.location.search).get('billing');
+      const messages = {
+        stripe_not_ready:
+          'Stripe checkout could not start. Complete card payment activation in your Stripe Dashboard, then try again.',
+        site_url_missing:
+          'Checkout cannot start: set SITE_URL in server environment (e.g. https://yourdomain.com) so payment return URLs are correct.',
+        checkout_error:
+          'Checkout could not be started. Please try again or contact support.',
+        cancelled: 'Checkout was cancelled. You can choose a plan again below.',
+        not_configured: 'Checkout is not configured yet. Set Stripe and PayPal credentials in the server environment.',
+      };
+      const msg = messages[billing];
+      if (!msg) return;
+      el.textContent = msg;
+      el.hidden = false;
+    })();
+  </script>
   <script>
     // Highlight the user's current plan; navigation is via CTA links only
     (function () {

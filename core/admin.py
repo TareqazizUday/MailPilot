@@ -11,9 +11,9 @@ from unfold.admin import ModelAdmin, StackedInline
 
 from core.admin_site import admin_site
 from core.billing import apply_plan_defaults, current_period_key, set_subscription_plan
-from core.crypto import encrypt_str
 from core.models import (
     AuditLog,
+    BillingPaymentEvent,
     ContactSubmission,
     CustomPlanQuote,
     DailySendCounter,
@@ -30,15 +30,12 @@ from core.models import (
     MarketingPricingPlan,
     MarketingPricingSettings,
     PasswordResetOTP,
-    Stripe,
-    PayPal,
     UsageCounter,
     UsageEvent,
     UserMailSettings,
     UserProfile,
     UserSubscription,
 )
-from core.payment_gateway import masked_paypal_secret, masked_stripe_secret, masked_stripe_webhook
 from core.widgets import CKEditorWidget
 
 
@@ -189,16 +186,23 @@ class UserSubscriptionAdmin(_MPModelAdmin):
         "user",
         "plan_badge",
         "status_badge",
+        "payment_provider_badge",
         "monthly_token_limit",
         "active_inbox_limit",
         "daily_send_limit",
         "integrations",
         "updated_at",
     )
-    list_filter = ("plan_code", "status", "telegram_enabled", "whatsapp_enabled")
+    list_filter = ("plan_code", "status", "payment_provider", "telegram_enabled", "whatsapp_enabled")
     list_select_related = ("user",)
     raw_id_fields = ("user",)
-    search_fields = ("user__username", "user__email", "stripe_customer_id", "stripe_subscription_id")
+    search_fields = (
+        "user__username",
+        "user__email",
+        "stripe_customer_id",
+        "stripe_subscription_id",
+        "paypal_subscription_id",
+    )
     ordering = ("-updated_at",)
     actions = [apply_plan_defaults_action, set_plan_starter, set_plan_pro, reset_monthly_tokens]
     fieldsets = (
@@ -221,8 +225,16 @@ class UserSubscriptionAdmin(_MPModelAdmin):
             {"fields": ("current_period_start", "current_period_end"), "classes": ("collapse",)},
         ),
         (
-            "Stripe",
-            {"fields": ("stripe_customer_id", "stripe_subscription_id", "paid_at"), "classes": ("collapse",)},
+            "Payment providers",
+            {
+                "fields": (
+                    "payment_provider",
+                    "paid_at",
+                    "stripe_customer_id",
+                    "stripe_subscription_id",
+                    "paypal_subscription_id",
+                ),
+            },
         ),
         (
             "Starter trial",
@@ -233,6 +245,14 @@ class UserSubscriptionAdmin(_MPModelAdmin):
             },
         ),
     )
+
+    @admin.display(description="Provider", ordering="payment_provider")
+    def payment_provider_badge(self, obj):
+        raw = (obj.payment_provider or "").strip().lower()
+        if not raw:
+            return _badge("—", "muted")
+        tones = {"stripe": "pro", "paypal": "ok"}
+        return _badge(raw.title(), tones.get(raw, "muted"))
 
     @admin.display(description="Plan", ordering="plan_code")
     def plan_badge(self, obj):
@@ -338,6 +358,91 @@ class UsageEventAdmin(_MPModelAdmin):
             UsageEvent.STATUS_REFUNDED: "muted",
         }
         return _badge(obj.get_status_display(), tones.get(obj.status, "muted"))
+
+
+class BillingPaymentEventAdmin(_MPModelAdmin):
+    list_display = (
+        "created_at",
+        "user",
+        "provider_badge",
+        "event_badge",
+        "plan_code",
+        "amount_display",
+        "status_badge",
+        "ip_address",
+        "external_id_short",
+    )
+    list_filter = ("provider", "event_type", "status", "plan_code", "created_at")
+    list_select_related = ("user",)
+    search_fields = (
+        "user__username",
+        "user__email",
+        "external_id",
+        "ip_address",
+        "detail",
+        "user_agent",
+    )
+    readonly_fields = (
+        "user",
+        "event_type",
+        "provider",
+        "plan_code",
+        "amount_cents",
+        "currency",
+        "status",
+        "external_id",
+        "ip_address",
+        "user_agent",
+        "detail",
+        "created_at",
+    )
+    ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    @admin.display(description="Provider", ordering="provider")
+    def provider_badge(self, obj):
+        raw = (obj.provider or "").strip().lower()
+        if not raw:
+            return _badge("—", "muted")
+        tones = {"stripe": "pro", "paypal": "ok"}
+        return _badge(raw.title(), tones.get(raw, "muted"))
+
+    @admin.display(description="Event", ordering="event_type")
+    def event_badge(self, obj):
+        return _badge(obj.get_event_type_display(), "pro")
+
+    @admin.display(description="Status", ordering="status")
+    def status_badge(self, obj):
+        tones = {
+            BillingPaymentEvent.STATUS_SUCCEEDED: "ok",
+            BillingPaymentEvent.STATUS_PENDING: "warn",
+            BillingPaymentEvent.STATUS_FAILED: "danger",
+            BillingPaymentEvent.STATUS_CANCELED: "muted",
+        }
+        return _badge(obj.get_status_display(), tones.get(obj.status, "muted"))
+
+    @admin.display(description="Amount")
+    def amount_display(self, obj):
+        if obj.amount_cents is None:
+            return "—"
+        cur = (obj.currency or "usd").upper()
+        return f"{cur} {obj.amount_cents / 100:.2f}"
+
+    @admin.display(description="Reference")
+    def external_id_short(self, obj):
+        text = (obj.external_id or "").strip()
+        if len(text) > 24:
+            return f"{text[:21]}…"
+        return text or "—"
 
 
 class CustomPlanQuoteAdmin(_MPModelAdmin):
@@ -965,423 +1070,13 @@ class PasswordResetOTPAdmin(_MPModelAdmin):
         return _badge("Valid", "ok")
 
 
-class StripeConfigForm(forms.ModelForm):
-    stripe_secret_key = forms.CharField(
-        required=False,
-        label="Stripe secret key",
-        help_text="Save demo values now; later replace with real sk_test_/sk_live_ from Stripe Dashboard.",
-        widget=forms.TextInput(
-            attrs={
-                "autocomplete": "off",
-                "spellcheck": "false",
-                "class": "vTextField",
-                "style": "font-family: ui-monospace, monospace; width: 100%;",
-            }
-        ),
-    )
-    stripe_webhook_secret = forms.CharField(
-        required=False,
-        label="Stripe webhook secret",
-        help_text="Demo whsec_ placeholder is OK for local test. Replace when Stripe webhook is configured.",
-        widget=forms.TextInput(
-            attrs={
-                "autocomplete": "off",
-                "spellcheck": "false",
-                "class": "vTextField",
-                "style": "font-family: ui-monospace, monospace; width: 100%;",
-            }
-        ),
-    )
-
-    class Meta:
-        model = Stripe
-        fields = (
-            "is_enabled",
-            "provider",
-            "stripe_publishable_key",
-            "stripe_price_pro_monthly",
-            "notes",
-        )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from core.crypto import decrypt_str
-        from core.payment_gateway import (
-            DEMO_STRIPE_REFERENCE,
-            billing_demo_mode,
-            is_demo_stripe_credentials,
-        )
-
-        ref = DEMO_STRIPE_REFERENCE
-        mono = {
-            "style": "font-family: ui-monospace, monospace; width: 100%;",
-            "class": "vTextField",
-            "spellcheck": "false",
-        }
-
-        for name in (
-            "stripe_publishable_key",
-            "stripe_price_pro_monthly",
-            "stripe_secret_key",
-            "stripe_webhook_secret",
-        ):
-            self.fields[name].widget.attrs.update(mono)
-
-        inst = self.instance
-        if not inst or not inst.pk:
-            if billing_demo_mode():
-                for key, field in (
-                    ("publishable_key", "stripe_publishable_key"),
-                    ("price_pro_monthly", "stripe_price_pro_monthly"),
-                    ("secret_key", "stripe_secret_key"),
-                    ("webhook_secret", "stripe_webhook_secret"),
-                ):
-                    self.initial[field] = ref[key]
-            return
-
-        pk = (inst.stripe_publishable_key or "").strip()
-        price = (inst.stripe_price_pro_monthly or "").strip()
-        secret = decrypt_str(inst.stripe_secret_key_enc).strip()
-        webhook = decrypt_str(inst.stripe_webhook_secret_enc).strip()
-        saved_demo = is_demo_stripe_credentials(
-            secret_key=secret,
-            price_pro_monthly=price,
-            publishable_key=pk,
-            webhook_secret=webhook,
-        )
-
-        def _set(field: str, value: str, *, demo_fallback: str) -> None:
-            if value:
-                self.initial[field] = value
-            elif billing_demo_mode():
-                self.initial[field] = demo_fallback
-
-        _set("stripe_publishable_key", pk, demo_fallback=ref["publishable_key"])
-        _set("stripe_price_pro_monthly", price, demo_fallback=ref["price_pro_monthly"])
-        if secret and (saved_demo or billing_demo_mode()):
-            self.initial["stripe_secret_key"] = secret
-        elif billing_demo_mode():
-            self.initial["stripe_secret_key"] = ref["secret_key"]
-        elif secret:
-            self.fields["stripe_secret_key"].widget.attrs["placeholder"] = "Saved - enter new value to replace"
-
-        if webhook and (saved_demo or billing_demo_mode()):
-            self.initial["stripe_webhook_secret"] = webhook
-        elif billing_demo_mode():
-            self.initial["stripe_webhook_secret"] = ref["webhook_secret"]
-        elif webhook:
-            self.fields["stripe_webhook_secret"].widget.attrs["placeholder"] = "Saved - enter new value to replace"
-
-        if saved_demo and not (inst.notes or "").strip():
-            self.initial["notes"] = "DEMO Stripe credentials - replace with real keys before production."
-
-
-class StripeConfigAdmin(_MPModelAdmin):
-    form = StripeConfigForm
-    compressed_fields = False
-    list_fullwidth = True
-    list_display = ("provider", "is_enabled", "config_status", "updated_at")
-    readonly_fields = (
-        "provider",
-        "config_status",
-        "masked_secret_key",
-        "masked_webhook_secret",
-        "updated_at",
-    )
-    fieldsets = (
-        (
-            None,
-            {
-                "fields": (
-                    "is_enabled",
-                    "provider",
-                    "config_status",
-                ),
-                "description": "Enable to use database credentials. When disabled, MailPilot falls back to STRIPE_* values from the server environment.",
-            },
-        ),
-        (
-            "Stripe credentials",
-            {
-                "fields": (
-                    "stripe_publishable_key",
-                    "stripe_price_pro_monthly",
-                    "stripe_secret_key",
-                    "stripe_webhook_secret",
-                    "masked_secret_key",
-                    "masked_webhook_secret",
-                ),
-                "description": "Pre-filled demo placeholders on localhost - Save, test checkout, then replace with real Stripe keys.",
-            },
-        ),
-        ("Notes", {"fields": ("notes",), "classes": ("collapse",)}),
-        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
-    )
-
-    def has_add_permission(self, request):
-        return not Stripe.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def changelist_view(self, request, extra_context=None):
-        obj, _ = Stripe.objects.get_or_create(singleton_key=1)
-        return redirect(reverse("admin:core_stripe_change", args=(obj.pk,)))
-
-    @admin.display(description="Status")
-    def config_status(self, obj):
-        from core.crypto import decrypt_str
-        from core.payment_gateway import (
-            billing_demo_mode,
-            get_stripe_credentials,
-            is_demo_stripe_credentials,
-            stripe_checkout_ready,
-        )
-
-        creds = get_stripe_credentials()
-        if stripe_checkout_ready():
-            return _badge("Checkout ready", "ok")
-        if creds and is_demo_stripe_credentials(
-            secret_key=creds.secret_key,
-            price_pro_monthly=creds.price_pro_monthly,
-            publishable_key=creds.publishable_key,
-            webhook_secret=creds.webhook_secret,
-        ):
-            return _badge("Demo saved - replace keys", "warn")
-        if obj.is_enabled:
-            secret = decrypt_str(obj.stripe_secret_key_enc).strip()
-            price = (obj.stripe_price_pro_monthly or "").strip()
-            if secret and is_demo_stripe_credentials(
-                secret_key=secret,
-                price_pro_monthly=price,
-                publishable_key=(obj.stripe_publishable_key or "").strip(),
-                webhook_secret=decrypt_str(obj.stripe_webhook_secret_enc).strip(),
-            ):
-                return _badge("Demo saved - replace keys", "warn")
-        if billing_demo_mode():
-            return _badge("Demo mode (local)", "pro")
-        if not obj.is_enabled:
-            if creds and creds.source == "env":
-                return _badge("Using .env", "warn")
-            return _badge("Disabled", "muted")
-        if creds and creds.secret_key:
-            return _badge("Secret set (add price ID)", "warn")
-        return _badge("Missing secret key", "danger")
-
-    @admin.display(description="Current secret key")
-    def masked_secret_key(self, obj):
-        return masked_stripe_secret(obj.stripe_secret_key_enc)
-
-    @admin.display(description="Current webhook secret")
-    def masked_webhook_secret(self, obj):
-        return masked_stripe_webhook(obj.stripe_webhook_secret_enc)
-
-    def save_model(self, request, obj, form, change):
-        secret = (form.cleaned_data.get("stripe_secret_key") or "").strip()
-        webhook = (form.cleaned_data.get("stripe_webhook_secret") or "").strip()
-        if secret:
-            obj.stripe_secret_key_enc = encrypt_str(secret)
-        if webhook:
-            obj.stripe_webhook_secret_enc = encrypt_str(webhook)
-        obj.singleton_key = 1
-        super().save_model(request, obj, form, change)
-
-
-class PayPalConfigForm(forms.ModelForm):
-    client_secret = forms.CharField(
-        required=False,
-        label="PayPal client secret",
-        help_text="Save demo values now; later replace with real secret from PayPal Developer Dashboard.",
-        widget=forms.TextInput(
-            attrs={
-                "autocomplete": "off",
-                "spellcheck": "false",
-                "class": "vTextField",
-                "style": "font-family: ui-monospace, monospace; width: 100%;",
-            }
-        ),
-    )
-
-    class Meta:
-        model = PayPal
-        fields = (
-            "is_enabled",
-            "sandbox_mode",
-            "client_id",
-            "plan_pro_monthly",
-            "webhook_id",
-            "notes",
-        )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from core.crypto import decrypt_str
-        from core.payment_gateway import (
-            DEMO_PAYPAL_REFERENCE,
-            billing_demo_mode,
-            is_demo_paypal_credentials,
-        )
-
-        ref = DEMO_PAYPAL_REFERENCE
-        mono = {
-            "style": "font-family: ui-monospace, monospace; width: 100%;",
-            "class": "vTextField",
-            "spellcheck": "false",
-        }
-
-        for name in ("client_id", "plan_pro_monthly", "webhook_id", "client_secret"):
-            self.fields[name].widget.attrs.update(mono)
-
-        inst = self.instance
-        if not inst or not inst.pk:
-            if billing_demo_mode():
-                for key, field in (
-                    ("client_id", "client_id"),
-                    ("plan_pro_monthly", "plan_pro_monthly"),
-                    ("webhook_id", "webhook_id"),
-                    ("client_secret", "client_secret"),
-                ):
-                    self.initial[field] = ref[key]
-            return
-
-        cid = (inst.client_id or "").strip()
-        plan = (inst.plan_pro_monthly or "").strip()
-        webhook = (inst.webhook_id or "").strip()
-        secret = decrypt_str(inst.client_secret_enc).strip()
-        saved_demo = is_demo_paypal_credentials(
-            client_id=cid,
-            client_secret=secret,
-            plan_pro_monthly=plan,
-            webhook_id=webhook,
-        )
-
-        def _set(field: str, value: str, *, demo_fallback: str) -> None:
-            if value:
-                self.initial[field] = value
-            elif billing_demo_mode():
-                self.initial[field] = demo_fallback
-
-        _set("client_id", cid, demo_fallback=ref["client_id"])
-        _set("plan_pro_monthly", plan, demo_fallback=ref["plan_pro_monthly"])
-        _set("webhook_id", webhook, demo_fallback=ref["webhook_id"])
-        if secret and (saved_demo or billing_demo_mode()):
-            self.initial["client_secret"] = secret
-        elif billing_demo_mode():
-            self.initial["client_secret"] = ref["client_secret"]
-        elif secret:
-            self.fields["client_secret"].widget.attrs["placeholder"] = "Saved - enter new value to replace"
-
-        if saved_demo and not (inst.notes or "").strip():
-            self.initial["notes"] = "DEMO PayPal credentials - replace with real keys before production."
-
-
-class PayPalConfigAdmin(_MPModelAdmin):
-    form = PayPalConfigForm
-    compressed_fields = False
-    list_fullwidth = True
-    list_display = ("sandbox_mode", "is_enabled", "config_status", "updated_at")
-    readonly_fields = (
-        "config_status",
-        "masked_client_secret",
-        "updated_at",
-    )
-    fieldsets = (
-        (
-            None,
-            {
-                "fields": (
-                    "is_enabled",
-                    "sandbox_mode",
-                    "config_status",
-                ),
-                "description": "Enable to use database credentials. When disabled, MailPilot falls back to PAYPAL_* values from the server environment.",
-            },
-        ),
-        (
-            "PayPal credentials",
-            {
-                "fields": (
-                    "client_id",
-                    "client_secret",
-                    "plan_pro_monthly",
-                    "webhook_id",
-                    "masked_client_secret",
-                ),
-                "description": "Pre-filled demo placeholders on localhost - Save, then replace with real PayPal Developer Dashboard keys.",
-            },
-        ),
-        ("Notes", {"fields": ("notes",), "classes": ("collapse",)}),
-        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
-    )
-
-    def has_add_permission(self, request):
-        return not PayPal.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def changelist_view(self, request, extra_context=None):
-        obj, _ = PayPal.objects.get_or_create(singleton_key=1)
-        return redirect(reverse("admin:core_paypal_change", args=(obj.pk,)))
-
-    @admin.display(description="Status")
-    def config_status(self, obj):
-        from core.crypto import decrypt_str
-        from core.payment_gateway import (
-            billing_demo_mode,
-            get_paypal_credentials,
-            is_demo_paypal_credentials,
-            paypal_checkout_ready,
-        )
-
-        creds = get_paypal_credentials()
-        if paypal_checkout_ready():
-            mode = "Sandbox" if (creds and creds.sandbox_mode) else "Live"
-            return _badge(f"Checkout ready ({mode})", "ok")
-        if creds and is_demo_paypal_credentials(
-            client_id=creds.client_id,
-            client_secret=creds.client_secret,
-            plan_pro_monthly=creds.plan_pro_monthly,
-            webhook_id=creds.webhook_id,
-        ):
-            return _badge("Demo saved - replace keys", "warn")
-        if obj.is_enabled:
-            secret = decrypt_str(obj.client_secret_enc).strip()
-            if secret and is_demo_paypal_credentials(
-                client_id=(obj.client_id or "").strip(),
-                client_secret=secret,
-                plan_pro_monthly=(obj.plan_pro_monthly or "").strip(),
-                webhook_id=(obj.webhook_id or "").strip(),
-            ):
-                return _badge("Demo saved - replace keys", "warn")
-        if billing_demo_mode():
-            return _badge("Demo mode (local)", "pro")
-        if not obj.is_enabled:
-            if creds and creds.source == "env":
-                return _badge("Using .env", "warn")
-            return _badge("Disabled", "muted")
-        if creds and creds.client_secret:
-            return _badge("Secret set (add client ID + plan)", "warn")
-        return _badge("Missing client secret", "danger")
-
-    @admin.display(description="Current client secret")
-    def masked_client_secret(self, obj):
-        return masked_paypal_secret(obj.client_secret_enc)
-
-    def save_model(self, request, obj, form, change):
-        secret = (form.cleaned_data.get("client_secret") or "").strip()
-        if secret:
-            obj.client_secret_enc = encrypt_str(secret)
-        obj.singleton_key = 1
-        super().save_model(request, obj, form, change)
-
-
 admin_site.register(User, MailPilotUserAdmin)
 admin_site.register(Group, MailPilotGroupAdmin)
 admin_site.register(UserProfile, UserProfileAdmin)
 admin_site.register(UserMailSettings, UserMailSettingsAdmin)
 admin_site.register(MailAccount, MailAccountAdmin)
 admin_site.register(UserSubscription, UserSubscriptionAdmin)
+admin_site.register(BillingPaymentEvent, BillingPaymentEventAdmin)
 admin_site.register(UsageCounter, UsageCounterAdmin)
 admin_site.register(DailySendCounter, DailySendCounterAdmin)
 admin_site.register(UsageEvent, UsageEventAdmin)
@@ -1400,5 +1095,3 @@ admin_site.register(MarketingPricingPlan, MarketingPricingPlanAdmin)
 admin_site.register(ContactSubmission, ContactSubmissionAdmin)
 admin_site.register(AuditLog, AuditLogAdmin)
 admin_site.register(PasswordResetOTP, PasswordResetOTPAdmin)
-admin_site.register(Stripe, StripeConfigAdmin)
-admin_site.register(PayPal, PayPalConfigAdmin)
