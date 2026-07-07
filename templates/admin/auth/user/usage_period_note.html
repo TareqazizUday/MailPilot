@@ -1,0 +1,79 @@
+{% load i18n %}
+
+<div class="mp-user-list-hero mb-4 p-5 rounded-default border border-base-200 bg-white dark:bg-base-900 dark:border-base-800">
+
+  <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+
+    <div>
+
+      <p class="mp-dash-econ-tag font-semibold text-xs tracking-widest uppercase">{% trans "Customer accounts" %}</p>
+
+      <h2 class="font-semibold mt-1 text-lg text-important">{% trans "Usage & billing" %} · {{ mp_usage_period }}</h2>
+
+      <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">
+
+        {% trans "Token usage, mailbox pipeline, and estimated variable cost for the current billing period." %}
+
+      </p>
+
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+
+      <a href="{% url 'admin:index' %}" class="mp-dash-hero-btn mp-dash-hero-btn--ghost font-medium px-3 py-1.5 rounded-default text-sm">
+
+        {% trans "Dashboard" %}
+
+      </a>
+
+      <a href="{% url 'admin:core_marketingpricingsettings_change' 1 %}" class="mp-dash-hero-btn mp-dash-hero-btn--ghost font-medium px-3 py-1.5 rounded-default text-sm">
+
+        {% trans "Cost assumptions" %}
+
+      </a>
+
+    </div>
+
+  </div>
+
+  {% if mp_usage_totals %}
+
+  <div class="gap-3 grid grid-cols-2 md:grid-cols-4 mt-4 pt-4 border-t border-base-200 dark:border-base-800">
+
+    <div class="mp-user-list-stat">
+
+      <p class="mp-user-list-stat-label">{% trans "Plan tokens" %}</p>
+
+      <p class="mp-user-list-stat-value">{{ mp_usage_totals.plan_tokens }}</p>
+
+    </div>
+
+    <div class="mp-user-list-stat">
+
+      <p class="mp-user-list-stat-label">{% trans "Auto-sends" %}</p>
+
+      <p class="mp-user-list-stat-value">{{ mp_usage_totals.auto_sends }}</p>
+
+    </div>
+
+    <div class="mp-user-list-stat">
+
+      <p class="mp-user-list-stat-label">{% trans "LLM calls" %}</p>
+
+      <p class="mp-user-list-stat-value">{{ mp_usage_totals.llm_calls }}</p>
+
+    </div>
+
+    <div class="mp-user-list-stat mp-user-list-stat--cost">
+
+      <p class="mp-user-list-stat-label">{% trans "Est. cost" %}</p>
+
+      <p class="mp-user-list-stat-value">${{ mp_usage_totals.cost_usd }}</p>
+
+    </div>
+
+  </div>
+
+  {% endif %}
+
+</div>

@@ -569,6 +569,7 @@ def transport_summary(user: User) -> dict[str, Any]:
                 "gate_reason": gate.reason or "",
                 "payment_required": gate.reason == "payment_required",
                 "starter_trial_expired": bool(plan.get("starter_expired")),
+                "starter_trial_expired_reason": plan.get("starter_expired_reason") or "",
                 "features": billing.get("features") or {},
             }
         )

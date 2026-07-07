@@ -352,6 +352,65 @@
     });
   }
 
+  if (data.usage_economics && data.usage_economics.cost_chart) {
+    var costLabels = data.usage_economics.cost_chart.labels || [];
+    var costSeries = data.usage_economics.cost_chart.series || [];
+    if (costLabels.length) {
+      mount("mpChartUsageCost", Object.assign({
+        chart: {
+          type: "bar",
+          height: horizHeight(costLabels.length),
+          fontFamily: font,
+          toolbar: { show: false },
+        },
+        series: [{ name: "Est. cost (USD)", data: costSeries }],
+        colors: ["#f59e0b"],
+        plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: "68%" } },
+        grid: grid,
+        dataLabels: {
+          enabled: true,
+          formatter: function (v) {
+            return "$" + Number(v).toFixed(2);
+          },
+          style: { fontSize: "10px", fontWeight: 600 },
+        },
+        tooltip: {
+          theme: tooltipTheme,
+          y: { formatter: function (v) { return "$" + Number(v).toFixed(2); } },
+        },
+      }, horizCategoryAxis(costLabels), {
+        yaxis: {
+          labels: {
+            style: { colors: "#94a3b8", fontSize: "11px", fontFamily: font },
+            formatter: function (v) {
+              return "$" + Number(v).toFixed(2);
+            },
+          },
+          axisBorder: { show: false },
+          axisTicks: { show: false },
+        },
+      }));
+    }
+  }
+
+  if (data.usage_economics && data.usage_economics.pipeline_chart) {
+    var pipe = data.usage_economics.pipeline_chart;
+    mount("mpChartPipeline", {
+      chart: { type: "donut", height: 300, fontFamily: font, toolbar: { show: false } },
+      series: pipe.series || [],
+      labels: pipe.labels || [],
+      colors: ["#10b981", "#4f6ef7", "#94a3b8", "#f59e0b"],
+      legend: { position: "bottom", labels: { colors: "#94a3b8" } },
+      dataLabels: { enabled: true, style: { fontSize: "11px", fontWeight: 600 } },
+      plotOptions: {
+        pie: {
+          donut: { size: "62%" },
+        },
+      },
+      tooltip: { theme: tooltipTheme },
+    });
+  }
+
   mount("mpChartAutoSends", {
     chart: { type: "area", height: 280, fontFamily: font, toolbar: { show: false } },
     series: [{ name: "Auto-sends", data: data.auto_sends_daily.series }],
@@ -382,6 +441,63 @@
     dataLabels: { enabled: true, style: { fontSize: "11px" } },
     tooltip: { theme: tooltipTheme },
   });
+
+  var econBody = document.getElementById("mpUsageEconBody");
+  if (econBody && data.usage_economics) {
+    var econUsers = data.usage_economics.users || [];
+    var econTotals = data.usage_economics.totals || {};
+    if (econUsers.length) {
+      econUsers.forEach(function (row) {
+        var tr = document.createElement("tr");
+        var pct = row.token_pct != null ? row.token_pct : null;
+        var barTone = pct == null ? "custom" : pct >= 95 ? "danger" : pct >= 70 ? "warn" : "ok";
+        var barWidth = pct != null ? pct : 100;
+        var tokenCell =
+          pct != null
+            ? '<span class="mp-usage"><span class="mp-usage-bar mp-usage-' +
+              barTone +
+              '"><i style="width:' +
+              barWidth +
+              '%"></i></span><span class="mp-usage-label">' +
+              row.plan_tokens +
+              " / " +
+              row.token_limit +
+              "</span></span>"
+            : '<span class="mp-badge mp-badge-custom">' + row.plan_tokens + "</span>";
+        var nameCell =
+          '<div class="mp-dash-user-name">' + row.name + "</div>" +
+          (row.email && row.email !== row.name
+            ? '<div class="mp-dash-user-email">' + row.email + "</div>"
+            : "");
+        tr.innerHTML =
+          "<td>" + nameCell + "</td>" +
+          "<td>" + row.plan + "</td>" +
+          "<td>" + tokenCell + "</td>" +
+          "<td>" + row.auto_sends + "</td>" +
+          "<td>" + row.llm_calls + "</td>" +
+          "<td>" + row.drafts + "</td>" +
+          "<td>" + row.ignored + "</td>" +
+          '<td><span class="mp-dash-cost">$' + Number(row.cost_usd).toFixed(2) + "</span></td>";
+        econBody.appendChild(tr);
+      });
+      var foot = document.getElementById("mpUsageEconFoot");
+      if (foot) {
+        foot.innerHTML =
+          '<tr class="mp-dash-econ-total-row">' +
+          '<td colspan="2"><strong>Total (all users)</strong></td>' +
+          "<td><strong>" + (econTotals.plan_tokens || 0) + "</strong></td>" +
+          "<td><strong>" + (econTotals.auto_sends || 0) + "</strong></td>" +
+          "<td><strong>" + (econTotals.llm_calls || 0) + "</strong></td>" +
+          "<td><strong>" + (econTotals.drafts || 0) + "</strong></td>" +
+          "<td><strong>" + (econTotals.ignored || 0) + "</strong></td>" +
+          '<td><strong class="mp-dash-cost">$' + Number(econTotals.cost_usd || 0).toFixed(2) + "</strong></td>" +
+          "</tr>";
+      }
+    } else {
+      econBody.innerHTML =
+        '<tr><td colspan="8" class="mp-dash-empty">No usage activity this period yet.</td></tr>';
+    }
+  }
 
   var tbody = document.getElementById("mpTopTokenBody");
   if (tbody && data.top_token_users && data.top_token_users.length) {

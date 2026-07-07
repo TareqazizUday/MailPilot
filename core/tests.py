@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.contrib.auth.models import User
 from django.test import Client, SimpleTestCase, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from core.billing import (
     STARTER_LIFETIME_SEND_LIMIT,
+    STARTER_TRIAL_DAYS,
     can_enable_mailbox,
     can_use_integration,
     commit_auto_send,
@@ -13,6 +17,7 @@ from core.billing import (
     is_starter_expired,
     reserve_auto_send,
     set_subscription_plan,
+    starter_trial_days_left,
     tokens_per_auto_send_for_plan,
     TOKENS_PER_AUTO_SEND,
     usage_summary,
@@ -198,6 +203,36 @@ class BillingTests(TestCase):
         gate = can_enable_mailbox(self.user)
         self.assertFalse(gate.allowed)
         self.assertEqual(gate.reason, "starter_trial_expired")
+
+    def test_starter_expires_after_trial_days(self) -> None:
+        acc = MailAccount.objects.create(
+            user=self.user,
+            slot=1,
+            transport=MailAccount.TRANSPORT_GMAIL,
+            label="Gmail 1",
+            is_enabled=True,
+        )
+        sub = get_or_create_subscription(self.user)
+        sub.created_at = timezone.now() - timedelta(days=STARTER_TRIAL_DAYS + 1)
+        sub.save(update_fields=["created_at"])
+
+        self.assertTrue(is_starter_expired(sub))
+        self.assertEqual(starter_trial_days_left(sub), 0)
+
+        summary = usage_summary(self.user)
+        self.assertTrue(summary["starter_trial"]["expired"])
+        self.assertEqual(summary["starter_trial"]["expired_reason"], "time")
+
+        blocked = reserve_auto_send(self.user, acc, "msg-after-trial")
+        self.assertFalse(blocked.allowed)
+        self.assertEqual(blocked.reason, "starter_trial_expired")
+
+        gate = can_enable_mailbox(self.user)
+        self.assertFalse(gate.allowed)
+        self.assertEqual(gate.reason, "starter_trial_expired")
+
+        sub.refresh_from_db()
+        self.assertIsNotNone(sub.starter_expired_at)
 
 
 class CustomPlanPricingTests(SimpleTestCase):

@@ -7,7 +7,14 @@
   {% endif %}
   {% if bill_starter_expired %}
   <div class="bill-activated" style="border-color:rgba(251,191,36,0.45);background:rgba(251,191,36,0.08);color:#fde68a;">
-    <strong>Starter trial ended.</strong> You used all {{ bill_starter_sends_limit }} auto-sends. Upgrade to <a href="{% url 'billing_checkout_pro' %}" style="color:#a5b4fc;">Pro</a> or <a href="{% url 'billing_custom_request' %}" style="color:#a5b4fc;">Custom</a> to keep sending.
+    <strong>Starter trial ended.</strong>
+    {% if bill_starter_expired_reason == "time" %}
+    Your {{ bill_starter_trial_days }}-day free trial has ended. Upgrade to <a href="{% url 'billing_checkout_pro' %}" style="color:#a5b4fc;">Pro</a> or <a href="{% url 'billing_custom_request' %}" style="color:#a5b4fc;">Custom</a> to keep sending.
+    {% elif bill_starter_expired_reason == "both" %}
+  You used all {{ bill_starter_sends_limit }} auto-sends and your {{ bill_starter_trial_days }}-day trial has ended. Upgrade to <a href="{% url 'billing_checkout_pro' %}" style="color:#a5b4fc;">Pro</a> or <a href="{% url 'billing_custom_request' %}" style="color:#a5b4fc;">Custom</a> to keep sending.
+    {% else %}
+    You used all {{ bill_starter_sends_limit }} auto-sends. Upgrade to <a href="{% url 'billing_checkout_pro' %}" style="color:#a5b4fc;">Pro</a> or <a href="{% url 'billing_custom_request' %}" style="color:#a5b4fc;">Custom</a> to keep sending.
+    {% endif %}
   </div>
   {% endif %}
   <div class="bill-grid">
@@ -50,7 +57,11 @@
   <div class="bill-note" id="billNote">
     {% if bill_plan == "starter" %}
     <strong>Starter trial:</strong> {{ bill_starter_sends_used }}/{{ bill_starter_sends_limit }} auto-sends used
-    ({{ bill_tok_per_send }} tokens each, {{ bill_tok_limit }} total).{% if bill_starter_expired %}
+    ({{ bill_tok_per_send }} tokens each, {{ bill_tok_limit }} total).
+    {% if not bill_starter_expired and bill_starter_days_left > 0 %}
+    <strong>{{ bill_starter_days_left }}</strong> day{{ bill_starter_days_left|pluralize }} left in your {{ bill_starter_trial_days }}-day trial.
+    {% endif %}
+    {% if bill_starter_expired %}
     Trial ended - upgrade to send again.{% else %}
     You have <strong id="billSendsLeftNote">{{ bill_sends_left }}</strong> auto-send{{ bill_sends_left|pluralize }} left.{% endif %}
     {% else %}

@@ -1787,6 +1787,9 @@
       let tokenTxt = tok.limit == null ? (tok.used + ' tokens used') : (tok.used + '/' + tok.limit + ' tokens');
       if(trial.lifetime){
         tokenTxt = trial.sends_used + '/' + trial.sends_limit + ' trial auto-sends';
+        if(!trial.expired && trial.days_left > 0){
+          tokenTxt += ' · ' + trial.days_left + 'd left';
+        }
         if(trial.expired) tokenTxt += ' (ended)';
       }
       const inboxTxt = inbox.limit == null ? (inbox.used + ' inboxes') : (inbox.used + '/' + inbox.limit + ' inbox');

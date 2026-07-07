@@ -391,6 +391,86 @@
     --mp-kpi-b: #fb7185;
 }
 
+.mp-dash-kpi-card--support {
+    --mp-kpi-a: #6366f1;
+    --mp-kpi-b: #818cf8;
+}
+
+.mp-dash-kpi-card--alert {
+    border-color: rgba(251, 191, 36, 0.45) !important;
+    box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.12);
+}
+
+.mp-dash-support-panel--alert {
+    border-color: rgba(251, 191, 36, 0.35);
+}
+
+.mp-dash-support-ticket {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--mp-dash-border, #e2e8f0) 100%, transparent);
+    background: color-mix(in srgb, var(--mp-dash-surface, #f8fafc) 60%, transparent);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+
+.dark .mp-dash-support-ticket {
+    border-color: rgb(51 65 85 / 0.8);
+    background: rgb(15 23 42 / 0.5);
+}
+
+.mp-dash-support-ticket:hover {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.06);
+    transform: translateX(2px);
+}
+
+.mp-dash-support-subj {
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mp-dash-support-meta {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dark .mp-dash-support-meta {
+    color: #94a3b8;
+}
+
+.mp-dash-support-badge {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    background: rgba(167, 139, 250, 0.1);
+    color: #a78bfa;
+    white-space: nowrap;
+}
+
+.mp-dash-support-empty {
+    background: color-mix(in srgb, var(--mp-dash-surface, #f8fafc) 40%, transparent);
+}
+
+.dark .mp-dash-support-empty {
+    background: rgb(15 23 42 / 0.35);
+}
+
 .mp-dash-kpi-card::after {
     content: "";
     position: absolute;
@@ -690,4 +770,219 @@
     font-size: 0.72rem;
     color: #94a3b8;
     margin-top: 0.15rem;
+}
+
+/* Usage economics panel */
+.mp-dash-econ-panel {
+    position: relative;
+    overflow: hidden;
+    border-color: rgba(245, 158, 11, 0.28) !important;
+    background: linear-gradient(
+        135deg,
+        rgba(245, 158, 11, 0.08) 0%,
+        rgba(255, 255, 255, 1) 42%,
+        rgba(248, 250, 252, 1) 100%
+    ) !important;
+}
+
+.dark .mp-dash-econ-panel {
+    background: linear-gradient(
+        135deg,
+        rgba(245, 158, 11, 0.12) 0%,
+        rgba(15, 23, 42, 0.96) 55%,
+        rgba(15, 23, 42, 1) 100%
+    ) !important;
+    border-color: rgba(245, 158, 11, 0.22) !important;
+}
+
+.mp-dash-econ-tag {
+    color: #d97706;
+}
+
+.dark .mp-dash-econ-tag {
+    color: #fbbf24;
+}
+
+.mp-dash-econ-link {
+    color: #4f6ef7;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.mp-dash-econ-link:hover {
+    text-decoration: underline;
+}
+
+.mp-dash-econ-stat {
+    padding: 0.85rem 1rem;
+    border-radius: 0.65rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.dark .mp-dash-econ-stat {
+    background: rgba(30, 41, 59, 0.55);
+    border-color: rgba(148, 163, 184, 0.12);
+}
+
+.mp-dash-econ-stat--cost {
+    border-color: rgba(245, 158, 11, 0.35);
+    background: linear-gradient(145deg, rgba(245, 158, 11, 0.12), rgba(255, 255, 255, 0.85));
+}
+
+.dark .mp-dash-econ-stat--cost {
+    background: linear-gradient(145deg, rgba(245, 158, 11, 0.16), rgba(30, 41, 59, 0.7));
+}
+
+.mp-dash-econ-stat-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+}
+
+.mp-dash-econ-stat-value {
+    margin-top: 0.35rem;
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #0f172a;
+}
+
+.dark .mp-dash-econ-stat-value {
+    color: #f1f5f9;
+}
+
+.mp-dash-econ-stat--cost .mp-dash-econ-stat-value {
+    color: #d97706;
+}
+
+.dark .mp-dash-econ-stat--cost .mp-dash-econ-stat-value {
+    color: #fbbf24;
+}
+
+.mp-dash-econ-stat--link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.mp-dash-econ-stat--link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.45);
+}
+
+.mp-dash-econ-stat--link:hover .mp-dash-econ-stat-hint {
+    color: #d97706;
+}
+
+.dark .mp-dash-econ-stat--link:hover .mp-dash-econ-stat-hint {
+    color: #fbbf24;
+}
+
+.mp-dash-econ-stat-hint {
+    margin-top: 0.25rem;
+    font-size: 0.72rem;
+    color: #94a3b8;
+}
+
+.mp-dash-table--econ th,
+.mp-dash-table--econ td {
+    white-space: nowrap;
+}
+
+.mp-dash-table--econ td:first-child {
+    white-space: normal;
+    min-width: 10rem;
+}
+
+.mp-dash-cost {
+    font-weight: 700;
+    color: #d97706;
+}
+
+.dark .mp-dash-cost {
+    color: #fbbf24;
+}
+
+.mp-dash-econ-total-row td {
+    background: rgba(245, 158, 11, 0.08);
+    border-top: 2px solid rgba(245, 158, 11, 0.25);
+}
+
+.dark .mp-dash-econ-total-row td {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+/* Admin user changelist */
+.mp-user-list-hero {
+    border-color: rgba(79, 110, 247, 0.22) !important;
+    background: linear-gradient(
+        135deg,
+        rgba(79, 110, 247, 0.06) 0%,
+        rgba(255, 255, 255, 1) 50%,
+        rgba(248, 250, 252, 1) 100%
+    ) !important;
+}
+
+.dark .mp-user-list-hero {
+    background: linear-gradient(
+        135deg,
+        rgba(79, 110, 247, 0.14) 0%,
+        rgba(15, 23, 42, 0.98) 60%,
+        rgba(15, 23, 42, 1) 100%
+    ) !important;
+}
+
+.mp-user-list-stat-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+}
+
+.mp-user-list-stat-value {
+    margin-top: 0.2rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.dark .mp-user-list-stat-value {
+    color: #f1f5f9;
+}
+
+.mp-user-list-stat--cost .mp-user-list-stat-value {
+    color: #d97706;
+}
+
+.dark .mp-user-list-stat--cost .mp-user-list-stat-value {
+    color: #fbbf24;
+}
+
+.mp-user-plan-stack {
+    line-height: 1.35;
+}
+
+.mp-user-pipeline {
+    font-size: 0.78rem;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.dark .mp-user-pipeline {
+    color: #94a3b8;
+}
+
+#result_list td.field-account_col {
+    min-width: 11rem;
+}
+
+#result_list td.field-plan_billing_col {
+    min-width: 7.5rem;
 }

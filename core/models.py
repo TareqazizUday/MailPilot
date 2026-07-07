@@ -429,7 +429,10 @@ class MarketingPricingSettings(models.Model):
         default="Simple token plans for every inbox size. Connect your inbox in Setup, then let MailPilot draft or send safely."
     )
     demo_note = models.TextField(
-        default="Starter: 20 auto-sends total (80 tokens lifetime). Pro: monthly billing via Stripe. Draft mode does not use tokens."
+        default=(
+            "Starter: 20 auto-sends total (80 tokens lifetime) or 30-day trial, whichever comes first. "
+            "Pro: monthly billing via Stripe. Draft mode does not use tokens."
+        )
     )
     profit_api_cost_per_send_usd = models.DecimalField(
         max_digits=8,
@@ -442,6 +445,12 @@ class MarketingPricingSettings(models.Model):
         decimal_places=4,
         default=0.0000,
         help_text="Optional internal token cost per 1,000 plan tokens (USD).",
+    )
+    profit_llm_cost_per_analyze_usd = models.DecimalField(
+        max_digits=8,
+        decimal_places=4,
+        default=0.0020,
+        help_text="Estimated LLM cost per mailbox analyze (read → relevance + draft), excluding auto-send.",
     )
     updated_at = models.DateTimeField(auto_now=True)
 

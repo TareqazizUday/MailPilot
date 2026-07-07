@@ -7,9 +7,13 @@ from django.contrib import admin
 from django import forms
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.models import Group, User
+from django.contrib.admin.views.main import ChangeList
+from django.db.models import Count, Q
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from unfold.admin import ModelAdmin, StackedInline
 
 from core.admin_site import admin_site
@@ -19,6 +23,8 @@ from core.billing import (
     apply_plan_defaults,
     calculate_custom_price_cents,
     current_period_key,
+    has_paid_entitlement,
+    is_starter_expired,
     plan_defaults,
     set_subscription_plan,
     tokens_per_auto_send_for_plan,
@@ -51,6 +57,7 @@ from core.models import (
     UserProfile,
     UserSubscription,
 )
+from core.usage_analytics import usage_map_for_user_ids
 from core.widgets import CKEditorWidget
 
 
@@ -123,30 +130,180 @@ class UserSubscriptionInline(StackedInline):
     )
 
 
+class UserUsageChangeList(ChangeList):
+    def get_results(self, request):
+        super().get_results(request)
+        model_admin = self.model_admin
+        period = current_period_key()
+        user_ids = [obj.pk for obj in self.result_list]
+        model_admin._usage_period = period
+        model_admin._usage_map = usage_map_for_user_ids(user_ids, period) if user_ids else {}
+
+
+class SubscriptionPlanFilter(admin.SimpleListFilter):
+    title = "Plan"
+    parameter_name = "plan"
+
+    def lookups(self, request, model_admin):
+        return UserSubscription.PLAN_CHOICES
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(subscription__plan_code=self.value())
+        return queryset
+
+
 class MailPilotUserAdmin(ModelAdmin, DjangoUserAdmin):
-    list_display = ("username", "email", "full_name", "plan_badge", "is_staff", "is_active", "date_joined")
-    list_filter = ("is_staff", "is_active", "is_superuser", "date_joined")
-    search_fields = ("username", "email", "first_name", "last_name")
+    list_display = (
+        "account_col",
+        "plan_billing_col",
+        "mailboxes_col",
+        "token_usage_col",
+        "pipeline_col",
+        "est_cost_col",
+        "status_col",
+        "last_login_col",
+        "date_joined",
+    )
+    list_filter = (SubscriptionPlanFilter, "is_active", "is_staff", "date_joined")
+    search_fields = ("username", "email", "first_name", "last_name", "profile__display_name", "profile__company")
     ordering = ("-date_joined",)
     inlines = [UserProfileInline, UserSubscriptionInline]
+    list_before_template = "admin/auth/user/usage_period_note.html"
+    list_per_page = 25
+    _usage_map: dict = {}
+    _usage_period: str = ""
 
-    @admin.display(description="Name")
-    def full_name(self, obj):
-        name = obj.get_full_name().strip()
-        return name or "-"
+    def get_changelist(self, request, **kwargs):
+        return UserUsageChangeList
 
-    @admin.display(description="Plan")
-    def plan_badge(self, obj):
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("subscription", "profile")
+            .annotate(_mailbox_count=Count("mail_accounts", filter=Q(mail_accounts__is_enabled=True)))
+        )
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        period = current_period_key()
+        extra_context["mp_usage_period"] = period
+        from core.usage_analytics import build_usage_economics
+        from core.admin_dashboard import _user_label
+
+        extra_context["mp_usage_totals"] = build_usage_economics(period, user_label_fn=_user_label).get("totals", {})
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def _usage_row(self, obj: User) -> dict:
+        return self._usage_map.get(obj.pk, {})
+
+    @admin.display(description="Account", ordering="email")
+    def account_col(self, obj):
+        profile = getattr(obj, "profile", None)
+        name = ""
+        if profile and (profile.display_name or "").strip():
+            name = profile.display_name.strip()
+        if not name:
+            name = obj.get_full_name().strip() or obj.username
+        staff = format_html(' <span class="mp-badge mp-badge-pro">Staff</span>') if obj.is_staff else ""
+        return format_html(
+            '<div class="mp-dash-user-name">{}{}</div>'
+            '<div class="mp-dash-user-email">{}</div>',
+            name,
+            staff,
+            obj.email or obj.username,
+        )
+
+    @admin.display(description="Plan & billing")
+    def plan_billing_col(self, obj):
         try:
             sub = obj.subscription
         except UserSubscription.DoesNotExist:
             return _badge("No plan", "muted")
-        tones = {
+        plan_tones = {
             UserSubscription.PLAN_STARTER: "starter",
             UserSubscription.PLAN_PRO: "pro",
             UserSubscription.PLAN_CUSTOM: "custom",
         }
-        return _badge(sub.get_plan_code_display(), tones.get(sub.plan_code, "muted"))
+        plan = _badge(sub.get_plan_code_display(), plan_tones.get(sub.plan_code, "muted"))
+        if has_paid_entitlement(sub):
+            billing = _badge("Paid", "ok")
+        elif is_starter_expired(sub):
+            billing = _badge("Trial ended", "danger")
+        elif sub.plan_code == UserSubscription.PLAN_STARTER:
+            billing = _badge("Free trial", "starter")
+        elif sub.status == UserSubscription.STATUS_PAST_DUE:
+            billing = _badge("Past due", "danger")
+        elif sub.status == UserSubscription.STATUS_CANCELED:
+            billing = _badge("Canceled", "muted")
+        else:
+            billing = _badge("Unpaid", "warn")
+        return format_html('<div class="mp-user-plan-stack">{}<div class="mt-1">{}</div></div>', plan, billing)
+
+    @admin.display(description="Inboxes", ordering="_mailbox_count")
+    def mailboxes_col(self, obj):
+        n = int(getattr(obj, "_mailbox_count", 0) or 0)
+        if not n:
+            return _badge("0", "muted")
+        return _badge(str(n), "pro")
+
+    @admin.display(description="Tokens")
+    def token_usage_col(self, obj):
+        row = self._usage_row(obj)
+        used = int(row.get("plan_tokens") or 0)
+        if not row:
+            return _badge("0", "muted")
+        limit = row.get("token_limit")
+        if not limit:
+            return _badge(f"{used}", "custom" if used else "muted")
+        pct = int(row.get("token_pct") or 0)
+        tone = "ok" if pct < 70 else ("warn" if pct < 95 else "danger")
+        return format_html(
+            '<span class="mp-usage"><span class="mp-usage-bar mp-usage-{}"><i style="width:{}%"></i></span>'
+            '<span class="mp-usage-label">{}/{}</span></span>',
+            tone,
+            pct,
+            used,
+            limit,
+        )
+
+    @admin.display(description="Pipeline")
+    def pipeline_col(self, obj):
+        row = self._usage_row(obj)
+        sends = int(row.get("auto_sends") or 0)
+        llm = int(row.get("llm_calls") or 0)
+        drafts = int(row.get("drafts") or 0)
+        if not sends and not llm and not drafts:
+            return "—"
+        parts = [f"{sends} sends", f"{llm} LLM"]
+        if drafts:
+            parts.append(f"{drafts} draft")
+        return format_html('<span class="mp-user-pipeline">{}</span>', " · ".join(parts))
+
+    @admin.display(description="Est. cost")
+    def est_cost_col(self, obj):
+        cost = self._usage_row(obj).get("cost_usd")
+        if not cost:
+            return "—"
+        tone = "ok" if cost < 1 else ("warn" if cost < 10 else "danger")
+        return _badge(f"${cost:.2f}", tone)
+
+    @admin.display(description="Status", ordering="is_active")
+    def status_col(self, obj):
+        return _badge("Active", "ok") if obj.is_active else _badge("Inactive", "muted")
+
+    @admin.display(description="Last login", ordering="last_login")
+    def last_login_col(self, obj):
+        if not obj.last_login:
+            return _badge("Never", "muted")
+        return timezone.localtime(obj.last_login).strftime("%b %d, %Y")
+
+    @admin.display(description="Joined", ordering="date_joined")
+    def date_joined(self, obj):
+        if not obj.date_joined:
+            return "—"
+        return timezone.localtime(obj.date_joined).strftime("%b %d, %Y")
 
 
 class MailPilotGroupAdmin(_MPModelAdmin):
@@ -935,7 +1092,13 @@ class MarketingPricingSettingsAdmin(_MPModelAdmin):
         ("Body copy", {"fields": ("intro", "demo_note")}),
         (
             "Profit assumptions (admin only)",
-            {"fields": ("profit_api_cost_per_send_usd", "profit_token_cost_per_1k_usd")},
+            {
+                "fields": (
+                    "profit_api_cost_per_send_usd",
+                    "profit_llm_cost_per_analyze_usd",
+                    "profit_token_cost_per_1k_usd",
+                ),
+            },
         ),
         ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
     )

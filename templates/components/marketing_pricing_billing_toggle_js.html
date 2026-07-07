@@ -184,6 +184,16 @@
 
 
 
+  function isYearlyStaticPlan(card) {
+
+    const plan = String(card.dataset.plan || '').toLowerCase();
+
+    return plan === 'starter';
+
+  }
+
+
+
   function applyCardPrices(interval, currency) {
 
     if (!cards.length) return;
@@ -204,7 +214,9 @@
 
       const save = card.dataset[billingPrefix + 'Save' + currencySuffix] || card.dataset[billingPrefix + 'Save'] || '';
 
-      const period = card.dataset[billingPrefix + 'Period' + currencySuffix] || card.dataset[billingPrefix + 'Period'] || '';
+      const periodPrefix = interval === 'yearly' && isYearlyStaticPlan(card) ? 'monthly' : billingPrefix;
+
+      const period = card.dataset[periodPrefix + 'Period' + currencySuffix] || card.dataset[periodPrefix + 'Period'] || '';
 
 
 
@@ -270,6 +282,98 @@
 
 
 
+  function parseCount(raw) {
+
+    const n = parseInt(String(raw || '').replace(/,/g, ''), 10);
+
+    return Number.isFinite(n) ? n : 0;
+
+  }
+
+
+
+  function formatCount(n) {
+
+    try { return Number(n || 0).toLocaleString(); } catch (e) { return String(n || 0); }
+
+  }
+
+
+
+  function yearlyFeatureTextFromMonthly(text) {
+
+    let out = String(text || '');
+
+    out = out.replace(/(\d[\d,]*)\s+tokens\s+per\s+month/ig, function (_, num) {
+
+      const yearly = parseCount(num) * 12;
+
+      if (!yearly) return _;
+
+      return formatCount(yearly) + ' tokens per year';
+
+    });
+
+    out = out.replace(/up to\s+(\d[\d,]*)\s+auto-sent\s+repl(?:y|ies)/ig, function (_, num) {
+
+      const yearly = parseCount(num) * 12;
+
+      if (!yearly) return _;
+
+      return 'up to ' + formatCount(yearly) + ' auto-sent replies';
+
+    });
+
+    out = out.replace(/per\s+month/ig, 'per year');
+
+    return out;
+
+  }
+
+
+
+  function applyCardFeatureText(interval) {
+
+    if (!cards.length) return;
+
+    cards.forEach((card) => {
+
+      if (interval === 'yearly' && isYearlyStaticPlan(card)) {
+
+        return;
+
+      }
+
+      const lines = Array.from(card.querySelectorAll('.pricing-feature-text'));
+
+      if (!lines.length) return;
+
+      lines.forEach((line) => {
+
+        if (!line.dataset.featureMonthly) {
+
+          line.dataset.featureMonthly = line.textContent || '';
+
+        }
+
+        if (interval === 'yearly') {
+
+          line.textContent = yearlyFeatureTextFromMonthly(line.dataset.featureMonthly || '');
+
+        } else {
+
+          line.textContent = line.dataset.featureMonthly || '';
+
+        }
+
+      });
+
+    });
+
+  }
+
+
+
   function applyInterval(interval, options) {
 
     const opts = options || {};
@@ -299,6 +403,7 @@
 
 
     applyCardPrices(normalized, currency);
+    applyCardFeatureText(normalized);
 
 
 

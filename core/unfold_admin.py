@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-from core.admin_dashboard import build_chart_payload, build_dashboard_stats
+from core.admin_dashboard import build_chart_payload, build_dashboard_stats, build_support_dashboard_slice, _user_label
+from core.usage_analytics import build_usage_economics
+from core.billing import current_period_key
 
 
 def dashboard_callback(request, context):
-    charts = build_chart_payload()
+    period = current_period_key()
+    usage_economics = build_usage_economics(period, user_label_fn=_user_label)
+    charts = build_chart_payload(usage_economics=usage_economics)
     context.update(
         {
-            "mp_stats": build_dashboard_stats(),
+            "mp_stats": build_dashboard_stats(usage_economics=usage_economics),
+            "mp_support": build_support_dashboard_slice(),
             "mp_charts": charts,
             "mp_period": charts["period"],
         }

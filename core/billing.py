@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from django.db import IntegrityError, transaction
@@ -30,6 +30,7 @@ PROVIDER_SAFE_CAPS = {
 TOKENS_PER_AUTO_SEND = 5  # default (Pro); Starter uses 4 via plan defaults
 STARTER_LIFETIME_SEND_LIMIT = 20
 STARTER_LIFETIME_TOKEN_LIMIT = 80
+STARTER_TRIAL_DAYS = 30
 
 
 PLAN_DEFAULTS: dict[str, dict[str, Any]] = {
@@ -94,12 +95,55 @@ def tokens_per_auto_send_for_plan(plan_code: str) -> int:
     return int(plan_defaults(plan_code).get("tokens_per_auto_send") or TOKENS_PER_AUTO_SEND)
 
 
+def starter_trial_ends_at(sub: UserSubscription):
+    started = sub.created_at or timezone.now()
+    if timezone.is_naive(started):
+        started = timezone.make_aware(started, timezone.get_current_timezone())
+    return started + timedelta(days=STARTER_TRIAL_DAYS)
+
+
+def _starter_send_limit_reached(sub: UserSubscription) -> bool:
+    return int(sub.starter_lifetime_sends or 0) >= STARTER_LIFETIME_SEND_LIMIT
+
+
+def _starter_time_limit_reached(sub: UserSubscription) -> bool:
+    if sub.plan_code != PLAN_STARTER:
+        return False
+    return timezone.now() >= starter_trial_ends_at(sub)
+
+
+def starter_trial_days_left(sub: UserSubscription) -> int:
+    if sub.plan_code != PLAN_STARTER or _starter_time_limit_reached(sub):
+        return 0
+    ends = starter_trial_ends_at(sub)
+    now = timezone.now()
+    if now >= ends:
+        return 0
+    return max(0, (ends.date() - now.date()).days)
+
+
+def starter_expired_reason(sub: UserSubscription) -> str | None:
+    if sub.plan_code != PLAN_STARTER:
+        return None
+    sends_hit = _starter_send_limit_reached(sub)
+    time_hit = _starter_time_limit_reached(sub)
+    if not sends_hit and not time_hit and sub.starter_expired_at is None:
+        return None
+    if sends_hit and time_hit:
+        return "both"
+    if sends_hit:
+        return "sends"
+    if time_hit:
+        return "time"
+    return "expired"
+
+
 def is_starter_expired(sub: UserSubscription) -> bool:
     if sub.plan_code != PLAN_STARTER:
         return False
     if sub.starter_expired_at is not None:
         return True
-    return int(sub.starter_lifetime_sends or 0) >= STARTER_LIFETIME_SEND_LIMIT
+    return _starter_send_limit_reached(sub) or _starter_time_limit_reached(sub)
 
 
 def has_paid_entitlement(sub: UserSubscription) -> bool:
@@ -114,7 +158,7 @@ def has_paid_entitlement(sub: UserSubscription) -> bool:
 def _expire_starter_trial_if_needed(sub: UserSubscription) -> None:
     if sub.plan_code != PLAN_STARTER:
         return
-    if int(sub.starter_lifetime_sends or 0) < STARTER_LIFETIME_SEND_LIMIT:
+    if not is_starter_expired(sub):
         return
     if sub.starter_expired_at is None:
         sub.starter_expired_at = timezone.now()
@@ -123,6 +167,9 @@ def _expire_starter_trial_if_needed(sub: UserSubscription) -> None:
 
 def starter_trial_gate(user) -> GateResult:
     sub = get_or_create_subscription(user)
+    if sub.plan_code == PLAN_STARTER:
+        _expire_starter_trial_if_needed(sub)
+        sub.refresh_from_db(fields=["starter_expired_at", "updated_at"])
     if sub.plan_code == PLAN_STARTER and is_starter_expired(sub):
         return GateResult(False, "starter_trial_expired", usage_summary(user))
     return GateResult(True, "", usage_summary(user))
@@ -198,6 +245,9 @@ def set_subscription_plan(sub: UserSubscription, plan_code: str, *, status: str 
 
 def get_plan_limits(user) -> dict[str, Any]:
     sub = apply_plan_defaults(get_or_create_subscription(user))
+    if sub.plan_code == PLAN_STARTER:
+        _expire_starter_trial_if_needed(sub)
+        sub.refresh_from_db(fields=["starter_expired_at", "updated_at"])
     defaults = plan_defaults(sub.plan_code)
 
     def pick(key: str):
@@ -218,6 +268,10 @@ def get_plan_limits(user) -> dict[str, Any]:
         "stripe_subscription_id": sub.stripe_subscription_id,
         "starter_lifetime_sends": int(sub.starter_lifetime_sends or 0),
         "starter_lifetime_send_limit": STARTER_LIFETIME_SEND_LIMIT,
+        "starter_trial_days": STARTER_TRIAL_DAYS,
+        "starter_trial_days_left": starter_trial_days_left(sub),
+        "starter_trial_ends_at": starter_trial_ends_at(sub).isoformat(),
+        "starter_expired_reason": starter_expired_reason(sub),
         "starter_expired": is_starter_expired(sub),
         "paid": has_paid_entitlement(sub),
     }
@@ -313,6 +367,7 @@ def usage_summary(user, *, account: MailAccount | None = None) -> dict[str, Any]
             "telegram_enabled": limits["telegram_enabled"],
             "whatsapp_enabled": limits["whatsapp_enabled"],
             "starter_expired": bool(limits.get("starter_expired")),
+            "starter_expired_reason": limits.get("starter_expired_reason"),
             "paid": bool(limits.get("paid")),
         },
         "period_key": period_key,
@@ -326,6 +381,10 @@ def usage_summary(user, *, account: MailAccount | None = None) -> dict[str, Any]
             "sends_used": int(limits.get("starter_lifetime_sends") or 0),
             "sends_limit": STARTER_LIFETIME_SEND_LIMIT,
             "sends_left": max(0, STARTER_LIFETIME_SEND_LIMIT - int(limits.get("starter_lifetime_sends") or 0)),
+            "days_total": STARTER_TRIAL_DAYS,
+            "days_left": int(limits.get("starter_trial_days_left") or 0),
+            "trial_ends_at": limits.get("starter_trial_ends_at"),
+            "expired_reason": limits.get("starter_expired_reason"),
             "expired": bool(limits.get("starter_expired")),
             "lifetime": plan_code == PLAN_STARTER,
         },
@@ -398,9 +457,12 @@ def profile_billing_display(billing: dict[str, Any] | None = None) -> dict[str, 
         "bill_inbox_limit": int(inbox_limit) if inbox_limit is not None else inbox_used,
         "bill_inbox_unlimited": inbox_unlimited,
         "bill_starter_expired": starter_expired,
+        "bill_starter_expired_reason": str(starter_trial.get("expired_reason") or ""),
         "bill_starter_lifetime": plan == PLAN_STARTER,
         "bill_starter_sends_used": int(starter_trial.get("sends_used") or sends_used),
         "bill_starter_sends_limit": int(starter_trial.get("sends_limit") or STARTER_LIFETIME_SEND_LIMIT),
+        "bill_starter_days_left": int(starter_trial.get("days_left") or 0),
+        "bill_starter_trial_days": int(starter_trial.get("days_total") or STARTER_TRIAL_DAYS),
     }
 
 
@@ -502,6 +564,8 @@ def reserve_auto_send(user, account: MailAccount, message_id: str) -> BillingRes
             counter = UsageCounter.objects.create(user=user, period_key=period_key)
         limits = get_plan_limits(user)
         if plan_code == PLAN_STARTER:
+            if limits.get("starter_expired"):
+                return BillingReservation(False, "starter_trial_expired", None, usage_summary(user, account=account))
             lifetime_sends = int(limits.get("starter_lifetime_sends") or 0)
             if lifetime_sends >= STARTER_LIFETIME_SEND_LIMIT:
                 return BillingReservation(False, "starter_trial_expired", None, usage_summary(user, account=account))

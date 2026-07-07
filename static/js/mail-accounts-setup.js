@@ -38,12 +38,27 @@
     return { res, j };
   }
 
+  function starterTrialExpiredHint(j) {
+    const reason =
+      (j && j.billing && j.billing.starter_trial && j.billing.starter_trial.expired_reason) ||
+      (j && j.billing && j.billing.plan && j.billing.plan.starter_expired_reason) ||
+      (transportSummary && transportSummary.starter_trial_expired_reason) ||
+      '';
+    if (reason === 'time') {
+      return '\n\nYour 30-day Starter trial has ended. Upgrade to Pro or contact us for Custom.';
+    }
+    if (reason === 'both') {
+      return '\n\nYour Starter trial ended (30 days and 20 auto-sends). Upgrade to Pro or contact us for Custom.';
+    }
+    return '\n\nYour free Starter trial (20 auto-sends) has ended. Upgrade to Pro or contact us for Custom.';
+  }
+
   function showPlanError(j, fallback) {
     const msg = (j && (j.error || j.detail)) || fallback || 'Plan limit reached';
     if (j && j.upgrade_required) {
       const hint =
         j.error === 'starter_trial_expired'
-          ? '\n\nYour free Starter trial (20 auto-sends) has ended. Upgrade to Pro or contact us for Custom.'
+          ? starterTrialExpiredHint(j)
           : j.error === 'payment_required'
             ? '\n\nComplete payment for your plan before adding mailboxes.'
             : j.error === 'plan_inbox_limit_reached'
@@ -224,12 +239,19 @@
     const el = document.getElementById('paymentRequiredBanner');
     if (!el) return;
     const expired = !!transportSummary.starter_trial_expired;
+    const expiredReason = transportSummary.starter_trial_expired_reason || '';
     const pay = !!transportSummary.payment_required;
     if (expired) {
       el.style.display = '';
+      const expiredMsg =
+        expiredReason === 'time'
+          ? 'Your <strong>30-day</strong> Starter trial has ended. Upgrade to <strong>Pro</strong> or <strong>Custom</strong> to add mailboxes and run automation.'
+          : expiredReason === 'both'
+            ? 'Your Starter trial ended (30 days and 20 auto-sends). Upgrade to <strong>Pro</strong> or <strong>Custom</strong> to add mailboxes and run automation.'
+            : 'Your 20 auto-send trial is over. Upgrade to <strong>Pro</strong> or <strong>Custom</strong> to add mailboxes and run automation.';
       el.innerHTML =
         '<div class="oauth-h"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="color:var(--red);"></i> Starter trial ended</div>' +
-        '<p class="oauth-txt" style="margin:0;">Your 20 auto-send trial is over. Upgrade to <strong>Pro</strong> or <strong>Custom</strong> to add mailboxes and run automation.</p>';
+        '<p class="oauth-txt" style="margin:0;">' + expiredMsg + '</p>';
       return;
     }
     if (pay) {

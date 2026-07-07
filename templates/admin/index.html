@@ -52,6 +52,12 @@
 
       <div class="flex flex-wrap gap-2">
 
+        <a class="mp-dash-hero-btn mp-dash-hero-btn--ghost font-medium px-4 py-2 rounded-default text-sm" href="{% url 'admin:support_inbox' %}">
+
+          {% trans "Support inbox" %}{% if mp_support.unread_count %} ({{ mp_support.unread_count }}){% endif %}
+
+        </a>
+
         <a class="mp-dash-hero-btn mp-dash-hero-btn--ghost font-medium px-4 py-2 rounded-default text-sm" href="/">
 
           {% trans "Open app" %}
@@ -70,7 +76,7 @@
 
 
 
-    <div class="gap-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+    <div class="gap-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
 
       <a href="{{ mp_stats.links.users }}" class="mp-dash-kpi-card mp-dash-kpi-card--users bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800" title="{% trans 'View all users' %}">
 
@@ -104,7 +110,7 @@
 
         <p class="mp-dash-kpi-value font-bold mt-2 text-3xl">{{ mp_stats.tokens_this_month }}</p>
 
-        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">{% trans "This month" %}</p>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">${{ mp_stats.estimated_cost_usd }} {% trans "est. cost" %}</p>
 
       </a>
 
@@ -156,11 +162,213 @@
 
       </a>
 
+      <a href="{{ mp_stats.links.support_inbox }}" class="mp-dash-kpi-card mp-dash-kpi-card--support bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800{% if mp_support.unread_count %} mp-dash-kpi-card--alert{% endif %}" title="{% trans 'Unread support tickets' %}">
+
+        <span class="mp-dash-kpi-dot" aria-hidden="true"></span>
+
+        <p class="mp-dash-kpi-label font-semibold text-xs tracking-wide uppercase">{% trans "Support" %}</p>
+
+        <p class="mp-dash-kpi-value font-bold mt-2 text-3xl">{{ mp_support.unread_count }}</p>
+
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-sm">
+
+          {% if mp_support.unread_count %}
+
+            {% trans "new ticket" %}{{ mp_support.unread_count|pluralize }}
+
+          {% else %}
+
+            {{ mp_support.total_count }} {% trans "total" %}
+
+          {% endif %}
+
+        </p>
+
+      </a>
+
+    </div>
+
+
+
+    <div class="mp-dash-support-panel bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800{% if mp_support.unread_count %} mp-dash-support-panel--alert{% endif %}">
+
+      <div class="flex flex-wrap items-start justify-between gap-3">
+
+        <div>
+
+          <p class="mp-dash-econ-tag font-semibold text-xs tracking-widest uppercase">{% trans "Support inbox" %}</p>
+
+          <h3 class="font-semibold mt-1 text-lg text-important">
+
+            {% if mp_support.unread_count %}
+
+              {% blocktrans count counter=mp_support.unread_count %}{{ counter }} new ticket{% plural %}{{ counter }} new tickets{% endblocktrans %}
+
+            {% else %}
+
+              {% trans "No new tickets" %}
+
+            {% endif %}
+
+          </h3>
+
+          <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">
+
+            {% trans "User messages from the Support menu — reply with text and screenshots." %}
+
+          </p>
+
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+
+          <a href="{{ mp_support.inbox_url }}" class="mp-dash-hero-btn mp-dash-hero-btn--primary font-medium px-4 py-2 rounded-default text-sm">
+
+            {% trans "Open inbox" %}
+
+          </a>
+
+          <a href="{{ mp_support.all_tickets_url }}" class="mp-dash-hero-btn mp-dash-hero-btn--ghost font-medium px-4 py-2 rounded-default text-sm">
+
+            {% trans "All tickets" %}
+
+          </a>
+
+        </div>
+
+      </div>
+
+      {% if mp_support.unread_tickets %}
+
+      <div class="flex flex-col gap-2 mt-4">
+
+        {% for t in mp_support.unread_tickets %}
+
+        <a href="{% url 'admin:support_inbox_detail' t.pk %}" class="mp-dash-support-ticket">
+
+          <div class="min-w-0">
+
+            <div class="mp-dash-support-subj">#{{ t.pk }} · {{ t.subject }}</div>
+
+            <div class="mp-dash-support-meta">
+
+              {{ t.user.get_full_name|default:t.user.username }}{% if t.user.email %} · {{ t.user.email }}{% endif %}
+
+              · {{ t.get_category_display }} · {{ t.last_message_at|date:"M j, H:i" }}
+
+            </div>
+
+          </div>
+
+          <span class="mp-dash-support-badge">{{ t.get_status_display }}</span>
+
+        </a>
+
+        {% endfor %}
+
+      </div>
+
+      {% else %}
+
+      <div class="mp-dash-support-empty mt-4 rounded-default border border-dashed border-base-300 px-5 py-6 text-center text-sm text-font-subtle-light dark:border-base-600 dark:text-font-subtle-dark">
+
+        {% trans "When users open tickets from the app Support menu, they will appear here." %}
+
+      </div>
+
+      {% endif %}
+
+    </div>
+
+
+
+    <div class="mp-dash-econ-panel bg-white border border-base-200 p-6 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+
+      <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+
+        <div>
+
+          <p class="mp-dash-econ-tag font-semibold text-xs tracking-widest uppercase">{% trans "Usage economics" %}</p>
+
+          <h3 class="font-semibold mt-1 text-lg text-important">{% trans "Mailbox → LLM → send pipeline" %} · {{ mp_period }}</h3>
+
+          <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">
+
+            {% trans "Plan tokens bill on auto-send only. LLM analyze cost applies to drafts and ignored mail too." %}
+
+          </p>
+
+        </div>
+
+        <a href="{% url 'admin:core_marketingpricingsettings_change' 1 %}" class="mp-dash-econ-link text-sm">
+
+          {% trans "Edit cost assumptions" %}
+
+        </a>
+
+      </div>
+
+      <div class="gap-3 grid grid-cols-2 lg:grid-cols-4 mt-5">
+
+        <div class="mp-dash-econ-stat">
+
+          <p class="mp-dash-econ-stat-label">{% trans "Plan tokens used" %}</p>
+
+          <p class="mp-dash-econ-stat-value">{{ mp_stats.tokens_this_month }}</p>
+
+          <p class="mp-dash-econ-stat-hint">{{ mp_stats.auto_sends_period }} {% trans "auto-sends" %}</p>
+
+        </div>
+
+        <div class="mp-dash-econ-stat">
+
+          <p class="mp-dash-econ-stat-label">{% trans "Mailbox handled" %}</p>
+
+          <p class="mp-dash-econ-stat-value">{{ mp_stats.mailbox_handled_period }}</p>
+
+          <p class="mp-dash-econ-stat-hint">{% trans "read → analyze" %}</p>
+
+        </div>
+
+        <div class="mp-dash-econ-stat">
+
+          <p class="mp-dash-econ-stat-label">{% trans "LLM calls" %}</p>
+
+          <p class="mp-dash-econ-stat-value">{{ mp_stats.llm_calls_period }}</p>
+
+          <p class="mp-dash-econ-stat-hint">{% trans "relevance + reply" %}</p>
+
+        </div>
+
+        <a href="{% url 'admin:auth_user_changelist' %}" class="mp-dash-econ-stat mp-dash-econ-stat--cost mp-dash-econ-stat--link" title="{% trans 'View usage and cost by user' %}">
+
+          <p class="mp-dash-econ-stat-label">{% trans "Est. variable cost" %}</p>
+
+          <p class="mp-dash-econ-stat-value">${{ mp_stats.estimated_cost_usd }}</p>
+
+          <p class="mp-dash-econ-stat-hint">{% trans "all users" %} →</p>
+
+        </a>
+
+      </div>
+
     </div>
 
 
 
     <div class="mp-dash-chart-grid gap-4 grid grid-cols-1 xl:grid-cols-2">
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <h3 class="font-semibold text-important text-sm">{% trans "Est. cost by user" %} - {{ mp_period }}</h3>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Variable API + LLM + token overhead" %}</p>
+        <div id="mpChartUsageCost" class="mt-3"></div>
+      </div>
+
+      <div class="mp-dash-chart-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+        <h3 class="font-semibold text-important text-sm">{% trans "Mailbox pipeline" %} - {{ mp_period }}</h3>
+        <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "What happened after inbox read" %}</p>
+        <div id="mpChartPipeline" class="mt-3"></div>
+      </div>
 
       <div class="mp-dash-chart-card mp-dash-chart-card--donut bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
 
@@ -229,6 +437,56 @@
         <p class="mt-1 text-font-subtle-light dark:text-font-subtle-dark text-xs">{% trans "Pro + Custom first payments by month (estimate)" %}</p>
 
         <div id="mpChartPaid" class="mt-3"></div>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="mp-dash-table-card bg-white border border-base-200 p-5 rounded-default shadow-xs dark:bg-base-900 dark:border-base-800">
+
+      <h3 class="mp-dash-section-title font-semibold text-sm">{% trans "Usage & cost by user" %} - {{ mp_period }}</h3>
+
+      <p class="mt-1 mb-4 text-font-subtle-light dark:text-font-subtle-dark text-xs">
+
+        {% trans "Per-user plan tokens, mailbox pipeline, and estimated variable cost (USD)." %}
+
+      </p>
+
+      <div class="mp-dash-table-wrap overflow-x-auto">
+
+        <table class="mp-dash-table mp-dash-table--econ w-full text-sm">
+
+          <thead>
+
+            <tr>
+
+              <th>{% trans "User" %}</th>
+
+              <th>{% trans "Plan" %}</th>
+
+              <th>{% trans "Plan tokens" %}</th>
+
+              <th>{% trans "Auto-sends" %}</th>
+
+              <th>{% trans "LLM calls" %}</th>
+
+              <th>{% trans "Drafts" %}</th>
+
+              <th>{% trans "Ignored" %}</th>
+
+              <th>{% trans "Est. cost" %}</th>
+
+            </tr>
+
+          </thead>
+
+          <tbody id="mpUsageEconBody"></tbody>
+
+          <tfoot id="mpUsageEconFoot"></tfoot>
+
+        </table>
 
       </div>
 

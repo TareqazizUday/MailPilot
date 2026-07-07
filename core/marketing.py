@@ -303,12 +303,13 @@ DEFAULT_PRICING_SETTINGS = {
         "then let MailPilot draft or send safely."
     ),
     "demo_note": (
-        "Starter: 20 auto-sends total (80 tokens lifetime). Pro: monthly billing via Stripe. "
-        "Draft mode does not use tokens."
+        "Starter: 20 auto-sends total (80 tokens lifetime) or 30-day trial, whichever comes first. "
+        "Pro: monthly billing via Stripe. Draft mode does not use tokens."
     ),
 }
 
 _STARTER_FEATURES = """80 tokens lifetime (up to 20 auto-sent replies)
+30-day free trial (whichever limit hits first)
 20 auto-sends/day safety cap while active
 1 connected inbox (Gmail or IMAP)
 Basic KB: 1 crawl or upload
@@ -342,10 +343,10 @@ DEFAULT_PRICING_PLANS: list[dict[str, str | int | bool]] = [
         "ribbon_icon_class": "fa-solid fa-circle-check",
         "price_display": "",
         "price_suffix": "",
-        "period_text": "20 auto-sends total · then upgrade",
+        "period_text": "30-day trial · 20 auto-sends · then upgrade",
         "description": (
             "Connect one inbox, test AI replies, and keep draft mode unlimited. "
-            "After 20 auto-sent emails, upgrade to Pro or Custom."
+            "After 30 days or 20 auto-sent emails (whichever comes first), upgrade to Pro or Custom."
         ),
         "features": _STARTER_FEATURES,
         "cta_label": "Start free trial",
@@ -560,9 +561,9 @@ DEFAULT_FAQ_ITEMS: list[dict[str, str | int | bool]] = [
     {
         "question": "Is there a free plan?",
         "answer_html": (
-            "Yes. <strong>Starter</strong> is a free trial: one inbox and up to "
-            "<strong>20 auto-sent emails</strong> total (80 tokens). When the trial ends, upgrade to "
-            "Pro (Stripe) or contact us for a Custom plan."
+            "Yes. <strong>Starter</strong> is a free trial: one inbox, up to "
+            "<strong>20 auto-sent emails</strong> total (80 tokens), or <strong>30 days</strong> — whichever comes first. "
+            "When the trial ends, upgrade to Pro (Stripe) or contact us for a Custom plan."
         ),
         "icon_class": "fa-solid fa-gift",
         "sort_order": 5,

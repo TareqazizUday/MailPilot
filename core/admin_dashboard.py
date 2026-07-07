@@ -10,6 +10,8 @@ from django.utils import timezone
 from urllib.parse import urlencode
 
 from core.billing import current_period_key, has_paid_entitlement, is_starter_expired
+from core.support import OPEN_TICKET_STATUSES, staff_ticket_queryset, support_open_count_for_staff
+from core.usage_analytics import build_usage_economics
 from core.models import (
     ContactSubmission,
     CustomPlanQuote,
@@ -95,10 +97,28 @@ def build_kpi_links(*, period: str, today) -> dict[str, str]:
             {"notified_team__exact": "0"},
         ),
         "support_inbox": reverse("admin:support_inbox"),
+        "support_tickets": _admin_changelist(
+            "admin:core_supportticket_changelist",
+            {"unread_by_staff__exact": "1"},
+        ),
     }
 
 
-def build_dashboard_stats() -> dict:
+def build_support_dashboard_slice(*, limit: int = 6) -> dict:
+    unread_qs = staff_ticket_queryset().filter(
+        unread_by_staff=True,
+        status__in=OPEN_TICKET_STATUSES,
+    )
+    return {
+        "unread_count": support_open_count_for_staff(),
+        "total_count": SupportTicket.objects.count(),
+        "unread_tickets": list(unread_qs[:limit]),
+        "inbox_url": reverse("admin:support_inbox"),
+        "all_tickets_url": reverse("admin:core_supportticket_changelist"),
+    }
+
+
+def build_dashboard_stats(*, usage_economics: dict | None = None) -> dict:
     period = current_period_key()
     today = timezone.localdate()
     tokens_agg = UsageCounter.objects.filter(period_key=period).aggregate(total=Sum("tokens_used"))
@@ -132,19 +152,24 @@ def build_dashboard_stats() -> dict:
         "starter_expired": starter_expired,
         "active_mailboxes": MailAccount.objects.filter(is_enabled=True).count(),
         "tokens_this_month": int(tokens_agg.get("total") or 0),
+        "auto_sends_period": int((usage_economics or {}).get("totals", {}).get("auto_sends") or 0),
+        "llm_calls_period": int((usage_economics or {}).get("totals", {}).get("llm_calls") or 0),
+        "estimated_cost_usd": float((usage_economics or {}).get("totals", {}).get("cost_usd") or 0),
+        "mailbox_handled_period": int((usage_economics or {}).get("totals", {}).get("mailbox_handled") or 0),
         "auto_sends_today": UsageEvent.objects.filter(
             date=today,
             status=UsageEvent.STATUS_COMMITTED,
         ).count(),
         "open_contacts": ContactSubmission.objects.filter(notified_team=False).count(),
-        "open_support_tickets": SupportTicket.objects.filter(unread_by_staff=True).count(),
+        "open_support_tickets": support_open_count_for_staff(),
+        "total_support_tickets": SupportTicket.objects.count(),
         "mrr_estimate_usd": round(mrr_cents / 100, 2),
         "today": today.isoformat(),
         "links": build_kpi_links(period=period, today=today),
     }
 
 
-def build_chart_payload() -> dict:
+def build_chart_payload(*, usage_economics: dict | None = None) -> dict:
     period = current_period_key()
     month_labels = _month_labels(6)
 
@@ -349,6 +374,9 @@ def build_chart_payload() -> dict:
         integration_payload["telegram"].append(row["telegram"])
         integration_payload["whatsapp"].append(row["whatsapp"])
 
+    if usage_economics is None:
+        usage_economics = build_usage_economics(period, user_label_fn=_user_label)
+
     return {
         "plan_mix": {
             "labels": plan_labels,
@@ -396,4 +424,5 @@ def build_chart_payload() -> dict:
         "mailboxes_by_user": mailboxes_by_user,
         "integration_users": integration_payload,
         "period": period,
+        "usage_economics": usage_economics,
     }
