@@ -1,0 +1,76 @@
+{% extends "mailpilot_base.html" %}
+
+{% block title %}Support Inbox · MailPilot{% endblock %}
+
+{% block content %}
+<style>
+  .sup-wrap{max-width:980px;margin:0 auto;width:100%;}
+  .sup-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .sup-title{font-weight:950;font-size:1.15rem;letter-spacing:-.02em;}
+  .sup-sub{font-size:0.84rem;color:rgba(148,163,184,0.86);line-height:1.6;margin-top:6px;max-width:620px;}
+  .btn-soft{
+    padding:10px 14px;border-radius:11px;font-weight:800;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-family:'Inter',sans-serif;
+    border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.04);color:rgba(226,232,240,0.92);
+  }
+  .ticket-list{display:flex;flex-direction:column;gap:10px;}
+  .ticket-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 16px;border-radius:14px;border:1px solid rgba(255,255,255,0.10);
+    background:rgba(255,255,255,0.02);text-decoration:none;color:inherit;
+    transition:border-color .2s,background .2s;
+  }
+  .ticket-row:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.06);}
+  .ticket-row.unread{border-color:rgba(251,191,36,0.40);background:rgba(251,191,36,0.08);}
+  .ticket-subj{font-weight:800;font-size:0.92rem;}
+  .ticket-meta{font-size:0.78rem;color:rgba(148,163,184,0.88);margin-top:4px;}
+  .badge{
+    font-size:0.72rem;font-weight:800;padding:4px 10px;border-radius:999px;
+    border:1px solid rgba(255,255,255,0.10);white-space:nowrap;
+  }
+  .badge-open{color:#fde68a;border-color:rgba(251,191,36,0.35);background:rgba(251,191,36,0.10);}
+  .badge-wait-user{color:#bbf7d0;border-color:rgba(74,222,128,0.35);background:rgba(74,222,128,0.10);}
+  .badge-wait-admin{color:#c4b5fd;border-color:rgba(167,139,250,0.35);background:rgba(167,139,250,0.10);}
+  .badge-closed{color:#94a3b8;border-color:rgba(148,163,184,0.25);background:rgba(148,163,184,0.08);}
+  .empty{
+    padding:28px 18px;border-radius:14px;border:1px dashed rgba(255,255,255,0.12);
+    color:rgba(148,163,184,0.9);text-align:center;line-height:1.65;
+  }
+</style>
+
+<div class="sup-wrap">
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <div class="sup-head">
+        <div>
+          <div class="sup-title"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Support Inbox</div>
+          <p class="sup-sub">Reply to user tickets with text and screenshots. Unread tickets need your response.</p>
+        </div>
+        <a class="btn-soft" href="{% url 'admin:index' %}"><i class="fa-solid fa-gauge" aria-hidden="true"></i> Admin dashboard</a>
+      </div>
+    </div>
+    <div style="padding:18px 20px 24px;">
+      {% if tickets %}
+      <div class="ticket-list">
+        {% for t in tickets %}
+        <a href="{% url 'support_admin_detail' t.pk %}" class="ticket-row{% if t.unread_by_staff %} unread{% endif %}">
+          <div>
+            <div class="ticket-subj">#{{ t.pk }} · {{ t.subject }}</div>
+            <div class="ticket-meta">
+              {{ t.user.get_full_name|default:t.user.username }}{% if t.user.email %} · {{ t.user.email }}{% endif %}
+              · {{ t.get_category_display }} · {{ t.last_message_at|date:"M j, Y H:i" }}
+            </div>
+          </div>
+          <span class="badge {% if t.status == 'waiting_user' %}badge-wait-user{% elif t.status == 'closed' or t.status == 'resolved' %}badge-closed{% elif t.status == 'waiting_admin' or t.status == 'open' %}badge-wait-admin{% else %}badge-open{% endif %}">
+            {{ t.get_status_display }}
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty">No support tickets yet. When users open tickets from the Support menu, they will appear here.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

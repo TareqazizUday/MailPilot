@@ -1,0 +1,162 @@
+{% extends "mailpilot_base.html" %}
+
+{% block title %}New support ticket · MailPilot{% endblock %}
+
+{% block content %}
+<style>
+  .sup-wrap{max-width:720px;margin:0 auto;width:100%;}
+  .field{margin-bottom:16px;}
+  .label{font-size:0.75rem;font-weight:850;text-transform:uppercase;letter-spacing:.5px;color:rgba(148,163,184,0.9);margin-bottom:8px;display:block;}
+  .input,.textarea,.select{
+    width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.10);border-radius:10px;color:var(--text);
+    font-size:0.9rem;font-family:var(--font);outline:none;box-sizing:border-box;
+  }
+  .textarea{min-height:120px;resize:vertical;}
+  .input:focus,.textarea:focus,.select:focus{border-color:rgba(79,110,247,0.6);box-shadow:0 0 0 3px rgba(79,110,247,0.1);}
+  .hint{font-size:0.76rem;color:rgba(148,163,184,0.85);margin-top:6px;line-height:1.5;}
+  .err{color:#fca5a5;font-size:0.84rem;margin-bottom:12px;display:none;}
+  .file-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .file-chip{
+    display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;
+    border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.03);font-size:0.78rem;
+  }
+  .file-chip button{border:none;background:none;color:#f87171;cursor:pointer;padding:0;}
+  .preview-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .preview-row img{width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,0.10);}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+  .btn-primary2,.btn-soft{
+    padding:12px 16px;border-radius:12px;font-weight:800;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-family:'Inter',sans-serif;
+  }
+  .btn-primary2{border:none;background:linear-gradient(135deg,#4f6ef7,#a78bfa);color:#fff;box-shadow:0 6px 22px rgba(79,110,247,0.35);}
+  .btn-soft{border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.04);color:rgba(226,232,240,0.92);}
+</style>
+
+<div class="sup-wrap">
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <div class="setup-card-title">New support ticket</div>
+      <div class="setup-card-sub">Describe your issue and attach a screenshot if helpful.</div>
+    </div>
+    <div style="padding:18px 20px 24px;">
+      <div id="formErr" class="err" role="alert"></div>
+      <div class="field">
+        <label class="label" for="subject">Subject</label>
+        <input class="input" id="subject" maxlength="200" placeholder="e.g. Stripe checkout error" required />
+      </div>
+      <div class="field">
+        <label class="label" for="category">Category</label>
+        <select class="select" id="category">
+          {% for val, label in categories %}
+          <option value="{{ val }}"{% if val == default_category %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label class="label" for="body">Message</label>
+        <textarea class="textarea" id="body" placeholder="What happened? Include steps to reproduce if it's a bug."></textarea>
+      </div>
+      <div class="field">
+        <label class="label">Screenshots (optional)</label>
+        <input type="file" id="images" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden />
+        <div class="btn-row">
+          <button type="button" class="btn-soft" id="pickImages"><i class="fa-solid fa-image" aria-hidden="true"></i> Add images</button>
+        </div>
+        <div class="hint">Up to 2 images · 5 MB each · PNG, JPG, WEBP, GIF</div>
+        <div class="preview-row" id="previewRow"></div>
+        <div class="file-row" id="fileChips"></div>
+      </div>
+      <div class="btn-row" style="margin-top:18px;">
+        <button type="button" class="btn-primary2" id="submitBtn"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Submit ticket</button>
+        <a class="btn-soft" href="{% url 'support' %}">Cancel</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const picked = [];
+  const input = document.getElementById('images');
+  const previewRow = document.getElementById('previewRow');
+  const fileChips = document.getElementById('fileChips');
+  const errEl = document.getElementById('formErr');
+  const submitBtn = document.getElementById('submitBtn');
+
+  function csrfToken(){
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  function showErr(msg){
+    if(!errEl) return;
+    errEl.textContent = msg || '';
+    errEl.style.display = msg ? 'block' : 'none';
+  }
+
+  function renderFiles(){
+    previewRow.innerHTML = '';
+    fileChips.innerHTML = '';
+    picked.forEach(function(file, idx){
+      const chip = document.createElement('span');
+      chip.className = 'file-chip';
+      chip.textContent = file.name + ' ';
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.setAttribute('aria-label', 'Remove');
+      rm.textContent = '×';
+      rm.onclick = function(){ picked.splice(idx, 1); renderFiles(); };
+      chip.appendChild(rm);
+      fileChips.appendChild(chip);
+      if(file.type.startsWith('image/')){
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.alt = file.name;
+        previewRow.appendChild(img);
+      }
+    });
+  }
+
+  document.getElementById('pickImages')?.addEventListener('click', function(){ input?.click(); });
+  input?.addEventListener('change', function(){
+    const files = Array.from(input.files || []);
+    files.forEach(function(f){
+      if(picked.length >= 2) return;
+      picked.push(f);
+    });
+    input.value = '';
+    renderFiles();
+  });
+
+  submitBtn?.addEventListener('click', async function(){
+    showErr('');
+    const subject = (document.getElementById('subject')?.value || '').trim();
+    const body = (document.getElementById('body')?.value || '').trim();
+    const category = document.getElementById('category')?.value || 'other';
+    if(!subject){ showErr('Subject is required.'); return; }
+    if(!body && !picked.length){ showErr('Enter a message or attach an image.'); return; }
+    submitBtn.disabled = true;
+    try {
+      const fd = new FormData();
+      fd.append('subject', subject);
+      fd.append('body', body);
+      fd.append('category', category);
+      picked.forEach(function(f){ fd.append('images', f); });
+      const res = await fetch('/api/support/tickets/create', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': csrfToken() },
+        body: fd,
+      });
+      const j = await res.json();
+      if(!res.ok || !j.ok) throw new Error(j.error || 'Could not create ticket');
+      window.location.href = j.redirect || ('/support/' + j.ticket.id);
+    } catch(e){
+      showErr(e.message || 'Could not create ticket');
+      submitBtn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

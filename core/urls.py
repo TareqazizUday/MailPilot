@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.urls import path
 from django.views.generic import RedirectView
 
-from core import auth_views, views
+from core import auth_views, support_views, views
 
 urlpatterns = [
     path("robots.txt", views.robots_txt, name="robots_txt"),
@@ -50,4 +50,9 @@ urlpatterns = [
     path("dashboard", views.dashboard_page, name="dashboard"),
     path("profile", views.profile_page, name="profile"),
     path("settings", views.settings_page, name="settings"),
+    path("support", support_views.support_list_page, name="support"),
+    path("support/new", support_views.support_new_page, name="support_new"),
+    path("support/inbox", support_views.support_admin_inbox_page, name="support_admin_inbox"),
+    path("support/inbox/<int:ticket_id>", support_views.support_admin_detail_page, name="support_admin_detail"),
+    path("support/<int:ticket_id>", support_views.support_detail_page, name="support_detail"),
 ]

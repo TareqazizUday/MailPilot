@@ -28,6 +28,16 @@ class MailPilotAdminSite(UnfoldAdminSite):
                 self.admin_view(self.billing_gateways_view),
                 name="billing_gateways",
             ),
+            path(
+                "support/inbox/",
+                self.admin_view(self.support_inbox_view),
+                name="support_inbox",
+            ),
+            path(
+                "support/inbox/<int:ticket_id>/",
+                self.admin_view(self.support_inbox_detail_view),
+                name="support_inbox_detail",
+            ),
         ]
         return custom + urls
 
@@ -94,6 +104,36 @@ class MailPilotAdminSite(UnfoldAdminSite):
             "checks": billing_deploy_checks(),
         }
         return TemplateResponse(request, "admin/billing_gateways.html", context)
+
+    def support_inbox_view(self, request):
+        from core.support import staff_ticket_queryset, support_open_count_for_staff
+
+        context = {
+            **self.each_context(request),
+            "title": "Support inbox",
+            "subtitle": "Reply to user tickets with text and screenshots.",
+            "tickets": staff_ticket_queryset()[:200],
+            "unread_count": support_open_count_for_staff(),
+        }
+        return TemplateResponse(request, "admin/support_inbox.html", context)
+
+    def support_inbox_detail_view(self, request, ticket_id: int):
+        from django.http import Http404
+
+        from core.support import mark_ticket_read_by_staff, ticket_for_staff
+
+        ticket = ticket_for_staff(ticket_id)
+        if ticket is None:
+            raise Http404
+        mark_ticket_read_by_staff(ticket)
+        context = {
+            **self.each_context(request),
+            "title": f"Ticket #{ticket.pk}",
+            "subtitle": ticket.subject,
+            "ticket": ticket,
+            "ticket_id": ticket.pk,
+        }
+        return TemplateResponse(request, "admin/support_inbox_detail.html", context)
 
     @method_decorator(never_cache)
     @login_not_required

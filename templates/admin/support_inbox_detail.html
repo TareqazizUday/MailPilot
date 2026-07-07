@@ -1,0 +1,268 @@
+{% extends "admin/base.html" %}
+
+{% load i18n %}
+
+{% block title %}{% trans "Ticket" %} #{{ ticket_id }} | {{ site_title|default:_("Django site admin") }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+<style>
+  .mp-chat-box{border:1px solid rgb(var(--color-base-200));border-radius:10px;background:rgb(var(--color-base-50));min-height:360px;max-height:min(58vh,520px);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;}
+  .dark .mp-chat-box{border-color:rgb(var(--color-base-700));background:rgb(var(--color-base-900));}
+  .mp-msg{max-width:88%;padding:10px 12px;border-radius:12px;font-size:.88rem;line-height:1.55;}
+  .mp-msg.staff{align-self:flex-end;background:rgba(79,110,247,.14);border:1px solid rgba(79,110,247,.25);}
+  .mp-msg.user{align-self:flex-start;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);}
+  .dark .mp-msg.user{background:rgb(var(--color-base-800));border-color:rgb(var(--color-base-700));}
+  .mp-msg-hd{font-size:.72rem;font-weight:700;color:rgb(var(--color-base-500));margin-bottom:4px;}
+  .mp-msg-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .mp-msg-imgs img{width:120px;height:120px;object-fit:cover;border-radius:10px;border:1px solid rgb(var(--color-base-300));}
+  .mp-composer{margin-top:14px;border:1px solid rgb(var(--color-base-200));border-radius:10px;padding:12px;background:rgb(var(--color-base-50));}
+  .dark .mp-composer{border-color:rgb(var(--color-base-700));background:rgb(var(--color-base-900));}
+  .mp-composer textarea{width:100%;min-height:88px;resize:vertical;padding:10px 12px;border-radius:8px;border:1px solid rgb(var(--color-base-300));background:rgb(var(--color-base-100));color:inherit;font-size:.9rem;outline:none;box-sizing:border-box;}
+  .dark .mp-composer textarea{border-color:rgb(var(--color-base-600));background:rgb(var(--color-base-800));}
+  .mp-status-badge{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:999px;border:1px solid rgb(var(--color-base-300));}
+  .mp-status-badge.wait-admin{color:#c4b5fd;border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.10);}
+  .mp-status-badge.wait-user{color:#bbf7d0;border-color:rgba(74,222,128,.35);background:rgba(74,222,128,.10);}
+  .mp-status-badge.closed{color:#94a3b8;border-color:rgba(148,163,184,.25);background:rgba(148,163,184,.08);}
+  .mp-preview-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .mp-preview-row img{width:64px;height:64px;object-fit:cover;border-radius:8px;}
+  .mp-reply-err{color:#f87171;font-size:.84rem;margin-top:8px;display:none;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-6">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h1 class="font-semibold text-2xl text-important">#{{ ticket.pk }} · {{ ticket.subject }}</h1>
+      <p class="mt-1 text-sm text-base-500 dark:text-base-400">
+        {{ ticket.user.get_full_name|default:ticket.user.username }}{% if ticket.user.email %} · {{ ticket.user.email }}{% endif %}
+        · {{ ticket.get_category_display }} · {% trans "opened" %} {{ ticket.created_at|date:"M j, Y" }}
+      </p>
+    </div>
+    <span id="statusBadge" class="mp-status-badge {% if ticket.status == 'waiting_user' %}wait-user{% elif ticket.status == 'closed' or ticket.status == 'resolved' %}closed{% else %}wait-admin{% endif %}">{{ ticket.get_status_display }}</span>
+  </div>
+
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'admin:support_inbox' %}" class="inline-flex items-center gap-2 rounded-default border border-base-200 px-3 py-2 text-sm font-medium text-important hover:bg-base-50 dark:border-base-700 dark:hover:bg-base-900">
+      <span class="material-symbols-outlined text-base">arrow_back</span>
+      {% trans "Inbox" %}
+    </a>
+    <a href="{% url 'admin:core_supportticket_change' ticket.pk %}" class="inline-flex items-center gap-2 rounded-default border border-base-200 px-3 py-2 text-sm font-medium text-base-500 hover:bg-base-50 dark:border-base-700 dark:text-base-400 dark:hover:bg-base-900" target="_blank" rel="noopener">
+      <span class="material-symbols-outlined text-base">database</span>
+      {% trans "Record" %}
+    </a>
+  </div>
+
+  <div class="mp-chat-box" id="chatBox" aria-live="polite"></div>
+
+  <div id="closedNote" class="rounded-default border border-base-300 bg-base-100 px-4 py-3 text-sm text-base-500 dark:border-base-600 dark:bg-base-800 dark:text-base-400"{% if ticket.status != 'closed' %} hidden{% endif %}>
+    {% trans "This ticket is closed. Chat is read-only — you can view the history below." %}
+  </div>
+
+  <div class="mp-composer" id="composer"{% if ticket.status == 'closed' %} hidden{% endif %}>
+    <textarea id="replyBody" placeholder="{% trans 'Reply to the user…' %}"></textarea>
+    <input type="file" id="replyImages" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden />
+    <div class="mp-preview-row" id="previewRow"></div>
+    <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <button type="button" class="inline-flex items-center gap-2 rounded-default border border-base-200 px-3 py-2 text-sm font-medium text-important hover:bg-base-50 dark:border-base-700 dark:hover:bg-base-800" id="pickImages">
+          <i class="fa-solid fa-image" aria-hidden="true"></i>
+          {% trans "Add image" %}
+        </button>
+        <p class="mt-1 text-xs text-base-500 dark:text-base-400">{% trans "Up to 2 images · 5 MB each" %}</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" class="rounded-default border border-base-200 px-3 py-2 text-sm font-medium text-base-500 hover:bg-base-50 dark:border-base-700 dark:hover:bg-base-800" id="resolveBtn">{% trans "Resolve" %}</button>
+        <button type="button" class="rounded-default border border-base-200 px-3 py-2 text-sm font-medium text-base-500 hover:bg-base-50 dark:border-base-700 dark:hover:bg-base-800" id="closeBtn">{% trans "Close" %}</button>
+        <button type="button" class="inline-flex items-center gap-2 rounded-default bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700" id="sendBtn">
+          <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+          {% trans "Send" %}
+        </button>
+      </div>
+    </div>
+    <div id="replyErr" class="mp-reply-err" role="alert"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const ticketId = {{ ticket_id }};
+  const chatBox = document.getElementById('chatBox');
+  const statusBadge = document.getElementById('statusBadge');
+  const picked = [];
+  let pendingStatus = '';
+  let pollTimer = null;
+
+  function csrfToken(){
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  function esc(s){
+    return String(s || '').replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+    });
+  }
+
+  function fmtTime(iso){
+    try { return new Date(iso).toLocaleString(); } catch(e){ return ''; }
+  }
+
+  function renderMessages(messages){
+    if(!chatBox) return;
+    if(!messages.length){
+      chatBox.innerHTML = '<div class="text-center text-sm text-base-500 py-8">{% trans "No messages yet." %}</div>';
+      return;
+    }
+    chatBox.innerHTML = messages.map(function(m){
+      const cls = m.is_staff_reply ? 'staff' : 'user';
+      const imgs = (m.attachments || []).map(function(a){
+        return '<a href="'+esc(a.view_url)+'" target="_blank" rel="noopener"><img src="'+esc(a.view_url)+'" alt="'+esc(a.original_name)+'" loading="lazy" /></a>';
+      }).join('');
+      return '<div class="mp-msg '+cls+'"><div class="mp-msg-hd">'+esc(m.sender_label)+' · '+esc(fmtTime(m.created_at))+'</div>'
+        + (m.body ? '<div>'+esc(m.body).replace(/\n/g,'<br>')+'</div>' : '')
+        + (imgs ? '<div class="mp-msg-imgs">'+imgs+'</div>' : '') + '</div>';
+    }).join('');
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function badgeClass(status){
+    if(status === 'waiting_user') return 'mp-status-badge wait-user';
+    if(status === 'closed' || status === 'resolved') return 'mp-status-badge closed';
+    return 'mp-status-badge wait-admin';
+  }
+
+  function applyTicketState(ticket){
+    if(!ticket) return;
+    const status = ticket.status || '';
+    const label = ticket.status_label || status;
+    if(statusBadge){
+      statusBadge.textContent = label;
+      statusBadge.className = badgeClass(status);
+    }
+    const isClosed = status === 'closed';
+    const composer = document.getElementById('composer');
+    const closedNote = document.getElementById('closedNote');
+    if(composer) composer.hidden = isClosed;
+    if(closedNote) closedNote.hidden = !isClosed;
+    const closeBtn = document.getElementById('closeBtn');
+    const resolveBtn = document.getElementById('resolveBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    if(closeBtn) closeBtn.disabled = isClosed;
+    if(resolveBtn) resolveBtn.disabled = isClosed;
+    if(sendBtn) sendBtn.disabled = isClosed;
+  }
+
+  async function loadMessages(){
+    try {
+      const res = await fetch('/api/support/admin/tickets/'+ticketId+'/messages', { credentials: 'same-origin' });
+      const j = await res.json();
+      if(!res.ok || !j.ok) return;
+      renderMessages(j.messages || []);
+      applyTicketState(j.ticket);
+    } catch(e) { /* ignore poll errors */ }
+  }
+
+  function renderPicked(){
+    const row = document.getElementById('previewRow');
+    if(!row) return;
+    row.innerHTML = '';
+    picked.forEach(function(file, idx){
+      const wrap = document.createElement('div');
+      wrap.style.position = 'relative';
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      img.alt = file.name;
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.textContent = '×';
+      rm.style.cssText = 'position:absolute;top:2px;right:2px;border:none;background:rgba(0,0,0,.6);color:#fff;border-radius:6px;cursor:pointer;';
+      rm.onclick = function(){ picked.splice(idx,1); renderPicked(); };
+      wrap.appendChild(img);
+      wrap.appendChild(rm);
+      row.appendChild(wrap);
+    });
+  }
+
+  document.getElementById('pickImages')?.addEventListener('click', function(){
+    document.getElementById('replyImages')?.click();
+  });
+  document.getElementById('replyImages')?.addEventListener('change', function(e){
+    const files = Array.from(e.target.files || []);
+    files.forEach(function(f){ if(picked.length < 2) picked.push(f); });
+    e.target.value = '';
+    renderPicked();
+  });
+
+  async function sendReply(statusAction){
+    const errEl = document.getElementById('replyErr');
+    const body = (document.getElementById('replyBody')?.value || '').trim();
+    const btn = document.getElementById('sendBtn');
+    if(errEl){ errEl.style.display='none'; errEl.textContent=''; }
+    if(!body && !picked.length){
+      if(errEl){ errEl.textContent='{% trans "Enter a message or attach an image." %}'; errEl.style.display='block'; }
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const fd = new FormData();
+      fd.append('body', body);
+      if(statusAction) fd.append('status', statusAction);
+      picked.forEach(function(f){ fd.append('images', f); });
+      const res = await fetch('/api/support/admin/tickets/'+ticketId+'/reply', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': csrfToken() },
+        body: fd,
+      });
+      const j = await res.json();
+      if(!res.ok || !j.ok) throw new Error(j.error || 'Send failed');
+      document.getElementById('replyBody').value = '';
+      picked.length = 0;
+      pendingStatus = '';
+      renderPicked();
+      if(j.ticket) applyTicketState(j.ticket);
+      await loadMessages();
+    } catch(e){
+      if(errEl){ errEl.textContent = e.message || 'Send failed'; errEl.style.display='block'; }
+    }
+    btn.disabled = false;
+  }
+
+  document.getElementById('sendBtn')?.addEventListener('click', function(){ sendReply(pendingStatus); });
+  document.getElementById('resolveBtn')?.addEventListener('click', function(){
+    pendingStatus = 'resolved';
+    sendReply('resolved');
+  });
+  document.getElementById('closeBtn')?.addEventListener('click', async function(){
+    if(!confirm('{% trans "Close this ticket? The user will not be able to reply unless they open a new ticket." %}')) return;
+    const errEl = document.getElementById('replyErr');
+    if(errEl){ errEl.style.display='none'; errEl.textContent=''; }
+    try {
+      const fd = new FormData();
+      fd.append('body', '');
+      fd.append('status', 'closed');
+      const res = await fetch('/api/support/admin/tickets/'+ticketId+'/reply', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': csrfToken() },
+        body: fd,
+      });
+      const j = await res.json();
+      if(!res.ok || !j.ok) throw new Error(j.error || 'Close failed');
+      if(j.ticket) applyTicketState(j.ticket);
+      else await loadMessages();
+    } catch(e){
+      if(errEl){ errEl.textContent = e.message || 'Close failed'; errEl.style.display='block'; }
+    }
+  });
+
+  loadMessages();
+  applyTicketState({ status: '{{ ticket.status }}', status_label: '{{ ticket.get_status_display|escapejs }}' });
+  pollTimer = setInterval(loadMessages, 5000);
+  window.addEventListener('beforeunload', function(){ clearInterval(pollTimer); });
+})();
+</script>
+{% endblock %}

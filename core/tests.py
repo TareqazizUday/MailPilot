@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.contrib.auth.models import User
 from django.test import Client, SimpleTestCase, TestCase
+from django.urls import reverse
 
 from core.billing import (
     STARTER_LIFETIME_SEND_LIMIT,
@@ -404,3 +405,91 @@ class BillingDeployChecksTests(SimpleTestCase):
             self.assertTrue(billing_site_url_missing())
         with override_settings(DEBUG=False, SITE_URL="https://app.example.com"):
             self.assertFalse(billing_site_url_missing())
+
+
+class SupportTicketTests(TestCase):
+    def setUp(self) -> None:
+        self.user = User.objects.create_user(username="supportuser", email="support@example.com", password="pass")
+        self.staff = User.objects.create_user(
+            username="staffuser",
+            email="staff@example.com",
+            password="pass",
+            is_staff=True,
+        )
+
+    def test_create_ticket_and_reply_flow(self) -> None:
+        from core.models import SupportTicket
+        from core.support import create_support_message, support_unread_count_for_user
+
+        ticket = SupportTicket.objects.create(
+            user=self.user,
+            subject="Billing issue",
+            category=SupportTicket.CATEGORY_BILLING,
+        )
+        create_support_message(
+            ticket=ticket,
+            sender=self.user,
+            body="Checkout failed",
+            images=[],
+            is_staff_reply=False,
+        )
+        ticket.refresh_from_db()
+        self.assertTrue(ticket.unread_by_staff)
+        self.assertEqual(ticket.status, SupportTicket.STATUS_WAITING_ADMIN)
+
+        create_support_message(
+            ticket=ticket,
+            sender=self.staff,
+            body="We are checking",
+            images=[],
+            is_staff_reply=True,
+        )
+        ticket.refresh_from_db()
+        self.assertTrue(ticket.unread_by_user)
+        self.assertEqual(support_unread_count_for_user(self.user), 1)
+
+    def test_support_pages_require_login(self) -> None:
+        res = self.client.get(reverse("support"))
+        self.assertEqual(res.status_code, 302)
+        self.assertIn("/login", res.url)
+
+    def test_user_cannot_view_other_users_ticket(self) -> None:
+        from core.models import SupportTicket
+
+        other = User.objects.create_user(username="other", password="pass")
+        ticket = SupportTicket.objects.create(user=other, subject="Private")
+        self.client.login(username="supportuser", password="pass")
+        res = self.client.get(reverse("support_detail", args=[ticket.pk]))
+        self.assertEqual(res.status_code, 404)
+
+    def test_staff_inbox_requires_staff(self) -> None:
+        self.client.login(username="supportuser", password="pass")
+        res = self.client.get(reverse("support_admin_inbox"))
+        self.assertEqual(res.status_code, 302)
+
+    def test_staff_can_open_inbox_and_chat(self) -> None:
+        from core.models import SupportTicket
+        from core.support import create_support_message
+
+        ticket = SupportTicket.objects.create(user=self.user, subject="Help me")
+        create_support_message(
+            ticket=ticket,
+            sender=self.user,
+            body="Need help",
+            images=[],
+            is_staff_reply=False,
+        )
+        self.client.login(username="staffuser", password="pass")
+        res = self.client.get(reverse("support_admin_inbox"))
+        self.assertEqual(res.status_code, 302)
+        self.assertIn("/admin/support/inbox", res.url)
+        res = self.client.get(reverse("admin:support_inbox"))
+        self.assertEqual(res.status_code, 200)
+        res = self.client.get(reverse("admin:support_inbox_detail", args=[ticket.pk]))
+        self.assertEqual(res.status_code, 200)
+        res = self.client.get(reverse("api_support_admin_ticket_messages", args=[ticket.pk]))
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data.get("ok"))
+        self.assertEqual(len(data.get("messages") or []), 1)
+

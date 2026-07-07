@@ -30,6 +30,9 @@ from core.models import (
     MarketingPricingPlan,
     MarketingPricingSettings,
     PasswordResetOTP,
+    SupportAttachment,
+    SupportMessage,
+    SupportTicket,
     UsageCounter,
     UsageEvent,
     UserMailSettings,
@@ -1070,6 +1073,98 @@ class PasswordResetOTPAdmin(_MPModelAdmin):
         return _badge("Valid", "ok")
 
 
+class SupportAttachmentInline(admin.TabularInline):
+    model = SupportAttachment
+    extra = 0
+    fields = ("original_name", "content_type", "size_bytes", "file", "created_at")
+    readonly_fields = ("original_name", "content_type", "size_bytes", "created_at")
+    can_delete = False
+
+
+class SupportMessageInline(admin.StackedInline):
+    model = SupportMessage
+    extra = 1
+    fields = ("body", "is_staff_reply", "sender", "created_at")
+    readonly_fields = ("sender", "created_at")
+    show_change_link = True
+
+    def get_readonly_fields(self, request, obj=None):
+        ro = list(super().get_readonly_fields(request, obj))
+        if not request.user.is_superuser:
+            ro.append("is_staff_reply")
+        return ro
+
+
+class SupportTicketAdmin(_MPModelAdmin):
+    list_display = (
+        "id",
+        "subject",
+        "user",
+        "category",
+        "status",
+        "unread_by_staff",
+        "open_chat",
+        "last_message_at",
+        "created_at",
+    )
+    list_filter = ("status", "category", "unread_by_staff", "created_at")
+    search_fields = ("subject", "user__username", "user__email")
+    readonly_fields = ("created_at", "updated_at", "last_message_at")
+    inlines = [SupportMessageInline]
+    ordering = ("-last_message_at", "-id")
+
+    @admin.display(description="Chat")
+    def open_chat(self, obj: SupportTicket):
+        url = reverse("admin:support_inbox_detail", args=[obj.pk])
+        if obj.status == SupportTicket.STATUS_CLOSED:
+            return format_html(
+                '<span class="text-base-400 dark:text-base-500">Chat closed</span>'
+                ' · <a href="{}" class="text-base-500 hover:text-base-700 dark:hover:text-base-300">View</a>',
+                url,
+            )
+        return format_html('<a href="{}" class="text-primary-600">Open chat</a>', url)
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model is not SupportMessage:
+            super().save_formset(request, form, formset, change)
+            return
+        ticket = form.instance
+        instances = formset.save(commit=False)
+        for obj in instances:
+            is_new = not obj.pk
+            if is_new and ticket.status == SupportTicket.STATUS_CLOSED:
+                continue
+            if is_new:
+                obj.sender = request.user
+                obj.is_staff_reply = True
+            obj.save()
+            if not is_new:
+                continue
+            ticket = obj.ticket
+            ticket.last_message_at = obj.created_at
+            ticket.status = SupportTicket.STATUS_WAITING_USER
+            ticket.unread_by_user = True
+            ticket.unread_by_staff = False
+            ticket.save(
+                update_fields=[
+                    "last_message_at",
+                    "status",
+                    "unread_by_user",
+                    "unread_by_staff",
+                    "updated_at",
+                ]
+            )
+            try:
+                from core.support_mail import notify_user_staff_reply
+
+                notify_user_staff_reply(ticket, obj)
+            except Exception:
+                pass
+        for obj in formset.deleted_objects:
+            obj.delete()
+        formset.save_m2m()
+
+
 admin_site.register(User, MailPilotUserAdmin)
 admin_site.register(Group, MailPilotGroupAdmin)
 admin_site.register(UserProfile, UserProfileAdmin)
@@ -1093,5 +1188,6 @@ admin_site.register(LegalPrivacySettings, LegalPrivacySettingsAdmin)
 admin_site.register(MarketingPricingSettings, MarketingPricingSettingsAdmin)
 admin_site.register(MarketingPricingPlan, MarketingPricingPlanAdmin)
 admin_site.register(ContactSubmission, ContactSubmissionAdmin)
+admin_site.register(SupportTicket, SupportTicketAdmin)
 admin_site.register(AuditLog, AuditLogAdmin)
 admin_site.register(PasswordResetOTP, PasswordResetOTPAdmin)

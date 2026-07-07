@@ -547,6 +547,20 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {
+                        "title": _("Support inbox"),
+                        "icon": "forum",
+                        "link": reverse_lazy("admin:support_inbox"),
+                        "badge": "core.unfold_admin.support_inbox_badge_callback",
+                        "badge_variant": "warning",
+                    },
+                    {
+                        "title": _("Support tickets"),
+                        "icon": "confirmation_number",
+                        "link": reverse_lazy("admin:core_supportticket_changelist"),
+                        "badge": "core.unfold_admin.support_tickets_badge_callback",
+                        "badge_variant": "primary",
+                    },
+                    {
                         "title": _("Contact inbox"),
                         "icon": "inbox",
                         "link": reverse_lazy("admin:core_contactsubmission_changelist"),

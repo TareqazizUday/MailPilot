@@ -1,0 +1,61 @@
+{% extends "admin/base.html" %}
+
+{% load i18n %}
+
+{% block title %}{% trans "Support inbox" %} | {{ site_title|default:_("Django site admin") }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+<style>
+  .mp-sup-ticket{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-radius:10px;border:1px solid rgb(var(--color-base-200));background:rgb(var(--color-base-50));text-decoration:none;color:inherit;transition:border-color .2s,background .2s;}
+  .dark .mp-sup-ticket{border-color:rgb(var(--color-base-700));background:rgb(var(--color-base-900));}
+  .mp-sup-ticket:hover{border-color:rgb(var(--color-primary-500));background:rgba(79,110,247,.06);}
+  .mp-sup-ticket.unread{border-color:rgba(251,191,36,.45);background:rgba(251,191,36,.08);}
+  .mp-sup-subj{font-weight:700;font-size:.92rem;}
+  .mp-sup-meta{font-size:.78rem;color:rgb(var(--color-base-500));margin-top:4px;}
+  .mp-sup-badge{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:999px;border:1px solid rgb(var(--color-base-300));white-space:nowrap;}
+  .dark .mp-sup-badge{border-color:rgb(var(--color-base-600));}
+  .mp-sup-badge.wait-admin{color:#c4b5fd;border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.10);}
+  .mp-sup-badge.wait-user{color:#bbf7d0;border-color:rgba(74,222,128,.35);background:rgba(74,222,128,.10);}
+  .mp-sup-badge.closed{color:#94a3b8;border-color:rgba(148,163,184,.25);background:rgba(148,163,184,.08);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-6">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h1 class="font-semibold text-2xl text-important">{% trans "Support inbox" %}</h1>
+      <p class="mt-1 text-sm text-base-500 dark:text-base-400">{{ subtitle }}</p>
+    </div>
+    <a href="{% url 'admin:core_supportticket_changelist' %}" class="inline-flex items-center gap-2 rounded-default border border-base-200 px-3 py-2 text-sm font-medium text-important hover:bg-base-50 dark:border-base-700 dark:hover:bg-base-900">
+      <span class="material-symbols-outlined text-base">confirmation_number</span>
+      {% trans "All tickets" %}
+    </a>
+  </div>
+
+  {% if tickets %}
+  <div class="flex flex-col gap-3">
+    {% for t in tickets %}
+    <a href="{% url 'admin:support_inbox_detail' t.pk %}" class="mp-sup-ticket{% if t.unread_by_staff %} unread{% endif %}">
+      <div>
+        <div class="mp-sup-subj">#{{ t.pk }} · {{ t.subject }}</div>
+        <div class="mp-sup-meta">
+          {{ t.user.get_full_name|default:t.user.username }}{% if t.user.email %} · {{ t.user.email }}{% endif %}
+          · {{ t.get_category_display }} · {{ t.last_message_at|date:"M j, Y H:i" }}
+        </div>
+      </div>
+      <span class="mp-sup-badge {% if t.status == 'waiting_user' %}wait-user{% elif t.status == 'closed' or t.status == 'resolved' %}closed{% else %}wait-admin{% endif %}">
+        {{ t.get_status_display }}
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded-default border border-dashed border-base-300 px-6 py-10 text-center text-sm text-base-500 dark:border-base-600 dark:text-base-400">
+    {% trans "No support tickets yet. When users open tickets from the Support menu, they will appear here." %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

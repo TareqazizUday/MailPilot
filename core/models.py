@@ -1124,3 +1124,97 @@ class QueueItem(models.Model):
             models.UniqueConstraint(fields=["tenant_id", "message_id"], name="uq_queueitem_tenant_message")
         ]
         indexes = [models.Index(fields=["tenant_id", "-updated_at"], name="idx_queueitem_tenant_updated")]
+
+
+def support_attachment_upload_to(instance: "SupportAttachment", filename: str) -> str:
+    import os
+    from uuid import uuid4
+
+    base = os.path.basename(filename or "upload")
+    ticket_id = getattr(getattr(instance, "message", None), "ticket_id", None) or "0"
+    message_id = getattr(instance, "message_id", None) or "0"
+    return f"support/t{ticket_id}/m{message_id}/{uuid4().hex[:12]}_{base}"
+
+
+class SupportTicket(models.Model):
+    """User support request with threaded messages."""
+
+    STATUS_OPEN = "open"
+    STATUS_WAITING_ADMIN = "waiting_admin"
+    STATUS_WAITING_USER = "waiting_user"
+    STATUS_RESOLVED = "resolved"
+    STATUS_CLOSED = "closed"
+    STATUS_CHOICES = [
+        (STATUS_OPEN, "Open"),
+        (STATUS_WAITING_ADMIN, "Waiting for support"),
+        (STATUS_WAITING_USER, "Waiting for you"),
+        (STATUS_RESOLVED, "Resolved"),
+        (STATUS_CLOSED, "Closed"),
+    ]
+
+    CATEGORY_BILLING = "billing"
+    CATEGORY_SETUP = "setup"
+    CATEGORY_BUG = "bug"
+    CATEGORY_OTHER = "other"
+    CATEGORY_CHOICES = [
+        (CATEGORY_BILLING, "Billing"),
+        (CATEGORY_SETUP, "Setup / inbox"),
+        (CATEGORY_BUG, "Bug"),
+        (CATEGORY_OTHER, "Other"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="support_tickets")
+    subject = models.CharField(max_length=200)
+    category = models.CharField(max_length=24, choices=CATEGORY_CHOICES, default=CATEGORY_OTHER, db_index=True)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_OPEN, db_index=True)
+    unread_by_user = models.BooleanField(default=False)
+    unread_by_staff = models.BooleanField(default=True)
+    last_message_at = models.DateTimeField(auto_now=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_supportticket"
+        ordering = ["-last_message_at", "-id"]
+        indexes = [
+            models.Index(fields=["user", "-last_message_at"], name="idx_supportticket_user_last"),
+            models.Index(fields=["status", "-last_message_at"], name="idx_supportticket_status_last"),
+        ]
+
+    def __str__(self) -> str:
+        return f"SupportTicket(#{self.pk}, {self.subject[:40]})"
+
+
+class SupportMessage(models.Model):
+    """One chat message in a support ticket thread."""
+
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="support_messages")
+    body = models.TextField(blank=True, default="")
+    is_staff_reply = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "core_supportmessage"
+        ordering = ["created_at", "id"]
+
+    def __str__(self) -> str:
+        return f"SupportMessage(ticket={self.ticket_id}, staff={self.is_staff_reply})"
+
+
+class SupportAttachment(models.Model):
+    """Image attachment on a support message."""
+
+    message = models.ForeignKey(SupportMessage, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to=support_attachment_upload_to)
+    original_name = models.CharField(max_length=255, blank=True, default="")
+    content_type = models.CharField(max_length=128, blank=True, default="")
+    size_bytes = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "core_supportattachment"
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return f"SupportAttachment(msg={self.message_id}, {self.original_name})"

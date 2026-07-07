@@ -4,6 +4,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from core import mail_account_views as ma_views
+from core import support_views
 from core import views as legacy_views
 
 
@@ -67,5 +68,13 @@ urlpatterns = [
     path("whatsapp/config", legacy_views.api_whatsapp_config, name="api_whatsapp_config_legacy"),
     path("whatsapp/test", legacy_views.api_whatsapp_test, name="api_whatsapp_test_legacy"),
     path("whatsapp/webhook", legacy_views.api_whatsapp_webhook, name="api_whatsapp_webhook_legacy"),
+    path("support/tickets", support_views.api_support_tickets_list, name="api_support_tickets_list"),
+    path("support/tickets/create", support_views.api_support_tickets_create, name="api_support_tickets_create"),
+    path("support/tickets/<int:ticket_id>/messages", support_views.api_support_ticket_messages, name="api_support_ticket_messages"),
+    path("support/tickets/<int:ticket_id>/reply", support_views.api_support_ticket_reply, name="api_support_ticket_reply"),
+    path("support/attachments/<int:attachment_id>/view", support_views.api_support_attachment_view, name="api_support_attachment_view"),
+    path("support/admin/tickets", support_views.api_support_admin_tickets_list, name="api_support_admin_tickets_list"),
+    path("support/admin/tickets/<int:ticket_id>/messages", support_views.api_support_admin_ticket_messages, name="api_support_admin_ticket_messages"),
+    path("support/admin/tickets/<int:ticket_id>/reply", support_views.api_support_admin_reply, name="api_support_admin_reply"),
 ]
 

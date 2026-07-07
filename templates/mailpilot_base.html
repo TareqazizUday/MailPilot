@@ -96,6 +96,13 @@
       border-bottom:2px solid var(--accent);
       border-radius:0;padding-bottom:4px;background:transparent;
     }
+    .nav-badge{
+      display:inline-flex;align-items:center;justify-content:center;
+      min-width:18px;height:18px;padding:0 5px;margin-left:6px;
+      border-radius:999px;font-size:0.65rem;font-weight:800;line-height:1;
+      color:#fff;background:linear-gradient(135deg,#f59e0b,#ef4444);
+      vertical-align:middle;
+    }
     .nav-right{display:flex;align-items:center;gap:12px;flex-shrink:0;margin-left:auto;}
     .mp-app-nav-toggle{
       display:none;align-items:center;justify-content:center;
@@ -316,6 +323,10 @@
         <div class="nav-links">
           <a href="{% url 'setup' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'setup' %} active{% endif %}">Setup</a>
           <a href="{% url 'dashboard' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'dashboard' %} active{% endif %}">Dashboard</a>
+          <a href="{% url 'support' %}" class="nav-link{% if request.resolver_match.url_name == 'support' or request.resolver_match.url_name == 'support_new' or request.resolver_match.url_name == 'support_detail' %} active{% endif %}">Support{% if support_unread_count %}<span class="nav-badge" aria-label="{{ support_unread_count }} unread">{{ support_unread_count }}</span>{% endif %}</a>
+          {% if user.is_staff %}
+          <a href="{% url 'support_admin_inbox' %}" class="nav-link{% if request.resolver_match.url_name == 'support_admin_inbox' or request.resolver_match.url_name == 'support_admin_detail' %} active{% endif %}">Inbox{% if support_staff_unread_count %}<span class="nav-badge" aria-label="{{ support_staff_unread_count }} unread">{{ support_staff_unread_count }}</span>{% endif %}</a>
+          {% endif %}
         </div>
       </div>
       <div class="nav-right">
@@ -347,6 +358,16 @@
               <i class="fa-solid fa-gear" aria-hidden="true"></i>
               Settings
             </a>
+            <a class="acct-item" href="{% url 'support' %}" role="menuitem">
+              <i class="fa-solid fa-headset" aria-hidden="true"></i>
+              Support{% if support_unread_count %} ({{ support_unread_count }}){% endif %}
+            </a>
+            {% if user.is_staff %}
+            <a class="acct-item" href="{% url 'support_admin_inbox' %}" role="menuitem">
+              <i class="fa-solid fa-inbox" aria-hidden="true"></i>
+              Support inbox{% if support_staff_unread_count %} ({{ support_staff_unread_count }}){% endif %}
+            </a>
+            {% endif %}
             <div class="acct-sep" aria-hidden="true"></div>
             <form action="{% url 'logout' %}" method="post" style="margin:0;">
               {% csrf_token %}
@@ -367,6 +388,10 @@
     <div class="mp-app-nav-drawer" id="mpAppNavDrawer" hidden>
       <a href="{% url 'setup' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'setup' %} active{% endif %}">Setup</a>
       <a href="{% url 'dashboard' %}" class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'dashboard' %} active{% endif %}">Dashboard</a>
+      <a href="{% url 'support' %}" class="nav-link{% if request.resolver_match.url_name == 'support' or request.resolver_match.url_name == 'support_new' or request.resolver_match.url_name == 'support_detail' %} active{% endif %}">Support{% if support_unread_count %}<span class="nav-badge">{{ support_unread_count }}</span>{% endif %}</a>
+      {% if user.is_staff %}
+      <a href="{% url 'support_admin_inbox' %}" class="nav-link{% if request.resolver_match.url_name == 'support_admin_inbox' or request.resolver_match.url_name == 'support_admin_detail' %} active{% endif %}">Inbox{% if support_staff_unread_count %}<span class="nav-badge">{{ support_staff_unread_count }}</span>{% endif %}</a>
+      {% endif %}
       <div class="connected-badge" id="navConnStatusDrawer">
         {% if connected %}
           <span class="connected-dot" aria-hidden="true"></span>

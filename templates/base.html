@@ -385,6 +385,7 @@
         <div class="nav-links" aria-label="Navigation links">
           <a class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'setup' %} active{% endif %}" href="{% url 'setup' %}">Setup</a>
           <a class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'dashboard' %} active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
+          <a class="nav-link{% if request.resolver_match.url_name == 'support' or request.resolver_match.url_name == 'support_new' or request.resolver_match.url_name == 'support_detail' %} active{% endif %}" href="{% url 'support' %}">Support</a>
           {% if user.is_authenticated %}
           <a class="nav-link{% if request.resolver_match and request.resolver_match.url_name == 'profile' %} active{% endif %}" href="{% url 'profile' %}">Profile</a>
           {% endif %}

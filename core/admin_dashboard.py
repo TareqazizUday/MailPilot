@@ -14,6 +14,7 @@ from core.models import (
     ContactSubmission,
     CustomPlanQuote,
     MailAccount,
+    SupportTicket,
     UsageCounter,
     UsageEvent,
     UserMailSettings,
@@ -93,6 +94,7 @@ def build_kpi_links(*, period: str, today) -> dict[str, str]:
             "admin:core_contactsubmission_changelist",
             {"notified_team__exact": "0"},
         ),
+        "support_inbox": reverse("admin:support_inbox"),
     }
 
 
@@ -135,6 +137,7 @@ def build_dashboard_stats() -> dict:
             status=UsageEvent.STATUS_COMMITTED,
         ).count(),
         "open_contacts": ContactSubmission.objects.filter(notified_team=False).count(),
+        "open_support_tickets": SupportTicket.objects.filter(unread_by_staff=True).count(),
         "mrr_estimate_usd": round(mrr_cents / 100, 2),
         "today": today.isoformat(),
         "links": build_kpi_links(period=period, today=today),
