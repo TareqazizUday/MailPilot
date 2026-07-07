@@ -31,7 +31,7 @@ from core.support import (
     ticket_to_dict,
     user_ticket_queryset,
 )
-from core.support_mail import notify_staff_new_ticket, notify_user_staff_reply
+from core.support_mail import notify_staff_new_ticket
 from core.views import _mailbox_connected_for_ui, _user_settings_dict
 
 logger = logging.getLogger("mailpilot.support.views")
@@ -352,7 +352,6 @@ def api_support_admin_reply(request, ticket_id: int):
 
     if msg is not None:
         mark_ticket_read_by_staff(ticket)
-        notify_user_staff_reply(ticket, msg)
         ticket.refresh_from_db()
         return JsonResponse(
             {

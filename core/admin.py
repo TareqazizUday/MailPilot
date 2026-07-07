@@ -1154,12 +1154,6 @@ class SupportTicketAdmin(_MPModelAdmin):
                     "updated_at",
                 ]
             )
-            try:
-                from core.support_mail import notify_user_staff_reply
-
-                notify_user_staff_reply(ticket, obj)
-            except Exception:
-                pass
         for obj in formset.deleted_objects:
             obj.delete()
         formset.save_m2m()

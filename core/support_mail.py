@@ -54,25 +54,5 @@ def notify_staff_new_ticket(ticket: SupportTicket, message: SupportMessage) -> b
 
 
 def notify_user_staff_reply(ticket: SupportTicket, message: SupportMessage) -> bool:
-    user = ticket.user
-    email = (user.email or "").strip()
-    if not email:
-        return False
-    subject = f"MailPilot Support replied · Ticket #{ticket.pk}"
-    body = (
-        f"Hi {user.get_full_name() or user.username},\n\n"
-        f"Our team replied to your support ticket \"{ticket.subject}\":\n\n"
-        f"{message.body or '(see attachment in MailPilot)'}\n\n"
-        f"View and reply: {_ticket_url(ticket.pk)}\n"
-    )
-    try:
-        EmailMultiAlternatives(
-            subject=subject,
-            body=body,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[email],
-        ).send(fail_silently=False)
-        return True
-    except Exception:
-        logger.exception("support user notification failed ticket=%s", ticket.pk)
-        return False
+    """Disabled: staff replies are in-app only (unread badge + chat). No user email."""
+    return False
