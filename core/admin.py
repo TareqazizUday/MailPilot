@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from decimal import Decimal, InvalidOperation
+
 from django.contrib import admin
 from django import forms
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
@@ -10,7 +13,13 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, StackedInline
 
 from core.admin_site import admin_site
-from core.billing import apply_plan_defaults, current_period_key, set_subscription_plan
+from core.billing import (
+    apply_plan_defaults,
+    current_period_key,
+    plan_defaults,
+    set_subscription_plan,
+    tokens_per_auto_send_for_plan,
+)
 from core.models import (
     AuditLog,
     BillingPaymentEvent,
@@ -921,6 +930,10 @@ class MarketingPricingSettingsAdmin(_MPModelAdmin):
     fieldsets = (
         (None, {"fields": ("section_tag", "title_lead", "title_highlight")}),
         ("Body copy", {"fields": ("intro", "demo_note")}),
+        (
+            "Profit assumptions (admin only)",
+            {"fields": ("profit_api_cost_per_send_usd", "profit_token_cost_per_1k_usd")},
+        ),
         ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
     )
     readonly_fields = ("updated_at",)
@@ -942,6 +955,9 @@ class MarketingPricingPlanAdmin(_MPModelAdmin):
         "tier_label",
         "plan_badge",
         "price_display",
+        "economics_summary",
+        "estimated_profit",
+        "estimated_margin",
         "featured_badge",
         "published_badge",
         "homepage_badge",
@@ -1000,6 +1016,78 @@ class MarketingPricingPlanAdmin(_MPModelAdmin):
     @admin.display(description="Homepage", ordering="show_on_homepage")
     def homepage_badge(self, obj):
         return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
+
+    @staticmethod
+    def _parse_usd_price(raw: str) -> Decimal | None:
+        text = (raw or "").strip()
+        if not text:
+            return None
+        m = re.search(r"(\d+(?:\.\d+)?)", text.replace(",", ""))
+        if not m:
+            return None
+        try:
+            return Decimal(m.group(1))
+        except (InvalidOperation, TypeError):
+            return None
+
+    @staticmethod
+    def _plan_tokens(plan_code: str) -> int | None:
+        defaults = plan_defaults(plan_code)
+        limit = defaults.get("monthly_token_limit")
+        if limit is None:
+            return None
+        try:
+            return int(limit)
+        except (TypeError, ValueError):
+            return None
+
+    def _profit_inputs(self, obj: MarketingPricingPlan) -> dict[str, Decimal | int | None]:
+        cfg, _ = MarketingPricingSettings.objects.get_or_create(singleton_key=1)
+        price = self._parse_usd_price(obj.price_display)
+        tokens = self._plan_tokens(obj.plan_code)
+        if price is None or tokens is None:
+            return {"tokens": tokens, "sends": None, "profit": None, "margin": None}
+
+        per_send = tokens_per_auto_send_for_plan(obj.plan_code)
+        sends = int(tokens // max(1, per_send))
+        api_cost = Decimal(str(cfg.profit_api_cost_per_send_usd or 0))
+        token_cost_per_1k = Decimal(str(cfg.profit_token_cost_per_1k_usd or 0))
+        total_cost = (Decimal(sends) * api_cost) + (Decimal(tokens) / Decimal(1000) * token_cost_per_1k)
+        profit = price - total_cost
+        margin = (profit / price * Decimal(100)) if price > 0 else None
+        return {
+            "tokens": tokens,
+            "sends": sends,
+            "profit": profit,
+            "margin": margin,
+        }
+
+    @admin.display(description="Economics")
+    def economics_summary(self, obj):
+        data = self._profit_inputs(obj)
+        sends = data.get("sends")
+        tokens = data.get("tokens")
+        if sends is None or tokens is None:
+            return _badge("Custom builder", "muted")
+        return format_html("{} tok · {} sends", f"{tokens:,}", f"{sends:,}")
+
+    @admin.display(description="Est. Profit")
+    def estimated_profit(self, obj):
+        profit = self._profit_inputs(obj).get("profit")
+        if profit is None:
+            return _badge("n/a", "muted")
+        p = Decimal(profit).quantize(Decimal("0.01"))
+        tone = "ok" if p > 0 else ("warn" if p == 0 else "danger")
+        return _badge(f"${p}", tone)
+
+    @admin.display(description="Margin")
+    def estimated_margin(self, obj):
+        margin = self._profit_inputs(obj).get("margin")
+        if margin is None:
+            return _badge("n/a", "muted")
+        m = Decimal(margin).quantize(Decimal("0.1"))
+        tone = "ok" if m >= 50 else ("warn" if m >= 20 else "danger")
+        return _badge(f"{m}%", tone)
 
 
 class ContactSubmissionAdmin(_MPModelAdmin):

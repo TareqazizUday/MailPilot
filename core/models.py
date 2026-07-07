@@ -431,6 +431,18 @@ class MarketingPricingSettings(models.Model):
     demo_note = models.TextField(
         default="Starter: 20 auto-sends total (80 tokens lifetime). Pro: monthly billing via Stripe. Draft mode does not use tokens."
     )
+    profit_api_cost_per_send_usd = models.DecimalField(
+        max_digits=8,
+        decimal_places=4,
+        default=0.0300,
+        help_text="Estimated variable API cost per auto-sent message (USD).",
+    )
+    profit_token_cost_per_1k_usd = models.DecimalField(
+        max_digits=8,
+        decimal_places=4,
+        default=0.0000,
+        help_text="Optional internal token cost per 1,000 plan tokens (USD).",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
