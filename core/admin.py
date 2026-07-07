@@ -14,7 +14,10 @@ from unfold.admin import ModelAdmin, StackedInline
 
 from core.admin_site import admin_site
 from core.billing import (
+    CUSTOM_PRESETS,
+    CUSTOM_TOKENS_PER_SEND,
     apply_plan_defaults,
+    calculate_custom_price_cents,
     current_period_key,
     plan_defaults,
     set_subscription_plan,
@@ -1043,6 +1046,43 @@ class MarketingPricingPlanAdmin(_MPModelAdmin):
 
     def _profit_inputs(self, obj: MarketingPricingPlan) -> dict[str, Decimal | int | None]:
         cfg, _ = MarketingPricingSettings.objects.get_or_create(singleton_key=1)
+        if obj.plan_code == MarketingPricingPlan.PLAN_CUSTOM:
+            api_cost = Decimal(str(cfg.profit_api_cost_per_send_usd or 0))
+            token_cost_per_1k = Decimal(str(cfg.profit_token_cost_per_1k_usd or 0))
+            rows: list[dict[str, Decimal | int]] = []
+            for preset in (CUSTOM_PRESETS or []):
+                try:
+                    tokens = int(preset.get("tokens") or 0)
+                    inboxes = int(preset.get("inboxes") or 0)
+                except Exception:
+                    continue
+                if tokens <= 0 or inboxes <= 0:
+                    continue
+                price = Decimal(calculate_custom_price_cents(tokens, inboxes)) / Decimal(100)
+                sends = int(tokens // max(1, CUSTOM_TOKENS_PER_SEND))
+                total_cost = (Decimal(sends) * api_cost) + (Decimal(tokens) / Decimal(1000) * token_cost_per_1k)
+                profit = price - total_cost
+                margin = (profit / price * Decimal(100)) if price > 0 else Decimal(0)
+                rows.append({"tokens": tokens, "sends": sends, "profit": profit, "margin": margin})
+            if not rows:
+                return {"tokens": None, "sends": None, "profit": None, "margin": None}
+            min_profit = min(Decimal(r["profit"]) for r in rows)
+            max_profit = max(Decimal(r["profit"]) for r in rows)
+            min_margin = min(Decimal(r["margin"]) for r in rows)
+            max_margin = max(Decimal(r["margin"]) for r in rows)
+            min_sends = min(int(r["sends"]) for r in rows)
+            max_sends = max(int(r["sends"]) for r in rows)
+            return {
+                "tokens": None,
+                "sends": None,
+                "custom_sends_min": min_sends,
+                "custom_sends_max": max_sends,
+                "custom_profit_min": min_profit,
+                "custom_profit_max": max_profit,
+                "custom_margin_min": min_margin,
+                "custom_margin_max": max_margin,
+            }
+
         price = self._parse_usd_price(obj.price_display)
         tokens = self._plan_tokens(obj.plan_code)
         if price is None or tokens is None:
@@ -1065,6 +1105,12 @@ class MarketingPricingPlanAdmin(_MPModelAdmin):
     @admin.display(description="Economics")
     def economics_summary(self, obj):
         data = self._profit_inputs(obj)
+        if obj.plan_code == MarketingPricingPlan.PLAN_CUSTOM:
+            s_min = data.get("custom_sends_min")
+            s_max = data.get("custom_sends_max")
+            if s_min is None or s_max is None:
+                return _badge("Custom builder", "muted")
+            return format_html("Preset range · {}-{} sends", f"{int(s_min):,}", f"{int(s_max):,}")
         sends = data.get("sends")
         tokens = data.get("tokens")
         if sends is None or tokens is None:
@@ -1073,6 +1119,16 @@ class MarketingPricingPlanAdmin(_MPModelAdmin):
 
     @admin.display(description="Est. Profit")
     def estimated_profit(self, obj):
+        if obj.plan_code == MarketingPricingPlan.PLAN_CUSTOM:
+            data = self._profit_inputs(obj)
+            p_min = data.get("custom_profit_min")
+            p_max = data.get("custom_profit_max")
+            if p_min is None or p_max is None:
+                return _badge("n/a", "muted")
+            pmin = Decimal(p_min).quantize(Decimal("0.01"))
+            pmax = Decimal(p_max).quantize(Decimal("0.01"))
+            tone = "ok" if pmin > 0 else ("warn" if pmax > 0 else "danger")
+            return _badge(f"${pmin}-${pmax}", tone)
         profit = self._profit_inputs(obj).get("profit")
         if profit is None:
             return _badge("n/a", "muted")
@@ -1082,6 +1138,16 @@ class MarketingPricingPlanAdmin(_MPModelAdmin):
 
     @admin.display(description="Margin")
     def estimated_margin(self, obj):
+        if obj.plan_code == MarketingPricingPlan.PLAN_CUSTOM:
+            data = self._profit_inputs(obj)
+            m_min = data.get("custom_margin_min")
+            m_max = data.get("custom_margin_max")
+            if m_min is None or m_max is None:
+                return _badge("n/a", "muted")
+            mmin = Decimal(m_min).quantize(Decimal("0.1"))
+            mmax = Decimal(m_max).quantize(Decimal("0.1"))
+            tone = "ok" if mmin >= 50 else ("warn" if mmax >= 20 else "danger")
+            return _badge(f"{mmin}%-{mmax}%", tone)
         margin = self._profit_inputs(obj).get("margin")
         if margin is None:
             return _badge("n/a", "muted")
