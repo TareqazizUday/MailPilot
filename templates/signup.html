@@ -7,6 +7,7 @@
   {% load static %}
   {% include "components/favicon.html" %}
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  {% if show_recaptcha %}<script src="https://www.google.com/recaptcha/api.js" async defer></script>{% endif %}
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
@@ -187,6 +188,18 @@
     .submit-btn:hover { transform:translateY(-2px); box-shadow:0 10px 32px rgba(79,110,247,0.5); }
     .submit-btn:hover::before { left:100%; }
 
+    .captcha-field {
+      margin-top: 4px; margin-bottom: 14px;
+      width: 100%;
+    }
+    .captcha-field .captcha-scale {
+      width: 100%;
+      overflow: hidden;
+    }
+    .captcha-field .g-recaptcha { display: inline-block; }
+    .captcha-field .field-hint { width: 100%; }
+    .captcha-field .field-hint:not(:empty) { color:#f87171; }
+
     .terms-row { display:flex; align-items:flex-start; gap:10px; margin-bottom:20px; }
     .terms-row input[type=checkbox] { width:16px; height:16px; accent-color:#4f6ef7; cursor:pointer; margin-top:2px; flex-shrink:0; }
     .terms-row label { font-size:0.8rem; color:var(--muted); cursor:pointer; line-height:1.5; }
@@ -287,6 +300,8 @@
           </div>
           <div class="field-hint" id="matchHint"></div>
         </div>
+
+        {% include "components/recaptcha_widget.html" %}
 
         <div class="terms-row">
           <input type="checkbox" id="terms" name="terms" required>
@@ -467,6 +482,18 @@ function validateSignupForm(opts){
       }
     }else{
       setHint(th, '', null);
+    }
+  }
+
+  const captcha = document.querySelector('.g-recaptcha');
+  const captchaHint = document.getElementById('captchaHint');
+  if(captcha && typeof grecaptcha !== 'undefined'){
+    const resp = grecaptcha.getResponse();
+    if(!resp){
+      ok = false;
+      if(captchaHint){ setHint(captchaHint, '✗ Please confirm you are not a robot', false); }
+    } else if(captchaHint){
+      setHint(captchaHint, '', null);
     }
   }
 

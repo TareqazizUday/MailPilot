@@ -7,6 +7,7 @@
   {% load static %}
   {% include "components/favicon.html" %}
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  {% if show_recaptcha %}<script src="https://www.google.com/recaptcha/api.js" async defer></script>{% endif %}
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
@@ -219,6 +220,18 @@
     .submit-btn:hover::before { left: 100%; }
     .submit-btn:active { transform: translateY(0); }
 
+    .captcha-field {
+      margin-top: 4px; margin-bottom: 10px;
+      width: 100%;
+    }
+    .captcha-field .captcha-scale {
+      width: 100%;
+      overflow: hidden;
+    }
+    .captcha-field .g-recaptcha { display: inline-block; }
+    .captcha-field .field-hint { width: 100%; }
+    .captcha-field .field-hint:not(:empty) { color: #f87171; font-weight: 600; }
+
     .forgot-row {
       display: flex; justify-content: flex-end;
       margin-top: -6px; margin-bottom: 14px;
@@ -287,6 +300,8 @@
           </div>
           <div class="field-hint" id="passHint"></div>
         </div>
+
+        {% include "components/recaptcha_widget.html" %}
 
         <div class="forgot-row">
           <a href="{% url 'password_reset' %}">Forgot password?</a>
@@ -411,6 +426,19 @@ function validateLogin(){
   } else {
     setErr(p, false);
     setHint('passHint', '');
+  }
+
+  const captcha = document.querySelector('.g-recaptcha');
+  const captchaHint = document.getElementById('captchaHint');
+  if(captcha && typeof grecaptcha !== 'undefined'){
+    const resp = grecaptcha.getResponse();
+    if(!resp){
+      ok = false;
+      if(captchaHint){ captchaHint.textContent = 'Please confirm you are not a robot.'; captchaHint.className = 'field-hint err'; }
+    } else if(captchaHint){
+      captchaHint.textContent = '';
+      captchaHint.className = 'field-hint';
+    }
   }
 
   return ok;

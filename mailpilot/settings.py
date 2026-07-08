@@ -128,6 +128,15 @@ MEDIA_ROOT = BASE_DIR / "media"
 SITE_URL = (os.environ.get("SITE_URL") or "").strip().rstrip("/")
 OG_IMAGE_URL = (os.environ.get("OG_IMAGE_URL") or "").strip()
 
+# Google reCAPTCHA v2 ("I'm not a robot"). Empty keys = captcha disabled (local/dev).
+RECAPTCHA_SITE_KEY = (os.environ.get("RECAPTCHA_SITE_KEY") or "").strip()
+RECAPTCHA_SECRET_KEY = (os.environ.get("RECAPTCHA_SECRET_KEY") or "").strip()
+# 0 = always show on login; 1+ = show only after that many failed attempts.
+try:
+    LOGIN_CAPTCHA_AFTER_FAILS = max(0, int(os.environ.get("LOGIN_CAPTCHA_AFTER_FAILS", "0") or "0"))
+except (TypeError, ValueError):
+    LOGIN_CAPTCHA_AFTER_FAILS = 0
+
 APPEND_SLASH = False
 
 

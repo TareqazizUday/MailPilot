@@ -1,0 +1,35 @@
+{% if show_recaptcha and RECAPTCHA_SITE_KEY %}
+<div class="field captcha-field">
+  <div class="captcha-scale" id="captchaScale">
+    <div class="g-recaptcha" data-sitekey="{{ RECAPTCHA_SITE_KEY }}" data-theme="dark" data-callback="onRecaptchaOk"></div>
+  </div>
+  <div class="field-hint" id="captchaHint">{% if captcha_error %}{{ captcha_error }}{% endif %}</div>
+</div>
+<script>
+(function(){
+  function fitRecaptcha(){
+    var wrap = document.getElementById('captchaScale');
+    if(!wrap) return;
+    var widget = wrap.querySelector('.g-recaptcha');
+    if(!widget) return;
+    var baseW = 304, baseH = 78;
+    var scale = Math.max(0.85, wrap.clientWidth / baseW);
+    widget.style.transform = 'scale(' + scale + ')';
+    widget.style.transformOrigin = '0 0';
+    wrap.style.height = (baseH * scale) + 'px';
+  }
+  window.onRecaptchaOk = function(){
+    var h = document.getElementById('captchaHint');
+    if(h){ h.textContent = ''; h.className = 'field-hint'; }
+  };
+  window.addEventListener('load', fitRecaptcha);
+  window.addEventListener('resize', fitRecaptcha);
+  // Google may inject after api.js loads
+  var n = 0;
+  var t = setInterval(function(){
+    fitRecaptcha();
+    if(++n > 20) clearInterval(t);
+  }, 200);
+})();
+</script>
+{% endif %}

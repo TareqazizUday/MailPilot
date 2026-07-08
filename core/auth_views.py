@@ -279,102 +279,144 @@ def password_reset_done_view(request: HttpRequest):
 @ratelimit(key="ip", rate="20/m", method="POST", block=True)
 @require_http_methods(["GET", "POST"])
 def login_view(request: HttpRequest):
+    from core.recaptcha import (
+        bump_login_fail_count,
+        captcha_template_context,
+        clear_login_fail_count,
+        should_show_login_captcha,
+        verify_recaptcha,
+    )
+
     if request.user.is_authenticated:
         return redirect(
             post_login_redirect_url(request, request.user, next_url=request.GET.get("next"))
         )
     err = ""
+    captcha_error = ""
     if request.method == "POST":
         from django.contrib.auth import authenticate
 
-        identifier = (request.POST.get("username") or "").strip()
-        password = request.POST.get("password") or ""
-        username = identifier
-        if "@" in identifier:
-            u = (
-                User.objects.filter(email__iexact=identifier)
-                .only("username")
-                .first()
-            )
-            if u is not None:
-                username = u.username
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            log_audit(request, "login_ok", "")
-            nxt = request.POST.get("next") or request.GET.get("next")
-            return redirect(post_login_redirect_url(request, user, next_url=nxt))
-        err = "Invalid username or password."
-        log_audit(request, "login_failed", "")
-    return render(request, "login.html", {"error": err, "next": request.GET.get("next") or ""})
+        need_captcha = should_show_login_captcha(request)
+        ok_captcha, captcha_error = verify_recaptcha(request, required=need_captcha)
+        if not ok_captcha:
+            err = captcha_error
+            log_audit(request, "login_captcha_failed", "")
+        else:
+            identifier = (request.POST.get("username") or "").strip()
+            password = request.POST.get("password") or ""
+            username = identifier
+            if "@" in identifier:
+                u = (
+                    User.objects.filter(email__iexact=identifier)
+                    .only("username")
+                    .first()
+                )
+                if u is not None:
+                    username = u.username
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                clear_login_fail_count(request)
+                login(request, user)
+                log_audit(request, "login_ok", "")
+                nxt = request.POST.get("next") or request.GET.get("next")
+                return redirect(post_login_redirect_url(request, user, next_url=nxt))
+            bump_login_fail_count(request)
+            err = "Invalid username or password."
+            log_audit(request, "login_failed", "")
+
+    ctx = {
+        "error": err,
+        "next": request.GET.get("next") or "",
+        "captcha_error": captcha_error if err == captcha_error else "",
+        **captcha_template_context(show=should_show_login_captcha(request)),
+    }
+    return render(request, "login.html", ctx)
 
 
 @csrf_protect
 @ratelimit(key="ip", rate="10/h", method="POST", block=True)
 @require_http_methods(["GET", "POST"])
 def signup_view(request: HttpRequest):
+    from core.recaptcha import (
+        captcha_template_context,
+        should_show_signup_captcha,
+        verify_recaptcha,
+    )
+
     if request.user.is_authenticated:
         return redirect(reverse("dashboard"))
     err = ""
+    captcha_error = ""
     if request.method == "POST":
-        first_name = (request.POST.get("first_name") or "").strip()[:150]
-        last_name = (request.POST.get("last_name") or "").strip()[:150]
-        email = (request.POST.get("email") or "").strip()[:254]
-        terms_ok = (request.POST.get("terms") or "").strip().lower() in ("1", "true", "yes", "on")
-        u = (request.POST.get("username") or "").strip()
-        p1 = request.POST.get("password") or ""
-        p2 = request.POST.get("password2") or ""
-        if not first_name:
-            err = "First name is required."
-        elif not email:
-            err = "Email is required."
+        need_captcha = should_show_signup_captcha()
+        ok_captcha, captcha_error = verify_recaptcha(request, required=need_captcha)
+        if not ok_captcha:
+            err = captcha_error
+            log_audit(request, "signup_captcha_failed", "")
         else:
-            try:
-                validate_email(email)
-            except Exception:
-                err = "Please enter a valid email address."
+            first_name = (request.POST.get("first_name") or "").strip()[:150]
+            last_name = (request.POST.get("last_name") or "").strip()[:150]
+            email = (request.POST.get("email") or "").strip()[:254]
+            terms_ok = (request.POST.get("terms") or "").strip().lower() in ("1", "true", "yes", "on")
+            u = (request.POST.get("username") or "").strip()
+            p1 = request.POST.get("password") or ""
+            p2 = request.POST.get("password2") or ""
+            if not first_name:
+                err = "First name is required."
+            elif not email:
+                err = "Email is required."
+            else:
+                try:
+                    validate_email(email)
+                except Exception:
+                    err = "Please enter a valid email address."
 
-        if not err and not terms_ok:
-            err = "You must agree to the Terms of Service and Privacy Policy."
+            if not err and not terms_ok:
+                err = "You must agree to the Terms of Service and Privacy Policy."
 
-        if not err:
-            if len(p1) < 8:
-                err = "Password must be at least 8 characters."
-            elif p1 != p2:
-                err = "Passwords do not match."
+            if not err:
+                if len(p1) < 8:
+                    err = "Password must be at least 8 characters."
+                elif p1 != p2:
+                    err = "Passwords do not match."
 
-        if not err:
-            if not u:
-                base = slugify(email.split("@", 1)[0]) or "user"
-                candidate = base
-                i = 0
-                while User.objects.filter(username__iexact=candidate).exists():
-                    i += 1
-                    candidate = f"{base}{i}"
-                u = candidate
-            elif len(u) < 3:
-                err = "Username must be at least 3 characters."
-            elif User.objects.filter(username__iexact=u).exists():
-                err = "Username already taken."
+            if not err:
+                if not u:
+                    base = slugify(email.split("@", 1)[0]) or "user"
+                    candidate = base
+                    i = 0
+                    while User.objects.filter(username__iexact=candidate).exists():
+                        i += 1
+                        candidate = f"{base}{i}"
+                    u = candidate
+                elif len(u) < 3:
+                    err = "Username must be at least 3 characters."
+                elif User.objects.filter(username__iexact=u).exists():
+                    err = "Username already taken."
 
-        if not err and User.objects.filter(email__iexact=email).exists():
-            err = "An account with this email already exists."
+            if not err and User.objects.filter(email__iexact=email).exists():
+                err = "An account with this email already exists."
 
-        if not err:
-            user = User.objects.create_user(username=u, password=p1, email=email)
-            user.first_name = first_name
-            user.last_name = last_name
-            user.save(update_fields=["first_name", "last_name"])
-            try:
-                from core.billing import get_or_create_subscription
+            if not err:
+                user = User.objects.create_user(username=u, password=p1, email=email)
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save(update_fields=["first_name", "last_name"])
+                try:
+                    from core.billing import get_or_create_subscription
 
-                get_or_create_subscription(user)
-            except Exception:
-                logger.exception("starter subscription create failed user=%s", user.pk)
-            login(request, user)
-            log_audit(request, "signup", "")
-            return redirect(reverse("dashboard"))
-    return render(request, "signup.html", {"error": err})
+                    get_or_create_subscription(user)
+                except Exception:
+                    logger.exception("starter subscription create failed user=%s", user.pk)
+                login(request, user)
+                log_audit(request, "signup", "")
+                return redirect(reverse("dashboard"))
+    ctx = {
+        "error": err,
+        "captcha_error": captcha_error if err == captcha_error else "",
+        **captcha_template_context(show=should_show_signup_captcha()),
+    }
+    return render(request, "signup.html", ctx)
 
 
 @require_http_methods(["POST", "GET"])
