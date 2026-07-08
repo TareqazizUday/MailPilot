@@ -131,6 +131,34 @@
               Update your name, email, avatar, and profile info in <a href="{% url 'profile' %}">Profile details</a>.
             </div>
           </div>
+
+          {% if token_auto_renew_plan == "pro" or token_auto_renew_plan == "custom" %}
+          <div class="sec">
+            <div class="sec-title"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Token auto-renew</div>
+            <form method="post" action="{% url 'settings' %}">
+              {% csrf_token %}
+              <input type="hidden" name="form_name" value="token_auto_renew" />
+              <div class="field">
+                <label class="label" for="token_auto_renew_enabled">Paid plan behavior</label>
+                <label style="display:flex;align-items:center;gap:10px;font-size:0.9rem;color:rgba(226,232,240,0.95);">
+                  <input id="token_auto_renew_enabled" name="token_auto_renew_enabled" type="checkbox" value="1" {% if token_auto_renew_enabled %}checked{% endif %} />
+                  Auto top-up tokens when this period quota is exhausted
+                </label>
+                <div class="help">
+                  Current plan: <strong>{{ token_auto_renew_plan|title }}</strong>.
+                  {% if token_topup_max %}
+                  This period auto top-ups used: <strong>{{ token_topup_count }}/{{ token_topup_max }}</strong>.
+                  {% endif %}
+                  If disabled, automation pauses at token limit until you buy again from Pricing.
+                </div>
+              </div>
+              <div class="btn-row">
+                <button class="btn-primary2" type="submit"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save auto-renew</button>
+                <a class="btn-soft" href="{% url 'pricing' %}"><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i> Buy plan manually</a>
+              </div>
+            </form>
+          </div>
+          {% endif %}
         </div>
 
         <div class="set-side">

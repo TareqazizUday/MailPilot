@@ -570,6 +570,9 @@ def transport_summary(user: User) -> dict[str, Any]:
                 "payment_required": gate.reason == "payment_required",
                 "starter_trial_expired": bool(plan.get("starter_expired")),
                 "starter_trial_expired_reason": plan.get("starter_expired_reason") or "",
+                "token_auto_renew_enabled": bool(plan.get("token_auto_renew_enabled")),
+                "token_topup_count": int(plan.get("token_topup_count") or 0),
+                "token_topup_max_per_period": int(plan.get("token_topup_max_per_period") or 0),
                 "features": billing.get("features") or {},
             }
         )

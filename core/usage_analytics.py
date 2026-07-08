@@ -223,6 +223,8 @@ def build_usage_economics(period_key: str, *, user_label_fn) -> dict[str, Any]:
         sub = subs.get(uid)
         profile = profiles.get(uid)
         limit = int(sub.monthly_token_limit) if sub and sub.monthly_token_limit else None
+        if sub and limit is not None and str(getattr(sub, "token_topup_period_key", "") or "") == str(period_key):
+            limit += int(getattr(sub, "token_topup_tokens", 0) or 0)
         used = plan_tokens
         pct = min(100, round((used / max(1, limit)) * 100)) if limit else None
 
@@ -337,7 +339,7 @@ def usage_map_for_user_ids(user_ids: list[int], period_key: str) -> dict[int, di
     subs = {
         s.user_id: s
         for s in UserSubscription.objects.filter(user_id__in=user_ids).only(
-            "user_id", "monthly_token_limit", "plan_code"
+            "user_id", "monthly_token_limit", "plan_code", "token_topup_tokens", "token_topup_period_key"
         )
     }
 
@@ -356,6 +358,8 @@ def usage_map_for_user_ids(user_ids: list[int], period_key: str) -> dict[int, di
         )
         sub = subs.get(uid)
         limit = int(sub.monthly_token_limit) if sub and sub.monthly_token_limit else None
+        if sub and limit is not None and str(getattr(sub, "token_topup_period_key", "") or "") == str(period_key):
+            limit += int(getattr(sub, "token_topup_tokens", 0) or 0)
         pct = min(100, round((plan_tokens / max(1, limit)) * 100)) if limit else None
         out[uid] = {
             "plan_tokens": plan_tokens,

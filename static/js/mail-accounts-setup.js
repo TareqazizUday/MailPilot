@@ -61,6 +61,10 @@
           ? starterTrialExpiredHint(j)
           : j.error === 'payment_required'
             ? '\n\nComplete payment for your plan before adding mailboxes.'
+            : j.error === 'token_auto_renew_off'
+              ? '\n\nToken auto-renew is turned off. Buy the plan again from Pricing or enable auto-renew in Settings.'
+              : j.error === 'token_auto_renew_charge_failed'
+                ? '\n\nAuto-renew attempted but card charge failed. Update payment method or buy again from Pricing.'
             : j.error === 'plan_inbox_limit_reached'
               ? '\n\nYour plan active-inbox limit is reached. Upgrade or pause another mailbox first.'
               : j.error === 'plan_kb_source_limit_reached'

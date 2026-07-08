@@ -66,11 +66,24 @@
     You have <strong id="billSendsLeftNote">{{ bill_sends_left }}</strong> auto-send{{ bill_sends_left|pluralize }} left.{% endif %}
     {% else %}
     Each auto-sent reply uses <strong>{{ bill_tok_per_send }} tokens</strong>. Draft mode does not use tokens.
+    <br />
+    <strong>Token auto-renew:</strong>
+    {% if bill_token_auto_renew_enabled %}
+    <span style="color:#86efac;">On</span> (auto top-ups used this period: {{ bill_token_topup_count }}{% if bill_token_topup_max %}/{{ bill_token_topup_max }}{% endif %}).
+    {% else %}
+    <span style="color:#fca5a5;">Off</span> - when the token limit is reached, buy again manually.
+    {% endif %}
     {% endif %}
     Set <strong>Reply mode → Send</strong> in Setup to test token deduction.
   </div>
   <div class="bill-actions">
     <a class="btn-soft" href="{% url 'pricing' %}"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> View plans</a>
+    {% if bill_plan == "pro" %}
+    <a class="btn-soft" href="{% url 'billing_checkout_pro' %}"><i class="fa-solid fa-cart-plus" aria-hidden="true"></i> Buy again</a>
+    {% elif bill_plan == "custom" %}
+    <a class="btn-soft" href="{% url 'billing_custom_request' %}"><i class="fa-solid fa-cart-plus" aria-hidden="true"></i> Buy again</a>
+    {% endif %}
+    <a class="btn-soft" href="{% url 'settings' %}"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Auto-renew setting</a>
     <a class="btn-soft" href="{% url 'setup' %}"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Setup &amp; reply mode</a>
     <a class="btn-soft" href="{% url 'dashboard' %}"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Dashboard</a>
   </div>

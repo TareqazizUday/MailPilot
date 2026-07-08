@@ -81,7 +81,8 @@
     }
 
     @media (max-width: 1100px) {
-      .pricing-grid {
+      #pricing .pricing-grid,
+      main.mp-marketing-main .pricing-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 18px;
         padding-left: 0;
@@ -90,7 +91,8 @@
     }
 
     @media (max-width: 1024px) {
-      .pricing-grid {
+      #pricing .pricing-grid,
+      main.mp-marketing-main .pricing-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         max-width: 920px;
         gap: 18px;
@@ -102,7 +104,10 @@
     }
 
     @media (max-width: 768px) {
-      .pricing-grid {
+      #pricing .pricing-grid,
+      main.mp-marketing-main .pricing-grid {
+        grid-template-columns: 1fr;
+        max-width: 100%;
         margin-top: 36px;
         gap: 16px;
       }
@@ -128,7 +133,8 @@
     }
 
     @media (max-width: 600px) {
-      .pricing-grid {
+      #pricing .pricing-grid,
+      main.mp-marketing-main .pricing-grid {
         grid-template-columns: 1fr;
         max-width: min(480px, 100%);
         gap: 14px;
@@ -185,7 +191,8 @@
     }
 
     @media (max-width: 360px) {
-      .pricing-grid {
+      #pricing .pricing-grid,
+      main.mp-marketing-main .pricing-grid {
         max-width: 100%;
         gap: 12px;
       }

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+import logging
 from typing import Any
 
 from django.db import IntegrityError, transaction
@@ -31,6 +32,10 @@ TOKENS_PER_AUTO_SEND = 5  # default (Pro); Starter uses 4 via plan defaults
 STARTER_LIFETIME_SEND_LIMIT = 20
 STARTER_LIFETIME_TOKEN_LIMIT = 80
 STARTER_TRIAL_DAYS = 30
+AUTO_TOPUP_MAX_PER_PERIOD = 3
+PRO_TOPUP_PRICE_CENTS = 2000
+
+logger = logging.getLogger("mailpilot.billing")
 
 
 PLAN_DEFAULTS: dict[str, dict[str, Any]] = {
@@ -93,6 +98,185 @@ def plan_defaults(plan_code: str) -> dict[str, Any]:
 
 def tokens_per_auto_send_for_plan(plan_code: str) -> int:
     return int(plan_defaults(plan_code).get("tokens_per_auto_send") or TOKENS_PER_AUTO_SEND)
+
+
+def _period_topup_tokens(sub: UserSubscription, period_key: str) -> int:
+    if str(sub.token_topup_period_key or "") != str(period_key):
+        return 0
+    return int(sub.token_topup_tokens or 0)
+
+
+def _period_topup_count(sub: UserSubscription, period_key: str) -> int:
+    if str(sub.token_topup_period_key or "") != str(period_key):
+        return 0
+    return int(sub.token_topup_count or 0)
+
+
+def _custom_latest_paid_quote(user_id: int):
+    from core.models import CustomPlanQuote
+
+    return (
+        CustomPlanQuote.objects.filter(user_id=user_id, status=CustomPlanQuote.STATUS_PAID)
+        .order_by("-paid_at", "-id")
+        .first()
+    )
+
+
+def _topup_tokens_for_subscription(sub: UserSubscription) -> int:
+    if sub.plan_code == PLAN_PRO:
+        return int(plan_defaults(PLAN_PRO).get("monthly_token_limit") or 1000)
+    if sub.plan_code != PLAN_CUSTOM:
+        return 0
+    if sub.monthly_token_limit:
+        return int(sub.monthly_token_limit)
+    quote = _custom_latest_paid_quote(sub.user_id)
+    return int(getattr(quote, "tokens", 0) or 0)
+
+
+def token_topup_bundle_tokens(sub: UserSubscription) -> int:
+    """Public helper for plan-specific token top-up bundle size."""
+    return _topup_tokens_for_subscription(sub)
+
+
+def _topup_amount_for_subscription(sub: UserSubscription) -> tuple[int, str]:
+    if sub.plan_code == PLAN_PRO:
+        return PRO_TOPUP_PRICE_CENTS, "usd"
+    if sub.plan_code != PLAN_CUSTOM:
+        return 0, "usd"
+    quote = _custom_latest_paid_quote(sub.user_id)
+    if quote is not None:
+        return int(quote.price_cents or 0), str(quote.currency or "usd").strip().lower() or "usd"
+    tokens = int(sub.monthly_token_limit or 0)
+    inboxes = int(sub.active_inbox_limit or 0)
+    if tokens <= 0 or inboxes <= 0:
+        return 0, "usd"
+    return int(calculate_custom_price_cents(tokens, inboxes)), "usd"
+
+
+def _charge_saved_card_for_topup(sub: UserSubscription, *, amount_cents: int, currency: str, period_key: str) -> tuple[bool, str]:
+    from core.payment_gateway import get_stripe_credentials
+
+    if amount_cents <= 0:
+        return False, "invalid_topup_amount"
+    customer_id = str(sub.stripe_customer_id or "").strip()
+    if not customer_id:
+        return False, "missing_stripe_customer"
+    creds = get_stripe_credentials()
+    secret = (creds.secret_key if creds else "").strip() if creds else ""
+    if not secret:
+        return False, "stripe_not_configured"
+    try:
+        import requests
+
+        data = {
+            "amount": str(int(amount_cents)),
+            "currency": str(currency or "usd").strip().lower() or "usd",
+            "customer": customer_id,
+            "confirm": "true",
+            "off_session": "true",
+            "description": f"MailPilot token top-up ({sub.plan_code})",
+            "metadata[user_id]": str(sub.user_id),
+            "metadata[plan_type]": str(sub.plan_code),
+            "metadata[topup_type]": "token_auto_renew",
+            "metadata[period_key]": str(period_key),
+        }
+        resp = requests.post(
+            "https://api.stripe.com/v1/payment_intents",
+            data=data,
+            auth=(secret, ""),
+            timeout=20,
+        )
+        payload = resp.json() if resp.content else {}
+        status = str(payload.get("status") or "").strip().lower()
+        if resp.ok and status == "succeeded":
+            return True, str(payload.get("id") or "")
+        err = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+        msg = str(err.get("message") or payload.get("last_payment_error", {}).get("message") or status or "charge_failed")
+        return False, msg[:220]
+    except Exception as exc:
+        logger.warning("auto top-up stripe charge failed user=%s: %s", sub.user_id, exc)
+        return False, "stripe_exception"
+
+
+def maybe_auto_topup_tokens(
+    *,
+    sub: UserSubscription,
+    counter: UsageCounter,
+    period_key: str,
+    required_units: int,
+) -> tuple[bool, str]:
+    """Try paid-plan token top-up when current period limit is exhausted."""
+    if sub.plan_code not in (PLAN_PRO, PLAN_CUSTOM):
+        return False, "not_paid_plan"
+    if not has_paid_entitlement(sub):
+        return False, "payment_required"
+    if not bool(sub.token_auto_renew_enabled):
+        return False, "token_auto_renew_off"
+
+    base_limit = int(sub.monthly_token_limit or 0)
+    if base_limit <= 0:
+        return False, "missing_plan_limit"
+
+    topup_tokens = _period_topup_tokens(sub, period_key)
+    effective_limit = base_limit + topup_tokens
+    if int(counter.tokens_used) + int(required_units) <= effective_limit:
+        return True, ""
+
+    period_count = _period_topup_count(sub, period_key)
+    if period_count >= AUTO_TOPUP_MAX_PER_PERIOD:
+        return False, "token_auto_renew_limit_reached"
+
+    plan_tokens = _topup_tokens_for_subscription(sub)
+    amount_cents, currency = _topup_amount_for_subscription(sub)
+    if plan_tokens <= 0 or amount_cents <= 0:
+        return False, "token_topup_config_missing"
+
+    charged, detail = _charge_saved_card_for_topup(
+        sub,
+        amount_cents=amount_cents,
+        currency=currency,
+        period_key=period_key,
+    )
+    if not charged:
+        return False, "token_auto_renew_charge_failed"
+
+    grant_token_topup_credits(
+        sub,
+        tokens=plan_tokens,
+        period_key=period_key,
+        increment_count=True,
+    )
+    logger.info(
+        "auto top-up success user=%s plan=%s add_tokens=%s period=%s ref=%s",
+        sub.user_id,
+        sub.plan_code,
+        plan_tokens,
+        period_key,
+        detail,
+    )
+    return True, ""
+
+
+def grant_token_topup_credits(
+    sub: UserSubscription,
+    *,
+    tokens: int,
+    period_key: str | None = None,
+    increment_count: bool = True,
+) -> None:
+    add_tokens = max(0, int(tokens or 0))
+    if add_tokens <= 0:
+        return
+    key = str(period_key or current_period_key())
+    existing_tokens = _period_topup_tokens(sub, key)
+    existing_count = _period_topup_count(sub, key)
+    sub.token_topup_period_key = key
+    sub.token_topup_tokens = int(existing_tokens) + add_tokens
+    if increment_count:
+        sub.token_topup_count = int(existing_count) + 1
+    else:
+        sub.token_topup_count = int(existing_count)
+    sub.save(update_fields=["token_topup_period_key", "token_topup_tokens", "token_topup_count", "updated_at"])
 
 
 def starter_trial_ends_at(sub: UserSubscription):
@@ -222,6 +406,7 @@ def apply_plan_defaults(sub: UserSubscription) -> UserSubscription:
 
 
 def set_subscription_plan(sub: UserSubscription, plan_code: str, *, status: str | None = None) -> UserSubscription:
+    prev_plan = sub.plan_code
     sub.plan_code = plan_code if plan_code in PLAN_DEFAULTS else PLAN_STARTER
     if status:
         sub.status = status
@@ -239,6 +424,10 @@ def set_subscription_plan(sub: UserSubscription, plan_code: str, *, status: str 
     )
     for key in model_keys:
         setattr(sub, key, defaults.get(key))
+    if prev_plan != sub.plan_code:
+        sub.token_topup_tokens = 0
+        sub.token_topup_count = 0
+        sub.token_topup_period_key = ""
     sub.save()
     return sub
 
@@ -254,10 +443,17 @@ def get_plan_limits(user) -> dict[str, Any]:
         value = getattr(sub, key, None)
         return defaults.get(key) if value is None else value
 
+    base_monthly_limit = pick("monthly_token_limit")
+    topup_tokens = _period_topup_tokens(sub, current_period_key())
+    effective_monthly_limit = base_monthly_limit
+    if base_monthly_limit is not None and sub.plan_code in (PLAN_PRO, PLAN_CUSTOM):
+        effective_monthly_limit = int(base_monthly_limit) + int(topup_tokens)
+
     return {
         "plan_code": sub.plan_code,
         "status": sub.status,
-        "monthly_token_limit": pick("monthly_token_limit"),
+        "monthly_token_limit": effective_monthly_limit,
+        "monthly_token_limit_base": base_monthly_limit,
         "active_inbox_limit": pick("active_inbox_limit"),
         "daily_send_limit": pick("daily_send_limit"),
         "kb_source_limit": pick("kb_source_limit"),
@@ -274,6 +470,10 @@ def get_plan_limits(user) -> dict[str, Any]:
         "starter_expired_reason": starter_expired_reason(sub),
         "starter_expired": is_starter_expired(sub),
         "paid": has_paid_entitlement(sub),
+        "token_auto_renew_enabled": bool(sub.token_auto_renew_enabled),
+        "token_topup_tokens": int(topup_tokens),
+        "token_topup_count": int(_period_topup_count(sub, current_period_key())),
+        "token_topup_max_per_period": AUTO_TOPUP_MAX_PER_PERIOD,
     }
 
 
@@ -369,10 +569,15 @@ def usage_summary(user, *, account: MailAccount | None = None) -> dict[str, Any]
             "starter_expired": bool(limits.get("starter_expired")),
             "starter_expired_reason": limits.get("starter_expired_reason"),
             "paid": bool(limits.get("paid")),
+            "token_auto_renew_enabled": bool(limits.get("token_auto_renew_enabled")),
+            "token_topup_count": int(limits.get("token_topup_count") or 0),
+            "token_topup_max_per_period": int(limits.get("token_topup_max_per_period") or AUTO_TOPUP_MAX_PER_PERIOD),
         },
         "period_key": period_key,
         "tokens": {
             "limit": monthly_limit,
+            "base_limit": limits.get("monthly_token_limit_base"),
+            "topup_tokens": int(limits.get("token_topup_tokens") or 0),
             "used": tokens_used,
             "left": monthly_left,
             "per_send": limits.get("tokens_per_auto_send") or tokens_per_auto_send_for_plan(limits["plan_code"]),
@@ -463,6 +668,10 @@ def profile_billing_display(billing: dict[str, Any] | None = None) -> dict[str, 
         "bill_starter_sends_limit": int(starter_trial.get("sends_limit") or STARTER_LIFETIME_SEND_LIMIT),
         "bill_starter_days_left": int(starter_trial.get("days_left") or 0),
         "bill_starter_trial_days": int(starter_trial.get("days_total") or STARTER_TRIAL_DAYS),
+        "bill_token_auto_renew_enabled": bool((b.get("plan") or {}).get("token_auto_renew_enabled")),
+        "bill_token_topup_count": int((b.get("plan") or {}).get("token_topup_count") or 0),
+        "bill_token_topup_max": int((b.get("plan") or {}).get("token_topup_max_per_period") or AUTO_TOPUP_MAX_PER_PERIOD),
+        "bill_token_topup_tokens": int(tokens.get("topup_tokens") or 0),
     }
 
 
@@ -575,7 +784,24 @@ def reserve_auto_send(user, account: MailAccount, message_id: str) -> BillingRes
         else:
             monthly_limit = limits.get("monthly_token_limit")
             if monthly_limit is not None and int(counter.tokens_used) + units > int(monthly_limit):
-                return BillingReservation(False, "monthly_token_limit_reached", None, usage_summary(user, account=account))
+                reason = "monthly_token_limit_reached"
+                sub = (
+                    UserSubscription.objects.select_for_update()
+                    .filter(user_id=user.id)
+                    .first()
+                )
+                if sub is not None:
+                    topped_up, reason = maybe_auto_topup_tokens(
+                        sub=sub,
+                        counter=counter,
+                        period_key=period_key,
+                        required_units=units,
+                    )
+                    if topped_up:
+                        limits = get_plan_limits(user)
+                        monthly_limit = limits.get("monthly_token_limit")
+                if monthly_limit is not None and int(counter.tokens_used) + units > int(monthly_limit):
+                    return BillingReservation(False, reason, None, usage_summary(user, account=account))
 
         daily_limit = daily_limit_for_account(user, account)
         provider_profile = _provider_profile_for_account(account)

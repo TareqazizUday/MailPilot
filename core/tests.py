@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import Client, SimpleTestCase, TestCase
@@ -233,6 +234,68 @@ class BillingTests(TestCase):
 
         sub.refresh_from_db()
         self.assertIsNotNone(sub.starter_expired_at)
+
+    def test_paid_plan_auto_topup_when_enabled(self) -> None:
+        acc = MailAccount.objects.create(
+            user=self.user,
+            slot=1,
+            transport=MailAccount.TRANSPORT_GMAIL,
+            label="Gmail paid",
+            is_enabled=True,
+        )
+        sub = get_or_create_subscription(self.user)
+        set_subscription_plan(sub, UserSubscription.PLAN_PRO)
+        sub.monthly_token_limit = tokens_per_auto_send_for_plan(UserSubscription.PLAN_PRO)
+        sub.paid_at = timezone.now()
+        sub.stripe_customer_id = "cus_test"
+        sub.token_auto_renew_enabled = True
+        sub.save(
+            update_fields=[
+                "monthly_token_limit",
+                "paid_at",
+                "stripe_customer_id",
+                "token_auto_renew_enabled",
+                "updated_at",
+            ]
+        )
+
+        first = reserve_auto_send(self.user, acc, "pro-msg-1")
+        self.assertTrue(first.allowed)
+        commit_auto_send(first)
+
+        with patch("core.billing._charge_saved_card_for_topup", return_value=(True, "pi_test")):
+            second = reserve_auto_send(self.user, acc, "pro-msg-2")
+        self.assertTrue(second.allowed)
+        commit_auto_send(second)
+
+        sub.refresh_from_db()
+        self.assertGreater(sub.token_topup_tokens, 0)
+        summary = usage_summary(self.user, account=acc)
+        self.assertTrue(summary["plan"]["token_auto_renew_enabled"])
+        self.assertGreaterEqual(summary["tokens"]["limit"], sub.monthly_token_limit)
+
+    def test_paid_plan_auto_topup_respects_toggle(self) -> None:
+        acc = MailAccount.objects.create(
+            user=self.user,
+            slot=1,
+            transport=MailAccount.TRANSPORT_GMAIL,
+            label="Gmail paid off",
+            is_enabled=True,
+        )
+        sub = get_or_create_subscription(self.user)
+        set_subscription_plan(sub, UserSubscription.PLAN_PRO)
+        sub.monthly_token_limit = tokens_per_auto_send_for_plan(UserSubscription.PLAN_PRO)
+        sub.paid_at = timezone.now()
+        sub.token_auto_renew_enabled = False
+        sub.save(update_fields=["monthly_token_limit", "paid_at", "token_auto_renew_enabled", "updated_at"])
+
+        first = reserve_auto_send(self.user, acc, "pro-off-1")
+        self.assertTrue(first.allowed)
+        commit_auto_send(first)
+
+        blocked = reserve_auto_send(self.user, acc, "pro-off-2")
+        self.assertFalse(blocked.allowed)
+        self.assertEqual(blocked.reason, "token_auto_renew_off")
 
 
 class CustomPlanPricingTests(SimpleTestCase):

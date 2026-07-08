@@ -122,6 +122,7 @@ class UserSubscriptionInline(StackedInline):
     fields = (
         "plan_code",
         "status",
+        "token_auto_renew_enabled",
         "monthly_token_limit",
         "active_inbox_limit",
         "daily_send_limit",
@@ -359,6 +360,9 @@ class UserSubscriptionAdmin(_MPModelAdmin):
         "plan_badge",
         "status_badge",
         "payment_provider_badge",
+        "token_auto_renew_enabled",
+        "token_topup_tokens",
+        "token_topup_count",
         "monthly_token_limit",
         "active_inbox_limit",
         "daily_send_limit",
@@ -384,6 +388,10 @@ class UserSubscriptionAdmin(_MPModelAdmin):
             {
                 "fields": (
                     "monthly_token_limit",
+                    "token_auto_renew_enabled",
+                    "token_topup_tokens",
+                    "token_topup_count",
+                    "token_topup_period_key",
                     "active_inbox_limit",
                     "daily_send_limit",
                     "kb_source_limit",

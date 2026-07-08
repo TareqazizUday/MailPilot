@@ -121,6 +121,24 @@ class UserSubscription(models.Model):
         help_text="Last successful checkout provider: stripe or paypal.",
     )
     paypal_subscription_id = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    token_auto_renew_enabled = models.BooleanField(
+        default=True,
+        help_text="When enabled, paid plans attempt an automatic token top-up after token exhaustion.",
+    )
+    token_topup_tokens = models.PositiveIntegerField(
+        default=0,
+        help_text="Bonus tokens purchased for the current usage period.",
+    )
+    token_topup_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of automatic token top-ups completed in the current usage period.",
+    )
+    token_topup_period_key = models.CharField(
+        max_length=7,
+        blank=True,
+        default="",
+        help_text="Usage period key (YYYY-MM) for token_topup_tokens/token_topup_count.",
+    )
     starter_lifetime_sends = models.PositiveIntegerField(default=0)
     starter_expired_at = models.DateTimeField(null=True, blank=True)
     paid_at = models.DateTimeField(

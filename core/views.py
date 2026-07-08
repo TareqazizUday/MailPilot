@@ -689,6 +689,18 @@ def settings_page(request):
     connected = _mailbox_connected_for_ui(effective, cfg)
 
     if request.method == "POST":
+        if (request.POST.get("form_name") or "").strip() == "token_auto_renew":
+            from core.billing import get_or_create_subscription
+            from django.contrib import messages
+
+            enabled = str(request.POST.get("token_auto_renew_enabled") or "").strip() in ("1", "true", "on", "yes")
+            sub = get_or_create_subscription(request.user)
+            sub.token_auto_renew_enabled = enabled
+            sub.save(update_fields=["token_auto_renew_enabled", "updated_at"])
+            state = "enabled" if enabled else "disabled"
+            messages.success(request, f"Token auto-renew {state}.")
+            return redirect(reverse("settings"))
+
         form = PasswordChangeForm(user=request.user, data=request.POST)
         if form.is_valid():
             u = form.save()
@@ -706,11 +718,24 @@ def settings_page(request):
             messages.error(request, err)
             return redirect(reverse("settings"))
 
+    bill = {}
+    try:
+        from core.billing import usage_summary
+
+        bill = usage_summary(request.user)
+    except Exception:
+        bill = {}
+
     return render(
         request,
         "settings.html",
         {
             "connected": connected,
+            "billing": bill,
+            "token_auto_renew_enabled": bool((bill.get("plan") or {}).get("token_auto_renew_enabled")),
+            "token_auto_renew_plan": str((bill.get("plan") or {}).get("code") or "starter"),
+            "token_topup_count": int((bill.get("plan") or {}).get("token_topup_count") or 0),
+            "token_topup_max": int((bill.get("plan") or {}).get("token_topup_max_per_period") or 0),
         },
     )
 
@@ -1978,7 +2003,14 @@ def billing_stripe_webhook(request):
         return JsonResponse({"ok": False, "error": "invalid_json"}, status=400)
     try:
         from django.contrib.auth.models import User
-        from core.billing import get_or_create_subscription, set_subscription_plan
+        from core.billing import (
+            current_period_key,
+            get_or_create_subscription,
+            grant_token_topup_credits,
+            has_paid_entitlement,
+            set_subscription_plan,
+            token_topup_bundle_tokens,
+        )
 
         etype = str(event.get("type") or "")
         obj = ((event.get("data") or {}).get("object") or {}) if isinstance(event.get("data"), dict) else {}
@@ -1995,6 +2027,8 @@ def billing_stripe_webhook(request):
         if user is None:
             return JsonResponse({"ok": True, "ignored": "unknown_user"})
         sub = get_or_create_subscription(user)
+        prior_plan = str(sub.plan_code or "")
+        prior_paid = has_paid_entitlement(sub)
         meta = (obj.get("metadata") or {}) if isinstance(obj.get("metadata"), dict) else {}
         plan_type = str(meta.get("plan_type") or "pro").strip().lower()
         sub.payment_provider = PAYMENT_STRIPE
@@ -2028,6 +2062,16 @@ def billing_stripe_webhook(request):
                 sub.stripe_customer_id = str(obj.get("customer") or sub.stripe_customer_id or "")
                 sub.stripe_subscription_id = str(obj.get("subscription") or sub.stripe_subscription_id or "")
                 sub.paid_at = dj_timezone.now()
+            # Manual repurchase of the same paid plan grants an immediate token top-up.
+            if prior_paid and prior_plan in ("pro", "custom") and plan_type == prior_plan:
+                topup_tokens = token_topup_bundle_tokens(sub)
+                if topup_tokens > 0:
+                    grant_token_topup_credits(
+                        sub,
+                        tokens=topup_tokens,
+                        period_key=current_period_key(),
+                        increment_count=False,
+                    )
         elif etype in ("customer.subscription.updated", "customer.subscription.created"):
             code = "custom" if plan_type == "custom" or sub.plan_code == "custom" else "pro"
             set_subscription_plan(
