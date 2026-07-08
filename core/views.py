@@ -390,10 +390,9 @@ def sitemap_xml(request):
 
 @require_GET
 def terms_page(request):
-    from core.legal_content import get_terms_settings
+    from core.legal_content import get_terms_page_payload
 
-    terms = get_terms_settings()
-    ctx: dict[str, Any] = {"terms_page": terms}
+    ctx: dict[str, Any] = get_terms_page_payload()
     if request.user.is_authenticated:
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)
@@ -403,10 +402,9 @@ def terms_page(request):
 
 @require_GET
 def privacy_page(request):
-    from core.legal_content import get_privacy_settings
+    from core.legal_content import get_privacy_page_payload
 
-    privacy = get_privacy_settings()
-    ctx: dict[str, Any] = {"privacy_page": privacy}
+    ctx: dict[str, Any] = get_privacy_page_payload()
     if request.user.is_authenticated:
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)
