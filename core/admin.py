@@ -10,6 +10,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, StackedInline
 
 from core.admin_site import admin_site
+from core.admin_marketing_ui import MarketingListUIMixin, visibility_badges
 from core.billing import apply_plan_defaults, current_period_key, set_subscription_plan
 from core.models import (
     AuditLog,
@@ -26,6 +27,8 @@ from core.models import (
     MarketingFaqSettings,
     MarketingHeroInboxItem,
     MarketingHeroSettings,
+    MarketingLandingPage,
+    MarketingRagItem,
     MarketingReview,
     MarketingPricingPlan,
     MarketingPricingSettings,
@@ -509,17 +512,18 @@ def unpublish_marketing_reviews(modeladmin, request, queryset):
     modeladmin.message_user(request, f"Unpublished {queryset.count()} review(s).")
 
 
-class MarketingFeatureAdmin(_MPModelAdmin):
+class MarketingFeatureAdmin(MarketingListUIMixin, _MPModelAdmin):
+    mp_mkt_title = "Features"
+    mp_mkt_subtitle = "Homepage feature cards — icon, title, description, accent"
+    mp_mkt_site_url = "/#features"
     list_display = (
         "sort_order",
-        "title",
-        "icon_preview",
+        "feature_cell",
         "accent_preview",
-        "published_badge",
-        "homepage_badge",
+        "visibility_cell",
         "updated_at",
     )
-    list_display_links = ("title",)
+    list_display_links = ("feature_cell",)
     list_editable = ("sort_order",)
     list_filter = ("is_published", "show_on_homepage")
     search_fields = ("title", "description", "icon_class")
@@ -533,40 +537,51 @@ class MarketingFeatureAdmin(_MPModelAdmin):
     )
     readonly_fields = ("created_at", "updated_at")
 
-    @admin.display(description="Icon")
-    def icon_preview(self, obj):
-        return format_html('<i class="{}" style="font-size:1.1rem"></i> {}', obj.icon_class, obj.icon_class)
+    @admin.display(description="Feature", ordering="title")
+    def feature_cell(self, obj):
+        desc = (obj.description or "").strip().replace("\n", " ")
+        preview = f"{desc[:90]}…" if len(desc) > 90 else desc
+        return format_html(
+            '<span class="mp-mkt-row">'
+            '<span class="mp-mkt-ico" style="color:{};background:color-mix(in srgb,{} 14%, white)">'
+            '<i class="{}"></i></span>'
+            '<span class="mp-mkt-row__text">'
+            '<span class="mp-mkt-row__title">{}</span>'
+            '<span class="mp-mkt-row__meta">{}</span>'
+            "</span></span>",
+            obj.accent_color or "#5b5bf0",
+            obj.accent_color or "#5b5bf0",
+            obj.icon_class or "fa-solid fa-star",
+            obj.title,
+            preview or "—",
+        )
 
     @admin.display(description="Accent")
     def accent_preview(self, obj):
-        color = (obj.accent_color or "#4f6ef7").strip()
+        color = (obj.accent_color or "#5b5bf0").strip()
         return format_html(
-            '<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:{};'
-            'border:1px solid rgba(255,255,255,.2);vertical-align:middle"></span> {}',
+            '<span class="mp-mkt-swatch" style="background:{}"></span> <span class="mp-mkt-swatch-label">{}</span>',
             color,
             color,
         )
 
-    @admin.display(description="Published", ordering="is_published")
-    def published_badge(self, obj):
-        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
-
-    @admin.display(description="Homepage", ordering="show_on_homepage")
-    def homepage_badge(self, obj):
-        return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
+    @admin.display(description="Visibility")
+    def visibility_cell(self, obj):
+        return visibility_badges(is_published=obj.is_published, show_on_homepage=obj.show_on_homepage)
 
 
-class HowItWorksStepAdmin(_MPModelAdmin):
+class HowItWorksStepAdmin(MarketingListUIMixin, _MPModelAdmin):
+    mp_mkt_title = "How it works"
+    mp_mkt_subtitle = "Homepage pipeline steps — order matches the landing page"
+    mp_mkt_site_url = "/#how-it-works"
     list_display = (
         "sort_order",
-        "title",
+        "step_cell",
         "accent_badge",
-        "icon_preview",
-        "published_badge",
-        "homepage_badge",
+        "visibility_cell",
         "updated_at",
     )
-    list_display_links = ("title",)
+    list_display_links = ("step_cell",)
     list_editable = ("sort_order",)
     list_filter = ("is_published", "show_on_homepage", "accent")
     search_fields = ("title", "description")
@@ -580,6 +595,22 @@ class HowItWorksStepAdmin(_MPModelAdmin):
     )
     readonly_fields = ("created_at", "updated_at")
 
+    @admin.display(description="Step", ordering="title")
+    def step_cell(self, obj):
+        desc = (obj.description or "").strip().replace("\n", " ")
+        preview = f"{desc[:90]}…" if len(desc) > 90 else desc
+        return format_html(
+            '<span class="mp-mkt-row">'
+            '<span class="mp-mkt-step">{}</span>'
+            '<span class="mp-mkt-row__text">'
+            '<span class="mp-mkt-row__title">{}</span>'
+            '<span class="mp-mkt-row__meta">{}</span>'
+            "</span></span>",
+            obj.sort_order or "—",
+            obj.title,
+            preview or "—",
+        )
+
     @admin.display(description="Accent", ordering="accent")
     def accent_badge(self, obj):
         tones = {
@@ -592,38 +623,23 @@ class HowItWorksStepAdmin(_MPModelAdmin):
         }
         return _badge(obj.get_accent_display(), tones.get(obj.accent, "muted"))
 
-    @admin.display(description="Icon")
-    def icon_preview(self, obj):
-        from django.utils.safestring import mark_safe
-
-        if not (obj.icon_svg or "").strip():
-            return "-"
-        return format_html(
-            '<span style="display:inline-block;width:22px;height:22px;color:#a5b4fc">{}</span>',
-            mark_safe(obj.icon_svg),
-        )
-
-    @admin.display(description="Published", ordering="is_published")
-    def published_badge(self, obj):
-        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
-
-    @admin.display(description="Homepage", ordering="show_on_homepage")
-    def homepage_badge(self, obj):
-        return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
+    @admin.display(description="Visibility")
+    def visibility_cell(self, obj):
+        return visibility_badges(is_published=obj.is_published, show_on_homepage=obj.show_on_homepage)
 
 
-class MarketingReviewAdmin(_MPModelAdmin):
+class MarketingReviewAdmin(MarketingListUIMixin, _MPModelAdmin):
+    mp_mkt_title = "Reviews"
+    mp_mkt_subtitle = "Homepage testimonials — quote, author, rating, accents"
+    mp_mkt_site_url = "/#testimonials"
     list_display = (
         "sort_order",
-        "author_name",
-        "author_role",
+        "review_cell",
         "rating_badge",
-        "accent_preview",
-        "published_badge",
-        "homepage_badge",
+        "visibility_cell",
         "updated_at",
     )
-    list_display_links = ("author_name",)
+    list_display_links = ("review_cell",)
     list_editable = ("sort_order",)
     list_filter = ("is_published", "show_on_homepage", "rating")
     search_fields = ("author_name", "author_role", "quote", "metric")
@@ -631,37 +647,44 @@ class MarketingReviewAdmin(_MPModelAdmin):
     actions = [publish_marketing_reviews, unpublish_marketing_reviews]
     fieldsets = (
         (None, {"fields": ("quote", "metric")}),
-        ("Author", {"fields": ("author_name", "author_role", "avatar_initials")}),
+        ("Author", {"fields": ("author_name", "author_role", "avatar_initials", "photo")}),
         ("Display", {"fields": ("rating", "accent_primary", "accent_secondary", "sort_order")}),
         ("Visibility", {"fields": ("is_published", "show_on_homepage")}),
         ("Meta", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
     readonly_fields = ("created_at", "updated_at")
 
+    @admin.display(description="Review", ordering="author_name")
+    def review_cell(self, obj):
+        initials = (obj.avatar_initials or (obj.author_name or "?")[:2]).upper()
+        quote = (obj.quote or "").strip().replace("\n", " ")
+        preview = f"{quote[:88]}…" if len(quote) > 88 else quote
+        a1 = (obj.accent_primary or "#5b5bf0").strip()
+        a2 = (obj.accent_secondary or "#8a5bf0").strip()
+        role = obj.author_role or ""
+        return format_html(
+            '<span class="mp-mkt-row">'
+            '<span class="mp-mkt-avatar" style="background:linear-gradient(135deg,{},{})">{}</span>'
+            '<span class="mp-mkt-row__text">'
+            '<span class="mp-mkt-row__title">{}</span>'
+            '<span class="mp-mkt-row__meta">{}</span>'
+            '<span class="mp-mkt-row__meta">{}</span>'
+            "</span></span>",
+            a1,
+            a2,
+            initials,
+            obj.author_name or "—",
+            role,
+            preview or "—",
+        )
+
     @admin.display(description="Rating", ordering="rating")
     def rating_badge(self, obj):
         return _badge(f"{obj.rating}★", "warn" if obj.rating >= 5 else "pro")
 
-    @admin.display(description="Accent")
-    def accent_preview(self, obj):
-        a1 = (obj.accent_primary or "#4f6ef7").strip()
-        a2 = (obj.accent_secondary or "#a78bfa").strip()
-        return format_html(
-            '<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:linear-gradient(135deg,{},{});'
-            'border:1px solid rgba(255,255,255,.2);vertical-align:middle"></span> {} / {}',
-            a1,
-            a2,
-            a1,
-            a2,
-        )
-
-    @admin.display(description="Published", ordering="is_published")
-    def published_badge(self, obj):
-        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
-
-    @admin.display(description="Homepage", ordering="show_on_homepage")
-    def homepage_badge(self, obj):
-        return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
+    @admin.display(description="Visibility")
+    def visibility_cell(self, obj):
+        return visibility_badges(is_published=obj.is_published, show_on_homepage=obj.show_on_homepage)
 
 
 @admin.action(description="Publish selected hero inbox rows")
@@ -695,31 +718,278 @@ class MarketingHeroSettingsAdmin(_MPModelAdmin):
         return redirect(reverse("admin:core_marketingherosettings_change", args=(obj.pk,)))
 
 
-class MarketingHeroInboxItemAdmin(_MPModelAdmin):
+class MarketingLandingPageAdmin(_MPModelAdmin):
+    change_form_outer_before_template = "admin/core/marketinglandingpage/edit_header.html"
+    fieldsets = (
+        (
+            "Hero",
+            {
+                "description": "Top of homepage — headline, CTAs, and floating status cards.",
+                "fields": (
+                    "hero_overline",
+                    "hero_title_before",
+                    "hero_title_highlight",
+                    "hero_sub_html",
+                    "hero_cta_primary",
+                    "hero_cta_secondary",
+                    "float_1_title",
+                    "float_1_sub",
+                    "float_2_title",
+                    "float_2_sub",
+                    "float_3_title",
+                    "float_3_sub",
+                ),
+            },
+        ),
+        (
+            "Logos strip",
+            {
+                "classes": ("collapse",),
+                "description": "Label above the scrolling tools marquee.",
+                "fields": ("logos_label",),
+            },
+        ),
+        (
+            "Features header",
+            {
+                "description": "Section title only — edit cards under Website → Features.",
+                "fields": ("features_tag", "features_title", "features_sub"),
+            },
+        ),
+        (
+            "How it works header",
+            {
+                "description": "Section title only — edit steps under Website → How it works.",
+                "fields": ("hiw_tag", "hiw_title_lead", "hiw_title_highlight", "hiw_sub"),
+            },
+        ),
+        (
+            "Grounding header",
+            {
+                "description": "RAG section title — edit bullets under Website → Grounding.",
+                "fields": ("rag_tag", "rag_title_html"),
+            },
+        ),
+        (
+            "Reviews header",
+            {
+                "description": "Testimonials intro — edit quotes under Website → Reviews.",
+                "fields": (
+                    "testimonials_tag",
+                    "testimonials_title_lead",
+                    "testimonials_title_highlight",
+                    "testimonials_intro",
+                    "trust_strip_label",
+                    "trust_logos",
+                ),
+            },
+        ),
+        (
+            "Contact",
+            {
+                "description": "Contact section copy around the form.",
+                "fields": (
+                    "contact_tag",
+                    "contact_title_lead",
+                    "contact_title_highlight",
+                    "contact_intro",
+                    "contact_aside_title",
+                    "contact_aside_body",
+                    "contact_perk_1",
+                    "contact_perk_2",
+                    "contact_perk_3",
+                    "contact_form_title",
+                    "contact_form_sub",
+                    "contact_message_placeholder",
+                    "contact_privacy",
+                ),
+            },
+        ),
+        (
+            "Bottom CTA",
+            {
+                "description": "Final banner — copy plus optional floating agent images (leave empty for defaults).",
+                "fields": (
+                    "cta_title",
+                    "cta_sub",
+                    "cta_primary",
+                    "cta_secondary",
+                    "cta_image_1",
+                    "cta_image_2",
+                ),
+            },
+        ),
+        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
+    )
+    readonly_fields = ("updated_at",)
+
+    class Media:
+        js = ("js/mailpilot-landing-admin.js",)
+
+    def has_add_permission(self, request):
+        return not MarketingLandingPage.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        from core.marketing import get_landing_page
+
+        obj = get_landing_page()
+        return redirect(reverse("admin:core_marketinglandingpage_change", args=(obj.pk,)))
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["title"] = "Landing page"
+        return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
+
+
+class MarketingRagItemAdmin(MarketingListUIMixin, _MPModelAdmin):
+    mp_mkt_title = "Grounding"
+    mp_mkt_subtitle = "Homepage grounding bullets — ingest, retrieve, refuse guesses, isolation"
+    mp_mkt_site_url = "/#rag"
+    list_display = ("sort_order", "rag_cell", "visibility_cell", "updated_at")
+    list_display_links = ("rag_cell",)
+    list_editable = ("sort_order",)
+    list_filter = ("is_published", "show_on_homepage", "accent")
+    search_fields = ("title", "description")
+    ordering = ("sort_order", "id")
+    fieldsets = (
+        (None, {"fields": ("title", "description")}),
+        ("Display", {"fields": ("icon_emoji", "accent", "sort_order")}),
+        ("Visibility", {"fields": ("is_published", "show_on_homepage")}),
+        ("Meta", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+    @admin.display(description="Point", ordering="title")
+    def rag_cell(self, obj):
+        return format_html(
+            '<span class="mp-mkt-row">'
+            '<span class="mp-mkt-ico">{}</span>'
+            '<span class="mp-mkt-row__text">'
+            '<span class="mp-mkt-row__title">{}</span>'
+            '<span class="mp-mkt-row__meta">{}</span>'
+            "</span></span>",
+            obj.icon_emoji or "•",
+            obj.title,
+            (obj.description or "")[:90],
+        )
+
+    @admin.display(description="Visibility")
+    def visibility_cell(self, obj):
+        return visibility_badges(is_published=obj.is_published, show_on_homepage=obj.show_on_homepage)
+
+
+class MarketingHeroInboxItemForm(forms.ModelForm):
+    class Meta:
+        model = MarketingHeroInboxItem
+        fields = "__all__"
+        widgets = {
+            "sender_name": forms.TextInput(attrs={"placeholder": "Alice Kim"}),
+            "sender_context": forms.TextInput(attrs={"placeholder": "Product Inquiry"}),
+            "subject": forms.TextInput(
+                attrs={"placeholder": "Do you support custom integrations?"}
+            ),
+            "avatar_initials": forms.TextInput(
+                attrs={"placeholder": "AK", "maxlength": "4", "style": "text-transform:uppercase"}
+            ),
+            "avatar_color_start": forms.TextInput(
+                attrs={"placeholder": "#4f6ef7", "spellcheck": "false", "autocomplete": "off"}
+            ),
+            "avatar_color_end": forms.TextInput(
+                attrs={"placeholder": "#a78bfa", "spellcheck": "false", "autocomplete": "off"}
+            ),
+            "badge_label": forms.TextInput(attrs={"placeholder": "✓ Auto-Replied"}),
+            "badge_icon_class": forms.TextInput(
+                attrs={"placeholder": "fa-solid fa-brain"}
+            ),
+        }
+
+
+class MarketingHeroInboxItemAdmin(MarketingListUIMixin, _MPModelAdmin):
+    form = MarketingHeroInboxItemForm
+    mp_mkt_title = "Hero inbox"
+    mp_mkt_subtitle = "Homepage hero mock inbox rows — mirrors the product UI preview"
+    mp_mkt_site_url = "/#"
+    mp_mkt_settings_url_name = "admin:core_marketingherosettings_changelist"
+    mp_mkt_settings_label = "Hero card settings"
+    change_form_outer_before_template = "admin/core/marketingheroinboxitem/edit_header.html"
+    change_form_before_template = "admin/core/marketingheroinboxitem/edit_preview.html"
     list_display = (
         "sort_order",
-        "sender_name",
-        "sender_context",
+        "hero_cell",
         "badge_badge",
-        "avatar_preview",
-        "published_badge",
-        "homepage_badge",
+        "visibility_cell",
         "updated_at",
     )
-    list_display_links = ("sender_name",)
+    list_display_links = ("hero_cell",)
     list_editable = ("sort_order",)
     list_filter = ("is_published", "show_on_homepage", "badge_type")
     search_fields = ("sender_name", "sender_context", "subject", "badge_label")
     ordering = ("sort_order", "id")
     actions = [publish_hero_inbox_items, unpublish_hero_inbox_items]
     fieldsets = (
-        (None, {"fields": ("sender_name", "sender_context", "subject")}),
-        ("Avatar", {"fields": ("avatar_initials", "avatar_color_start", "avatar_color_end")}),
-        ("Badge", {"fields": ("badge_type", "badge_label", "badge_icon_class")}),
-        ("Visibility", {"fields": ("sort_order", "is_published", "show_on_homepage")}),
+        (
+            "Message",
+            {
+                "description": "Sender line and subject as shown in the homepage hero inbox card.",
+                "fields": ("sender_name", "sender_context", "subject"),
+            },
+        ),
+        (
+            "Avatar",
+            {
+                "description": "Initials and gradient used for the circular avatar.",
+                "fields": ("avatar_initials", "avatar_color_start", "avatar_color_end"),
+            },
+        ),
+        (
+            "Status badge",
+            {
+                "description": "Right-side pill — type controls color; label and icon are free text.",
+                "fields": ("badge_type", "badge_label", "badge_icon_class"),
+            },
+        ),
+        (
+            "Publishing",
+            {
+                "fields": ("sort_order", "is_published", "show_on_homepage"),
+            },
+        ),
         ("Meta", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
     readonly_fields = ("created_at", "updated_at")
+
+    class Media:
+        js = ("js/mailpilot-hero-inbox-admin.js",)
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        if object_id:
+            extra_context["title"] = "Edit hero inbox row"
+        else:
+            extra_context["title"] = "Add hero inbox row"
+        return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
+
+    @admin.display(description="Inbox row", ordering="sender_name")
+    def hero_cell(self, obj):
+        subject = (obj.subject or "").strip()
+        preview = f"{subject[:80]}…" if len(subject) > 80 else subject
+        return format_html(
+            '<span class="mp-mkt-row">'
+            '<span class="mp-mkt-avatar" style="{}">{}</span>'
+            '<span class="mp-mkt-row__text">'
+            '<span class="mp-mkt-row__title">{}</span>'
+            '<span class="mp-mkt-row__meta">{}</span>'
+            '<span class="mp-mkt-row__meta">{}</span>'
+            "</span></span>",
+            obj.avatar_gradient_style,
+            obj.avatar_initials or "?",
+            obj.sender_name or "—",
+            obj.sender_context or "",
+            preview or "—",
+        )
 
     @admin.display(description="Badge", ordering="badge_type")
     def badge_badge(self, obj):
@@ -729,24 +999,12 @@ class MarketingHeroInboxItemAdmin(_MPModelAdmin):
             MarketingHeroInboxItem.BADGE_PENDING: "warn",
             MarketingHeroInboxItem.BADGE_SKIPPED: "muted",
         }
-        return _badge(obj.get_badge_type_display(), tones.get(obj.badge_type, "muted"))
+        label = obj.badge_label or obj.get_badge_type_display()
+        return _badge(label, tones.get(obj.badge_type, "muted"))
 
-    @admin.display(description="Avatar")
-    def avatar_preview(self, obj):
-        return format_html(
-            '<span style="display:inline-flex;align-items:center;justify-content:center;'
-            'width:22px;height:22px;border-radius:50%;font-size:0.6rem;font-weight:700;{}">{}</span>',
-            obj.avatar_gradient_style,
-            obj.avatar_initials,
-        )
-
-    @admin.display(description="Published", ordering="is_published")
-    def published_badge(self, obj):
-        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
-
-    @admin.display(description="Homepage", ordering="show_on_homepage")
-    def homepage_badge(self, obj):
-        return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
+    @admin.display(description="Visibility")
+    def visibility_cell(self, obj):
+        return visibility_badges(is_published=obj.is_published, show_on_homepage=obj.show_on_homepage)
 
 
 class LegalTermsSettingsForm(forms.ModelForm):
@@ -760,6 +1018,7 @@ class LegalTermsSettingsForm(forms.ModelForm):
 
 class LegalTermsSettingsAdmin(_MPModelAdmin):
     form = LegalTermsSettingsForm
+    change_form_before_template = "admin/core/legal_toolbar.html"
     list_display = ("title", "effective_date", "published_badge", "updated_at")
     fieldsets = (
         (None, {"fields": ("title", "effective_date", "is_published")}),
@@ -779,6 +1038,21 @@ class LegalTermsSettingsAdmin(_MPModelAdmin):
 
         obj = get_terms_settings()
         return redirect(reverse("admin:core_legaltermssettings_change", args=(obj.pk,)))
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        obj = None
+        if object_id:
+            obj = self.get_object(request, object_id)
+        extra_context["title"] = "Terms of service"
+        extra_context["mp_mkt"] = {
+            "title": "Terms of service",
+            "subtitle": "Legal page linked from the site footer",
+            "site_url": "/terms",
+            "is_published": bool(obj and obj.is_published),
+            "effective_date": obj.effective_date if obj else "",
+        }
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
     @admin.display(description="Published", ordering="is_published")
     def published_badge(self, obj):
@@ -802,6 +1076,7 @@ class LegalPrivacySettingsForm(forms.ModelForm):
 
 class LegalPrivacySettingsAdmin(_MPModelAdmin):
     form = LegalPrivacySettingsForm
+    change_form_before_template = "admin/core/legal_toolbar.html"
     list_display = ("title", "effective_date", "published_badge", "updated_at")
     fieldsets = (
         (None, {"fields": ("title", "effective_date", "is_published")}),
@@ -821,6 +1096,21 @@ class LegalPrivacySettingsAdmin(_MPModelAdmin):
 
         obj = get_privacy_settings()
         return redirect(reverse("admin:core_legalprivacysettings_change", args=(obj.pk,)))
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        obj = None
+        if object_id:
+            obj = self.get_object(request, object_id)
+        extra_context["title"] = "Privacy policy"
+        extra_context["mp_mkt"] = {
+            "title": "Privacy policy",
+            "subtitle": "Legal page linked from the site footer",
+            "site_url": "/privacy",
+            "is_published": bool(obj and obj.is_published),
+            "effective_date": obj.effective_date if obj else "",
+        }
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
     @admin.display(description="Published", ordering="is_published")
     def published_badge(self, obj):
@@ -865,16 +1155,19 @@ class MarketingFaqSettingsAdmin(_MPModelAdmin):
         return redirect(reverse("admin:core_marketingfaqsettings_change", args=(obj.pk,)))
 
 
-class MarketingFaqItemAdmin(_MPModelAdmin):
+class MarketingFaqItemAdmin(MarketingListUIMixin, _MPModelAdmin):
+    mp_mkt_title = "FAQ"
+    mp_mkt_subtitle = "Homepage FAQ accordion — question, answer, icon"
+    mp_mkt_site_url = "/#faq"
+    mp_mkt_settings_url_name = "admin:core_marketingfaqsettings_changelist"
+    mp_mkt_settings_label = "FAQ section settings"
     list_display = (
         "sort_order",
-        "question",
-        "icon_preview",
-        "published_badge",
-        "homepage_badge",
+        "faq_cell",
+        "visibility_cell",
         "updated_at",
     )
-    list_display_links = ("question",)
+    list_display_links = ("faq_cell",)
     list_editable = ("sort_order",)
     list_filter = ("is_published", "show_on_homepage")
     search_fields = ("question", "answer_html")
@@ -888,17 +1181,21 @@ class MarketingFaqItemAdmin(_MPModelAdmin):
     )
     readonly_fields = ("created_at", "updated_at")
 
-    @admin.display(description="Icon")
-    def icon_preview(self, obj):
-        return format_html('<i class="{}" style="font-size:1.1rem"></i> {}', obj.icon_class, obj.icon_class)
+    @admin.display(description="Question", ordering="question")
+    def faq_cell(self, obj):
+        return format_html(
+            '<span class="mp-mkt-row">'
+            '<span class="mp-mkt-ico"><i class="{}"></i></span>'
+            '<span class="mp-mkt-row__text">'
+            '<span class="mp-mkt-row__title">{}</span>'
+            "</span></span>",
+            obj.icon_class or "fa-solid fa-circle-question",
+            obj.question,
+        )
 
-    @admin.display(description="Published", ordering="is_published")
-    def published_badge(self, obj):
-        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
-
-    @admin.display(description="Homepage", ordering="show_on_homepage")
-    def homepage_badge(self, obj):
-        return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
+    @admin.display(description="Visibility")
+    def visibility_cell(self, obj):
+        return visibility_badges(is_published=obj.is_published, show_on_homepage=obj.show_on_homepage)
 
 
 @admin.action(description="Publish selected plans")
@@ -917,7 +1214,8 @@ class MarketingPricingSettingsAdmin(_MPModelAdmin):
     list_display = ("section_tag", "title_lead", "updated_at")
     fieldsets = (
         (None, {"fields": ("section_tag", "title_lead", "title_highlight")}),
-        ("Body copy", {"fields": ("intro", "demo_note")}),
+        ("Body copy", {"fields": ("intro",)}),
+        ("Legacy", {"fields": ("demo_note",), "classes": ("collapse",)}),
         ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
     )
     readonly_fields = ("updated_at",)
@@ -933,18 +1231,21 @@ class MarketingPricingSettingsAdmin(_MPModelAdmin):
         return redirect(reverse("admin:core_marketingpricingsettings_change", args=(obj.pk,)))
 
 
-class MarketingPricingPlanAdmin(_MPModelAdmin):
+class MarketingPricingPlanAdmin(MarketingListUIMixin, _MPModelAdmin):
+    mp_mkt_title = "Pricing"
+    mp_mkt_subtitle = "Homepage pricing cards — monthly/yearly, ribbons, CTAs"
+    mp_mkt_site_url = "/#pricing"
+    mp_mkt_settings_url_name = "admin:core_marketingpricingsettings_changelist"
+    mp_mkt_settings_label = "Pricing section settings"
     list_display = (
         "sort_order",
-        "tier_label",
+        "plan_cell",
         "plan_badge",
-        "price_display",
         "featured_badge",
-        "published_badge",
-        "homepage_badge",
+        "visibility_cell",
         "updated_at",
     )
-    list_display_links = ("tier_label",)
+    list_display_links = ("plan_cell",)
     list_editable = ("sort_order",)
     list_filter = ("is_published", "show_on_homepage", "plan_code", "is_featured")
     search_fields = ("tier_label", "description", "features", "top_badge")
@@ -977,6 +1278,25 @@ class MarketingPricingPlanAdmin(_MPModelAdmin):
     )
     readonly_fields = ("created_at", "updated_at")
 
+    @admin.display(description="Plan card", ordering="tier_label")
+    def plan_cell(self, obj):
+        price = (obj.price_display or "—").strip()
+        suffix = (obj.price_suffix or "").strip()
+        desc = (obj.description or "").strip().replace("\n", " ")
+        preview = f"{desc[:70]}…" if len(desc) > 70 else desc
+        return format_html(
+            '<span class="mp-mkt-row">'
+            '<span class="mp-mkt-row__text">'
+            '<span class="mp-mkt-row__title">{}</span>'
+            '<span class="mp-mkt-row__meta"><strong>{}</strong> {}</span>'
+            '<span class="mp-mkt-row__meta">{}</span>'
+            "</span></span>",
+            obj.tier_label,
+            price,
+            suffix,
+            preview or "—",
+        )
+
     @admin.display(description="Plan", ordering="plan_code")
     def plan_badge(self, obj):
         tones = {
@@ -988,19 +1308,16 @@ class MarketingPricingPlanAdmin(_MPModelAdmin):
 
     @admin.display(description="Featured", ordering="is_featured")
     def featured_badge(self, obj):
-        return _badge("Yes" if obj.is_featured else "No", "pro" if obj.is_featured else "muted")
+        return _badge("Featured" if obj.is_featured else "—", "pro" if obj.is_featured else "muted")
 
-    @admin.display(description="Published", ordering="is_published")
-    def published_badge(self, obj):
-        return _badge("Yes" if obj.is_published else "No", "ok" if obj.is_published else "muted")
-
-    @admin.display(description="Homepage", ordering="show_on_homepage")
-    def homepage_badge(self, obj):
-        return _badge("Yes" if obj.show_on_homepage else "No", "pro" if obj.show_on_homepage else "muted")
+    @admin.display(description="Visibility")
+    def visibility_cell(self, obj):
+        return visibility_badges(is_published=obj.is_published, show_on_homepage=obj.show_on_homepage)
 
 
 class ContactSubmissionAdmin(_MPModelAdmin):
-    list_display = ("created_at", "name", "email", "phone", "notified_badge", "message_preview")
+    list_display = ("from_cell", "message_preview", "notified_badge", "received_at")
+    list_display_links = ("from_cell", "message_preview")
     list_filter = ("notified_team", "notified_user", "created_at")
     search_fields = ("name", "email", "phone", "message")
     readonly_fields = (
@@ -1015,23 +1332,81 @@ class ContactSubmissionAdmin(_MPModelAdmin):
     )
     ordering = ("-created_at",)
     date_hierarchy = "created_at"
+    list_before_template = "admin/core/contactsubmission/inbox_toolbar.html"
+    actions = ("mark_team_notified", "mark_fully_notified")
 
-    @admin.display(description="Notified")
+    def has_add_permission(self, request):
+        # Inbox is fed by the public contact form — no manual creates.
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        qs = ContactSubmission.objects.all()
+        extra_context = extra_context or {}
+        extra_context["mp_inbox"] = {
+            "total": qs.count(),
+            "pending": qs.filter(notified_team=False, notified_user=False).count(),
+            "team_ok": qs.filter(notified_team=True).count(),
+            "user_ok": qs.filter(notified_user=True).count(),
+        }
+        extra_context["title"] = "Contact inbox"
+        return super().changelist_view(request, extra_context=extra_context)
+
+    @admin.display(description="From", ordering="name")
+    def from_cell(self, obj):
+        name = (obj.name or "").strip() or "Unknown"
+        email = (obj.email or "").strip()
+        phone = (obj.phone or "").strip()
+        initial = (name[:1] or email[:1] or "?").upper()
+        meta = email
+        if phone:
+            meta = f"{email} · {phone}" if email else phone
+        return format_html(
+            '<span class="mp-inbox-from">'
+            '<span class="mp-inbox-avatar" aria-hidden="true">{}</span>'
+            '<span class="mp-inbox-from__text">'
+            '<span class="mp-inbox-from__name">{}</span>'
+            '<span class="mp-inbox-from__meta">{}</span>'
+            "</span></span>",
+            initial,
+            name,
+            meta or "—",
+        )
+
+    @admin.display(description="Status")
     def notified_badge(self, obj):
         if obj.notified_team and obj.notified_user:
-            return _badge("Both", "ok")
+            return _badge("Delivered", "ok")
         if obj.notified_team:
-            return _badge("Team", "warn")
+            return _badge("Team only", "warn")
         if obj.notified_user:
-            return _badge("User", "warn")
+            return _badge("User only", "warn")
         return _badge("Pending", "danger")
 
     @admin.display(description="Message")
     def message_preview(self, obj):
         text = (obj.message or "").strip().replace("\n", " ")
-        if len(text) > 80:
-            return f"{text[:77]}…"
-        return text or "-"
+        preview = f"{text[:110]}…" if len(text) > 110 else (text or "—")
+        return format_html('<span class="mp-inbox-msg">{}</span>', preview)
+
+    @admin.display(description="Received", ordering="created_at")
+    def received_at(self, obj):
+        if not obj.created_at:
+            return "—"
+        return format_html(
+            '<span class="mp-inbox-time" title="{}">{}</span>',
+            obj.created_at.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            obj.created_at.strftime("%b %d, %Y · %H:%M"),
+        )
+
+    @admin.action(description="Mark team notified")
+    def mark_team_notified(self, request, queryset):
+        updated = queryset.update(notified_team=True)
+        self.message_user(request, f"Marked {updated} message(s) as team notified.")
+
+    @admin.action(description="Mark fully notified")
+    def mark_fully_notified(self, request, queryset):
+        updated = queryset.update(notified_team=True, notified_user=True)
+        self.message_user(request, f"Marked {updated} message(s) as fully notified.")
 
 
 class AuditLogAdmin(_MPModelAdmin):
@@ -1086,6 +1461,8 @@ admin_site.register(HowItWorksStep, HowItWorksStepAdmin)
 admin_site.register(MarketingReview, MarketingReviewAdmin)
 admin_site.register(MarketingHeroSettings, MarketingHeroSettingsAdmin)
 admin_site.register(MarketingHeroInboxItem, MarketingHeroInboxItemAdmin)
+admin_site.register(MarketingLandingPage, MarketingLandingPageAdmin)
+admin_site.register(MarketingRagItem, MarketingRagItemAdmin)
 admin_site.register(MarketingFaqSettings, MarketingFaqSettingsAdmin)
 admin_site.register(MarketingFaqItem, MarketingFaqItemAdmin)
 admin_site.register(LegalTermsSettings, LegalTermsSettingsAdmin)

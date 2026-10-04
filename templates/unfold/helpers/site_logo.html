@@ -1,0 +1,11 @@
+{% load i18n %}
+
+<a href="{% url 'home' %}" class="mp-admin-brand" aria-label="{{ site_header|default:'MailPilot' }}">
+  {% if site_logo.light and site_logo.dark %}
+    <img src="{{ site_logo.dark }}" alt="" class="mp-admin-brand__logo h-8 hidden dark:block" />
+    <img src="{{ site_logo.light }}" alt="" class="mp-admin-brand__logo block h-8 dark:hidden" />
+  {% else %}
+    <img src="{{ site_logo }}" class="mp-admin-brand__logo h-8" alt="" />
+  {% endif %}
+  <span class="mp-admin-brand__name">{{ site_header|default:_("MailPilot") }}</span>
+</a>

@@ -1,0 +1,53 @@
+{# Homepage RAG tabs + panels — MarketingRagItem admin #}
+{% load static %}
+{% if rag_items %}
+<div class="rag-tabs" role="tablist" aria-label="Grounding capabilities">
+  {% for item in rag_items %}
+  <button
+    type="button"
+    class="rag-tab {{ item.accent_class }}{% if forloop.first %} is-active{% endif %}"
+    role="tab"
+    id="rag-tab-{{ forloop.counter0 }}"
+    aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+    aria-controls="rag-panel-{{ forloop.counter0 }}"
+    data-rag-tab="{{ forloop.counter0 }}"
+    data-rag-accent="{{ item.accent_class }}"
+    tabindex="{% if forloop.first %}0{% else %}-1{% endif %}"
+  >{% if item.accent_class == "i-green" %}Match emails{% elif item.accent_class == "i-orange" %}No guessing{% elif item.accent_class == "i-blue" %}Stay private{% elif item.accent_class == "i-pink" %}Alert safely{% elif item.accent_class == "i-teal" %}Store vectors{% else %}Add sources{% endif %}</button>
+  {% endfor %}
+</div>
+<div class="rag-tabs-content">
+  {% for item in rag_items %}
+  <div
+    class="rag-panel {{ item.accent_class }}{% if forloop.first %} is-active{% endif %}"
+    role="tabpanel"
+    id="rag-panel-{{ forloop.counter0 }}"
+    aria-labelledby="rag-tab-{{ forloop.counter0 }}"
+    data-rag-panel="{{ forloop.counter0 }}"
+    data-rag-accent="{{ item.accent_class }}"
+    {% if not forloop.first %}hidden{% endif %}
+  >
+    <div class="rag-tab-content{% if forloop.counter0|divisibleby:2 %} is-media-right{% endif %}">
+      <div class="rag-tab-media" aria-hidden="true">
+        <img
+          class="rag-tab-image"
+          src="{% if item.accent_class == "i-green" or item.accent_class == "i-orange" %}{% static 'img/hero-agents/mp-agent-02.png' %}{% elif item.accent_class == "i-blue" or item.accent_class == "i-teal" %}{% static 'img/hero-agents/mp-agent-03.png' %}{% else %}{% static 'img/hero-agents/mp-agent-01.png' %}{% endif %}"
+          alt=""
+          width="2120"
+          height="1704"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+      <div class="rag-tab-text">
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.description }}</p>
+        <a class="rag-panel-cta" href="{% url 'signup' %}">{{ landing.hero_cta_primary|default:"Get Started" }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="section-sub">Add RAG points in admin (Marketing → RAG points).</p>
+{% endif %}

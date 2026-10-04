@@ -21,7 +21,14 @@ _django_application = get_wsgi_application()
 
 def application(environ, start_response):
     """IIS terminates HTTPS and proxies HTTP to Waitress; inject forwarded headers when configured."""
-    if (os.environ.get("DJANGO_BEHIND_HTTPS_PROXY") or "").strip().lower() in ("1", "true", "yes"):
+    behind_https = (os.environ.get("DJANGO_BEHIND_HTTPS_PROXY") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    # Dev server is real HTTP. Forcing X-Forwarded-Proto=https makes Django set a
+    # Secure CSRF cookie the browser ignores, so login/signup POST returns 403.
+    if behind_https and "runserver" not in sys.argv:
         if not environ.get("HTTP_X_FORWARDED_PROTO"):
             environ["HTTP_X_FORWARDED_PROTO"] = "https"
         if not environ.get("HTTP_X_FORWARDED_HOST") and environ.get("HTTP_HOST"):

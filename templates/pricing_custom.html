@@ -6,151 +6,317 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MailPilot | Build your Custom plan</title>
   <meta name="robots" content="index, follow" />
-  <meta name="theme-color" content="#060818" />
+  <meta name="theme-color" content="#ffffff" />
   {% include "components/favicon.html" %}
+  {% include "components/meta_pixel.html" %}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #060818;
-      --accent: #4f6ef7;
-      --accent2: #a78bfa;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --glass: rgba(255,255,255,0.04);
-      --glass-border: rgba(255,255,255,0.09);
+      --ink: #141a2e;
+      --muted: #5b6478;
+      --bg: #fff;
+      --soft: #f6f8fd;
+      --line: #e8ebf4;
+      --primary: #5b5bf0;
+      --primary2: #8a5bf0;
+      --green: #00b884;
+      --shadow: 0 12px 40px rgba(20,26,46,.08);
+      --shadow-lg: 0 28px 70px rgba(20,26,46,.12);
+      --grad: linear-gradient(135deg,#5b5bf0,#8a5bf0);
+      --text: #141a2e;
+      --glass-border: #e8ebf4;
     }
-    html, body { height: 100%; }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
-    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-    .orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; }
-    .orb1 { width: 600px; height: 600px; background: rgba(79,110,247,0.12); top: -200px; left: -200px; }
-    .orb2 { width: 500px; height: 500px; background: rgba(167,139,250,0.10); bottom: 10%; right: -150px; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Poppins', Arial, sans-serif;
+      background: var(--soft);
+      color: var(--ink);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100%;
+    }
+    a { text-decoration: none; color: inherit; }
+
     {% include "components/marketing_nav_css.html" %}
     {% include "components/marketing_page_layout_css.html" %}
-    main.mp-marketing-main { text-align: left; max-width: 960px; margin: 0 auto; }
-    .section-tag {
-      font-size: 0.75rem; font-weight: 700; letter-spacing: 1.5px;
-      text-transform: uppercase; color: #a78bfa; margin-bottom: 14px;
+    {% include "components/marketing_pricing_billing_toggle_css.html" %}
+    {% include "components/footer_css.html" %}
+
+    main.mp-marketing-main {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding-bottom: clamp(48px, 8vw, 80px);
     }
-    .section-title {
-      font-size: clamp(1.8rem, 3.5vw, 2.6rem); font-weight: 800;
-      letter-spacing: -1px; line-height: 1.2; margin-bottom: 10px;
+
+    .builder-head {
+      margin-bottom: 28px;
+      text-align: center;
     }
-    .intro { color: var(--muted); font-size: 1rem; line-height: 1.65; max-width: 640px; margin-bottom: 28px; }
+    .builder-kicker {
+      display: inline-flex; align-items: center;
+      background: #efefff; color: var(--primary);
+      font-weight: 700; font-size: 12px;
+      padding: 6px 14px; border-radius: 999px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .builder-title {
+      font-size: clamp(1.75rem, 3.6vw, 2.5rem);
+      font-weight: 800; letter-spacing: -0.03em;
+      line-height: 1.12; color: var(--ink); margin-bottom: 10px;
+    }
+    .builder-title .hl {
+      background: var(--grad);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .builder-lead {
+      color: var(--muted); font-size: 1.05rem; max-width: 540px;
+      margin-left: auto; margin-right: auto;
+    }
+
+    .builder-toolbar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; flex-wrap: wrap; margin: 0 0 22px;
+    }
+    .builder-toolbar .pricing-billing-toggle-wrap { margin: 0; }
+    .builder-toolbar .pricing-billing-toggle {
+      border-color: var(--line); background: #fff; box-shadow: none;
+    }
+    .builder-toolbar .pricing-billing-toggle button { color: var(--muted); }
+    .builder-toolbar .pricing-billing-toggle button:hover { color: var(--ink); }
+    .builder-toolbar .pricing-billing-toggle button.is-active {
+      color: #fff; background: var(--grad);
+      box-shadow: 0 8px 20px rgba(91,91,240,0.25);
+    }
+
+    .alert {
+      display: none; padding: 12px 16px; border-radius: 14px;
+      font-size: 0.88rem; font-weight: 600; margin-bottom: 18px;
+      border: 1px solid rgba(255,159,67,0.35); background: #fff3e4; color: #c2781a;
+    }
+    .alert.is-visible { display: block; }
+    .alert.error {
+      border-color: rgba(239,68,68,0.25); background: #ffe8e8; color: #b91c1c;
+    }
+
     .builder-grid {
-      display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+      gap: 22px;
+      align-items: start;
     }
-    @media (max-width: 860px) { .builder-grid { grid-template-columns: 1fr; } }
+
     .panel {
-      background: var(--glass); border: 1px solid var(--glass-border);
-      border-radius: 20px; padding: 24px; backdrop-filter: blur(12px);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 28px;
+      box-shadow: var(--shadow);
     }
-    .panel h2 { font-size: 1rem; font-weight: 700; margin-bottom: 18px; }
-    .field { margin-bottom: 22px; }
-    .field label {
+    .panel-quote {
+      position: sticky; top: calc(var(--mp-nav-h, 72px) + 16px);
+      border: 2px solid transparent;
+      background:
+        linear-gradient(#fff, #fff) padding-box,
+        var(--grad) border-box;
+      box-shadow: var(--shadow-lg);
+    }
+    .panel-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #a4acc0; margin-bottom: 8px;
+    }
+    .panel h2 {
+      font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em;
+      color: var(--ink); margin-bottom: 22px;
+    }
+
+    .preset-label {
+      font-size: 0.8rem; font-weight: 700; color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+    .preset-btn {
+      padding: 9px 15px; border-radius: 999px; font-size: 0.82rem; font-weight: 700;
+      border: 1.5px solid var(--line); background: var(--soft);
+      color: var(--ink); cursor: pointer; font-family: inherit;
+      transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .preset-btn:hover {
+      border-color: rgba(91,91,240,0.4); color: var(--primary); background: #efefff;
+    }
+    .preset-btn.is-active {
+      border-color: transparent;
+      background: var(--grad); color: #fff;
+      box-shadow: 0 8px 18px rgba(91,91,240,0.28);
+    }
+
+    .field { margin-bottom: 26px; }
+    .field:last-of-type { margin-bottom: 0; }
+    .field-top {
       display: flex; justify-content: space-between; align-items: baseline;
-      font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;
+      gap: 12px; margin-bottom: 12px;
     }
-    .field label span.val { color: #a78bfa; font-variant-numeric: tabular-nums; }
+    .field-top label {
+      font-size: 0.92rem; font-weight: 700; color: var(--ink); cursor: pointer;
+    }
+    .field-top .val {
+      font-size: 0.95rem; font-weight: 800; color: var(--primary);
+      font-variant-numeric: tabular-nums;
+      background: #efefff; padding: 4px 10px; border-radius: 999px;
+    }
+    .range-wrap { position: relative; }
     input[type=range] {
-      width: 100%; height: 6px; border-radius: 4px; appearance: none;
-      background: rgba(255,255,255,0.12); outline: none;
+      width: 100%; height: 8px; border-radius: 999px; appearance: none;
+      background: var(--line); outline: none; cursor: pointer;
     }
     input[type=range]::-webkit-slider-thumb {
-      appearance: none; width: 20px; height: 20px; border-radius: 50%;
-      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
-      cursor: pointer; box-shadow: 0 2px 10px rgba(79,110,247,0.5);
+      appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      background: #fff; border: 3px solid var(--primary);
+      box-shadow: 0 4px 12px rgba(91,91,240,0.35);
+      cursor: pointer; margin-top: -1px;
+      transition: transform 0.15s;
     }
-    .presets { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
-    .preset-btn {
-      padding: 8px 14px; border-radius: 50px; font-size: 0.8rem; font-weight: 600;
-      border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05);
-      color: var(--text); cursor: pointer; transition: background 0.2s, border-color 0.2s;
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.08); }
+    input[type=range]::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #fff; border: 3px solid var(--primary);
+      box-shadow: 0 4px 12px rgba(91,91,240,0.35); cursor: pointer;
     }
-    .preset-btn:hover, .preset-btn.is-active {
-      background: rgba(79,110,247,0.2); border-color: rgba(79,110,247,0.5);
+    .range-ends {
+      display: flex; justify-content: space-between;
+      margin-top: 8px; font-size: 0.72rem; font-weight: 600; color: #a4acc0;
     }
-    .summary-price {
-      font-size: 2.4rem; font-weight: 800; letter-spacing: -1px;
-      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .summary-price span { font-size: 1rem; font-weight: 600; -webkit-text-fill-color: var(--muted); }
-    .summary-list { list-style: none; margin: 18px 0 22px; }
-    .summary-list li {
-      font-size: 0.84rem; color: var(--muted); padding: 7px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      display: flex; justify-content: space-between; gap: 12px;
-    }
-    .summary-list li strong { color: var(--text); font-weight: 600; }
+
     .formula-note {
-      font-size: 0.75rem; color: rgba(148,163,184,0.85); line-height: 1.5; margin-bottom: 18px;
+      margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line);
+      font-size: 0.8rem; color: var(--muted); line-height: 1.55;
     }
-    {% include "components/marketing_pricing_billing_toggle_css.html" %}
-    {% include "components/marketing_pricing_responsive_css.html" %}
+
+    .summary-price {
+      font-size: clamp(2.2rem, 4vw, 2.75rem);
+      font-weight: 800; letter-spacing: -0.04em; line-height: 1;
+      background: var(--grad);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .summary-price span {
+      font-size: 1rem; font-weight: 600;
+      -webkit-text-fill-color: var(--muted);
+    }
+    .summary-period {
+      font-size: 0.84rem; color: var(--muted); margin-bottom: 20px;
+    }
+    .summary-list { list-style: none; margin: 0 0 24px; }
+    .summary-list li {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; padding: 11px 0;
+      border-bottom: 1px solid #f0f2f8;
+      font-size: 0.88rem; color: var(--muted);
+    }
+    .summary-list li:last-child { border-bottom: none; }
+    .summary-list li strong { color: var(--ink); font-weight: 700; }
+
     .cta {
-      display: block; width: 100%; text-align: center; padding: 14px 20px; border-radius: 50px;
-      font-size: 0.95rem; font-weight: 700; text-decoration: none; border: none; cursor: pointer;
-      background: linear-gradient(135deg, #4f6ef7, #a78bfa);
-      color: #fff; box-shadow: 0 4px 20px rgba(79,110,247,0.35);
+      display: block; width: 100%; text-align: center;
+      padding: 15px 20px; border-radius: 999px;
+      font-size: 0.95rem; font-weight: 700; border: none; cursor: pointer;
+      background: var(--grad); color: #fff; font-family: inherit;
+      box-shadow: 0 12px 30px rgba(91,91,240,0.32);
       transition: transform 0.2s, box-shadow 0.2s;
     }
-    .cta:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(79,110,247,0.45); }
-    .cta:disabled { opacity: 0.55; cursor: not-allowed; }
-    .alert {
-      padding: 12px 16px; border-radius: 12px; font-size: 0.85rem; margin-bottom: 20px;
-      border: 1px solid rgba(251,191,36,0.35); background: rgba(251,191,36,0.1); color: #fde68a;
+    .cta:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px rgba(91,91,240,0.4);
     }
-    .alert.error { border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.1); color: #fecaca; }
-    .back-link {
-      display: inline-flex; align-items: center; gap: 8px; color: var(--muted);
-      text-decoration: none; font-size: 0.85rem; margin-bottom: 24px;
+    .cta:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .cta-note {
+      margin-top: 12px; text-align: center;
+      font-size: 0.75rem; color: #a4acc0; line-height: 1.45;
     }
-    .back-link:hover { color: var(--text); }
-    {% include "components/footer_css.html" %}
+
+    @media (max-width: 880px) {
+      .builder-grid { grid-template-columns: 1fr; }
+      .panel-quote { position: static; }
+    }
+    @media (max-width: 560px) {
+      .panel { padding: 22px 18px; border-radius: 18px; }
+      .field-top { flex-direction: column; align-items: flex-start; gap: 6px; }
+    }
   </style>
 </head>
-<body>
-  <div class="orb orb1" aria-hidden="true"></div>
-  <div class="orb orb2" aria-hidden="true"></div>
-  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+<body class="mp-theme-light">
   {% include "components/marketing_nav.html" %}
   {% include "components/marketing_nav_js.html" %}
 
-  <main id="pricing" class="mp-marketing-main" aria-labelledby="custom-heading" data-initial-billing-interval="{{ billing_interval|default:'monthly' }}" data-initial-pricing-currency="{{ pricing_currency|default:'usd' }}">
-    <a href="{% url 'pricing' %}" class="back-link"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to pricing</a>
-    <div class="section-tag">Custom plan</div>
-    <h1 class="section-title" id="custom-heading">Build your own <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">MailPilot plan</span></h1>
-    <p class="intro">Adjust monthly tokens and inbox slots. Price updates live - continue to checkout when you are ready.</p>
+  <main
+    id="pricing"
+    class="mp-marketing-main"
+    aria-labelledby="custom-heading"
+    data-initial-billing-interval="{{ billing_interval|default:'monthly' }}"
+    data-initial-pricing-currency="{{ pricing_currency|default:'usd' }}"
+  >
+    <header class="builder-head">
+      <div class="builder-kicker">Custom plan</div>
+      <h1 class="builder-title" id="custom-heading">
+        Build your <span class="hl">MailPilot</span> plan
+      </h1>
+      <p class="builder-lead">
+        Choose tokens and inboxes. Your price updates instantly.
+      </p>
+    </header>
 
-    {% include "components/marketing_pricing_billing_toggle.html" %}
+    <div class="builder-toolbar">
+      {% include "components/marketing_pricing_billing_toggle.html" %}
+    </div>
 
-    <div id="billingAlert" class="alert" style="display:none" role="status"></div>
+    <div id="billingAlert" class="alert" role="status" hidden></div>
 
     <div class="builder-grid">
       <section class="panel" aria-label="Plan configuration">
-        <h2>Configure limits</h2>
+        <div class="panel-label">Configuration</div>
+        <h2>Set your limits</h2>
+
+        <div class="preset-label">Quick presets</div>
         <div class="presets" id="presetRow" role="group" aria-label="Quick presets"></div>
+
         <div class="field">
-          <label for="tokensRange">Monthly tokens <span class="val" id="tokensVal">{{ initial_tokens|default:2000 }}</span></label>
-          <input type="range" id="tokensRange" min="1000" max="20000" step="100" value="{{ initial_tokens|default:2000 }}" />
+          <div class="field-top">
+            <label for="tokensRange">Monthly tokens</label>
+            <span class="val" id="tokensVal">{{ initial_tokens|default:2000 }}</span>
+          </div>
+          <div class="range-wrap">
+            <input type="range" id="tokensRange" min="1000" max="20000" step="100" value="{{ initial_tokens|default:2000 }}" />
+          </div>
+          <div class="range-ends"><span id="tokensMinLabel">1,000</span><span id="tokensMaxLabel">20,000</span></div>
         </div>
+
         <div class="field">
-          <label for="inboxesRange">Active inboxes (Gmail / SMTP) <span class="val" id="inboxesVal">{{ initial_inboxes|default:4 }}</span></label>
-          <input type="range" id="inboxesRange" min="1" max="10" step="1" value="{{ initial_inboxes|default:4 }}" />
+          <div class="field-top">
+            <label for="inboxesRange">Active inboxes</label>
+            <span class="val" id="inboxesVal">{{ initial_inboxes|default:4 }}</span>
+          </div>
+          <div class="range-wrap">
+            <input type="range" id="inboxesRange" min="1" max="10" step="1" value="{{ initial_inboxes|default:4 }}" />
+          </div>
+          <div class="range-ends"><span id="inboxesMinLabel">1</span><span id="inboxesMaxLabel">10</span></div>
         </div>
+
         <p class="formula-note" id="formulaNote">{{ custom_config.formula_note }}</p>
       </section>
 
-      <aside class="panel" aria-label="Quote summary">
-        <h2>Your quote</h2>
+      <aside class="panel panel-quote" aria-label="Quote summary">
+        <div class="panel-label">Your quote</div>
         <div class="summary-price" id="priceDisplay">$-<span>/mo</span></div>
-        <ul class="summary-list" id="summaryList">
-          <li><span>Auto-sends / mo</span><strong id="sendsMax">-</strong></li>
+        <p class="summary-period" id="summaryPeriod">Billed monthly</p>
+        <ul class="summary-list">
+          <li><span>Auto-sends / month</span><strong id="sendsMax">-</strong></li>
           <li><span>Daily send cap / inbox</span><strong id="dailyCap">-</strong></li>
           <li><span>Tokens per auto-send</span><strong id="perSend">5</strong></li>
           <li><span>Telegram &amp; WhatsApp</span><strong>Included</strong></li>
@@ -160,13 +326,14 @@
         {% else %}
         <a href="{% url 'signup' %}?next={% url 'custom_plan_builder' %}" class="cta">Sign up to continue</a>
         {% endif %}
+        <p class="cta-note">Secure checkout with Stripe or PayPal. Cancel anytime.</p>
       </aside>
     </div>
   </main>
 
   {% include "components/footer.html" %}
-
   {% include "components/marketing_pricing_billing_toggle_js.html" %}
+
   <script>
     (function () {
       let cfg = {{ custom_config_json|safe }};
@@ -176,18 +343,14 @@
       const tokensVal = document.getElementById('tokensVal');
       const inboxesVal = document.getElementById('inboxesVal');
       const priceDisplay = document.getElementById('priceDisplay');
+      const summaryPeriod = document.getElementById('summaryPeriod');
       const sendsMax = document.getElementById('sendsMax');
       const dailyCap = document.getElementById('dailyCap');
       const perSend = document.getElementById('perSend');
       const presetRow = document.getElementById('presetRow');
       const continueBtn = document.getElementById('continueBtn');
       const billingAlert = document.getElementById('billingAlert');
-
-      if (cfg.min_tokens) tokensRange.min = cfg.min_tokens;
-      if (cfg.max_tokens) tokensRange.max = cfg.max_tokens;
-      if (cfg.min_inboxes) inboxesRange.min = cfg.min_inboxes;
-      if (cfg.max_inboxes) inboxesRange.max = cfg.max_inboxes;
-      if (cfg.tokens_per_send) perSend.textContent = cfg.tokens_per_send;
+      const formulaNote = document.getElementById('formulaNote');
 
       function csrfToken() {
         const m = document.cookie.match(/csrftoken=([^;]+)/);
@@ -197,26 +360,42 @@
       function showAlert(msg, isError) {
         if (!billingAlert) return;
         billingAlert.textContent = msg;
-        billingAlert.className = 'alert' + (isError ? ' error' : '');
-        billingAlert.style.display = 'block';
+        billingAlert.className = 'alert is-visible' + (isError ? ' error' : '');
+        billingAlert.hidden = false;
       }
 
+      const billingAlerts = {
+        not_configured: 'Checkout is not configured yet. Add Stripe and PayPal credentials on the server.',
+        cancelled: 'Checkout was cancelled. Adjust your plan and try again.',
+        quote_expired: 'That quote expired. Build a new one below.',
+        checkout_error: 'Checkout could not be started. Please try again.',
+        site_url_missing: 'Checkout needs SITE_URL in the server environment.',
+        stripe_not_ready: 'Stripe checkout is not ready yet. Finish card activation in Stripe, then try again.',
+      };
       const billingParam = new URLSearchParams(window.location.search).get('billing');
-      if (billingParam === 'not_configured') {
-        showAlert('Checkout is not configured yet. Set Stripe and PayPal credentials in the server environment.');
-      } else if (billingParam === 'cancelled') {
-        showAlert('Checkout was cancelled. Adjust your plan and try again.');
-      } else if (billingParam === 'quote_expired') {
-        showAlert('That quote expired. Build a new one below.', true);
-      } else if (billingParam === 'checkout_error') {
-        showAlert('Checkout could not be started. Please try again.', true);
-      } else if (billingParam === 'site_url_missing') {
-        showBillingAlert('Checkout cannot start: set SITE_URL in server environment (e.g. https://yourdomain.com).', true);
-      } else if (billingParam === 'stripe_not_ready') {
-        showAlert(
-          'Stripe checkout is not available yet. Complete card payment activation in your Stripe Dashboard, then try again.',
-          true
-        );
+      if (billingParam && billingAlerts[billingParam]) {
+        showAlert(billingAlerts[billingParam], /expired|error|missing|ready/.test(billingParam));
+      }
+
+      function applyRangeBounds() {
+        if (cfg.min_tokens) tokensRange.min = cfg.min_tokens;
+        if (cfg.max_tokens) tokensRange.max = cfg.max_tokens;
+        if (cfg.min_inboxes) inboxesRange.min = cfg.min_inboxes;
+        if (cfg.max_inboxes) inboxesRange.max = cfg.max_inboxes;
+        if (cfg.tokens_per_send) perSend.textContent = cfg.tokens_per_send;
+        document.getElementById('tokensMinLabel').textContent = Number(tokensRange.min).toLocaleString();
+        document.getElementById('tokensMaxLabel').textContent = Number(tokensRange.max).toLocaleString();
+        document.getElementById('inboxesMinLabel').textContent = String(inboxesRange.min);
+        document.getElementById('inboxesMaxLabel').textContent = String(inboxesRange.max);
+      }
+
+      function paintRange(el) {
+        const min = Number(el.min) || 0;
+        const max = Number(el.max) || 100;
+        const val = Number(el.value) || 0;
+        const pct = max === min ? 0 : ((val - min) / (max - min)) * 100;
+        el.style.background =
+          'linear-gradient(90deg, #5b5bf0 0%, #8a5bf0 ' + pct + '%, #e8ebf4 ' + pct + '%)';
       }
 
       function formatMoney(cents) {
@@ -227,27 +406,38 @@
       }
 
       function currentInterval() {
-        return cfg.billing_interval || (window.getMailpilotBillingInterval && window.getMailpilotBillingInterval()) || 'monthly';
+        return cfg.billing_interval
+          || (window.getMailpilotBillingInterval && window.getMailpilotBillingInterval())
+          || 'monthly';
+      }
+
+      function updatePeriodCopy() {
+        if (!summaryPeriod) return;
+        summaryPeriod.textContent = currentInterval() === 'yearly'
+          ? 'Billed yearly · 2 months free'
+          : 'Billed monthly · cancel anytime';
       }
 
       async function reloadConfig(interval) {
         try {
-          const res = await fetch('/api/billing/custom-config?interval=' + encodeURIComponent(interval), { credentials: 'same-origin' });
+          const res = await fetch(
+            '/api/billing/custom-config?interval=' + encodeURIComponent(interval),
+            { credentials: 'same-origin' }
+          );
           const j = await res.json();
           if (j.ok && j.config) {
             cfg = j.config;
-            const note = document.getElementById('formulaNote');
-            if (note && cfg.formula_note) note.textContent = cfg.formula_note;
+            if (formulaNote && cfg.formula_note) formulaNote.textContent = cfg.formula_note;
+            applyRangeBounds();
           }
         } catch (e) { /* ignore */ }
+        updatePeriodCopy();
         refreshQuote();
       }
 
       document.addEventListener('mailpilot:billing-interval', function (e) {
-        const interval = (e.detail && e.detail.interval) || 'monthly';
-        reloadConfig(interval);
+        reloadConfig((e.detail && e.detail.interval) || 'monthly');
       });
-
       document.addEventListener('mailpilot:pricing-currency', function () {
         reloadConfig(currentInterval());
       });
@@ -259,9 +449,13 @@
         const inboxes = parseInt(inboxesRange.value, 10);
         tokensVal.textContent = tokens.toLocaleString();
         inboxesVal.textContent = String(inboxes);
+        paintRange(tokensRange);
+        paintRange(inboxesRange);
         try {
           const res = await fetch(
-            '/api/billing/custom-quote?tokens=' + tokens + '&inboxes=' + inboxes + '&interval=' + encodeURIComponent(currentInterval()),
+            '/api/billing/custom-quote?tokens=' + tokens
+              + '&inboxes=' + inboxes
+              + '&interval=' + encodeURIComponent(currentInterval()),
             { credentials: 'same-origin' }
           );
           const j = await res.json();
@@ -274,20 +468,23 @@
 
       function scheduleQuote() {
         clearTimeout(quoteTimer);
-        quoteTimer = setTimeout(refreshQuote, 120);
+        quoteTimer = setTimeout(refreshQuote, 100);
       }
+
+      applyRangeBounds();
+      updatePeriodCopy();
 
       (cfg.presets || []).forEach(function (p) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'preset-btn';
         btn.textContent = p.label || (p.tokens + ' tok / ' + p.inboxes + ' inbox');
-        btn.dataset.tokens = p.tokens;
-        btn.dataset.inboxes = p.inboxes;
         btn.addEventListener('click', function () {
           tokensRange.value = p.tokens;
           inboxesRange.value = p.inboxes;
-          presetRow.querySelectorAll('.preset-btn').forEach(function (b) { b.classList.remove('is-active'); });
+          presetRow.querySelectorAll('.preset-btn').forEach(function (b) {
+            b.classList.remove('is-active');
+          });
           btn.classList.add('is-active');
           scheduleQuote();
         });
@@ -305,7 +502,10 @@
             const res = await fetch('/api/billing/custom-quote', {
               method: 'POST',
               credentials: 'same-origin',
-              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken(),
+              },
               body: JSON.stringify({
                 tokens: parseInt(tokensRange.value, 10),
                 inboxes: parseInt(inboxesRange.value, 10),

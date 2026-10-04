@@ -6,156 +6,276 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MailPilot | Reviews</title>
   <meta name="robots" content="index, follow" />
-  <meta name="theme-color" content="#060818" />
+  <meta name="theme-color" content="#ffffff" />
   {% include "components/favicon.html" %}
+  {% include "components/meta_pixel.html" %}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #060818;
-      --accent: #4f6ef7;
-      --accent2: #a78bfa;
-      --accent3: #38bdf8;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --glass: rgba(255,255,255,0.04);
-      --glass-border: rgba(255,255,255,0.09);
+      --ink: #141a2e;
+      --muted: #5b6478;
+      --bg: #fff;
+      --line: #e8ebf4;
+      --primary: #5b5bf0;
     }
-    html, body { height: 100%; }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Poppins', Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { text-decoration: none; color: inherit; }
+    img { max-width: 100%; display: block; }
 
-    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-    .orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; }
-    .orb1 { width: 600px; height: 600px; background: rgba(79,110,247,0.12); top: -200px; left: -200px; }
-    .orb2 { width: 500px; height: 500px; background: rgba(167,139,250,0.10); bottom: 10%; right: -150px; }
-    .orb3 { width: 400px; height: 400px; background: rgba(56,189,248,0.07); top: 50%; left: 40%; }
     {% include "components/marketing_nav_css.html" %}
     {% include "components/marketing_page_layout_css.html" %}
-    .page-head { max-width: 1120px; margin: 0 auto 18px; text-align: center; }
-    .tag {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px; border-radius: 999px;
-      border: 1px solid rgba(79,110,247,0.35);
-      background: rgba(79,110,247,0.10);
-      color: #a5b4fc;
-      font-size: 0.78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
-    }
-    h1 { margin-top: 14px; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -1px; }
-    .sub { margin: 10px auto 0; color: rgba(148,163,184,0.90); line-height: 1.7; max-width: 760px; }
-
-    .reviews-grid { max-width: 1120px; margin: 30px auto 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; text-align: left; }
-    .card {
-      background: linear-gradient(165deg, rgba(13,18,48,0.72), rgba(10,14,36,0.45));
-      border: 1px solid rgba(255,255,255,0.10);
-      border-radius: 20px;
-      padding: 18px 16px;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 20px 44px rgba(0,0,0,0.35);
-      overflow: hidden;
-      position: relative;
-    }
-    .stars { color: rgba(226,232,240,0.90); letter-spacing: 1px; }
-    .quote { margin-top: 10px; color: rgba(226,232,240,0.92); line-height: 1.75; }
-    .metric { margin-top: 10px; color: rgba(148,163,184,0.92); font-weight: 800; }
-    .who { margin-top: 14px; display: flex; gap: 12px; align-items: center; }
-    .av {
-      width: 38px; height: 38px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 900; color: rgba(226,232,240,0.92);
-      background: linear-gradient(135deg, var(--a1), var(--a2));
-      flex-shrink: 0;
-    }
-    .name { font-weight: 900; }
-    .role { color: rgba(148,163,184,0.88); font-size: 0.9rem; margin-top: 2px; }
-
     {% include "components/footer_css.html" %}
+
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+    main.mp-marketing-main {
+      max-width: none;
+      padding-left: 0; padding-right: 0;
+      padding-bottom: clamp(48px, 8vw, 80px);
+    }
+
+    #testimonials.mp-reviews {
+      background:
+        radial-gradient(900px 420px at 12% -10%, rgba(0, 62, 168, .06), transparent 60%),
+        radial-gradient(700px 360px at 88% 0%, rgba(20, 24, 46, .05), transparent 55%),
+        #fafafb;
+      padding: clamp(72px, 10vw, 112px) 0;
+    }
+    .mp-reviews-head { text-align: center; max-width: 760px; margin: 0 auto; }
+    .mp-reviews-kicker {
+      margin: 0 0 14px; font-size: 13px; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase; color: #5b6478;
+    }
+    .mp-reviews-title {
+      margin: 0; font-size: clamp(40px, 4.6vw, 64px); font-weight: 400;
+      line-height: 1.1; color: #000;
+    }
+    .mp-reviews-sub {
+      margin: 18px auto 0; max-width: 54ch; color: #000;
+      font-size: 16px; line-height: 24px; font-weight: 400;
+    }
+    .mp-reviews-trust {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+      gap: 14px 28px; margin: 40px auto 0; padding: 22px 0 0;
+      border-top: 1px solid rgba(20, 26, 46, .08); max-width: 920px;
+    }
+    .mp-reviews-trust-label {
+      font-size: 12px; font-weight: 500; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #8b93a7;
+    }
+    .mp-reviews-trust-list {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+      gap: 10px 22px; list-style: none; margin: 0; padding: 0;
+    }
+    .mp-reviews-trust-list li { font-size: 13px; font-weight: 500; color: #6b7388; }
+
+    .mp-reviews-slider { margin-top: 48px; position: relative; }
+    .mp-reviews-viewport {
+      position: relative; overflow: hidden; border-radius: 28px;
+      background: #fff; border: 1px solid rgba(20, 26, 46, .06); min-height: 360px;
+    }
+    .mp-reviews-slide {
+      display: grid; grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.1fr);
+      min-height: 360px; opacity: 0; visibility: hidden; pointer-events: none;
+      position: absolute; inset: 0; transform: translateX(36px);
+      transition: opacity .55s ease, transform .55s cubic-bezier(.22, 1, .36, 1), visibility 0s linear .55s;
+    }
+    .mp-reviews-slide.is-active {
+      position: relative; opacity: 1; visibility: visible; pointer-events: auto;
+      transform: none; transition: opacity .55s ease, transform .55s cubic-bezier(.22, 1, .36, 1), visibility 0s;
+      z-index: 2;
+    }
+    .mp-reviews-slide.is-exit {
+      opacity: 0; visibility: visible; transform: translateX(-28px); z-index: 1;
+    }
+    .mp-reviews-slide-media {
+      position: relative; min-height: 320px; background: #e7eefc; overflow: hidden;
+    }
+    .mp-reviews-slide-media img {
+      width: 100%; height: 100%; object-fit: cover; object-position: center top;
+    }
+    .mp-reviews-slide-fallback {
+      width: 100%; height: 100%; min-height: 320px; display: flex;
+      align-items: center; justify-content: center; font-size: 64px; font-weight: 600; color: #fff;
+      background: linear-gradient(135deg, var(--av1, #003ea8), var(--av2, #14182e));
+    }
+    .mp-reviews-slide-body {
+      display: flex; flex-direction: column; justify-content: center;
+      padding: clamp(28px, 4vw, 48px); background: #fff;
+    }
+    .mp-reviews-stars { display: flex; gap: 4px; margin-bottom: 18px; }
+    .mp-reviews-star { width: 10px; height: 10px; border-radius: 50%; background: #003ea8; }
+    .mp-reviews-star.is-empty { background: rgba(20, 26, 46, .16); }
+    .mp-reviews-quote {
+      margin: 0; font-size: clamp(18px, 2.1vw, 26px); font-weight: 400;
+      line-height: 1.45; color: #141a2e;
+    }
+    .mp-reviews-metric { margin: 18px 0 0; font-size: 14px; font-weight: 500; color: #003ea8; }
+    .mp-reviews-author {
+      margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(20, 26, 46, .08);
+    }
+    .mp-reviews-name { font-size: 16px; font-weight: 600; color: #141a2e; }
+    .mp-reviews-role { margin-top: 4px; font-size: 13.5px; color: #5b6478; }
+    .mp-reviews-controls {
+      display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 22px;
+    }
+    .mp-reviews-nav {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 1px solid rgba(20, 26, 46, .12); background: #fff; color: #141a2e;
+      display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .mp-reviews-nav:hover { background: #14182e; border-color: #14182e; color: #fff; }
+    .mp-reviews-dots { display: flex; align-items: center; gap: 8px; }
+    .mp-reviews-dot {
+      width: 8px; height: 8px; border-radius: 999px; border: 0; padding: 0;
+      background: rgba(20, 26, 46, .18); cursor: pointer;
+    }
+    .mp-reviews-dot.is-active { width: 22px; background: #003ea8; }
+    .mp-reviews-empty { text-align: center; color: #5b6478; font-size: 15px; padding: 48px 24px; }
+
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s ease; }
+    .reveal.in { opacity: 1; transform: none; }
+
+    @media (max-width: 768px) {
+      #testimonials.mp-reviews { padding: 56px 0 64px; }
+      .mp-reviews-slide.is-active { grid-template-columns: 1fr; }
+      .mp-reviews-slide-media { min-height: 240px; max-height: 280px; }
+      .mp-reviews-slide-body { padding: 24px 20px 28px; }
+    }
   </style>
 </head>
-<body>
-  <div class="orb orb1" aria-hidden="true"></div>
-  <div class="orb orb2" aria-hidden="true"></div>
-  <div class="orb orb3" aria-hidden="true"></div>
-  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+<body class="mp-theme-light">
   {% include "components/marketing_nav.html" %}
   {% include "components/marketing_nav_js.html" %}
 
-  <main class="mp-marketing-main">
-    <div class="page-head">
-      <div class="tag"><span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block;"></span> Reviews</div>
-      <h1>Loved by teams who<br/><span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">move fast</span></h1>
-      <p class="sub">A few examples of what users typically see after turning on relevance filtering + RAG grounded drafts.</p>
-    </div>
-
-    <div class="reviews-grid" aria-label="Customer reviews">
-      {% include "components/marketing_review_cards_page.html" %}
-    </div>
+  <main id="main-content" class="mp-marketing-main">
+    <section id="testimonials" class="mp-sec mp-reviews" aria-labelledby="testimonials-heading">
+      <div class="wrap">
+        <div class="mp-reviews-head reveal">
+          <p class="mp-reviews-kicker">Social proof</p>
+          <h1 class="mp-reviews-title" id="testimonials-heading">Trusted by teams who live in email</h1>
+          <p class="mp-reviews-sub">
+            Support, sales, and operations leads use MailPilot-style automation to answer faster — without losing tone or accuracy.
+          </p>
+        </div>
+        {% include "components/marketing_trust_strip.html" %}
+        <div class="mp-reviews-slider reveal" id="mpReviewsSlider" data-mp-reviews-slider aria-roledescription="carousel" aria-label="Customer reviews">
+          <div class="mp-reviews-viewport">
+            {% include "components/marketing_review_cards_home.html" %}
+          </div>
+          <div class="mp-reviews-controls">
+            <button type="button" class="mp-reviews-nav" data-mp-reviews-prev aria-label="Previous review">
+              <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+            </button>
+            <div class="mp-reviews-dots" data-mp-reviews-dots role="tablist" aria-label="Choose review"></div>
+            <button type="button" class="mp-reviews-nav" data-mp-reviews-next aria-label="Next review">
+              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   {% include "components/footer.html" %}
+
   <script>
-    const canvas = document.getElementById('bg-canvas');
-    const ctx = canvas.getContext('2d');
-    let W, H, particles = [], mouse = {x: -9999, y: -9999};
-    function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
-    resize(); window.addEventListener('resize', resize);
-    window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-    class Particle{
-      constructor(){ this.reset(); }
-      reset(){
-        this.x = Math.random() * W; this.y = Math.random() * H;
-        this.z = Math.random() * 800 + 200;
-        this.vx = (Math.random() - 0.5) * 0.4;
-        this.vy = (Math.random() - 0.5) * 0.4;
-        this.r = Math.random() * 1.8 + 0.4;
-        const cols = ['rgba(79,110,247', 'rgba(167,139,250', 'rgba(56,189,248'];
-        this.col = cols[Math.floor(Math.random() * cols.length)];
+    (function () {
+      const els = document.querySelectorAll('.reveal');
+      if (!els.length) return;
+      if (!('IntersectionObserver' in window)) {
+        els.forEach((el) => el.classList.add('in'));
+        return;
       }
-      update(){
-        this.x += this.vx; this.y += this.vy;
-        const dx = this.x - mouse.x, dy = this.y - mouse.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if(dist < 120 && dist > 0.001){ this.x += dx / dist * 1.2; this.y += dy / dist * 1.2; }
-        if(this.x < 0) this.x = W; if(this.x > W) this.x = 0;
-        if(this.y < 0) this.y = H; if(this.y > H) this.y = 0;
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          e.target.classList.add('in');
+          io.unobserve(e.target);
+        });
+      }, { threshold: 0.12 });
+      els.forEach((el) => io.observe(el));
+    })();
+
+    (function () {
+      const root = document.querySelector('[data-mp-reviews-slider]');
+      if (!root) return;
+      const slides = [...root.querySelectorAll('.mp-reviews-slide')];
+      const prevBtn = root.querySelector('[data-mp-reviews-prev]');
+      const nextBtn = root.querySelector('[data-mp-reviews-next]');
+      const dotsWrap = root.querySelector('[data-mp-reviews-dots]');
+      if (!slides.length) return;
+      if (slides.length < 2) {
+        slides[0].classList.add('is-active');
+        if (prevBtn) prevBtn.hidden = true;
+        if (nextBtn) nextBtn.hidden = true;
+        if (dotsWrap) dotsWrap.hidden = true;
+        return;
       }
-      draw(){
-        const scale = 800 / this.z;
-        const a = Math.min(0.7, scale * 0.4);
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.r * scale, 0, Math.PI * 2);
-        ctx.fillStyle = `${this.col},${a})`;
-        ctx.fill();
-      }
-    }
-    for(let i=0;i<140;i++) particles.push(new Particle());
-    function drawConnections(){
-      for(let i=0;i<particles.length;i++){
-        for(let j=i+1;j<particles.length;j++){
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const d = Math.sqrt(dx*dx + dy*dy);
-          if(d < 110){
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(79,110,247,${(1 - d/110) * 0.18})`;
-            ctx.lineWidth = 0.6;
-            ctx.stroke();
-          }
-        }
-      }
-    }
-    function animate(){
-      ctx.clearRect(0,0,W,H);
-      drawConnections();
-      particles.forEach(p => { p.update(); p.draw(); });
-      requestAnimationFrame(animate);
-    }
-    animate();
+      let index = Math.max(0, slides.findIndex((s) => s.classList.contains('is-active')));
+      if (index < 0) index = 0;
+      let timer = null;
+      let busy = false;
+      const INTERVAL = 4500;
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+      slides.forEach((slide, i) => {
+        slide.removeAttribute('hidden');
+        slide.classList.toggle('is-active', i === index);
+        slide.classList.remove('is-exit');
+      });
+      const dots = slides.map((_, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mp-reviews-dot' + (i === index ? ' is-active' : '');
+        btn.setAttribute('aria-label', 'Show review ' + (i + 1));
+        btn.addEventListener('click', () => { go(i); tick(); });
+        if (dotsWrap) dotsWrap.appendChild(btn);
+        return btn;
+      });
+      const render = (next) => {
+        if (next === index || busy) return;
+        busy = true;
+        const outgoing = slides[index];
+        const incoming = slides[next];
+        outgoing.classList.remove('is-active');
+        outgoing.classList.add('is-exit');
+        incoming.classList.add('is-active');
+        incoming.classList.remove('is-exit');
+        dots.forEach((dot, i) => dot.classList.toggle('is-active', i === next));
+        index = next;
+        window.setTimeout(() => {
+          outgoing.classList.remove('is-exit');
+          busy = false;
+        }, reduced.matches ? 0 : 560);
+      };
+      const go = (next) => {
+        const total = slides.length;
+        render(((next % total) + total) % total);
+      };
+      const stop = () => { if (timer) { window.clearTimeout(timer); timer = null; } };
+      const tick = () => {
+        stop();
+        if (reduced.matches) return;
+        timer = window.setTimeout(() => { go(index + 1); tick(); }, INTERVAL);
+      };
+      if (prevBtn) prevBtn.addEventListener('click', () => { go(index - 1); tick(); });
+      if (nextBtn) nextBtn.addEventListener('click', () => { go(index + 1); tick(); });
+      root.addEventListener('mouseenter', stop);
+      root.addEventListener('mouseleave', tick);
+      document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else tick(); });
+      tick();
+    })();
   </script>
 </body>
 </html>
-

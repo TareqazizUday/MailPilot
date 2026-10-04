@@ -1,0 +1,25 @@
+{% load i18n %}
+<div class="mp-hero-edit__header">
+  <div class="mp-hero-edit__intro">
+    <p class="mp-hero-edit__kicker">{% trans "Marketing · Hero inbox" %}</p>
+    <h2 class="mp-hero-edit__title">
+      {% if original %}{{ original.sender_name }}{% else %}{% trans "New inbox row" %}{% endif %}
+    </h2>
+    <p class="mp-hero-edit__sub">{% trans "Edit the demo row shown in the homepage hero inbox card." %}</p>
+    <div class="mp-hero-edit__links">
+      <a class="mp-mkt__link" href="{% url 'admin:core_marketingheroinboxitem_changelist' %}">{% trans "All rows" %}</a>
+      <a class="mp-mkt__link" href="{% url 'admin:core_marketingherosettings_changelist' %}">{% trans "Card settings" %}</a>
+      <a class="mp-mkt__link" href="/" target="_blank" rel="noopener">{% trans "View homepage" %}</a>
+    </div>
+  </div>
+  {% if original %}
+  <div class="mp-hero-edit__status">
+    <span class="mp-badge {% if original.is_published %}mp-badge-ok{% else %}mp-badge-muted{% endif %}">
+      {% if original.is_published %}{% trans "Published" %}{% else %}{% trans "Draft" %}{% endif %}
+    </span>
+    <span class="mp-badge {% if original.show_on_homepage and original.is_published %}mp-badge-pro{% else %}mp-badge-muted{% endif %}">
+      {% if original.show_on_homepage %}{% trans "Homepage" %}{% else %}{% trans "Hidden from home" %}{% endif %}
+    </span>
+  </div>
+  {% endif %}
+</div>

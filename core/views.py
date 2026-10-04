@@ -211,11 +211,11 @@ def _seo_landing_context(request, *, pricing_currency: str | None = None) -> dic
         og_image_abs = ""
 
     meta_description = (
-        "Automate Gmail and IMAP with AI: smart relevance filtering, RAG-grounded replies from your "
-        "knowledge base, encrypted multi-tenant accounts, and optional Celery workers. "
-        "MailPilot puts your inbox on autopilot."
+        "AI email automation for Gmail and IMAP. MailPilot filters noise, drafts or sends "
+        "replies grounded in your knowledge base with RAG, and keeps credentials encrypted - "
+        "accurate answers from your docs, live in minutes."
     )
-    page_title = "MailPilot | AI Email Automation for Gmail & IMAP with RAG"
+    page_title = "AI Email Automation Software | MailPilot — Gmail & IMAP with RAG"
 
     json_ld = {
         "@context": "https://schema.org",
@@ -255,12 +255,14 @@ def landing_page(request):
     from core.marketing import (
         get_faq_settings,
         get_hero_settings,
+        get_landing_page,
         get_pricing_settings,
         how_it_works_steps_queryset,
         marketing_features_queryset,
         marketing_faq_queryset,
         marketing_hero_inbox_queryset,
         marketing_pricing_plans_queryset,
+        marketing_rag_queryset,
         marketing_reviews_queryset,
     )
     from core.pricing_currency import enrich_pricing_plans, pricing_context
@@ -273,9 +275,11 @@ def landing_page(request):
     ctx["starter_expired"] = False
     ctx["current_plan_code"] = ""
 
+    ctx["landing"] = get_landing_page()
     ctx["marketing_features"] = marketing_features_queryset(homepage_only=True)
     ctx["how_it_works_steps"] = how_it_works_steps_queryset(homepage_only=True)
     ctx["marketing_reviews"] = marketing_reviews_queryset(homepage_only=True)
+    ctx["rag_items"] = marketing_rag_queryset(homepage_only=True)
     ctx["hero_settings"] = get_hero_settings()
     ctx["hero_inbox_items"] = marketing_hero_inbox_queryset(homepage_only=True)
     ctx["faq_settings"] = get_faq_settings()
@@ -487,9 +491,10 @@ def features_page(request):
     """
     Clean URL for features (no `#features` fragment).
     """
-    ctx = _seo_landing_context(request)
-    from core.marketing import marketing_features_queryset
+    from core.marketing import get_landing_page, marketing_features_queryset
 
+    ctx = _seo_landing_context(request)
+    ctx["landing"] = get_landing_page()
     ctx["marketing_features"] = marketing_features_queryset()
     if request.user.is_authenticated:
         effective = runtime.get_effective_settings(request.user)
@@ -499,30 +504,15 @@ def features_page(request):
 
 
 @require_GET
-def how_it_works_page(request):
-    """
-    Clean URL for "How it Works" (no fragment).
-    """
-    ctx = _seo_landing_context(request)
-    from core.marketing import how_it_works_steps_queryset
-
-    ctx["how_it_works_steps"] = how_it_works_steps_queryset()
-    if request.user.is_authenticated:
-        effective = runtime.get_effective_settings(request.user)
-        cfg = _user_settings_dict(request)
-        ctx["connected"] = _mailbox_connected_for_ui(effective, cfg)
-    return render(request, "how_it_works.html", ctx)
-
-
-@require_GET
 def reviews_page(request):
     """
     Clean URL for reviews/testimonials (no fragment).
     """
     ctx = _seo_landing_context(request)
-    from core.marketing import marketing_reviews_queryset
+    from core.marketing import get_landing_page, marketing_reviews_queryset
 
     ctx["marketing_reviews"] = marketing_reviews_queryset()
+    ctx["landing"] = get_landing_page()
     if request.user.is_authenticated:
         effective = runtime.get_effective_settings(request.user)
         cfg = _user_settings_dict(request)

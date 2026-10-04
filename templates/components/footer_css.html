@@ -9,9 +9,29 @@
     radial-gradient(ellipse 80% 60% at 50% 100%, rgba(79,110,247,0.08), transparent 70%),
     linear-gradient(180deg, rgba(6,8,24,0.4) 0%, rgba(6,8,24,0.95) 100%);
   color: var(--muted, #94a3b8);
+  font-family: var(--font, 'Poppins', Arial, sans-serif);
   font-size: 0.86rem;
   text-align: left;
   overflow: hidden;
+}
+.mp-footer__brand-title,
+.mp-footer__brand-title span,
+.mp-footer__tagline,
+.mp-footer__col-title,
+.mp-footer__link,
+.mp-footer__email,
+.mp-footer__cta,
+.mp-footer__trust-brand-text,
+.mp-footer__trust-score,
+.mp-footer__office-country,
+.mp-footer__office-region,
+.mp-footer__office-line,
+.mp-footer__office-phone,
+.mp-footer__partner-name,
+.mp-footer__credit,
+.mp-footer__copyright,
+.mp-footer__watermark {
+  font-family: var(--font, 'Poppins', Arial, sans-serif);
 }
 
 .mp-footer__inner {
@@ -571,3 +591,46 @@
     margin-top: 16px;
   }
 }
+
+/* Light marketing theme (landing) — same footer, light colors */
+body.mp-theme-light .mp-footer {
+  background: #fff;
+  border-top: 1px solid #e8ebf4;
+  color: #5b6478;
+}
+body.mp-theme-light .mp-footer__brand-title { color: #141a2e; }
+body.mp-theme-light .mp-footer__tagline { color: #5b6478; }
+body.mp-theme-light .mp-footer__email { color: #141a2e; }
+body.mp-theme-light .mp-footer__email:hover { color: #5b5bf0; }
+body.mp-theme-light .mp-footer__col-title { color: #a4acc0; }
+body.mp-theme-light .mp-footer__link { color: #5b6478; }
+body.mp-theme-light .mp-footer__link:hover { color: #5b5bf0; }
+body.mp-theme-light .mp-footer__link--accent { color: #5b5bf0; }
+body.mp-theme-light .mp-footer__trust {
+  border-top-color: #e8ebf4;
+  border-bottom-color: #e8ebf4;
+}
+body.mp-theme-light .mp-footer__trust-brand-text { color: #141a2e; }
+body.mp-theme-light .mp-footer__trust-score { color: #141a2e; }
+body.mp-theme-light .mp-footer__office-card {
+  background: #f6f8fd;
+  border-color: #e8ebf4;
+}
+body.mp-theme-light .mp-footer__office-code {
+  background: #efefff;
+  border-color: rgba(91,91,240,0.25);
+  color: #5b5bf0;
+}
+body.mp-theme-light .mp-footer__office-country { color: #141a2e; }
+body.mp-theme-light .mp-footer__office-region { color: #5b6478; }
+body.mp-theme-light .mp-footer__office-chevron { color: #a4acc0; }
+body.mp-theme-light .mp-footer__office-body { border-top-color: #e8ebf4; }
+body.mp-theme-light .mp-footer__office-line { color: #5b6478; }
+body.mp-theme-light .mp-footer__office-phone { color: #5b5bf0; }
+body.mp-theme-light .mp-footer__office-phone:hover { color: #8a5bf0; }
+body.mp-theme-light .mp-footer__bar { border-top-color: #e8ebf4; }
+body.mp-theme-light .mp-footer__partner { color: #141a2e; }
+body.mp-theme-light .mp-footer__partner:hover { color: #5b5bf0; }
+body.mp-theme-light .mp-footer__credit { color: #5b6478; }
+body.mp-theme-light .mp-footer__copyright { color: #5b6478; }
+body.mp-theme-light .mp-footer__watermark { color: rgba(20,26,46,0.04); }

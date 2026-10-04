@@ -10,7 +10,7 @@
         <li><a href="{% url 'privacy' %}">Privacy</a></li>
       {% else %}
         <li><a href="{% url 'features' %}">Features</a></li>
-        <li><a href="{% url 'how_it_works' %}">How it Works</a></li>
+        <li><a href="{% url 'home' %}#how-it-works">How it Works</a></li>
         <li><a href="{% url 'reviews' %}">Reviews</a></li>
         <li><a href="{% url 'pricing' %}">Pricing</a></li>
       {% endif %}
@@ -63,7 +63,7 @@
       {% else %}
         <div class="nav-guest mp-nav-desktop-only">
           <a href="{% url 'login' %}" class="nav-login">Log in</a>
-          <a href="{% url 'signup' %}" class="nav-cta">Get Started →</a>
+          <a href="{% url 'signup' %}" class="nav-cta">Get Started <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </div>
       {% endif %}
 
@@ -81,7 +81,7 @@
         <li><a href="{% url 'privacy' %}">Privacy</a></li>
       {% else %}
         <li><a href="{% url 'features' %}">Features</a></li>
-        <li><a href="{% url 'how_it_works' %}">How it Works</a></li>
+        <li><a href="{% url 'home' %}#how-it-works">How it Works</a></li>
         <li><a href="{% url 'reviews' %}">Reviews</a></li>
         <li><a href="{% url 'pricing' %}">Pricing</a></li>
       {% endif %}
@@ -106,7 +106,7 @@
       <div class="nav-drawer-divider" aria-hidden="true"></div>
       <div class="nav-drawer-actions">
         <a href="{% url 'login' %}" class="nav-login">Log in</a>
-        <a href="{% url 'signup' %}" class="nav-cta">Get Started →</a>
+        <a href="{% url 'signup' %}" class="nav-cta">Get Started <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
       </div>
     {% endif %}
   </div>

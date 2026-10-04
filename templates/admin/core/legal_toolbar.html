@@ -1,0 +1,22 @@
+{% load i18n %}
+<div class="mp-mkt mb-4">
+  <div class="mp-mkt__toolbar">
+    <div class="mp-mkt__intro">
+      <h2 class="mp-mkt__title">{{ mp_mkt.title }}</h2>
+      <p class="mp-mkt__sub">{{ mp_mkt.subtitle }}</p>
+      <div class="mp-mkt__links">
+        {% if mp_mkt.site_url %}
+          <a class="mp-mkt__link" href="{{ mp_mkt.site_url }}" target="_blank" rel="noopener">{% trans "View on site" %}</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="mp-mkt__meta">
+      <span class="mp-badge {% if mp_mkt.is_published %}mp-badge-ok{% else %}mp-badge-muted{% endif %}">
+        {% if mp_mkt.is_published %}{% trans "Published" %}{% else %}{% trans "Draft" %}{% endif %}
+      </span>
+      {% if mp_mkt.effective_date %}
+        <span class="mp-mkt__effective">{% trans "Effective" %}: {{ mp_mkt.effective_date }}</span>
+      {% endif %}
+    </div>
+  </div>
+</div>

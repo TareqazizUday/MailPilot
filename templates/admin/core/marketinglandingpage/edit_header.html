@@ -1,0 +1,33 @@
+{% load i18n %}
+<div class="mp-landing-edit">
+  <div class="mp-landing-edit__header">
+    <div class="mp-landing-edit__intro">
+      <p class="mp-landing-edit__kicker">{% trans "Marketing · Website" %}</p>
+      <h2 class="mp-landing-edit__title">{% trans "Landing page" %}</h2>
+      <p class="mp-landing-edit__sub">
+        {% trans "Section headers and fixed homepage copy. Cards and rows are edited in their own Marketing lists." %}
+      </p>
+      <div class="mp-landing-edit__links">
+        <a class="mp-mkt__link" href="/" target="_blank" rel="noopener">{% trans "View homepage" %}</a>
+        <a class="mp-mkt__link" href="{% url 'admin:core_marketingheroinboxitem_changelist' %}">{% trans "Hero inbox" %}</a>
+        <a class="mp-mkt__link" href="{% url 'admin:core_marketingfeature_changelist' %}">{% trans "Features" %}</a>
+        <a class="mp-mkt__link" href="{% url 'admin:core_howitworksstep_changelist' %}">{% trans "How it works" %}</a>
+        <a class="mp-mkt__link" href="{% url 'admin:core_marketingragitem_changelist' %}">{% trans "Grounding" %}</a>
+        <a class="mp-mkt__link" href="{% url 'admin:core_marketingreview_changelist' %}">{% trans "Reviews" %}</a>
+        <a class="mp-mkt__link" href="{% url 'admin:core_marketingfaqitem_changelist' %}">{% trans "FAQ" %}</a>
+        <a class="mp-mkt__link" href="{% url 'admin:core_marketingpricingplan_changelist' %}">{% trans "Pricing" %}</a>
+      </div>
+    </div>
+  </div>
+
+  <nav class="mp-landing-edit__nav" aria-label="{% trans 'Jump to section' %}">
+    <a href="#mp-fs-hero">{% trans "Hero" %}</a>
+    <a href="#mp-fs-logos">{% trans "Logos" %}</a>
+    <a href="#mp-fs-features">{% trans "Features" %}</a>
+    <a href="#mp-fs-hiw">{% trans "Workflow" %}</a>
+    <a href="#mp-fs-rag">{% trans "Grounding" %}</a>
+    <a href="#mp-fs-testimonials">{% trans "Reviews" %}</a>
+    <a href="#mp-fs-contact">{% trans "Contact" %}</a>
+    <a href="#mp-fs-cta">{% trans "CTA" %}</a>
+  </nav>
+</div>

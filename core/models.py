@@ -259,6 +259,8 @@ class ContactSubmission(models.Model):
     class Meta:
         db_table = "core_contactsubmission"
         ordering = ["-created_at"]
+        verbose_name = "Contact message"
+        verbose_name_plural = "Contact messages"
 
     def __str__(self) -> str:
         return f"Contact({self.email}, {self.created_at:%Y-%m-%d})"
@@ -316,7 +318,7 @@ class MarketingFeature(models.Model):
 
 
 class HowItWorksStep(models.Model):
-    """Workflow steps for /how-it-works and homepage section."""
+    """Workflow steps for the homepage #how-it-works section."""
 
     ACCENT_BLUE = "blue"
     ACCENT_SKY = "sky"
@@ -376,6 +378,12 @@ class MarketingReview(models.Model):
         default="MP",
         help_text="Initials shown in the avatar circle, e.g. AK",
     )
+    photo = models.ImageField(
+        upload_to="marketing/reviews/",
+        blank=True,
+        null=True,
+        help_text="Optional portrait for the homepage review slider.",
+    )
     accent_primary = models.CharField(max_length=7, default="#4f6ef7")
     accent_secondary = models.CharField(max_length=7, default="#a78bfa")
     rating = models.PositiveSmallIntegerField(default=5)
@@ -417,6 +425,26 @@ class MarketingReview(models.Model):
         a2 = (self.accent_secondary or "#a78bfa").strip()
         return f"--av1:{a1};--av2:{a2}"
 
+    @property
+    def photo_url(self) -> str:
+        if self.photo and getattr(self.photo, "name", ""):
+            try:
+                if self.photo.storage.exists(self.photo.name):
+                    return self.photo.url
+            except Exception:
+                return ""
+        return ""
+
+    @property
+    def fallback_photo_static(self) -> str:
+        key = (self.avatar_initials or "").strip().upper()
+        mapping = {
+            "SC": "img/reviews/sarah-chen.jpg",
+            "MW": "img/reviews/marcus-webb.jpg",
+            "ER": "img/reviews/elena-ruiz.jpg",
+        }
+        return mapping.get(key, "")
+
 
 class MarketingPricingSettings(models.Model):
     """Singleton copy for /pricing and homepage pricing section header."""
@@ -426,10 +454,15 @@ class MarketingPricingSettings(models.Model):
     title_lead = models.CharField(max_length=120, default="Simple plans for")
     title_highlight = models.CharField(max_length=120, default="every inbox size")
     intro = models.TextField(
-        default="Simple token plans for every inbox size. Connect your inbox in Setup, then let MailPilot draft or send safely."
+        default=(
+            "Choose a plan below, then connect in Setup. "
+            "Starter includes 20 auto-sends; Pro bills monthly. Drafts never use tokens."
+        ),
     )
     demo_note = models.TextField(
-        default="Starter: 20 auto-sends total (80 tokens lifetime). Pro: monthly billing via Stripe. Draft mode does not use tokens."
+        blank=True,
+        default="",
+        help_text="Deprecated — left blank. Use intro only.",
     )
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -667,6 +700,187 @@ class MarketingHeroInboxItem(models.Model):
     @property
     def badge_css_class(self) -> str:
         return f"badge-{self.badge_type}"
+
+
+class MarketingLandingPage(models.Model):
+    """Singleton copy for homepage sections not covered by list CMS models."""
+
+    singleton_key = models.PositiveSmallIntegerField(primary_key=True, default=1)
+
+    # Hero
+    hero_overline = models.CharField(max_length=80, default="AI for your inbox")
+    hero_title_before = models.CharField(max_length=120, default="AI email automation,")
+    hero_title_highlight = models.CharField(max_length=80, default="live in minutes")
+    hero_sub_html = models.TextField(
+        default=(
+            "Connect Gmail or IMAP and let MailPilot draft or send replies grounded in your "
+            "knowledge base - accurate answers from your docs, not generic chatbot filler."
+        ),
+        help_text="Supports light HTML (e.g. <b>).",
+    )
+    hero_cta_primary = models.CharField(max_length=80, default="Get Started")
+    hero_cta_secondary = models.CharField(max_length=80, default="See the workflow")
+    float_1_title = models.CharField(max_length=60, default="Auto-reply sent")
+    float_1_sub = models.CharField(max_length=80, blank=True, default="grounded in your KB")
+    float_2_title = models.CharField(max_length=60, default="RAG match · 94%")
+    float_2_sub = models.CharField(max_length=80, blank=True, default="6 chunks · pgvector")
+    float_3_title = models.CharField(max_length=60, default="Telegram notified")
+    float_3_sub = models.CharField(max_length=80, blank=True, default="")
+
+    # Logos strip
+    logos_label = models.CharField(max_length=120, default="Tools that plug in cleanly")
+
+    # Features header
+    features_tag = models.CharField(max_length=40, default="Features")
+    features_title = models.CharField(max_length=120, default="What you get")
+    features_sub = models.TextField(
+        default="Inbox connect, smart filters, grounded replies, and alerts—without another helpdesk."
+    )
+
+    # How it works header
+    hiw_tag = models.CharField(max_length=40, default="Workflow")
+    hiw_title_lead = models.CharField(max_length=80, default="How MailPilot")
+    hiw_title_highlight = models.CharField(max_length=40, default="works")
+    hiw_sub = models.TextField(
+        default="Six steps from poll to send—inbox to queue, grounded in your knowledge base."
+    )
+
+    # RAG header
+    rag_tag = models.CharField(max_length=60, default="Grounding")
+    rag_title_html = models.CharField(
+        max_length=200,
+        default="Grounded in your docs",
+        help_text="Supports light HTML (e.g. <em>).",
+    )
+
+    # Testimonials header
+    testimonials_tag = models.CharField(max_length=40, default="Customers")
+    testimonials_title_lead = models.CharField(max_length=80, default="Trusted by")
+    testimonials_title_highlight = models.CharField(max_length=80, default="teams who live in email")
+    testimonials_intro = models.TextField(
+        default="Operators who cut first-response time without losing brand voice."
+    )
+    trust_strip_label = models.CharField(max_length=40, default="Teams at")
+    trust_logos = models.TextField(
+        default="NORTHLINE LOGISTICS\nBRIGHTSTACK\nSTUDIO MERIDIAN\nHELIX SUPPORT",
+        help_text="One logo label per line.",
+    )
+
+    # Contact
+    contact_tag = models.CharField(max_length=40, default="Contact")
+    contact_title_lead = models.CharField(max_length=80, default="Questions before you")
+    contact_title_highlight = models.CharField(max_length=40, default="sign up?")
+    contact_intro = models.TextField(
+        default="Tell us volume and mailbox type—we reply within one business day."
+    )
+    contact_aside_title = models.CharField(max_length=80, default="We help you launch faster")
+    contact_aside_body = models.TextField(
+        default="Ask about limits, knowledge-base setup, or team seats—we'll map you to a plan."
+    )
+    contact_perk_1 = models.CharField(max_length=120, default="Trial setup tips")
+    contact_perk_2 = models.CharField(max_length=120, default="Encrypted credentials")
+    contact_perk_3 = models.CharField(max_length=120, default="Agency volume pricing")
+    contact_form_title = models.CharField(max_length=80, default="Send us a message")
+    contact_form_sub = models.CharField(max_length=120, default="Required fields unless marked optional.")
+    contact_message_placeholder = models.CharField(
+        max_length=160,
+        default="Volume, mailbox type, team size…",
+    )
+    contact_privacy = models.CharField(
+        max_length=160,
+        default="We use your details only to respond to this inquiry.",
+    )
+
+    # Bottom CTA
+    cta_title = models.CharField(max_length=120, default="Ready when you are")
+    cta_sub = models.CharField(max_length=200, default="Get full access. No credit card required.")
+    cta_primary = models.CharField(max_length=80, default="Create free account")
+    cta_secondary = models.CharField(max_length=80, default="Compare plans")
+    cta_image_1 = models.ImageField(
+        upload_to="marketing/cta/",
+        blank=True,
+        null=True,
+        help_text="Floating agent — top right. Leave empty to use the default.",
+    )
+    cta_image_2 = models.ImageField(
+        upload_to="marketing/cta/",
+        blank=True,
+        null=True,
+        help_text="Floating agent — bottom left. Leave empty to use the default.",
+    )
+    cta_image_3 = models.ImageField(
+        upload_to="marketing/cta/",
+        blank=True,
+        null=True,
+        help_text="Floating agent — top left. Leave empty to use the default.",
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketinglandingpage"
+        verbose_name = "landing page"
+        verbose_name_plural = "landing page"
+
+    def __str__(self) -> str:
+        return "Landing page"
+
+    def trust_logo_list(self) -> list[str]:
+        return [line.strip() for line in (self.trust_logos or "").splitlines() if line.strip()]
+
+    def _cta_image_url(self, field) -> str:
+        if field and getattr(field, "name", ""):
+            try:
+                if field.storage.exists(field.name):
+                    return field.url
+            except Exception:
+                return ""
+        return ""
+
+    @property
+    def cta_image_1_url(self) -> str:
+        return self._cta_image_url(self.cta_image_1)
+
+    @property
+    def cta_image_2_url(self) -> str:
+        return self._cta_image_url(self.cta_image_2)
+
+    @property
+    def cta_image_3_url(self) -> str:
+        return self._cta_image_url(self.cta_image_3)
+
+
+class MarketingRagItem(models.Model):
+    """Homepage RAG / grounding bullet points."""
+
+    title = models.CharField(max_length=80)
+    description = models.TextField()
+    icon_emoji = models.CharField(max_length=8, default="📄")
+    accent = models.CharField(
+        max_length=16,
+        default="violet",
+        help_text="CSS accent key: violet, green, orange, blue, pink, teal",
+    )
+    sort_order = models.PositiveIntegerField(default=0, db_index=True)
+    is_published = models.BooleanField(default=True, db_index=True)
+    show_on_homepage = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingragitem"
+        ordering = ["sort_order", "id"]
+        verbose_name = "grounding point"
+        verbose_name_plural = "grounding points"
+
+    def __str__(self) -> str:
+        return self.title
+
+    @property
+    def accent_class(self) -> str:
+        allowed = {"violet", "green", "orange", "blue", "pink", "teal"}
+        key = (self.accent or "violet").strip().lower()
+        return f"i-{key if key in allowed else 'violet'}"
 
 
 class MarketingFaqSettings(models.Model):

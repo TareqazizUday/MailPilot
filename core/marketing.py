@@ -1,64 +1,72 @@
 from __future__ import annotations
 
-from core.models import HowItWorksStep, MarketingFaqItem, MarketingFaqSettings, MarketingFeature, MarketingHeroInboxItem, MarketingHeroSettings, MarketingPricingPlan, MarketingPricingSettings, MarketingReview
+from core.models import (
+    HowItWorksStep,
+    MarketingFaqItem,
+    MarketingFaqSettings,
+    MarketingFeature,
+    MarketingHeroInboxItem,
+    MarketingHeroSettings,
+    MarketingLandingPage,
+    MarketingPricingPlan,
+    MarketingPricingSettings,
+    MarketingRagItem,
+    MarketingReview,
+)
 
 DEFAULT_MARKETING_FEATURES: list[dict[str, str | int | bool]] = [
     {
-        "title": "Multi-Inbox Intelligence",
+        "title": "Connect any inbox",
         "description": (
-            "Automatically reads multiple Gmail and SMTP/IMAP inboxes, filters noise, "
-            "and identifies emails that need a response - powered by LLM relevance scoring."
+            "Gmail with one-click OAuth, or any SMTP/IMAP provider. IMAP IDLE keeps it near real-time."
         ),
-        "icon_class": "fa-regular fa-envelope",
-        "accent_color": "#4f6ef7",
+        "icon_class": "fa-solid fa-inbox",
+        "accent_color": "#5b5bf0",
         "sort_order": 1,
     },
     {
-        "title": "RAG-Powered Replies",
+        "title": "RAG Knowledge Base",
         "description": (
-            "Enriches every AI reply with your knowledge base. Answers are grounded in "
-            "your documentation, website content, and FAQs."
+            "Upload docs or crawl your site. Retrieval pulls the right chunks before any reply is written."
         ),
         "icon_class": "fa-solid fa-brain",
-        "accent_color": "#a78bfa",
+        "accent_color": "#00b884",
         "sort_order": 2,
     },
     {
-        "title": "Secure Multi-Tenancy",
+        "title": "Smart classification",
         "description": (
-            "Per-user isolation - scoped credentials, tenant-prefixed state, and audit logging built in."
+            "Every email is scored for relevance and confidence. Below your threshold? It's ignored, not answered."
         ),
-        "icon_class": "fa-solid fa-shield-halved",
-        "accent_color": "#38bdf8",
+        "icon_class": "fa-solid fa-bullseye",
+        "accent_color": "#ff9f43",
         "sort_order": 3,
     },
     {
-        "title": "Flexible Scheduling",
+        "title": "Send or Draft modes",
         "description": (
-            "Runs in-process or scales with Celery + Redis. Periodic polling, manual triggers, and queue support."
+            "Fully automatic sending when you're confident, or drafts waiting for your approval. You decide."
         ),
-        "icon_class": "fa-solid fa-gear",
-        "accent_color": "#4ade80",
+        "icon_class": "fa-solid fa-pen",
+        "accent_color": "#3aa0ff",
         "sort_order": 4,
     },
     {
-        "title": "Multi Gmail + SMTP/IMAP",
+        "title": "Telegram & WhatsApp",
         "description": (
-            "Connect multiple Gmail OAuth accounts or SMTP/IMAP mailboxes. Per-user encrypted credentials, "
-            "token refresh, and callback handling included."
+            "Get notified the moment a reply is sent - and even chat with your inbox assistant from your phone."
         ),
-        "icon_class": "fa-solid fa-link",
-        "accent_color": "#fb923c",
+        "icon_class": "fa-solid fa-bell",
+        "accent_color": "#ff6b9d",
         "sort_order": 5,
     },
     {
-        "title": "Telegram, WhatsApp & Dashboard",
+        "title": "Usage guardrails",
         "description": (
-            "See queue status in the dashboard and use live Telegram or WhatsApp alerts/chat commands "
-            "for sent replies, drafts, errors, and mailbox actions."
+            "Token, daily-send and inbox limits with a full reserve to commit ledger. No surprise costs."
         ),
-        "icon_class": "fa-solid fa-chart-column",
-        "accent_color": "#f472b6",
+        "icon_class": "fa-solid fa-shield-halved",
+        "accent_color": "#14b8a6",
         "sort_order": 6,
     },
 ]
@@ -82,10 +90,7 @@ def seed_default_marketing_features() -> None:
 DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
     {
         "title": "Poll inbox",
-        "description": (
-            "Gmail API (recent threads) or IMAP INBOX on a schedule, manual “Run poll”, "
-            "or IMAP IDLE for faster SMTP inboxes."
-        ),
+        "description": "Checks Gmail or IMAP on a schedule, or as new mail arrives.",
         "accent": HowItWorksStep.ACCENT_BLUE,
         "icon_svg": (
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" '
@@ -98,9 +103,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
     },
     {
         "title": "Keyword prefilter",
-        "description": (
-            "Optional SERVICE_KEYWORDS filter runs first-non-matching mail is skipped before any LLM call."
-        ),
+        "description": "Skips mail that misses your keywords, before any AI call.",
         "accent": HowItWorksStep.ACCENT_SKY,
         "icon_svg": (
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" '
@@ -112,10 +115,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
     },
     {
         "title": "RAG lookup",
-        "description": (
-            "If your knowledge base is configured, MailPilot finds the most relevant website, "
-            "text, or JSON content before generating a reply."
-        ),
+        "description": "Finds the closest docs and pages before a reply is written.",
         "accent": HowItWorksStep.ACCENT_PURPLE,
         "icon_svg": (
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" '
@@ -129,9 +129,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
     },
     {
         "title": "AI relevance & reply",
-        "description": (
-            "One LLM call returns relevance, confidence, and reply text; must pass your RELEVANCE_THRESHOLD."
-        ),
+        "description": "Scores the email and drafts a reply if it clears your bar.",
         "accent": HowItWorksStep.ACCENT_PINK,
         "icon_svg": (
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" '
@@ -144,9 +142,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
     },
     {
         "title": "Draft or auto-send",
-        "description": (
-            "REPLY_MODE=draft saves the reply for dashboard review; send delivers immediately via Gmail API or SMTP."
-        ),
+        "description": "Saves the reply for review, or sends it through Gmail or SMTP.",
         "accent": HowItWorksStep.ACCENT_GREEN,
         "icon_svg": (
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" '
@@ -159,10 +155,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
     },
     {
         "title": "State & queue",
-        "description": (
-            "Per-user processed state avoids duplicates; the dashboard queue shows sent, draft, and ignored "
-            "activity (account audit in admin)."
-        ),
+        "description": "Remembers handled mail and lists sent, draft, and ignored.",
         "accent": HowItWorksStep.ACCENT_ORANGE,
         "icon_svg": (
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" '
@@ -299,13 +292,10 @@ DEFAULT_PRICING_SETTINGS = {
     "title_lead": "Simple plans for",
     "title_highlight": "every inbox size",
     "intro": (
-        "Simple token plans for every inbox size. Connect your inbox in Setup, "
-        "then let MailPilot draft or send safely."
+        "Choose a plan below, then connect in Setup. "
+        "Starter includes 20 auto-sends; Pro bills monthly. Drafts never use tokens."
     ),
-    "demo_note": (
-        "Starter: 20 auto-sends total (80 tokens lifetime). Pro: monthly billing via Stripe. "
-        "Draft mode does not use tokens."
-    ),
+    "demo_note": "",
 }
 
 _STARTER_FEATURES = """80 tokens lifetime (up to 20 auto-sent replies)
@@ -512,8 +502,8 @@ DEFAULT_FAQ_SETTINGS = {
     "title_lead": "Common",
     "title_highlight": "questions",
     "intro_html": (
-        'Quick answers about setup, routing, knowledge base, and billing. Still stuck? '
-        'Use the <a href="#contact" style="color:#a5b4fc;">contact form</a> on this page.'
+        "Setup, billing, and safety—short answers. Need a human? "
+        'Use the <a href="#contact">contact form</a> above.'
     ),
 }
 
@@ -521,9 +511,8 @@ DEFAULT_FAQ_ITEMS: list[dict[str, str | int | bool]] = [
     {
         "question": "What does MailPilot do?",
         "answer_html": (
-            "MailPilot connects to your Gmail or IMAP inbox, filters incoming mail with keywords "
-            "and AI relevance, grounds replies in your knowledge base, and can send or draft "
-            "responses automatically."
+            "It watches your mailbox, skips noise with keywords and relevance scoring, "
+            "then drafts or sends replies using your own knowledge base."
         ),
         "icon_class": "fa-solid fa-envelope",
         "sort_order": 1,
@@ -551,8 +540,8 @@ DEFAULT_FAQ_ITEMS: list[dict[str, str | int | bool]] = [
     {
         "question": "How does the knowledge base work?",
         "answer_html": (
-            "Upload JSON or text, or crawl your website. MailPilot finds the best matching content "
-            "and uses it to ground each AI reply in your real business information."
+            "Upload files or crawl your site. Matching chunks are injected into the reply prompt—"
+            "if nothing relevant is found, MailPilot stays silent instead of guessing."
         ),
         "icon_class": "fa-solid fa-brain",
         "sort_order": 4,
@@ -611,4 +600,119 @@ def seed_default_faq() -> None:
         return
     MarketingFaqItem.objects.bulk_create(
         [MarketingFaqItem(**row, is_published=True, show_on_homepage=True) for row in DEFAULT_FAQ_ITEMS]
+    )
+
+
+DEFAULT_LANDING_PAGE: dict[str, str | int] = {
+    "hero_overline": "AI for your inbox",
+    "hero_title_before": "AI email automation,",
+    "hero_title_highlight": "live in minutes",
+    "hero_sub_html": (
+        "Connect Gmail or IMAP and let MailPilot draft or send replies grounded in your "
+        "knowledge base - accurate answers from your docs, not generic chatbot filler."
+    ),
+    "hero_cta_primary": "Get Started",
+    "hero_cta_secondary": "See the workflow",
+    "float_1_title": "Auto-reply sent",
+    "float_1_sub": "grounded in your KB",
+    "float_2_title": "RAG match · 94%",
+    "float_2_sub": "6 chunks · pgvector",
+    "float_3_title": "Telegram notified",
+    "float_3_sub": "",
+    "logos_label": "Tools that plug in cleanly",
+    "features_tag": "Features",
+    "features_title": "What you get",
+    "features_sub": (
+        "Inbox connect, smart filters, grounded replies, and alerts—without another helpdesk."
+    ),
+    "hiw_tag": "Workflow",
+    "hiw_title_lead": "How MailPilot",
+    "hiw_title_highlight": "works",
+    "hiw_sub": "Six steps from poll to send—inbox to queue, grounded in your knowledge base.",
+    "rag_tag": "Grounding",
+    "rag_title_html": "Grounded in your docs",
+    "testimonials_tag": "Customers",
+    "testimonials_title_lead": "Trusted by",
+    "testimonials_title_highlight": "teams who live in email",
+    "testimonials_intro": "Operators who cut first-response time without losing brand voice.",
+    "trust_strip_label": "Teams at",
+    "trust_logos": "NORTHLINE LOGISTICS\nBRIGHTSTACK\nSTUDIO MERIDIAN\nHELIX SUPPORT",
+    "contact_tag": "Contact",
+    "contact_title_lead": "Questions before you",
+    "contact_title_highlight": "sign up?",
+    "contact_intro": "Tell us volume and mailbox type—we reply within one business day.",
+    "contact_aside_title": "We help you launch faster",
+    "contact_aside_body": (
+        "Ask about limits, knowledge-base setup, or team seats—we'll map you to a plan."
+    ),
+    "contact_perk_1": "Trial setup tips",
+    "contact_perk_2": "Encrypted credentials",
+    "contact_perk_3": "Agency volume pricing",
+    "contact_form_title": "Send us a message",
+    "contact_form_sub": "Required fields unless marked optional.",
+    "contact_message_placeholder": "Volume, mailbox type, team size…",
+    "contact_privacy": "We use your details only to respond to this inquiry.",
+    "cta_title": "Ready when you are",
+    "cta_sub": "Get full access. No credit card required.",
+    "cta_primary": "Create free account",
+    "cta_secondary": "Compare plans",
+}
+
+DEFAULT_RAG_ITEMS: list[dict[str, str | int]] = [
+    {
+        "title": "Add your sources",
+        "description": "Upload files or crawl a site—content is chunked before anything is embedded.",
+        "icon_emoji": "📄",
+        "accent": "violet",
+        "sort_order": 1,
+    },
+    {
+        "title": "Match the right chunks",
+        "description": "Each inbound email is matched with HNSW cosine search; only top hits reach the model.",
+        "icon_emoji": "🧲",
+        "accent": "green",
+        "sort_order": 2,
+    },
+    {
+        "title": "Skip weak matches",
+        "description": "No strong KB match means no invented prices or policies—the message is skipped.",
+        "icon_emoji": "🚫",
+        "accent": "orange",
+        "sort_order": 3,
+    },
+    {
+        "title": "Keep every tenant private",
+        "description": "Each business's knowledge stays isolated so one customer's data never feeds another.",
+        "icon_emoji": "🔒",
+        "accent": "blue",
+        "sort_order": 4,
+    },
+]
+
+
+def get_landing_page() -> MarketingLandingPage:
+    obj, _ = MarketingLandingPage.objects.get_or_create(
+        singleton_key=1,
+        defaults=DEFAULT_LANDING_PAGE,
+    )
+    return obj
+
+
+def marketing_rag_queryset(*, homepage_only: bool = False):
+    qs = MarketingRagItem.objects.filter(is_published=True).order_by("sort_order", "pk")
+    if homepage_only:
+        qs = qs.filter(show_on_homepage=True)
+    return qs
+
+
+def seed_default_landing_page() -> None:
+    if not MarketingLandingPage.objects.exists():
+        MarketingLandingPage.objects.create(singleton_key=1, **DEFAULT_LANDING_PAGE)
+    if MarketingRagItem.objects.exists():
+        return
+    MarketingRagItem.objects.bulk_create(
+        [
+            MarketingRagItem(**row, is_published=True, show_on_homepage=True)
+            for row in DEFAULT_RAG_ITEMS
+        ]
     )

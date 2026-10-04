@@ -6,8 +6,8 @@
   </div>
   {% endif %}
   {% if bill_starter_expired %}
-  <div class="bill-activated" style="border-color:rgba(251,191,36,0.45);background:rgba(251,191,36,0.08);color:#fde68a;">
-    <strong>Starter trial ended.</strong> You used all {{ bill_starter_sends_limit }} auto-sends. Upgrade to <a href="{% url 'billing_checkout_pro' %}" style="color:#a5b4fc;">Pro</a> or <a href="{% url 'billing_custom_request' %}" style="color:#a5b4fc;">Custom</a> to keep sending.
+  <div class="bill-activated bill-expired">
+    <strong>Starter trial ended.</strong> You used all {{ bill_starter_sends_limit }} auto-sends. Upgrade to <a href="{% url 'billing_checkout_pro' %}">Pro</a> or <a href="{% url 'billing_custom_request' %}">Custom</a> to keep sending.
   </div>
   {% endif %}
   <div class="bill-grid">

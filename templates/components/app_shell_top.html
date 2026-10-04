@@ -1,0 +1,66 @@
+<nav class="app-top" id="appTop" aria-label="App">
+  <div class="app-top-left">
+    <a href="{% url 'home' %}" class="app-top-logo" aria-label="MailPilot home">
+      {% include "components/brand_logo.html" with logo_w=26 logo_h=26 %}<span>MailPilot</span>
+    </a>
+  </div>
+  <div class="app-top-right">
+    <div class="app-conn" id="navConnStatus" title="{% if connected %}Connected{% else %}Not connected{% endif %}">
+      {% if connected %}
+        <span class="app-conn-dot" aria-hidden="true"></span>
+        <span class="conn-label">Connected</span>
+      {% else %}
+        <span class="app-conn-dot off" aria-hidden="true"></span>
+        <span class="conn-label">Not connected</span>
+      {% endif %}
+    </div>
+    {% if user.is_authenticated %}
+    <div class="app-acct" id="acctMenu">
+      <button class="app-acct-btn{% if request.resolver_match and request.resolver_match.url_name == 'profile' %} is-active{% endif %}" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Profile menu" title="Profile">
+        {% if nav_avatar_url %}
+          <img src="{{ nav_avatar_url }}" alt="" loading="lazy" decoding="async"/>
+        {% else %}
+          <i class="fa-regular fa-user" aria-hidden="true"></i>
+        {% endif %}
+      </button>
+      <div class="app-acct-dd" id="acctDd" role="menu" aria-label="Profile menu">
+        <a class="app-acct-item" href="{% url 'profile' %}" role="menuitem">
+          <i class="fa-regular fa-id-badge" aria-hidden="true"></i>
+          Profile details
+        </a>
+        <a class="app-acct-item" href="{% url 'settings' %}" role="menuitem">
+          <i class="fa-solid fa-gear" aria-hidden="true"></i>
+          Settings
+        </a>
+        <div class="app-acct-sep" aria-hidden="true"></div>
+        <form action="{% url 'logout' %}" method="post" style="margin:0;">
+          {% csrf_token %}
+          <button class="app-acct-item app-acct-logout" type="submit" role="menuitem">
+            <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+            Log out
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+    <button type="button" class="app-top-toggle" id="appRailToggle" aria-expanded="false" aria-controls="appDrawer">
+      <i class="fa-solid fa-bars" aria-hidden="true"></i>
+      <span class="sr-only">Menu</span>
+    </button>
+  </div>
+</nav>
+
+<div class="app-drawer" id="appDrawer" hidden>
+  <div class="app-drawer-panel" id="appDrawerPanel">
+    <div class="app-rail-label">App</div>
+    <nav class="app-rail-nav" aria-label="App pages">
+      <a href="{% url 'setup' %}" class="app-rail-link{% if request.resolver_match and request.resolver_match.url_name == 'setup' %} is-active{% endif %}">
+        <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-gear" aria-hidden="true"></i> Setup</span>
+      </a>
+      <a href="{% url 'dashboard' %}" class="app-rail-link{% if request.resolver_match and request.resolver_match.url_name == 'dashboard' %} is-active{% endif %}">
+        <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Dashboard</span>
+      </a>
+    </nav>
+    <a class="app-rail-upgrade" href="{% url 'pricing' %}">Upgrade plan</a>
+  </div>
+</div>

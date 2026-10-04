@@ -1,278 +1,293 @@
-{% extends "mailpilot_base.html" %}
-
-{% block title %}Profile · Email Automation{% endblock %}
-
-{% block content %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile · MailPilot</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#ffffff" />
+  {% include "components/favicon.html" %}
+  {% include "components/meta_pixel.html" %}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <style>
-    .prof-wrap{max-width:980px;margin:0 auto;width:100%;}
-    .prof-grid{display:grid;grid-template-columns:1fr;gap:0;min-width:0;}
-    .prof-main{padding:clamp(18px,3vw,28px) clamp(16px,3vw,32px);min-width:0;}
-
-    .msg{padding:10px 12px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);font-size:0.88rem;margin-bottom:12px;word-break:break-word;}
-    .msg.ok{border-color:rgba(74,222,128,0.25);background:rgba(74,222,128,0.08);color:#bbf7d0;}
-    .msg.bad{border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.08);color:#fecaca;}
-
-    .prof-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
-    .prof-title{font-weight:950;font-size:1.08rem;letter-spacing:-.02em;}
-    .prof-sub{font-size:0.84rem;color:rgba(148,163,184,0.84);line-height:1.6;}
-
-    .av{display:flex;align-items:flex-start;gap:14px;margin:12px 0 18px;flex-wrap:wrap;}
-    .av-img{
-      width:88px;height:88px;border-radius:999px;
-      background:rgba(255,255,255,0.03);
-      border:1px solid rgba(255,255,255,0.10);
-      display:flex;align-items:center;justify-content:center;
-      overflow:hidden;flex-shrink:0;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink: #141a2e;
+      --muted: #5b6478;
+      --bg: #fff;
+      --soft: #f6f8fd;
+      --line: #e8ebf4;
+      --primary: #5b5bf0;
+      --primary2: #8a5bf0;
+      --green: #00b884;
+      --r: 18px;
+      --shadow: 0 12px 40px rgba(20,26,46,.08);
+      --shadow-lg: 0 28px 70px rgba(20,26,46,.12);
+      --grad: linear-gradient(135deg,#5b5bf0,#8a5bf0);
+      --text: #141a2e;
+      --glass-border: #e8ebf4;
+      --font: 'Poppins', Arial, sans-serif;
     }
-    .av-img img{width:100%;height:100%;object-fit:cover;display:block;}
-    .av-fallback{font-weight:950;font-size:1.45rem;color:rgba(226,232,240,0.95);}
-    .av-meta{min-width:0;flex:1;}
-    .av-name{font-weight:900;font-size:0.98rem;word-break:break-word;}
-    .av-usr{font-size:0.82rem;color:rgba(148,163,184,0.86);word-break:break-word;}
-
-    .fu-row{margin-top:10px;}
-    .fu-mini{font-size:0.78rem;color:rgba(148,163,184,0.82);margin-top:8px;line-height:1.5;}
-
-    .field{margin-bottom:18px;min-width:0;}
-    .field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
-    @media(max-width:640px){.field-grid{grid-template-columns:1fr;gap:12px;}}
-    .label{font-size:0.75rem;font-weight:850;text-transform:uppercase;letter-spacing:0.5px;color:rgba(148,163,184,0.9);margin-bottom:10px;display:block;}
-    .input{width:100%;max-width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:var(--font);outline:none;box-sizing:border-box;}
-    .input:focus{border-color:rgba(79,110,247,0.6);background:rgba(79,110,247,0.06);box-shadow:0 0 0 3px rgba(79,110,247,0.1);}
-    .textarea{min-height:92px;resize:vertical;}
-
-    .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;}
-    .btn-primary2{
-      padding:12px 16px;border:none;border-radius:12px;
-      background:linear-gradient(135deg,#4f6ef7,#a78bfa);
-      color:#fff;font-weight:800;cursor:pointer;
-      box-shadow:0 6px 22px rgba(79,110,247,0.35);
-      display:inline-flex;align-items:center;justify-content:center;gap:8px;
-      font-family:'Inter',sans-serif;
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 70% 50% at 10% -10%, #e6e6ff 0%, transparent 55%),
+        radial-gradient(ellipse 55% 40% at 100% 0%, #eef6ff 0%, transparent 50%),
+        var(--soft);
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100%;
     }
-    .btn-primary2:hover{transform:translateY(-1px);}
-    .btn-sm{padding:10px 12px;border-radius:11px;font-weight:850;font-size:0.86rem;box-shadow:0 4px 16px rgba(79,110,247,0.28);}
-    .btn-sm i{font-size:0.92em;}
-    .btn-soft{
-      padding:11px 14px;border-radius:12px;
-      background:rgba(255,255,255,0.04);
-      border:1px solid rgba(255,255,255,0.10);
-      color:rgba(226,232,240,0.92);
-      font-weight:800;cursor:pointer;
-      display:inline-flex;align-items:center;justify-content:center;gap:8px;
-      text-decoration:none;
-    }
-    .btn-soft:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.08);}
+    a { text-decoration: none; color: inherit; }
 
-    .sec{border:1px solid rgba(255,255,255,0.10);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.015));border-radius:14px;padding:18px;min-width:0;}
-    .sec-title{display:flex;align-items:center;gap:10px;font-weight:950;margin-bottom:12px;letter-spacing:-.01em;flex-wrap:wrap;}
-    .sec-title i{color:rgba(148,163,184,0.9);}
+    {% include "components/marketing_nav_css.html" %}
+    {% include "components/marketing_page_layout_css.html" %}
+    {% include "components/footer_css.html" %}
 
-    .val{color:rgba(226,232,240,0.94);font-weight:800;word-break:break-word;}
-    .val-muted{color:rgba(148,163,184,0.88);line-height:1.65;white-space:pre-wrap;word-break:break-word;}
-    .actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;}
-
-    .prof-wrap .setup-card{width:100%;overflow-x:clip;}
-
-    .bill-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:4px;}
-    @media(max-width:720px){.bill-grid{grid-template-columns:1fr;}}
-    .bill-stat{
-      border:1px solid rgba(255,255,255,0.08);
-      background:rgba(255,255,255,0.02);
-      border-radius:12px;
-      padding:14px;
-      min-width:0;
-    }
-    .bill-stat-k{font-size:0.72rem;font-weight:850;text-transform:uppercase;letter-spacing:0.45px;color:rgba(148,163,184,0.88);margin-bottom:6px;}
-    .bill-stat-v{font-size:1.05rem;font-weight:950;color:rgba(226,232,240,0.96);word-break:break-word;}
-    .bill-stat-s{font-size:0.78rem;color:rgba(148,163,184,0.82);margin-top:4px;line-height:1.45;}
-    .bill-bar-wrap{margin-top:14px;}
-    .bill-bar-label{display:flex;justify-content:space-between;gap:10px;font-size:0.78rem;color:rgba(148,163,184,0.88);margin-bottom:6px;flex-wrap:wrap;}
-    .bill-bar{height:8px;border-radius:999px;background:rgba(255,255,255,0.06);overflow:hidden;border:1px solid rgba(255,255,255,0.06);}
-    .bill-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#4f6ef7,#a78bfa);transition:width .35s ease;}
-    .bill-bar-fill.warn{background:linear-gradient(90deg,#f59e0b,#ef4444);}
-    .bill-note{font-size:0.78rem;color:rgba(148,163,184,0.82);line-height:1.55;margin-top:12px;}
-    .bill-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
-    .bill-activated{
-      padding:10px 12px;border-radius:12px;border:1px solid rgba(74,222,128,0.25);
-      background:rgba(74,222,128,0.08);color:#bbf7d0;font-size:0.88rem;margin-bottom:12px;line-height:1.5;
+    main.mp-marketing-main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding-bottom: clamp(48px, 8vw, 80px);
     }
 
-    @media(max-width:768px){
-      body .main-wrap{padding:20px 12px 56px;}
-      .prof-wrap .setup-card{border-radius:16px;}
-      .prof-wrap .setup-card-header{padding:20px 16px 16px;}
-      .prof-wrap .setup-card-title{font-size:1.1rem;}
-      .prof-wrap .setup-card-sub{font-size:0.82rem;}
-      .prof-main{padding:18px 14px;}
-      .prof-top{flex-direction:column;align-items:stretch;}
-      .prof-top .btn-row,.actions{width:100%;justify-content:stretch;}
-      .prof-top .btn-row .btn-soft,.actions .btn-primary2,.actions .btn-soft{width:100%;}
-      .av{flex-direction:column;align-items:center;text-align:center;}
-      .av-meta{width:100%;}
-      .fu-row{text-align:left;}
-      .btn-row{flex-direction:column;align-items:stretch;}
-      .btn-row .btn-primary2,.btn-row .btn-soft{width:100%;}
-      .sec{padding:14px;}
-      .input{font-size:16px;}
-      .btn-primary2,.btn-soft{min-height:44px;}
+    .prof-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
     }
-    @media(max-width:480px){
-      body .main-wrap{padding:16px 10px 48px;}
-      .prof-wrap .setup-card-header{padding:16px 14px 14px;}
-      .prof-main{padding:14px 12px;}
-      .prof-title{font-size:1rem;}
-      .av-img{width:72px;height:72px;}
-      .sec{border-radius:12px;padding:12px;}
+    .prof-card-head {
+      padding: clamp(22px, 3vw, 28px) clamp(20px, 3vw, 32px) 0;
+    }
+    .prof-kicker {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #efefff; color: var(--primary);
+      font-weight: 700; font-size: 12px;
+      padding: 6px 14px; border-radius: 999px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .prof-card-title {
+      font-size: clamp(1.35rem, 2.8vw, 1.75rem);
+      font-weight: 800; letter-spacing: -0.02em;
+      color: var(--ink); margin-bottom: 6px;
+    }
+    .prof-card-sub {
+      color: var(--muted); font-size: 0.95rem; line-height: 1.55;
+      max-width: 520px;
+    }
+    .prof-main { padding: clamp(18px, 3vw, 28px) clamp(16px, 3vw, 32px); }
+
+    .msg {
+      padding: 12px 14px; border-radius: 14px;
+      border: 1px solid var(--line); background: var(--soft);
+      font-size: 0.88rem; margin-bottom: 14px; word-break: break-word;
+    }
+    .msg.ok {
+      border-color: rgba(0,184,132,0.35); background: #e2f8ef; color: #067a56;
+    }
+    .msg.bad {
+      border-color: rgba(239,68,68,0.3); background: #ffe8e8; color: #b91c1c;
+    }
+
+    .prof-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 14px; margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .prof-title { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.02em; color: var(--ink); }
+    .prof-sub { font-size: 0.88rem; color: var(--muted); line-height: 1.55; margin-top: 4px; }
+
+    .av {
+      display: flex; align-items: flex-start; gap: 16px;
+      margin: 12px 0 22px; flex-wrap: wrap;
+    }
+    .av-img {
+      width: 88px; height: 88px; border-radius: 999px;
+      background: #efefff;
+      border: 2px solid #d9d9ff;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .av-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .av-fallback { font-weight: 800; font-size: 1.45rem; color: var(--primary); }
+    .av-meta { min-width: 0; flex: 1; }
+    .av-name { font-weight: 800; font-size: 1.05rem; word-break: break-word; color: var(--ink); }
+    .av-usr { font-size: 0.88rem; color: var(--muted); word-break: break-word; margin-top: 2px; }
+
+    .fu-row { margin-top: 12px; }
+    .fu-mini { font-size: 0.78rem; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+    .field { margin-bottom: 18px; min-width: 0; }
+    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 640px) { .field-grid { grid-template-columns: 1fr; gap: 12px; } }
+    .label {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px; display: block;
+    }
+    .input {
+      width: 100%; max-width: 100%; padding: 11px 14px;
+      background: #fff; border: 1.5px solid var(--line);
+      border-radius: 12px; color: var(--ink); font-size: 0.9rem;
+      font-family: var(--font); outline: none; box-sizing: border-box;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input:focus {
+      border-color: rgba(91,91,240,0.55);
+      box-shadow: 0 0 0 3px rgba(91,91,240,0.14);
+    }
+    .input:disabled { background: var(--soft); color: var(--muted); cursor: not-allowed; }
+    .textarea { min-height: 92px; resize: vertical; }
+
+    .btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    .btn-primary2 {
+      padding: 12px 18px; border: none; border-radius: 999px;
+      background: var(--grad); color: #fff; font-weight: 700; cursor: pointer;
+      box-shadow: 0 10px 24px rgba(91,91,240,0.3);
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      font-family: var(--font); font-size: 0.9rem;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn-primary2:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(91,91,240,0.38); }
+    .btn-sm { padding: 10px 16px; font-size: 0.86rem; }
+    .btn-soft {
+      padding: 11px 16px; border-radius: 999px;
+      background: #fff; border: 1.5px solid var(--line);
+      color: var(--ink); font-weight: 700; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      text-decoration: none; font-size: 0.86rem; font-family: var(--font);
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .btn-soft:hover { border-color: var(--primary); color: var(--primary); background: #efefff; }
+
+    .sec {
+      border: 1px solid var(--line);
+      background: var(--soft);
+      border-radius: 16px;
+      padding: 18px;
+      min-width: 0;
+    }
+    .sec-title {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; margin-bottom: 14px;
+      letter-spacing: -0.01em; flex-wrap: wrap; color: var(--ink);
+    }
+    .sec-title i { color: var(--primary); }
+
+    .val { color: var(--ink); font-weight: 700; word-break: break-word; }
+    .val-muted { color: var(--muted); line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+    .actions { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+
+    .bill-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+    @media (max-width: 720px) { .bill-grid { grid-template-columns: 1fr; } }
+    .bill-stat {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      min-width: 0;
+    }
+    .bill-stat-k {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px;
+    }
+    .bill-stat-v { font-size: 1.05rem; font-weight: 800; color: var(--ink); word-break: break-word; }
+    .bill-stat-s { font-size: 0.78rem; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+    .bill-bar-wrap { margin-top: 14px; }
+    .bill-bar-label {
+      display: flex; justify-content: space-between; gap: 10px;
+      font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; flex-wrap: wrap;
+    }
+    .bill-bar {
+      height: 8px; border-radius: 999px; background: #e8ebf4;
+      overflow: hidden; border: 1px solid var(--line);
+    }
+    .bill-bar-fill {
+      height: 100%; border-radius: 999px;
+      background: var(--grad); transition: width .35s ease;
+    }
+    .bill-bar-fill.warn { background: linear-gradient(90deg,#ff9f43,#ef4444); }
+    .bill-note { font-size: 0.82rem; color: var(--muted); line-height: 1.55; margin-top: 14px; }
+    .bill-note strong { color: var(--ink); }
+    .bill-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .bill-activated {
+      padding: 12px 14px; border-radius: 14px;
+      border: 1px solid rgba(0,184,132,0.35);
+      background: #e2f8ef; color: #067a56;
+      font-size: 0.88rem; margin-bottom: 12px; line-height: 1.5;
+    }
+    .bill-activated a { color: var(--primary); font-weight: 700; text-decoration: underline; }
+    .bill-activated a:hover { color: var(--primary2); }
+    .bill-activated.bill-expired {
+      border-color: rgba(224,138,30,0.4);
+      background: #fff3e4;
+      color: #9a5b0a;
+    }
+
+    @media (max-width: 768px) {
+      .prof-main { padding: 18px 14px; }
+      .prof-top { flex-direction: column; align-items: stretch; }
+      .prof-top .btn-row, .actions { width: 100%; }
+      .prof-top .btn-row .btn-soft,
+      .actions .btn-primary2,
+      .actions .btn-soft { width: 100%; }
+      .av { flex-direction: column; align-items: center; text-align: center; }
+      .av-meta { width: 100%; }
+      .fu-row { text-align: left; }
+      .btn-row { flex-direction: column; align-items: stretch; }
+      .btn-row .btn-primary2, .btn-row .btn-soft { width: 100%; }
+      .sec { padding: 14px; }
+      .input { font-size: 16px; }
+      .btn-primary2, .btn-soft { min-height: 44px; }
+    }
+    @media (max-width: 480px) {
+      .prof-card-head { padding: 18px 14px 0; }
+      .prof-main { padding: 14px 12px; }
+      .av-img { width: 72px; height: 72px; }
+      .sec { border-radius: 12px; padding: 12px; }
     }
   </style>
+</head>
+<body class="mp-theme-light">
+  {% include "components/marketing_nav.html" %}
+  {% include "components/marketing_nav_js.html" %}
 
-  <div class="prof-wrap">
-    <div class="setup-card">
-      <div class="setup-card-header">
-        <div class="setup-card-title"><i class="fa-regular fa-user" aria-hidden="true"></i> Profile overview</div>
-        <div class="setup-card-sub">Your profile photo and details as they appear in the app.</div>
+  <main id="main-content" class="mp-marketing-main">
+    <div class="prof-card">
+      <div class="prof-card-head">
+        <div class="prof-kicker"><i class="fa-regular fa-user" aria-hidden="true"></i> Account</div>
+        <h1 class="prof-card-title">Profile overview</h1>
+        <p class="prof-card-sub">Your photo, details, and plan usage as they appear across MailPilot.</p>
       </div>
 
-      <div class="prof-grid">
-        <div class="prof-main">
-          {# Messages shown as toast in mailpilot_base.html #}
+      <div class="prof-main">
+        {% if is_edit %}
+        <form method="post" action="{% url 'profile' %}" enctype="multipart/form-data">
+          {% csrf_token %}
 
-          {% if is_edit %}
-          <form method="post" action="{% url 'profile' %}" enctype="multipart/form-data">
-            {% csrf_token %}
-
-            <div class="prof-top">
-              <div>
-                <div class="prof-title">Your details</div>
-                <div class="prof-sub">These details help personalize the dashboard and logs.</div>
-              </div>
-              <div class="btn-row" style="margin-top:0;">
-                <a class="btn-soft" href="{% url 'profile' %}"><i class="fa-solid fa-eye" aria-hidden="true"></i> View</a>
-              </div>
-            </div>
-
-            <div class="av">
-              <div class="av-img" aria-label="Avatar">
-                {% if avatar_url %}
-                  <img id="avImg" src="{{ avatar_url }}" alt="Avatar" loading="lazy" decoding="async"/>
-                {% else %}
-                  <div class="av-fallback" id="avFallback">{{ user.username|slice:":1"|upper }}</div>
-                {% endif %}
-              </div>
-              <div class="av-meta">
-                <div class="av-name">
-                  {% if profile.display_name %}{{ profile.display_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
-                </div>
-                <div class="av-usr">@{{ user.username }} · {{ user.email|default:"-" }}</div>
-                <div class="fu-row">
-                  <label class="label" for="avatar">Profile photo</label>
-                  <input class="input" id="avatar" name="avatar" type="file" accept="image/*"/>
-                  <div class="fu-mini">PNG/JPG/WEBP/GIF · Max 2 MB.</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="field-grid">
-              <div class="field">
-                <label class="label" for="email">Email</label>
-                <input class="input" id="email" name="email" type="email" value="{{ user.email|default:'' }}" maxlength="254" autocomplete="email"/>
-              </div>
-              <div class="field">
-                <label class="label">Username</label>
-                <input class="input" value="{{ user.username }}" disabled />
-              </div>
-            </div>
-
-            <div class="field-grid">
-              <div class="field">
-                <label class="label" for="fn">First name</label>
-                <input class="input" id="fn" name="first_name" type="text" value="{{ user.first_name|default:'' }}" maxlength="150" autocomplete="given-name"/>
-              </div>
-              <div class="field">
-                <label class="label" for="ln">Last name</label>
-                <input class="input" id="ln" name="last_name" type="text" value="{{ user.last_name|default:'' }}" maxlength="150" autocomplete="family-name"/>
-              </div>
-            </div>
-
-            <div class="field-grid">
-              <div class="field">
-                <label class="label" for="dn">Display name</label>
-                <input class="input" id="dn" name="display_name" type="text" value="{{ profile.display_name|default:'' }}" maxlength="120" placeholder="Name shown in the app"/>
-              </div>
-              <div class="field">
-                <label class="label" for="co">Company</label>
-                <input class="input" id="co" name="company" type="text" value="{{ profile.company|default:'' }}" maxlength="160"/>
-              </div>
-            </div>
-
-            <div class="field-grid">
-              <div class="field">
-                <label class="label" for="ph">Phone</label>
-                <input class="input" id="ph" name="phone" type="text" value="{{ profile.phone|default:'' }}" maxlength="32" autocomplete="tel"/>
-              </div>
-              <div class="field">
-                <label class="label" for="tz">Timezone</label>
-                <input class="input" id="tz" name="timezone" type="text" value="{{ profile.timezone|default:'UTC' }}" maxlength="64" placeholder="e.g. UTC"/>
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="label" for="no">Notes (private)</label>
-              <textarea class="input textarea" id="no" name="notes" rows="4" maxlength="2000" placeholder="Optional notes (only visible to you)">{{ profile.notes|default:'' }}</textarea>
-            </div>
-
-            {% include "components/profile_billing.html" %}
-
-            <div class="btn-row">
-              <button class="btn-primary2" type="submit"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save changes</button>
-              <a class="btn-soft" href="{% url 'settings' %}"><i class="fa-solid fa-gear" aria-hidden="true"></i> Settings</a>
-            </div>
-          </form>
-          <script>
-            (function(){
-              const fi = document.getElementById('avatar');
-              if(!fi) return;
-              fi.addEventListener('change', () => {
-                const f = fi.files && fi.files[0];
-                if(!f) return;
-                if(!String(f.type || '').startsWith('image/')) return;
-                const url = URL.createObjectURL(f);
-                let img = document.getElementById('avImg');
-                const fb = document.getElementById('avFallback');
-                if(!img){
-                  img = document.createElement('img');
-                  img.id = 'avImg';
-                  img.alt = 'Avatar preview';
-                  img.loading = 'lazy';
-                  img.decoding = 'async';
-                  const wrap = fi.closest('.av')?.querySelector('.av-img');
-                  if(wrap){
-                    wrap.innerHTML = '';
-                    wrap.appendChild(img);
-                  }
-                }
-                if(fb) fb.style.display = 'none';
-                img.src = url;
-              });
-            })();
-          </script>
-          {% else %}
           <div class="prof-top">
             <div>
-              <div class="prof-title">Details</div>
+              <div class="prof-title">Your details</div>
+              <div class="prof-sub">These details help personalize the dashboard and logs.</div>
             </div>
-            <div class="actions">
-              <a class="btn-primary2 btn-sm" href="{% url 'profile' %}?edit=1"><i class="fa-solid fa-pen" aria-hidden="true"></i> Edit profile</a>
+            <div class="btn-row" style="margin-top:0;">
+              <a class="btn-soft" href="{% url 'profile' %}"><i class="fa-solid fa-eye" aria-hidden="true"></i> View</a>
             </div>
           </div>
 
-          <div class="av" style="margin-top:0;">
+          <div class="av">
             <div class="av-img" aria-label="Avatar">
               {% if avatar_url %}
-                <img src="{{ avatar_url }}" alt="Avatar" loading="lazy" decoding="async"/>
+                <img id="avImg" src="{{ avatar_url }}" alt="Avatar" loading="lazy" decoding="async"/>
               {% else %}
-                <div class="av-fallback">{{ user.username|slice:":1"|upper }}</div>
+                <div class="av-fallback" id="avFallback">{{ user.username|slice:":1"|upper }}</div>
               {% endif %}
             </div>
             <div class="av-meta">
@@ -280,53 +295,171 @@
                 {% if profile.display_name %}{{ profile.display_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
               </div>
               <div class="av-usr">@{{ user.username }} · {{ user.email|default:"-" }}</div>
+              <div class="fu-row">
+                <label class="label" for="avatar">Profile photo</label>
+                <input class="input" id="avatar" name="avatar" type="file" accept="image/*"/>
+                <div class="fu-mini">PNG/JPG/WEBP/GIF · Max 2 MB.</div>
+              </div>
             </div>
           </div>
 
-          <div class="sec" style="margin-top:10px;">
-            <div class="sec-title"><i class="fa-regular fa-address-card" aria-hidden="true"></i> Details</div>
-            <div class="field-grid">
-              <div class="field">
-                <div class="label">Full name</div>
-                <div class="val">{{ user.get_full_name|default:"-" }}</div>
-              </div>
-              <div class="field">
-                <div class="label">Email</div>
-                <div class="val">{{ user.email|default:"-" }}</div>
-              </div>
-            </div>
-            <div class="field-grid">
-              <div class="field">
-                <div class="label">Company</div>
-                <div class="val">{{ profile.company|default:"-" }}</div>
-              </div>
-              <div class="field">
-                <div class="label">Phone</div>
-                <div class="val">{{ profile.phone|default:"-" }}</div>
-              </div>
-            </div>
-            <div class="field-grid">
-              <div class="field">
-                <div class="label">Timezone</div>
-                <div class="val">{{ profile.timezone|default:"UTC" }}</div>
-              </div>
-              <div class="field">
-                <div class="label">Display name</div>
-                <div class="val">{{ profile.display_name|default:"-" }}</div>
-              </div>
+          <div class="field-grid">
+            <div class="field">
+              <label class="label" for="email">Email</label>
+              <input class="input" id="email" name="email" type="email" value="{{ user.email|default:'' }}" maxlength="254" autocomplete="email"/>
             </div>
             <div class="field">
-              <div class="label">Notes (private)</div>
-              <div class="val-muted">{{ profile.notes|default:"-" }}</div>
+              <label class="label">Username</label>
+              <input class="input" value="{{ user.username }}" disabled />
             </div>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label class="label" for="fn">First name</label>
+              <input class="input" id="fn" name="first_name" type="text" value="{{ user.first_name|default:'' }}" maxlength="150" autocomplete="given-name"/>
+            </div>
+            <div class="field">
+              <label class="label" for="ln">Last name</label>
+              <input class="input" id="ln" name="last_name" type="text" value="{{ user.last_name|default:'' }}" maxlength="150" autocomplete="family-name"/>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label class="label" for="dn">Display name</label>
+              <input class="input" id="dn" name="display_name" type="text" value="{{ profile.display_name|default:'' }}" maxlength="120" placeholder="Name shown in the app"/>
+            </div>
+            <div class="field">
+              <label class="label" for="co">Company</label>
+              <input class="input" id="co" name="company" type="text" value="{{ profile.company|default:'' }}" maxlength="160"/>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label class="label" for="ph">Phone</label>
+              <input class="input" id="ph" name="phone" type="text" value="{{ profile.phone|default:'' }}" maxlength="32" autocomplete="tel"/>
+            </div>
+            <div class="field">
+              <label class="label" for="tz">Timezone</label>
+              <input class="input" id="tz" name="timezone" type="text" value="{{ profile.timezone|default:'UTC' }}" maxlength="64" placeholder="e.g. UTC"/>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label" for="no">Notes (private)</label>
+            <textarea class="input textarea" id="no" name="notes" rows="4" maxlength="2000" placeholder="Optional notes (only visible to you)">{{ profile.notes|default:'' }}</textarea>
           </div>
 
           {% include "components/profile_billing.html" %}
-          {% endif %}
+
+          <div class="btn-row">
+            <button class="btn-primary2" type="submit"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save changes</button>
+            <a class="btn-soft" href="{% url 'settings' %}"><i class="fa-solid fa-gear" aria-hidden="true"></i> Settings</a>
+          </div>
+        </form>
+        <script>
+          (function(){
+            const fi = document.getElementById('avatar');
+            if(!fi) return;
+            fi.addEventListener('change', () => {
+              const f = fi.files && fi.files[0];
+              if(!f) return;
+              if(!String(f.type || '').startsWith('image/')) return;
+              const url = URL.createObjectURL(f);
+              let img = document.getElementById('avImg');
+              const fb = document.getElementById('avFallback');
+              if(!img){
+                img = document.createElement('img');
+                img.id = 'avImg';
+                img.alt = 'Avatar preview';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                const wrap = fi.closest('.av')?.querySelector('.av-img');
+                if(wrap){
+                  wrap.innerHTML = '';
+                  wrap.appendChild(img);
+                }
+              }
+              if(fb) fb.style.display = 'none';
+              img.src = url;
+            });
+          })();
+        </script>
+        {% else %}
+        <div class="prof-top">
+          <div>
+            <div class="prof-title">Details</div>
+          </div>
+          <div class="actions">
+            <a class="btn-primary2 btn-sm" href="{% url 'profile' %}?edit=1"><i class="fa-solid fa-pen" aria-hidden="true"></i> Edit profile</a>
+          </div>
         </div>
+
+        <div class="av" style="margin-top:0;">
+          <div class="av-img" aria-label="Avatar">
+            {% if avatar_url %}
+              <img src="{{ avatar_url }}" alt="Avatar" loading="lazy" decoding="async"/>
+            {% else %}
+              <div class="av-fallback">{{ user.username|slice:":1"|upper }}</div>
+            {% endif %}
+          </div>
+          <div class="av-meta">
+            <div class="av-name">
+              {% if profile.display_name %}{{ profile.display_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}
+            </div>
+            <div class="av-usr">@{{ user.username }} · {{ user.email|default:"-" }}</div>
+          </div>
+        </div>
+
+        <div class="sec" style="margin-top:10px;">
+          <div class="sec-title"><i class="fa-regular fa-address-card" aria-hidden="true"></i> Details</div>
+          <div class="field-grid">
+            <div class="field">
+              <div class="label">Full name</div>
+              <div class="val">{{ user.get_full_name|default:"-" }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Email</div>
+              <div class="val">{{ user.email|default:"-" }}</div>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <div class="label">Company</div>
+              <div class="val">{{ profile.company|default:"-" }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Phone</div>
+              <div class="val">{{ profile.phone|default:"-" }}</div>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <div class="label">Timezone</div>
+              <div class="val">{{ profile.timezone|default:"UTC" }}</div>
+            </div>
+            <div class="field">
+              <div class="label">Display name</div>
+              <div class="val">{{ profile.display_name|default:"-" }}</div>
+            </div>
+          </div>
+          <div class="field">
+            <div class="label">Notes (private)</div>
+            <div class="val-muted">{{ profile.notes|default:"-" }}</div>
+          </div>
+        </div>
+
+        {% include "components/profile_billing.html" %}
+        {% endif %}
       </div>
     </div>
-  </div>
+  </main>
+
+  {% include "components/footer.html" %}
+  {% include "components/toasts.html" with toast_top="88px" %}
+
   <script>
     async function refreshProfileBilling(){
       const planEl = document.getElementById('billPlanName');
@@ -361,14 +494,14 @@
         }
         if(sendsNoteEl && sendsLeft != null) sendsNoteEl.textContent = String(sendsLeft);
         if(barEl){
-          const limit = tok.limit != null ? Number(tok.limit) : (plan.toLowerCase() === 'custom' ? null : 20);
-          if(limit != null){
+          const limit2 = tok.limit != null ? Number(tok.limit) : (plan.toLowerCase() === 'custom' ? null : 20);
+          if(limit2 != null){
             const used = Math.max(0, Number(tok.used) || 0);
-            const left = tok.left != null ? Number(tok.left) : Math.max(0, limit - used);
-            const pct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
+            const left2 = tok.left != null ? Number(tok.left) : Math.max(0, limit2 - used);
+            const pct = Math.min(100, Math.round((used / Math.max(1, limit2)) * 100));
             barEl.style.width = pct + '%';
             barEl.classList.toggle('warn', pct >= 80);
-            if(barLblEl) barLblEl.textContent = used + ' used · ' + left + ' left of ' + limit;
+            if(barLblEl) barLblEl.textContent = used + ' used · ' + left2 + ' left of ' + limit2;
             const wrap = barEl.closest('.bill-bar-wrap');
             if(wrap) wrap.style.display = '';
           }
@@ -377,4 +510,5 @@
     }
     document.addEventListener('DOMContentLoaded', refreshProfileBilling);
   </script>
-{% endblock %}
+</body>
+</html>

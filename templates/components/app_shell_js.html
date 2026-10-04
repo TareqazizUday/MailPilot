@@ -1,0 +1,166 @@
+<script>
+(function () {
+  const toggle = document.getElementById('appRailToggle');
+  const drawer = document.getElementById('appDrawer');
+  const panel = document.getElementById('appDrawerPanel');
+  if (!toggle || !drawer) return;
+
+  function setOpen(open) {
+    document.body.classList.toggle('app-drawer-open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    drawer.hidden = !open;
+  }
+
+  toggle.addEventListener('click', function (e) {
+    e.preventDefault();
+    setOpen(drawer.hidden);
+  });
+
+  drawer.addEventListener('click', function (e) {
+    if (e.target === drawer) setOpen(false);
+  });
+
+  drawer.querySelectorAll('a').forEach(function (link) {
+    link.addEventListener('click', function () { setOpen(false); });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+
+  window.addEventListener('resize', function () {
+    if (window.innerWidth > 1024) setOpen(false);
+  });
+
+  /* Nest Setup / Dashboard section tabs under the matching page in the mobile drawer */
+  function nestRailIntoDrawer(railId, pageHrefPart, parentHtml, dataAttr) {
+    const railNav = document.getElementById(railId);
+    const drawerNav = drawer.querySelector('.app-drawer-panel > .app-rail-nav');
+    if (!railNav || !drawerNav) return;
+    const pageLink = Array.prototype.find.call(
+      drawerNav.querySelectorAll('a'),
+      function (a) { return (a.getAttribute('href') || '').indexOf(pageHrefPart) !== -1; }
+    );
+    if (!pageLink) return;
+    const group = document.createElement('div');
+    group.className = 'app-rail-group';
+    const parent = document.createElement('div');
+    parent.className = 'app-rail-parent is-active';
+    parent.setAttribute('aria-current', 'page');
+    parent.innerHTML = parentHtml;
+    const clone = railNav.cloneNode(true);
+    clone.id = railId + 'Drawer';
+    clone.querySelectorAll('[id]').forEach(function (el) {
+      el.removeAttribute('id');
+    });
+    clone.querySelectorAll('button').forEach(function (btn) {
+      const onclick = btn.getAttribute('onclick') || '';
+      const setupMatch = onclick.match(/showMain\('([^']+)'\)/);
+      const dashMatch = onclick.match(/showDash\('([^']+)'\)/);
+      btn.removeAttribute('onclick');
+      if (setupMatch) {
+        btn.addEventListener('click', function () {
+          if (window.showMain) window.showMain(setupMatch[1]);
+          setOpen(false);
+        });
+      } else if (dashMatch) {
+        if (dataAttr) btn.setAttribute(dataAttr, dashMatch[1]);
+        btn.addEventListener('click', function () {
+          if (window.showDash) window.showDash(dashMatch[1]);
+          setOpen(false);
+        });
+      }
+    });
+    group.appendChild(parent);
+    group.appendChild(clone);
+    pageLink.replaceWith(group);
+  }
+
+  nestRailIntoDrawer(
+    'setupRailNav',
+    'setup',
+    '<i class="fa-solid fa-gear" aria-hidden="true"></i> Setup',
+    null
+  );
+  nestRailIntoDrawer(
+    'dashRailNav',
+    'dashboard',
+    '<i class="fa-solid fa-inbox" aria-hidden="true"></i> Dashboard',
+    'data-dash'
+  );
+})();
+
+(function () {
+  const menu = document.getElementById('acctMenu');
+  const btn = document.getElementById('acctBtn');
+  const dd = document.getElementById('acctDd');
+  if (!menu || !btn) return;
+
+  function setOpen(open) {
+    menu.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(!menu.classList.contains('open'));
+  });
+
+  dd && dd.addEventListener('click', function (e) {
+    const a = e.target && e.target.closest ? e.target.closest('a') : null;
+    if (a) setOpen(false);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!menu.classList.contains('open')) return;
+    if (menu.contains(e.target)) return;
+    setOpen(false);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+})();
+
+window.refreshNavConnectionStatus = function (prefetched) {
+  const els = [
+    document.getElementById('navConnStatus'),
+  ].filter(Boolean);
+  if (!els.length) return Promise.resolve();
+
+  function applyNav(j) {
+    if (!j || !j.ok) return;
+    els.forEach(function (el) {
+      if (j.connected) {
+        const st = j.send_transport || '';
+        const hint =
+          j.gmail_connected
+            ? 'Gmail OAuth'
+            : j.imap_connected
+              ? 'SMTP + IMAP mailbox'
+              : j.smtp_last_test_ok && st === 'smtp'
+                ? 'SMTP verified (outgoing)'
+                : 'Connected';
+        el.title = hint;
+        el.innerHTML =
+          '<span class="app-conn-dot" aria-hidden="true"></span><span class="conn-label">Connected</span>';
+      } else {
+        el.title = '';
+        el.innerHTML =
+          '<span class="app-conn-dot off" aria-hidden="true"></span><span class="conn-label">Not connected</span>';
+      }
+    });
+  }
+
+  if (prefetched && prefetched.ok) {
+    applyNav(prefetched);
+    return Promise.resolve();
+  }
+  return fetch('/api/gmail/connection-status')
+    .then(function (r) { return r.json(); })
+    .then(applyNav)
+    .catch(function () {});
+};
+window.refreshNavConnectionStatus();
+</script>

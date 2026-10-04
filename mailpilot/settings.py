@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -287,6 +288,12 @@ elif _xfh in ("1", "true", "yes"):
 else:
     USE_X_FORWARDED_HOST = not DEBUG
 SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "").lower() in ("1", "true", "yes")
+# Local `runserver` is plain HTTP. Production .env turns on Secure cookies and
+# HTTPS redirect; browsers then drop the CSRF cookie and login/signup POST 403.
+if "runserver" in sys.argv:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_SSL_REDIRECT = False
 SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0") or "0")
 SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "").lower() in (
     "1",
@@ -369,7 +376,7 @@ SIMPLE_JWT = {
 UNFOLD = {
     "SITE_TITLE": "MailPilot Admin",
     "SITE_HEADER": "MailPilot",
-    "SITE_SUBHEADER": "Operations dashboard",
+    "SITE_SUBHEADER": "Control center",
     "SITE_URL": "/",
     "SITE_SYMBOL": "mail",
     "SITE_LOGO": {
@@ -387,31 +394,32 @@ UNFOLD = {
             "href": lambda request: static("img/mailpilot-logo.png"),
         },
     ],
-    "THEME": "dark",
-    "BORDER_RADIUS": "8px",
+    # Light theme matches the marketing site; dark still works via OS/toggle if enabled.
+    "THEME": "light",
+    "BORDER_RADIUS": "12px",
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
-    "ENVIRONMENT": "core.unfold_admin.environment_callback",
     "DASHBOARD_CALLBACK": "core.unfold_admin.dashboard_callback",
+    # Brand primary ≈ #5b5bf0
     "COLORS": {
         "primary": {
-            "50": "oklch(97% .02 264)",
-            "100": "oklch(93% .04 264)",
-            "200": "oklch(87% .08 264)",
-            "300": "oklch(78% .12 264)",
-            "400": "oklch(68% .16 264)",
-            "500": "oklch(58% .20 264)",
-            "600": "oklch(50% .18 264)",
-            "700": "oklch(42% .16 264)",
-            "800": "oklch(34% .14 264)",
-            "900": "oklch(28% .12 264)",
-            "950": "oklch(20% .10 264)",
+            "50": "oklch(97% .018 275)",
+            "100": "oklch(94% .035 275)",
+            "200": "oklch(88% .07 275)",
+            "300": "oklch(80% .11 275)",
+            "400": "oklch(70% .155 275)",
+            "500": "oklch(60% .195 275)",
+            "600": "oklch(52% .185 275)",
+            "700": "oklch(44% .16 275)",
+            "800": "oklch(36% .13 275)",
+            "900": "oklch(29% .1 275)",
+            "950": "oklch(21% .08 275)",
         },
     },
     "SIDEBAR": {
         "show_search": True,
         "command_search": False,
-        "show_all_applications": True,
+        "show_all_applications": False,
         "navigation": [
             {
                 "title": _("Overview"),
@@ -423,8 +431,27 @@ UNFOLD = {
                         "link": reverse_lazy("admin:index"),
                     },
                     {
-                        "title": _("Hero inbox"),
+                        "title": _("Contact inbox"),
                         "icon": "inbox",
+                        "link": reverse_lazy("admin:core_contactsubmission_changelist"),
+                        "badge": "core.unfold_admin.contact_badge_callback",
+                        "badge_variant": "warning",
+                    },
+                ],
+            },
+            {
+                "title": _("Website"),
+                "icon": "language",
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Landing page"),
+                        "icon": "web",
+                        "link": reverse_lazy("admin:core_marketinglandingpage_changelist"),
+                    },
+                    {
+                        "title": _("Hero inbox"),
+                        "icon": "mark_email_unread",
                         "link": reverse_lazy("admin:core_marketingheroinboxitem_changelist"),
                     },
                     {
@@ -436,6 +463,11 @@ UNFOLD = {
                         "title": _("How it works"),
                         "icon": "route",
                         "link": reverse_lazy("admin:core_howitworksstep_changelist"),
+                    },
+                    {
+                        "title": _("Grounding"),
+                        "icon": "psychology",
+                        "link": reverse_lazy("admin:core_marketingragitem_changelist"),
                     },
                     {
                         "title": _("Reviews"),
@@ -452,9 +484,16 @@ UNFOLD = {
                         "icon": "payments",
                         "link": reverse_lazy("admin:core_marketingpricingplan_changelist"),
                     },
+                ],
+            },
+            {
+                "title": _("Legal"),
+                "icon": "balance",
+                "collapsible": True,
+                "items": [
                     {
                         "title": _("Terms"),
-                        "icon": "gavel",
+                        "icon": "article",
                         "link": reverse_lazy("admin:core_legaltermssettings_changelist"),
                     },
                     {
@@ -465,12 +504,13 @@ UNFOLD = {
                 ],
             },
             {
-                "title": _("Users"),
+                "title": _("Accounts"),
+                "icon": "manage_accounts",
                 "collapsible": True,
                 "items": [
                     {
                         "title": _("Users"),
-                        "icon": "people",
+                        "icon": "person",
                         "link": reverse_lazy("admin:auth_user_changelist"),
                     },
                     {
@@ -487,11 +527,12 @@ UNFOLD = {
             },
             {
                 "title": _("Billing"),
+                "icon": "account_balance_wallet",
                 "collapsible": True,
                 "items": [
                     {
-                        "title": _("Payment gateways"),
-                        "icon": "account_balance",
+                        "title": _("Gateways"),
+                        "icon": "hub",
                         "link": reverse_lazy("admin:billing_gateways"),
                     },
                     {
@@ -501,11 +542,11 @@ UNFOLD = {
                     },
                     {
                         "title": _("Subscriptions"),
-                        "icon": "payments",
+                        "icon": "card_membership",
                         "link": reverse_lazy("admin:core_usersubscription_changelist"),
                     },
                     {
-                        "title": _("Custom plan quotes"),
+                        "title": _("Custom quotes"),
                         "icon": "request_quote",
                         "link": reverse_lazy("admin:core_customplanquote_changelist"),
                     },
@@ -528,31 +569,26 @@ UNFOLD = {
             },
             {
                 "title": _("Mail"),
+                "icon": "mail",
                 "collapsible": True,
                 "items": [
                     {
-                        "title": _("Mail accounts"),
-                        "icon": "mail",
+                        "title": _("Mailboxes"),
+                        "icon": "alternate_email",
                         "link": reverse_lazy("admin:core_mailaccount_changelist"),
                     },
                     {
-                        "title": _("Mail settings"),
-                        "icon": "settings",
+                        "title": _("Settings"),
+                        "icon": "tune",
                         "link": reverse_lazy("admin:core_usermailsettings_changelist"),
                     },
                 ],
             },
             {
                 "title": _("Support"),
+                "icon": "support_agent",
                 "collapsible": True,
                 "items": [
-                    {
-                        "title": _("Contact inbox"),
-                        "icon": "inbox",
-                        "link": reverse_lazy("admin:core_contactsubmission_changelist"),
-                        "badge": "core.unfold_admin.contact_badge_callback",
-                        "badge_variant": "warning",
-                    },
                     {
                         "title": _("Audit log"),
                         "icon": "shield",
@@ -568,9 +604,10 @@ UNFOLD = {
         ],
     },
     "STYLES": [
-        lambda request: static("css/mailpilot-admin.css"),
+        lambda request: "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css",
+        lambda request: static("css/mailpilot-admin.css") + "?v=20260929brandsize",
     ],
     "SCRIPTS": [
-        lambda request: static("js/mailpilot-admin-changelist.js"),
+        lambda request: static("js/mailpilot-admin-changelist.js") + "?v=20260929brand",
     ],
 }

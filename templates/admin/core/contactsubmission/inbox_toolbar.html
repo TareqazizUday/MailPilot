@@ -1,0 +1,27 @@
+{% load i18n %}
+<div class="mp-inbox mb-4">
+  <div class="mp-inbox__toolbar">
+    <div class="mp-inbox__intro">
+      <h2 class="mp-inbox__title">{% trans "Contact inbox" %}</h2>
+      <p class="mp-inbox__sub">{% trans "Messages from the public contact form" %}</p>
+    </div>
+    <div class="mp-inbox__stats" aria-label="{% trans 'Inbox stats' %}">
+      <div class="mp-inbox__stat">
+        <span class="mp-inbox__stat-value">{{ mp_inbox.total }}</span>
+        <span class="mp-inbox__stat-label">{% trans "Total" %}</span>
+      </div>
+      <div class="mp-inbox__stat{% if mp_inbox.pending %} mp-inbox__stat--alert{% endif %}">
+        <span class="mp-inbox__stat-value">{{ mp_inbox.pending }}</span>
+        <span class="mp-inbox__stat-label">{% trans "Pending" %}</span>
+      </div>
+      <div class="mp-inbox__stat">
+        <span class="mp-inbox__stat-value">{{ mp_inbox.team_ok }}</span>
+        <span class="mp-inbox__stat-label">{% trans "Team notified" %}</span>
+      </div>
+      <div class="mp-inbox__stat">
+        <span class="mp-inbox__stat-value">{{ mp_inbox.user_ok }}</span>
+        <span class="mp-inbox__stat-label">{% trans "User notified" %}</span>
+      </div>
+    </div>
+  </div>
+</div>

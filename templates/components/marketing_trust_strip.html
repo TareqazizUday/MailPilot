@@ -1,0 +1,14 @@
+{# Shared trust logos — homepage testimonials and /reviews #}
+<div class="mp-reviews-trust" aria-label="{{ landing.trust_strip_label|default:'Teams at' }}">
+  <span class="mp-reviews-trust-label">{{ landing.trust_strip_label|default:"Teams at" }}</span>
+  <ul class="mp-reviews-trust-list">
+    {% for logo in landing.trust_logo_list %}
+    <li>{{ logo }}</li>
+    {% empty %}
+    <li>Northline Logistics</li>
+    <li>Brightstack</li>
+    <li>Studio Meridian</li>
+    <li>Helix Support</li>
+    {% endfor %}
+  </ul>
+</div>

@@ -5,138 +5,158 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Choose payment | MailPilot</title>
+  <meta name="theme-color" content="#ffffff" />
   {% include "components/favicon.html" %}
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  {% include "components/meta_pixel.html" %}
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink: #141a2e;
+      --muted: #5b6478;
+      --soft: #f6f8fd;
+      --line: #e8ebf4;
+      --primary: #5b5bf0;
+      --grad: linear-gradient(135deg,#5b5bf0,#8a5bf0);
+      --shadow: 0 12px 40px rgba(20,26,46,.08);
+      --shadow-lg: 0 34px 90px rgba(20,26,46,.12);
+    }
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-family: 'Poppins', Arial, sans-serif;
       background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 91, 255, 0.18), transparent),
-        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(0, 112, 186, 0.1), transparent),
-        linear-gradient(165deg, #060818 0%, #0d1230 50%, #0a0f24 100%);
-      color: #e2e8f0;
+        radial-gradient(ellipse 70% 50% at 15% -10%, #e6e6ff 0%, transparent 55%),
+        radial-gradient(ellipse 60% 45% at 100% 100%, #e3f6ff 0%, transparent 50%),
+        #fff;
+      color: var(--ink);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px 16px;
+      padding: 28px 16px;
       -webkit-font-smoothing: antialiased;
     }
     .wrap { width: 100%; max-width: 440px; }
+    .brand {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-bottom: 22px; font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em;
+    }
+    .brand span {
+      background: var(--grad);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
     .card {
-      background: rgba(15, 20, 45, 0.75);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 22px;
       overflow: hidden;
-      box-shadow: 0 32px 64px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
-      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-lg);
     }
     .card-head { padding: 28px 28px 0; }
     .eyebrow {
-      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em;
-      color: #64748b; margin-bottom: 10px; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--primary); margin-bottom: 12px; font-weight: 700;
+      background: #efefff; padding: 6px 12px; border-radius: 999px;
     }
-    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
-    .subtitle { color: #94a3b8; font-size: 0.875rem; line-height: 1.55; }
+    h1 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; line-height: 1.55; }
     .summary {
-      margin: 24px 28px 0; padding: 16px 18px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      border-radius: 14px;
+      margin: 22px 28px 0; padding: 16px 18px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 16px;
       display: flex; align-items: center; justify-content: space-between; gap: 16px;
     }
-    .summary-label { font-size: 0.85rem; color: #94a3b8; font-weight: 500; }
-    .price { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em; color: #f8fafc; }
-    .price-suffix { font-size: 0.9rem; font-weight: 500; color: #64748b; margin-left: 2px; }
+    .summary-label { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+    .price {
+      font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em;
+      background: var(--grad);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .price-suffix {
+      font-size: 0.9rem; font-weight: 600;
+      -webkit-text-fill-color: var(--muted);
+      margin-left: 2px;
+    }
     .card-body { padding: 24px 28px 28px; }
     .section-label {
-      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #64748b; margin-bottom: 12px;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #a4acc0; margin-bottom: 12px;
     }
     .error {
-      background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #fecaca; border-radius: 12px; padding: 12px 14px;
-      font-size: 0.85rem; margin-bottom: 16px; line-height: 1.45;
+      background: #ffe8e8; border: 1px solid rgba(239,68,68,0.25);
+      color: #b91c1c; border-radius: 14px; padding: 12px 14px;
+      font-size: 0.85rem; margin-bottom: 16px; line-height: 1.45; font-weight: 600;
     }
     .options { display: grid; gap: 10px; }
     .option {
       display: flex; align-items: center; gap: 14px; width: 100%;
       text-align: left; cursor: pointer; font-family: inherit;
-      border: 1px solid rgba(255, 255, 255, 0.09);
-      border-radius: 14px; background: rgba(255, 255, 255, 0.03);
+      border: 1.5px solid var(--line);
+      border-radius: 16px; background: #fff;
       color: inherit; padding: 14px 16px;
       transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.15s;
     }
     .option:hover {
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--soft);
       transform: translateY(-1px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      box-shadow: var(--shadow);
+      border-color: rgba(91,91,240,0.35);
     }
     .option:focus-visible {
-      outline: 2px solid rgba(99, 91, 255, 0.6);
+      outline: 2px solid rgba(91,91,240,0.55);
       outline-offset: 2px;
     }
-    .option.stripe:hover { border-color: rgba(99, 91, 255, 0.45); }
-    .option.paypal:hover { border-color: rgba(255, 196, 57, 0.45); }
     .brand-mark {
       flex-shrink: 0; width: 52px; height: 36px;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 8px; background: #fff;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      border-radius: 10px; background: #fff;
+      border: 1px solid var(--line);
     }
     .logo-text {
-      font-size: 0.95rem;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      line-height: 1;
-      user-select: none;
+      font-size: 0.95rem; font-weight: 700; letter-spacing: -0.01em;
+      line-height: 1; user-select: none;
     }
     .stripe-logo { color: #635bff; text-transform: lowercase; }
     .paypal-logo { color: #003087; }
     .paypal-logo .accent { color: #009cde; }
     .option-copy { flex: 1; min-width: 0; }
     .option-title {
-      display: block;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #f1f5f9;
-      margin-bottom: 2px;
-      line-height: 1.3;
+      display: block; font-size: 0.95rem; font-weight: 700;
+      color: var(--ink); margin-bottom: 2px; line-height: 1.3;
     }
     .option-hint {
-      display: block;
-      font-size: 0.8rem;
-      color: #64748b;
-      line-height: 1.4;
+      display: block; font-size: 0.8rem; color: var(--muted); line-height: 1.4;
     }
     .option-arrow {
-      flex-shrink: 0; width: 20px; height: 20px; color: #475569;
+      flex-shrink: 0; width: 20px; height: 20px; color: #a4acc0;
       transition: color 0.2s, transform 0.2s;
     }
-    .option:hover .option-arrow { color: #94a3b8; transform: translateX(2px); }
+    .option:hover .option-arrow { color: var(--primary); transform: translateX(2px); }
     .secure-note {
       display: flex; align-items: center; justify-content: center; gap: 6px;
       margin-top: 20px; padding-top: 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-      font-size: 0.75rem; color: #64748b;
+      border-top: 1px solid var(--line);
+      font-size: 0.75rem; color: #a4acc0;
     }
-    .secure-note svg { width: 14px; height: 14px; opacity: 0.7; }
+    .secure-note svg { width: 14px; height: 14px; opacity: 0.8; }
     .cancel {
       display: block; text-align: center; margin-top: 18px;
-      font-size: 0.85rem; color: #64748b; text-decoration: none;
+      font-size: 0.88rem; color: var(--muted); font-weight: 600;
       transition: color 0.15s;
     }
-    .cancel:hover { color: #cbd5e1; }
+    .cancel:hover { color: var(--primary); }
     @media (max-width: 400px) {
       .card-head, .card-body { padding-left: 20px; padding-right: 20px; }
       .summary { margin-left: 20px; margin-right: 20px; }
-      .brand-mark { width: 48px; height: 32px; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
+    <div class="brand" aria-hidden="true">Mail<span>Pilot</span></div>
     <div class="card">
       <div class="card-head">
         <div class="eyebrow">Secure checkout</div>

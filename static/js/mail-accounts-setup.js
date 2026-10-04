@@ -580,6 +580,100 @@
     }
     host.innerHTML = html;
     wireSmtpCards();
+    enhanceMpSelects(host);
+  }
+
+  function closeMpSelect(root) {
+    if (!root) return;
+    root.classList.remove('is-open');
+    const menu = root.querySelector('.mp-select-menu');
+    const trigger = root.querySelector('.mp-select-trigger');
+    if (menu) {
+      menu.classList.remove('open');
+      menu.hidden = true;
+    }
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+  }
+
+  function syncMpSelect(root) {
+    const sel = root.querySelector('select');
+    const textEl = root.querySelector('.mp-select-trigger-text');
+    const menu = root.querySelector('.mp-select-menu');
+    if (!sel || !textEl || !menu) return;
+    const opt = sel.selectedOptions && sel.selectedOptions[0];
+    textEl.textContent = opt ? opt.textContent : 'Select profile';
+    menu.querySelectorAll('.mp-select-option').forEach(function (btn) {
+      btn.classList.toggle('is-selected', String(btn.getAttribute('data-value') || '') === String(sel.value));
+    });
+  }
+
+  function rebuildMpSelectMenu(root) {
+    const sel = root.querySelector('select');
+    const menu = root.querySelector('.mp-select-menu');
+    if (!sel || !menu) return;
+    menu.innerHTML = '';
+    Array.prototype.forEach.call(sel.options, function (opt) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mp-select-option';
+      btn.setAttribute('role', 'option');
+      btn.setAttribute('data-value', opt.value);
+      btn.textContent = opt.textContent || opt.value;
+      btn.addEventListener('click', function () {
+        if (String(sel.value) !== String(opt.value)) {
+          sel.value = opt.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        syncMpSelect(root);
+        closeMpSelect(root);
+      });
+      menu.appendChild(btn);
+    });
+    syncMpSelect(root);
+  }
+
+  function enhanceMpSelects(scope) {
+    const rootEl = scope || document;
+    rootEl.querySelectorAll('[data-mp-select]').forEach(function (root) {
+      if (root.dataset.mpBound === '1') {
+        rebuildMpSelectMenu(root);
+        return;
+      }
+      root.dataset.mpBound = '1';
+      const trigger = root.querySelector('.mp-select-trigger');
+      const menu = root.querySelector('.mp-select-menu');
+      if (!trigger || !menu) return;
+      rebuildMpSelectMenu(root);
+      trigger.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const open = !root.classList.contains('is-open');
+        document.querySelectorAll('[data-mp-select].is-open').forEach(function (other) {
+          if (other !== root) closeMpSelect(other);
+        });
+        if (open) {
+          root.classList.add('is-open');
+          menu.hidden = false;
+          menu.classList.add('open');
+          trigger.setAttribute('aria-expanded', 'true');
+          syncMpSelect(root);
+        } else {
+          closeMpSelect(root);
+        }
+      });
+    });
+    if (!document.body.dataset.mpSelectDocBound) {
+      document.body.dataset.mpSelectDocBound = '1';
+      document.addEventListener('click', function (e) {
+        document.querySelectorAll('[data-mp-select].is-open').forEach(function (root) {
+          if (!root.contains(e.target)) closeMpSelect(root);
+        });
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        document.querySelectorAll('[data-mp-select].is-open').forEach(closeMpSelect);
+      });
+    }
   }
 
   function renderSmtpCard(a) {
@@ -675,14 +769,21 @@
       esc(c.SMTP_FROM_EMAIL || '') +
       '"></div>' +
       '<div class="fg"><label class="fl">Provider safety profile</label>' +
-      '<select class="fi provider-profile">' +
+      '<div class="mp-select" data-mp-select>' +
+      '<select class="fi provider-profile" tabindex="-1" aria-hidden="true">' +
       '<option value="smtp_personal"' +
       ((c.PROVIDER_PROFILE || 'smtp_personal') === 'smtp_personal' ? ' selected' : '') +
       '>Personal SMTP · 100/day safety cap</option>' +
       '<option value="smtp_business"' +
       (c.PROVIDER_PROFILE === 'smtp_business' ? ' selected' : '') +
       '>Business SMTP · 1500/day provider cap</option>' +
-      '</select></div>' +
+      '</select>' +
+      '<button type="button" class="mp-select-trigger" aria-haspopup="listbox" aria-expanded="false">' +
+      '<span class="mp-select-trigger-text"></span>' +
+      '<i class="fa-solid fa-chevron-down" aria-hidden="true"></i>' +
+      '</button>' +
+      '<div class="mp-select-menu" role="listbox" hidden></div>' +
+      '</div></div>' +
       '<div class="oauth-h" style="margin-top:12px;margin-bottom:8px;">IMAP (read inbox)</div>' +
       '<div class="fg"><label class="fl">IMAP host (optional)</label>' +
       '<input class="fi imap-host" value="' +

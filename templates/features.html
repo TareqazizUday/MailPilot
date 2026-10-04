@@ -4,172 +4,102 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  {% include "components/meta_pixel.html" %}
   <title>MailPilot | Features</title>
   <meta name="robots" content="index, follow" />
-  <meta name="theme-color" content="#060818" />
+  <meta name="theme-color" content="#ffffff" />
+  {% include "components/favicon.html" %}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #060818;
-      --accent: #4f6ef7;
-      --accent2: #a78bfa;
-      --accent3: #38bdf8;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --glass: rgba(255,255,255,0.04);
-      --glass-border: rgba(255,255,255,0.09);
+      --ink: #141a2e;
+      --muted: #5b6478;
+      --bg: #fff;
+      --soft: #f6f8fd;
+      --line: #e8ebf4;
+      --primary: #5b5bf0;
+      --text: #141a2e;
+      --glass-border: #e8ebf4;
+      --mp-nav-h: 72px;
     }
-    html, body { height: 100%; }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
-
-    #bg-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-    .orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; }
-    .orb1 { width: 600px; height: 600px; background: rgba(79,110,247,0.12); top: -200px; left: -200px; }
-    .orb2 { width: 500px; height: 500px; background: rgba(167,139,250,0.10); bottom: 10%; right: -150px; }
-    .orb3 { width: 400px; height: 400px; background: rgba(56,189,248,0.07); top: 50%; left: 40%; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Poppins', Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { text-decoration: none; color: inherit; }
+    img { max-width: 100%; display: block; }
 
     {% include "components/marketing_nav_css.html" %}
     {% include "components/marketing_page_layout_css.html" %}
-    .page-head { max-width: 1120px; margin: 0 auto 18px; }
-    .tag {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 14px; border-radius: 999px;
-      border: 1px solid rgba(79,110,247,0.35);
-      background: rgba(79,110,247,0.10);
-      color: #a5b4fc;
-      font-size: 0.78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
-    }
-    h1 { margin-top: 14px; font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -1px; }
-    .sub { margin-top: 10px; color: rgba(148,163,184,0.90); line-height: 1.7; max-width: 760px; }
-
-    .features-grid {
-      max-width: 1120px; margin: 26px auto 0;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 20px;
-    }
-    .feat-card {
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      border-radius: 20px;
-      padding: 28px 24px;
-      text-align: left;
-      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
-      backdrop-filter: blur(10px);
-      position: relative;
-      overflow: hidden;
-      min-width: 0;
-    }
-    .feat-card::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 2px;
-      background: linear-gradient(90deg, transparent, var(--card-accent, #4f6ef7), transparent);
-      opacity: 0; transition: opacity 0.3s;
-    }
-    .feat-card:hover { transform: translateY(-6px); border-color: rgba(79,110,247,0.3); box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
-    .feat-card:hover::before { opacity: 1; }
-    .feat-icon {
-      width: 52px; height: 52px; border-radius: 14px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.5rem; margin-bottom: 18px;
-    }
-    .feat-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 10px; }
-    .feat-desc { font-size: 0.9rem; color: var(--muted); line-height: 1.65; }
-
     {% include "components/footer_css.html" %}
+    {% include "components/marketing_features_stage_css.html" %}
+
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+    main.mp-marketing-main {
+      max-width: none;
+      padding-left: 0; padding-right: 0;
+      padding-bottom: 0;
+    }
+    #features { scroll-margin-top: calc(var(--mp-nav-h, 72px) + 16px); }
   </style>
 </head>
-<body>
-  <div class="orb orb1" aria-hidden="true"></div>
-  <div class="orb orb2" aria-hidden="true"></div>
-  <div class="orb orb3" aria-hidden="true"></div>
-  <canvas id="bg-canvas" aria-hidden="true"></canvas>
-
+<body class="mp-theme-light">
   {% include "components/marketing_nav.html" %}
   {% include "components/marketing_nav_js.html" %}
 
-  <main class="mp-marketing-main">
-    <div class="page-head">
-      <div class="tag"><span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;display:inline-block;"></span> Features</div>
-      <h1>Everything you need to <span style="background:linear-gradient(135deg,#4f6ef7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">automate email</span></h1>
-      <p class="sub">MailPilot gives you relevance filtering, RAG grounding, and safe automation controls-so your team replies faster without losing quality.</p>
-    </div>
-
-    <div class="features-grid" aria-label="Core features">
-      {% include "components/marketing_feature_cards.html" %}
-    </div>
+  <main id="main-content" class="mp-marketing-main">
+    <section id="features" class="mp-sec mp-stage" aria-labelledby="features-heading">
+      <div class="wrap">
+        <div class="mp-stage-head">
+          <div>
+            <h1 class="mp-stage-page-title" id="features-heading">{{ landing.features_title }}</h1>
+            <p>{{ landing.features_sub }}</p>
+          </div>
+          <a class="btn-hero-primary" href="{% url 'signup' %}">{{ landing.hero_cta_primary|default:"Get Started" }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+        </div>
+        <div class="mp-stage-cards">
+          {% include "components/marketing_features_home.html" with layout="stage" %}
+        </div>
+      </div>
+    </section>
   </main>
 
   {% include "components/footer.html" %}
 
   <script>
-    const canvas = document.getElementById('bg-canvas');
-    const ctx = canvas.getContext('2d');
-    let W, H, particles = [], mouse = {x: -9999, y: -9999};
-    function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
-    resize(); window.addEventListener('resize', resize);
-    window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-    class Particle{
-      constructor(){ this.reset(); }
-      reset(){
-        this.x = Math.random() * W; this.y = Math.random() * H;
-        this.z = Math.random() * 800 + 200;
-        this.vx = (Math.random() - 0.5) * 0.4;
-        this.vy = (Math.random() - 0.5) * 0.4;
-        this.r = Math.random() * 1.8 + 0.4;
-        const cols = ['rgba(79,110,247', 'rgba(167,139,250', 'rgba(56,189,248'];
-        this.col = cols[Math.floor(Math.random() * cols.length)];
-      }
-      update(){
-        this.x += this.vx; this.y += this.vy;
-        const dx = this.x - mouse.x, dy = this.y - mouse.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if(dist < 120 && dist > 0.001){
-          this.x += dx / dist * 1.2;
-          this.y += dy / dist * 1.2;
-        }
-        if(this.x < 0) this.x = W; if(this.x > W) this.x = 0;
-        if(this.y < 0) this.y = H; if(this.y > H) this.y = 0;
-      }
-      draw(){
-        const scale = 800 / this.z;
-        const a = Math.min(0.7, scale * 0.4);
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.r * scale, 0, Math.PI * 2);
-        ctx.fillStyle = `${this.col},${a})`;
-        ctx.fill();
-      }
-    }
-    for(let i=0;i<140;i++) particles.push(new Particle());
-    function drawConnections(){
-      for(let i=0;i<particles.length;i++){
-        for(let j=i+1;j<particles.length;j++){
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const d = Math.sqrt(dx*dx + dy*dy);
-          if(d < 110){
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(79,110,247,${(1 - d/110) * 0.18})`;
-            ctx.lineWidth = 0.6;
-            ctx.stroke();
+  (function () {
+    if (!('IntersectionObserver' in window)) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelectorAll('.mp-stage-visual--inbox, .mp-stage-visual--kb, .mp-stage-visual--cls, .mp-stage-visual--reply, .mp-stage-visual--alert, .mp-stage-visual--lim').forEach((visual) => {
+      let left = false;
+      const play = () => {
+        visual.classList.remove('is-playing');
+        void visual.offsetWidth;
+        visual.classList.add('is-playing');
+      };
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const inView = entry.isIntersecting && entry.intersectionRatio >= 0.45;
+          if (inView) {
+            if (!visual.classList.contains('is-playing') || left) play();
+            left = false;
+          } else if (!entry.isIntersecting) {
+            left = true;
           }
-        }
-      }
-    }
-    function animate(){
-      ctx.clearRect(0,0,W,H);
-      drawConnections();
-      particles.forEach(p => { p.update(); p.draw(); });
-      requestAnimationFrame(animate);
-    }
-    animate();
+        });
+      }, { threshold: [0, 0.45] });
+      io.observe(visual);
+    });
+  })();
   </script>
 </body>
 </html>
-

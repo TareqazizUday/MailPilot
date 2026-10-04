@@ -11,7 +11,11 @@ urlpatterns = [
     path("terms", views.terms_page, name="terms"),
     path("privacy", views.privacy_page, name="privacy"),
     path("features", views.features_page, name="features"),
-    path("how-it-works", views.how_it_works_page, name="how_it_works"),
+    path(
+        "how-it-works",
+        RedirectView.as_view(url="/#how-it-works", permanent=True),
+        name="how_it_works",
+    ),
     path("reviews", views.reviews_page, name="reviews"),
     path("pricing", views.pricing_page, name="pricing"),
     path("pricing/custom", views.custom_plan_builder_page, name="custom_plan_builder"),

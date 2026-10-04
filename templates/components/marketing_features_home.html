@@ -1,0 +1,300 @@
+{# Homepage stage layout, or icon cards on /features. Driven by MarketingFeature admin. #}
+{% if layout == "stage" %}
+{% load static %}
+{% for feature in marketing_features %}
+<article class="mp-stage-card {% cycle 'is-blue' 'is-navy' 'is-mist' 'is-sand' 'is-rose' 'is-mint' %}" style="z-index: {{ forloop.counter }}">
+  <div class="mp-stage-copy">
+    <span class="mp-stage-tag">{% if "inbox" in feature.icon_class %}Inbox{% elif "brain" in feature.icon_class %}Knowledge{% elif "bullseye" in feature.icon_class %}Filters{% elif "pen" in feature.icon_class %}Replies{% elif "bell" in feature.icon_class %}Alerts{% elif "shield" in feature.icon_class %}Limits{% else %}Feature{% endif %}</span>
+    <h3>{{ feature.title }}</h3>
+    <p>{{ feature.description }}</p>
+  </div>
+  <div class="mp-stage-visual{% if "inbox" in feature.icon_class %} mp-stage-visual--inbox{% elif "brain" in feature.icon_class %} mp-stage-visual--kb{% elif "bullseye" in feature.icon_class %} mp-stage-visual--cls{% elif "pen" in feature.icon_class %} mp-stage-visual--reply{% elif "bell" in feature.icon_class %} mp-stage-visual--alert{% elif "shield" in feature.icon_class %} mp-stage-visual--lim{% endif %}" aria-hidden="true">
+    <div class="mp-stage-float">
+      <img src="{% if "brain" in feature.icon_class or "pen" in feature.icon_class %}{% static 'img/hero-agents/mp-agent-02.png' %}{% elif "shield" in feature.icon_class %}{% static 'img/hero-agents/mp-agent-03.png' %}{% elif "bullseye" in feature.icon_class or "bell" in feature.icon_class or "inbox" in feature.icon_class %}{% static 'img/hero-agents/mp-agent-01.png' %}{% elif forloop.counter|divisibleby:3 %}{% static 'img/hero-agents/mp-agent-03.png' %}{% elif forloop.counter|divisibleby:2 %}{% static 'img/hero-agents/mp-agent-02.png' %}{% else %}{% static 'img/hero-agents/mp-agent-01.png' %}{% endif %}" alt="" width="44" height="44" />
+      <div>
+        {% if "inbox" in feature.icon_class %}
+        <b>Inbox connected</b>
+        <span>Gmail and IMAP are live</span>
+        <img class="mp-inbox-flyer" src="{% static 'img/hero-agents/mp-agent-01.png' %}" alt="" width="44" height="44" />
+        {% elif "brain" in feature.icon_class %}
+        <b>Knowledge ready</b>
+        <span>Docs and site indexed</span>
+        <img class="mp-kb-flyer" src="{% static 'img/hero-agents/mp-agent-02.png' %}" alt="" width="44" height="44" />
+        {% elif "bullseye" in feature.icon_class %}
+        <b>Classified</b>
+        <span>Relevant mail is answered</span>
+        <img class="mp-cls-flyer" src="{% static 'img/hero-agents/mp-agent-01.png' %}" alt="" width="44" height="44" />
+        {% elif "pen" in feature.icon_class %}
+        <b>Reply ready</b>
+        <span>Send now or save a draft</span>
+        <img class="mp-reply-flyer" src="{% static 'img/hero-agents/mp-agent-02.png' %}" alt="" width="44" height="44" />
+        {% elif "bell" in feature.icon_class %}
+        <b>Alerts live</b>
+        <span>Telegram and WhatsApp</span>
+        <img class="mp-alert-flyer" src="{% static 'img/hero-agents/mp-agent-01.png' %}" alt="" width="44" height="44" />
+        {% elif "shield" in feature.icon_class %}
+        <b>Within plan</b>
+        <span>Reserve, then commit</span>
+        <img class="mp-lim-flyer" src="{% static 'img/hero-agents/mp-agent-03.png' %}" alt="" width="44" height="44" />
+        {% else %}
+        <b>MailPilot</b>
+        <span>{{ feature.title }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% if "inbox" in feature.icon_class %}
+    <div class="mp-stage-app mp-inbox-app">
+      <div class="mp-stage-app-top"><span>MailPilot</span><span>Connect inbox</span></div>
+      <div class="mp-inbox-item">
+        <span class="mp-inbox-ico mp-inbox-ico--gmail" aria-hidden="true"><i class="fa-brands fa-google"></i></span>
+        <div>
+          <b>Gmail</b>
+          <span>One-click OAuth</span>
+        </div>
+        <em class="mp-inbox-status mp-inbox-status--gmail"><span class="off">Connect</span><span class="on">Connected</span></em>
+      </div>
+      <div class="mp-inbox-item">
+        <span class="mp-inbox-ico mp-inbox-ico--imap" aria-hidden="true"><i class="fa-solid fa-server"></i></span>
+        <div>
+          <b>SMTP / IMAP</b>
+          <span>Any mail provider</span>
+        </div>
+        <em class="mp-inbox-status mp-inbox-status--imap"><span class="off">Connect</span><span class="on">Connected</span></em>
+      </div>
+      <div class="mp-inbox-live">
+        <span class="mp-inbox-pulse" aria-hidden="true"></span>
+        <div>
+          <b>IMAP IDLE</b>
+          <span>Listening · near real-time</span>
+        </div>
+      </div>
+    </div>
+    {% elif "brain" in feature.icon_class %}
+    <div class="mp-stage-app mp-kb-app">
+      <div class="mp-stage-app-top"><span>MailPilot</span><span>Knowledge base</span></div>
+      <div class="mp-kb-item">
+        <span class="mp-kb-ico mp-kb-ico--file" aria-hidden="true"><i class="fa-solid fa-file-arrow-up"></i></span>
+        <div>
+          <b>Upload a file</b>
+          <span>JSON or plain text</span>
+        </div>
+        <em class="mp-kb-status mp-kb-status--file"><span class="off">Upload</span><span class="on">In vector DB</span></em>
+      </div>
+      <div class="mp-kb-item">
+        <span class="mp-kb-ico mp-kb-ico--web" aria-hidden="true"><i class="fa-solid fa-globe"></i></span>
+        <div>
+          <b>Crawl a website</b>
+          <span>Scrape pages into the KB</span>
+        </div>
+        <em class="mp-kb-status mp-kb-status--web"><span class="off">Crawl</span><span class="on">In vector DB</span></em>
+      </div>
+      <div class="mp-kb-stage">
+        <div class="mp-kb-pane mp-kb-pane--file">
+          <div class="mp-kb-drop">
+            <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
+            <div>
+              <b>Choose file</b>
+              <span>service-faq.txt</span>
+            </div>
+          </div>
+          <div class="mp-kb-line mp-kb-line--up"><span>Uploading</span><b class="mp-kb-bar"><i></i></b></div>
+          <div class="mp-kb-line mp-kb-line--chunk"><span>Chunking</span><em>4 chunks</em></div>
+          <div class="mp-kb-line mp-kb-line--vec"><span>Vector DB</span><em>Added</em></div>
+        </div>
+        <div class="mp-kb-pane mp-kb-pane--web">
+          <div class="mp-kb-urlbox">
+            <i class="fa-solid fa-link" aria-hidden="true"></i>
+            <span class="mp-kb-typed">https://yoursite.com</span>
+          </div>
+          <div class="mp-kb-line mp-kb-line--scrape"><span>Scraping</span><b class="mp-kb-bar"><i></i></b></div>
+          <div class="mp-kb-line mp-kb-line--vecweb"><span>Vector DB</span><em>Added</em></div>
+        </div>
+      </div>
+      <div class="mp-kb-ready">
+        <span class="mp-kb-pulse" aria-hidden="true"></span>
+        <div>
+          <b>Knowledge base ready</b>
+          <span>File and site are in the vector DB</span>
+        </div>
+      </div>
+    </div>
+    {% elif "bullseye" in feature.icon_class %}
+    <div class="mp-stage-app mp-cls-app">
+      <div class="mp-stage-app-top"><span>MailPilot</span><span>Classify</span></div>
+      <div class="mp-cls-item">
+        <div class="mp-cls-row">
+          <span class="mp-cls-ico mp-cls-ico--pass" aria-hidden="true"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+          <div>
+            <b>Pricing question</b>
+            <span>Customer asks for a quote</span>
+          </div>
+          <em class="mp-cls-status mp-cls-status--pass"><span class="off">Score</span><span class="on">Answer</span></em>
+        </div>
+        <div class="mp-cls-meter">
+          <span>Confidence</span>
+          <b class="mp-cls-track mp-cls-track--pass"><i></i><s></s></b>
+          <em class="mp-cls-num"><i class="off">0.00</i><i class="on">0.92</i></em>
+        </div>
+      </div>
+      <div class="mp-cls-item">
+        <div class="mp-cls-row">
+          <span class="mp-cls-ico mp-cls-ico--skip" aria-hidden="true"><i class="fa-solid fa-envelopes-bulk"></i></span>
+          <div>
+            <b>Weekly newsletter</b>
+            <span>No reply needed</span>
+          </div>
+          <em class="mp-cls-status mp-cls-status--skip"><span class="off">Score</span><span class="on">Ignored</span></em>
+        </div>
+        <div class="mp-cls-meter">
+          <span>Confidence</span>
+          <b class="mp-cls-track mp-cls-track--skip"><i></i><s></s></b>
+          <em class="mp-cls-num"><i class="off">0.00</i><i class="on">0.24</i></em>
+        </div>
+      </div>
+      <div class="mp-cls-note">
+        <span class="mp-cls-mark" aria-hidden="true"></span>
+        <div>
+          <b>Threshold 0.70</b>
+          <span>Below it, the email is ignored</span>
+        </div>
+      </div>
+    </div>
+    {% elif "pen" in feature.icon_class %}
+    <div class="mp-stage-app mp-reply-app">
+      <div class="mp-stage-app-top"><span>MailPilot</span><span>Reply</span></div>
+      <div class="mp-reply-mail">
+        <span class="mp-reply-ico" aria-hidden="true"><i class="fa-solid fa-envelope-open"></i></span>
+        <div>
+          <b>Pricing question</b>
+          <span>From customer@acme.com</span>
+        </div>
+        <em class="mp-reply-status mp-reply-status--read"><span class="off">Read</span><span class="on">Related</span></em>
+      </div>
+      <div class="mp-reply-compose">
+        <div class="mp-reply-line"><span>Reply</span><b>Re: Pricing question</b></div>
+        <p class="mp-reply-body">
+          <span class="mp-reply-typed mp-reply-typed--send">Thanks for asking about pricing.</span>
+        </p>
+        <div class="mp-reply-actions">
+          <em class="mp-reply-status mp-reply-status--send"><span class="off">Send</span><span class="on">Sent</span></em>
+        </div>
+      </div>
+      <div class="mp-reply-hold">
+        <span class="mp-reply-ico mp-reply-ico--draft" aria-hidden="true"><i class="fa-solid fa-pen"></i></span>
+        <div>
+          <b>Keep a draft</b>
+          <span>Wait for your approval</span>
+        </div>
+        <em class="mp-reply-status mp-reply-status--draft"><span class="off">Draft</span><span class="on">Saved</span></em>
+      </div>
+    </div>
+    {% elif "bell" in feature.icon_class %}
+    <div class="mp-stage-app mp-alert-app">
+      <div class="mp-stage-app-top"><span>MailPilot</span><span>Alerts</span></div>
+      <div class="mp-alert-item">
+        <span class="mp-alert-ico mp-alert-ico--tg" aria-hidden="true"><i class="fa-brands fa-telegram"></i></span>
+        <div>
+          <b>Telegram</b>
+          <span>Reply alerts</span>
+        </div>
+        <em class="mp-alert-status mp-alert-status--tg"><span class="off">Connect</span><span class="on">Live</span></em>
+      </div>
+      <div class="mp-alert-item">
+        <span class="mp-alert-ico mp-alert-ico--wa" aria-hidden="true"><i class="fa-brands fa-whatsapp"></i></span>
+        <div>
+          <b>WhatsApp</b>
+          <span>Chat with the assistant</span>
+        </div>
+        <em class="mp-alert-status mp-alert-status--wa"><span class="off">Connect</span><span class="on">Live</span></em>
+      </div>
+      <div class="mp-alert-phone">
+        <div class="mp-alert-handset">
+          <span class="mp-alert-notch" aria-hidden="true"></span>
+          <div class="mp-alert-screen mp-alert-screen--tg">
+            <div class="mp-alert-pbar">
+              <i class="fa-brands fa-telegram" aria-hidden="true"></i>
+              <div><b>MailPilot</b><span>bot</span></div>
+            </div>
+            <div class="mp-alert-tg-msg">
+              <b>Reply sent</b>
+              <span>Pricing question</span>
+            </div>
+          </div>
+          <div class="mp-alert-screen mp-alert-screen--wa">
+            <div class="mp-alert-pbar mp-alert-pbar--wa">
+              <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+              <div><b>MailPilot</b><span>online</span></div>
+            </div>
+            <p class="mp-alert-wa-out">Any new replies?</p>
+            <p class="mp-alert-wa-in"><span class="mp-alert-typed">Sent to Acme.</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% elif "shield" in feature.icon_class %}
+    <div class="mp-stage-app mp-lim-app">
+      <div class="mp-stage-app-top"><span>MailPilot</span><span>Guardrails</span></div>
+      <div class="mp-lim-item">
+        <div class="mp-lim-row">
+          <span class="mp-lim-ico mp-lim-ico--tok" aria-hidden="true"><i class="fa-solid fa-coins"></i></span>
+          <div>
+            <b>Monthly tokens</b>
+            <span>1,000 on this plan</span>
+          </div>
+          <em class="mp-lim-status mp-lim-status--tok"><span class="off">Check</span><span class="on">Reserved</span></em>
+        </div>
+        <div class="mp-lim-meter">
+          <span>Used</span>
+          <b class="mp-lim-track mp-lim-track--tok"><i></i></b>
+          <em class="mp-lim-num"><i class="off">0</i><i class="on">640</i></em>
+        </div>
+      </div>
+      <div class="mp-lim-item">
+        <div class="mp-lim-row">
+          <span class="mp-lim-ico mp-lim-ico--day" aria-hidden="true"><i class="fa-solid fa-paper-plane"></i></span>
+          <div>
+            <b>Daily sends</b>
+            <span>Cap per inbox</span>
+          </div>
+          <em class="mp-lim-status mp-lim-status--day"><span class="off">Check</span><span class="on">Allowed</span></em>
+        </div>
+        <div class="mp-lim-meter">
+          <span>Used</span>
+          <b class="mp-lim-track mp-lim-track--day"><i></i></b>
+          <em class="mp-lim-num"><i class="off">0</i><i class="on">18</i></em>
+        </div>
+      </div>
+      <div class="mp-lim-note">
+        <span class="mp-lim-steps" aria-hidden="true"><i>Reserve</i><i>Send</i><i>Commit</i></span>
+        <div>
+          <b>Ledger closed</b>
+          <span>The send stays inside the plan</span>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="mp-stage-app">
+      <div class="mp-stage-app-top"><span>MailPilot</span><span>Live inbox</span></div>
+      <div class="mp-stage-row"><span>New customer thread</span><em>Ready</em></div>
+      <div class="mp-stage-row"><span>Grounded reply</span><em class="is-go">Sent</em></div>
+      <div class="mp-stage-row"><span>Knowledge match</span><em class="is-wait">In progress</em></div>
+    </div>
+    {% endif %}
+  </div>
+</article>
+{% empty %}
+<p class="section-sub">Feature cards will appear here once published in admin.</p>
+{% endfor %}
+{% else %}
+{% for feature in marketing_features %}
+<div class="card reveal">
+  <div class="f-ic" style="{{ feature.icon_background_style }};color:{{ feature.accent_color|default:'#5b5bf0' }}">
+    <i class="{{ feature.icon_class|default:'fa-solid fa-star' }}" aria-hidden="true"></i>
+  </div>
+  <h3>{{ feature.title }}</h3>
+  <p>{{ feature.description }}</p>
+</div>
+{% empty %}
+<p class="section-sub" style="grid-column:1/-1;text-align:center;">Feature cards will appear here once published in admin.</p>
+{% endfor %}
+{% endif %}

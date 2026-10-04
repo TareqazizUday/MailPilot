@@ -11,10 +11,10 @@
     return;
   }
 
-  var font = "Inter, system-ui, sans-serif";
-  var grid = { borderColor: "rgba(148,163,184,0.12)", strokeDashArray: 4 };
+  var font = '"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif';
+  var grid = { borderColor: "rgba(148,163,184,0.18)", strokeDashArray: 3 };
   var axis = {
-    labels: { style: { colors: "#94a3b8", fontSize: "11px", fontFamily: font } },
+    labels: { style: { colors: "#5b6478", fontSize: "11px", fontFamily: font } },
     axisBorder: { show: false },
     axisTicks: { show: false },
   };
@@ -23,6 +23,23 @@
   function mount(id, options) {
     var node = document.getElementById(id);
     if (!node) return;
+    options = options || {};
+    options.chart = options.chart || {};
+    options.chart.width = "100%";
+    options.chart.redrawOnParentResize = true;
+    options.chart.redrawOnWindowResize = true;
+    if (!options.responsive) {
+      options.responsive = [
+        {
+          breakpoint: 640,
+          options: {
+            chart: { height: Math.min(options.chart.height || 280, 240) },
+            legend: { position: "bottom" },
+            dataLabels: { enabled: options.chart.type === "donut" },
+          },
+        },
+      ];
+    }
     var chart = new ApexCharts(node, options);
     chart.render();
     return chart;
@@ -49,12 +66,12 @@
       xaxis: {
         categories: labels,
         labels: {
-          style: { colors: "#94a3b8", fontSize: "11px", fontFamily: font },
+          style: { colors: "#5b6478", fontSize: "11px", fontFamily: font },
         },
       },
       yaxis: {
         labels: {
-          style: { colors: "#94a3b8", fontSize: "11px", fontFamily: font },
+          style: { colors: "#5b6478", fontSize: "11px", fontFamily: font },
           formatter: function (v) {
             return Number.isFinite(v) ? Math.round(v) : v;
           },

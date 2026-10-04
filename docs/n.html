@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MailPilot — AI Email Autopilot with RAG</title>
+<meta name="description" content="Connect Gmail or SMTP/IMAP. MailPilot reads, understands and replies to your customers using your own knowledge base — fully on autopilot.">
+<meta property="og:title" content="MailPilot — Your inbox, on autopilot">
+<meta property="og:description" content="RAG-powered, grounded AI replies for Gmail & IMAP inboxes.">
+
+<!-- Meta Pixel (আপনার ID বসান) -->
+<!-- <script>!function(f,b,e,v,n,t,s){...}(); fbq('init','YOUR_PIXEL_ID'); fbq('track','PageView');</script> -->
+
+<style>
+/* ================= TOKENS & RESET ================= */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#141a2e; --muted:#5b6478; --bg:#fff; --soft:#f6f8fd;
+  --line:#e8ebf4; --primary:#5b5bf0; --primary2:#8a5bf0;
+  --green:#00b884; --orange:#ff9f43; --pink:#ff6b9d; --blue:#3aa0ff;
+  --r:18px;
+  --shadow:0 12px 40px rgba(20,26,46,.08);
+  --shadow-lg:0 34px 90px rgba(20,26,46,.16);
+  --grad:linear-gradient(135deg,#5b5bf0,#8a5bf0);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  color:var(--ink);background:var(--bg);line-height:1.65;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased}
+a{text-decoration:none;color:inherit}
+img{max-width:100%;display:block}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+section{padding:100px 0}
+h2{font-size:clamp(28px,4vw,42px);line-height:1.15;letter-spacing:-.02em;font-weight:800}
+.sub{color:var(--muted);max-width:620px;margin:16px auto 0;font-size:18px;text-align:center}
+.center{text-align:center}
+.overline{display:inline-flex;align-items:center;gap:8px;background:#efefff;color:var(--primary);
+  font-weight:700;font-size:13px;padding:7px 16px;border-radius:999px;letter-spacing:.04em;text-transform:uppercase}
+.btn{display:inline-flex;align-items:center;gap:10px;font-weight:700;border-radius:999px;
+  padding:15px 30px;font-size:16px;transition:.25s;cursor:pointer;border:none}
+.btn-primary{background:var(--grad);color:#fff;box-shadow:0 12px 30px rgba(91,91,240,.35)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(91,91,240,.45)}
+.btn-ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ================= ANNOUNCE + NAV ================= */
+.announce{background:var(--grad);color:#fff;text-align:center;font-size:14px;font-weight:600;padding:9px 16px}
+.announce b{background:rgba(255,255,255,.2);padding:2px 8px;border-radius:6px;margin-left:6px}
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.85);backdrop-filter:blur(14px);
+  border-bottom:1px solid transparent;transition:.3s}
+nav.scrolled{border-color:var(--line);box-shadow:0 4px 24px rgba(20,26,46,.06)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:72px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:21px;letter-spacing:-.02em}
+.logo-mark{width:36px;height:36px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-size:18px}
+.nav-links{display:flex;gap:32px;font-weight:600;font-size:15px;color:var(--muted)}
+.nav-links a:hover{color:var(--primary)}
+.nav-cta{display:flex;align-items:center;gap:14px}
+.nav-cta .login{font-weight:700;color:var(--muted)}
+.nav-cta .btn{padding:11px 22px;font-size:15px}
+.burger{display:none;background:none;border:none;font-size:24px;cursor:pointer;color:var(--ink)}
+.mobile-menu{display:none;flex-direction:column;gap:4px;padding:12px 24px 20px;background:#fff;border-bottom:1px solid var(--line)}
+.mobile-menu a{padding:12px 4px;font-weight:600;border-bottom:1px solid var(--soft)}
+
+/* ================= HERO ================= */
+.hero{position:relative;padding:90px 0 110px;text-align:center;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;pointer-events:none}
+.blob.b1{width:520px;height:520px;background:#e6e6ff;top:-180px;left:-120px}
+.blob.b2{width:460px;height:460px;background:#e3f6ff;top:60px;right:-140px}
+.hero h1{font-size:clamp(38px,6vw,68px);font-weight:800;letter-spacing:-.03em;line-height:1.08;max-width:860px;margin:26px auto 0}
+.hero h1 .hl{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub{font-size:20px;margin-bottom:38px}
+.hero-ctas{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.demo-link{display:inline-flex;align-items:center;gap:12px;font-weight:700;color:var(--ink)}
+.demo-link .play-sm{width:46px;height:46px;border-radius:50%;background:#fff;box-shadow:var(--shadow);
+  display:grid;place-items:center;color:var(--primary);font-size:15px;border:1px solid var(--line)}
+.demo-link:hover .play-sm{background:var(--grad);color:#fff}
+
+/* ---- Animated inbox mockup ---- */
+.hero-visual{position:relative;max-width:900px;margin:70px auto 0}
+.mock{background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow-lg);
+  overflow:hidden;text-align:left}
+.mock-bar{display:flex;align-items:center;gap:7px;padding:14px 18px;border-bottom:1px solid var(--line);background:#fbfcff}
+.dot{width:11px;height:11px;border-radius:50%}
+.dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+.mock-url{margin-left:14px;background:var(--soft);border-radius:8px;font-size:12.5px;color:var(--muted);padding:5px 14px}
+.mock-main{display:flex;min-height:330px}
+.mock-side{width:190px;border-right:1px solid var(--line);padding:18px 12px;background:#fbfcff}
+.side-item{padding:10px 14px;border-radius:10px;font-size:14px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.side-item.active{background:#efefff;color:var(--primary)}
+.mock-list{flex:1;padding:16px}
+.mock-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;
+  border:1px solid transparent;transition:.4s;margin-bottom:8px}
+.mock-row.active{border-color:#d9d9ff;background:#f8f8ff;box-shadow:var(--shadow)}
+.avatar{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:14px;flex-shrink:0}
+.row-mid{flex:1;min-width:0}
+.row-top{display:flex;justify-content:space-between;font-size:14.5px}
+.row-top .row-time{color:#a4acc0;font-size:12.5px;font-weight:600}
+.row-sub{font-size:13.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-status{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:5px;background:var(--soft);color:#a4acc0;min-width:104px;justify-content:center}
+.st-rag{background:#efefff;color:var(--primary)}
+.st-write{background:#fff3e4;color:#e08a1e}
+.st-sent{background:#e2f8ef;color:var(--green)}
+.st-draft{background:#e7f3ff;color:var(--blue)}
+.st-ignored{background:var(--soft);color:#a4acc0}
+.tdots i{display:inline-block;width:5px;height:5px;border-radius:50%;background:currentColor;margin-right:3px;animation:bounce 1s infinite}
+.tdots i:nth-child(2){animation-delay:.15s}.tdots i:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}}
+
+.float-card{position:absolute;background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow-lg);padding:14px 18px;font-size:14px;font-weight:700;
+  display:flex;flex-direction:column;animation:float 5s ease-in-out infinite;z-index:5}
+.float-card small{font-weight:600;color:var(--muted);font-size:12px}
+.fc1{top:-24px;right:-14px;animation-delay:.4s}
+.fc2{bottom:44px;left:-34px}
+.fc3{bottom:-22px;right:80px;animation-delay:1.2s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+
+/* ================= LOGO MARQUEE ================= */
+.logos{padding:36px 0;border-block:1px solid var(--line);background:#fbfcff;overflow:hidden}
+.logos p{text-align:center;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#a4acc0;margin-bottom:22px}
+.marquee{display:flex;gap:16px;width:max-content;animation:scroll 28s linear infinite}
+@keyframes scroll{to{transform:translateX(-50%)}}
+.chip{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);
+  border-radius:999px;padding:10px 22px;font-weight:700;font-size:15px;white-space:nowrap}
+.chip span{font-size:18px}
+
+/* ================= FEATURES ================= */
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:56px}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:34px 30px;transition:.3s}
+.card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg);border-color:#d9d9ff}
+.f-ic{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;font-size:24px;margin-bottom:20px}
+.card h3{font-size:19px;margin-bottom:10px;letter-spacing:-.01em}
+.card p{color:var(--muted);font-size:15px}
+.i-violet{background:#efefff}.i-green{background:#e2f8ef}.i-orange{background:#fff3e4}
+.i-blue{background:#e7f3ff}.i-pink{background:#ffe3ec}.i-teal{background:#dcf7f2}
+
+/* ================= HOW IT WORKS ================= */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:56px;counter-reset:step}
+.step{background:var(--soft);border-radius:var(--r);padding:34px 26px;position:relative;transition:.3s}
+.step:hover{background:#fff;box-shadow:var(--shadow);transform:translateY(-4px)}
+.step::before{counter-increment:step;content:"0" counter(step);font-size:44px;font-weight:800;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;opacity:.25;display:block;line-height:1}
+.step h4{font-size:17px;margin:14px 0 8px}
+.step p{color:var(--muted);font-size:14px}
+
+/* ================= PIPELINE VIZ ================= */
+.pipeline{display:flex;align-items:stretch;gap:0;margin-top:60px}
+.p-step{flex:1;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:26px 18px;text-align:center;transition:.3s;position:relative}
+.p-step:hover{box-shadow:var(--shadow);border-color:#d9d9ff}
+.p-ic{width:52px;height:52px;margin:0 auto 14px;border-radius:14px;display:grid;place-items:center;font-size:23px}
+.p-step h4{font-size:15px;margin-bottom:5px}
+.p-step p{font-size:12.5px;color:var(--muted)}
+.p-arrow{flex:0 0 44px;align-self:center;height:2px;background:var(--line);position:relative;margin:0 -1px}
+.p-dot{position:absolute;top:-3.5px;left:0;width:9px;height:9px;border-radius:50%;background:var(--primary);animation:flow 1.8s linear infinite}
+@keyframes flow{to{left:calc(100% - 9px)}}
+.pipe-note{margin-top:34px;text-align:center;background:var(--soft);border-radius:14px;padding:18px 24px;
+  color:var(--muted);font-size:14.5px}
+.pipe-note b{color:var(--ink)}
+
+/* ================= RAG SECTION ================= */
+.rag{background:var(--soft)}
+.rag-grid{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:center}
+.rag-list{margin-top:30px;display:flex;flex-direction:column;gap:16px}
+.rag-item{display:flex;gap:16px;align-items:flex-start}
+.rag-item .f-ic{width:44px;height:44px;font-size:19px;margin:0;flex-shrink:0}
+.rag-item h4{font-size:16px}
+.rag-item p{color:var(--muted);font-size:14px}
+.rag-viz{background:#fff;border:1px solid var(--line);border-radius:22px;padding:36px;box-shadow:var(--shadow)}
+.rv-flow{display:flex;flex-direction:column;gap:0}
+.rv-node{display:flex;align-items:center;gap:14px;background:var(--soft);border:1px solid var(--line);
+  border-radius:14px;padding:15px 18px}
+.rv-node b{font-size:14.5px;display:block}
+.rv-node span{font-size:12.5px;color:var(--muted)}
+.rv-node .rv-tag{margin-left:auto;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:#efefff;color:var(--primary)}
+.rv-link{width:2px;height:26px;background:var(--line);margin-left:38px;position:relative;overflow:hidden}
+.rv-link::after{content:"";position:absolute;width:6px;height:6px;border-radius:50%;background:var(--green);left:-2px;animation:drip 1.4s linear infinite}
+@keyframes drip{0%{top:-8px}100%{top:30px}}
+.rv-db{background:linear-gradient(135deg,#1b2140,#2c3468);color:#fff;border:none}
+.rv-db span{color:#b9bfe0}
+.rv-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:2px}
+
+/* ================= VIDEO ================= */
+.video-frame{position:relative;max-width:960px;margin:56px auto 0;border-radius:26px;overflow:hidden;
+  box-shadow:var(--shadow-lg);aspect-ratio:16/9;background:linear-gradient(135deg,#242b52,#3d2f7a);cursor:pointer}
+.video-frame video{width:100%;height:100%;object-fit:cover}
+.video-overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(20,26,46,.25)}
+.play-btn{width:88px;height:88px;border-radius:50%;background:rgba(255,255,255,.95);border:none;
+  display:grid;place-items:center;cursor:pointer;transition:.3s;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.play-btn::before{content:"";border-left:26px solid var(--primary);border-top:16px solid transparent;border-bottom:16px solid transparent;margin-left:7px}
+.play-btn:hover{transform:scale(1.1)}
+.video-cap{text-align:center;color:var(--muted);margin-top:20px;font-size:14px}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(12,15,30,.85);z-index:300;display:none;align-items:center;justify-content:center;padding:24px}
+.modal.open{display:flex}
+.modal-box{width:min(1000px,100%);position:relative}
+.modal-box video,.modal-box iframe{width:100%;aspect-ratio:16/9;border-radius:18px;border:none;display:block;background:#000}
+.modal-close{position:absolute;top:-52px;right:0;background:rgba(255,255,255,.15);color:#fff;border:none;
+  width:40px;height:40px;border-radius:50%;font-size:22px;cursor:pointer}
+
+/* ================= STATS ================= */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:56px;text-align:center}
+.stat{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:40px 20px}
+.stat .num{font-size:52px;font-weight:800;letter-spacing:-.03em;background:var(--grad);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.stat .num small{font-size:24px}
+.stat p{color:var(--muted);font-weight:600;font-size:14.5px;margin-top:6px}
+
+/* ================= TESTIMONIALS ================= */
+.t-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:56px}
+.t-card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:32px}
+.t-card .stars{color:#ffb400;letter-spacing:2px;margin-bottom:16px}
+.t-card p{font-size:15.5px;color:#333c52}
+.t-who{display:flex;align-items:center;gap:12px;margin-top:22px}
+.t-who .avatar{width:44px;height:44px}
+.t-who b{font-size:14.5px;display:block}
+.t-who span{font-size:12.5px;color:var(--muted)}
+
+/* ================= PRICING ================= */
+.pricing{background:var(--soft)}
+.p-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:56px;align-items:stretch}
+.p-card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:40px 34px;display:flex;flex-direction:column;transition:.3s}
+.p-card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
+.p-card.hot{border:2px solid transparent;background:linear-gradient(#fff,#fff) padding-box,var(--grad) border-box;
+  position:relative;box-shadow:var(--shadow-lg)}
+.p-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--grad);color:#fff;
+  font-size:12px;font-weight:700;padding:6px 18px;border-radius:999px;white-space:nowrap}
+.p-card h3{font-size:19px}
+.p-price{font-size:46px;font-weight:800;letter-spacing:-.03em;margin:14px 0 2px}
+.p-price small{font-size:16px;color:var(--muted);font-weight:600}
+.p-card>.p-d{color:var(--muted);font-size:14px;margin-bottom:24px}
+.p-feats{list-style:none;display:flex;flex-direction:column;gap:12px;margin-bottom:32px;flex:1}
+.p-feats li{font-size:14.5px;display:flex;gap:10px;color:#333c52}
+.p-feats li::before{content:"✓";color:var(--green);font-weight:800}
+.p-card .btn{justify-content:center}
+
+/* ================= FAQ ================= */
+.faq{max-width:780px;margin:52px auto 0}
+details{background:#fff;border:1px solid var(--line);border-radius:16px;margin-bottom:14px;overflow:hidden;transition:.3s}
+details[open]{box-shadow:var(--shadow);border-color:#d9d9ff}
+summary{list-style:none;cursor:pointer;font-weight:700;font-size:16.5px;padding:22px 26px;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:24px;color:var(--primary);transition:.3s;font-weight:400}
+details[open] summary::after{transform:rotate(45deg)}
+details .faq-a{padding:0 26px 24px;color:var(--muted);font-size:15px}
+
+/* ================= CTA + FOOTER ================= */
+.cta-band{background:var(--grad);border-radius:30px;padding:80px 40px;text-align:center;color:#fff;position:relative;overflow:hidden}
+.cta-band::before{content:"";position:absolute;width:420px;height:420px;border-radius:50%;background:rgba(255,255,255,.12);top:-200px;right:-100px}
+.cta-band h2{color:#fff}
+.cta-band p{opacity:.9;margin:16px auto 36px;max-width:560px}
+.btn-white{background:#fff;color:var(--primary)}
+.btn-white:hover{transform:translateY(-2px)}
+.btn-outline-w{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.6)}
+.btn-outline-w:hover{background:rgba(255,255,255,.12)}
+footer{padding:70px 0 36px;border-top:1px solid var(--line)}
+.f-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}
+.f-grid h5{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#a4acc0;margin-bottom:18px}
+.f-grid a{display:block;color:var(--muted);font-size:14.5px;margin-bottom:11px}
+.f-grid a:hover{color:var(--primary)}
+.f-bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-top:1px solid var(--line);
+  margin-top:52px;padding-top:26px;color:var(--muted);font-size:13.5px}
+
+/* ================= RESPONSIVE ================= */
+@media(max-width:1020px){
+  .grid-3,.t-grid{grid-template-columns:1fr 1fr}
+  .steps{grid-template-columns:1fr 1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .p-grid{grid-template-columns:1fr;max-width:460px;margin-inline:auto}
+  .rag-grid{grid-template-columns:1fr;gap:44px}
+  .f-grid{grid-template-columns:1fr 1fr}
+  .pipeline{flex-direction:column}
+  .p-arrow{width:2px;height:34px;flex:none;margin:2px auto}
+  .p-dot{animation:drip 1.4s linear infinite;left:-3.5px!important;top:0}
+}
+@media(max-width:720px){
+  section{padding:70px 0}
+  .nav-links,.nav-cta .login,.nav-cta .btn{display:none}
+  .burger{display:block}
+  .mobile-menu.open{display:flex}
+  .grid-3,.t-grid,.steps,.stats{grid-template-columns:1fr}
+  .mock-side{display:none}
+  .float-card{display:none}
+  .hero{padding:60px 0 80px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ANNOUNCE -->
+<div class="announce">🚀 RAG-powered grounded replies are live <b>Start free</b></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="wrap nav-in">
+    <a class="logo" href="#"><span class="logo-mark">✈</span>MailPilot</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#rag">Knowledge Base</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-cta">
+      <a class="login" href="/login/">Log in</a>
+      <a class="btn btn-primary" href="/signup/">Get started free</a>
+      <button class="burger" id="burger">☰</button>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#features">Features</a><a href="#how">How it works</a>
+    <a href="#rag">Knowledge Base</a><a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a><a href="/login/">Log in</a>
+    <a class="btn btn-primary" href="/signup/" style="justify-content:center;margin-top:10px">Get started free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="wrap">
+    <span class="overline">🤖 AI + RAG · For Gmail &amp; IMAP inboxes</span>
+    <h1>Your inbox just learned to <span class="hl">reply itself</span></h1>
+    <p class="sub">MailPilot connects to Gmail or any SMTP/IMAP inbox, understands customer emails with OpenAI, and writes grounded replies from <b>your own knowledge base</b> — while you focus on the business.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="/signup/">Start free — no credit card</a>
+      <a class="demo-link" href="#" id="openVideoHero"><span class="play-sm">▶</span> Watch 2-min demo</a>
+    </div>
+
+    <!-- Animated inbox mockup -->
+    <div class="hero-visual reveal">
+      <div class="mock">
+        <div class="mock-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="mock-url">app.mailpilot.io/inbox</span>
+        </div>
+        <div class="mock-main">
+          <aside class="mock-side">
+            <div class="side-item active">📥 Inbox</div>
+            <div class="side-item">📤 Sent</div>
+            <div class="side-item">📝 Drafts</div>
+            <div class="side-item">📚 Knowledge Base</div>
+            <div class="side-item">⚙️ Settings</div>
+          </aside>
+          <div class="mock-list">
+            <div class="mock-row">
+              <div class="avatar" style="background:#ffe3ec;color:#ff6b9d">SM</div>
+              <div class="row-mid">
+                <div class="row-top"><b>Sarah Miller</b><span class="row-time">now</span></div>
+                <div class="row-sub">Hi! Do you offer yearly pricing for teams of 10?</div>
+              </div>
+              <div class="row-status">Waiting…</div>
+            </div>
+            <div class="mock-row">
+              <div class="avatar" style="background:#e7f3ff;color:#3aa0ff">JK</div>
+              <div class="row-mid">
+                <div class="row-top"><b>James Kim</b><span class="row-time">1m</span></div>
+                <div class="row-sub">Can I integrate MailPilot with my Zoho mailbox?</div>
+              </div>
+              <div class="row-status">Waiting…</div>
+            </div>
+            <div class="mock-row">
+              <div class="avatar" style="background:#e2f8ef;color:#00b884">RA</div>
+              <div class="row-mid">
+                <div class="row-top"><b>Ravi Ahmed</b><span class="row-time">2m</span></div>
+                <div class="row-sub">Congratulations! You won a free iPhone…</div>
+              </div>
+              <div class="row-status">Waiting…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="float-card fc1">✅ Auto-reply sent<small>grounded in your KB</small></div>
+      <div class="float-card fc2">🧠 RAG match · 94%<small>6 chunks · pgvector HNSW</small></div>
+      <div class="float-card fc3">🔔 Telegram notified</div>
+    </div>
+  </div>
+</header>
+
+<!-- LOGOS -->
+<div class="logos">
+  <p>Works with the tools you already use</p>
+  <div class="marquee">
+    <div class="chip"><span>📧</span>Gmail API</div><div class="chip"><span>🔁</span>IMAP / SMTP</div>
+    <div class="chip"><span>🤖</span>OpenAI GPT-4o-mini</div><div class="chip"><span>🐘</span>PostgreSQL + pgvector</div>
+    <div class="chip"><span>💳</span>Stripe</div><div class="chip"><span>🅿️</span>PayPal</div>
+    <div class="chip"><span>✈️</span>Telegram</div><div class="chip"><span>💬</span>WhatsApp</div>
+    <!-- duplicate for seamless loop -->
+    <div class="chip"><span>📧</span>Gmail API</div><div class="chip"><span>🔁</span>IMAP / SMTP</div>
+    <div class="chip"><span>🤖</span>OpenAI GPT-4o-mini</div><div class="chip"><span>🐘</span>PostgreSQL + pgvector</div>
+    <div class="chip"><span>💳</span>Stripe</div><div class="chip"><span>🅿️</span>PayPal</div>
+    <div class="chip"><span>✈️</span>Telegram</div><div class="chip"><span>💬</span>WhatsApp</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap center">
+    <span class="overline">Features</span>
+    <h2>Everything your support inbox needs</h2>
+    <p class="sub">From connecting your mailbox to sending grounded replies — one platform, zero chaos.</p>
+    <div class="grid-3">
+      <div class="card reveal"><div class="f-ic i-violet">📥</div><h3>Connect any inbox</h3>
+        <p>Gmail with one-click OAuth, or any SMTP/IMAP provider. IMAP IDLE keeps it near real-time.</p></div>
+      <div class="card reveal"><div class="f-ic i-green">🧠</div><h3>RAG Knowledge Base</h3>
+        <p>Upload documents or crawl your website. Answers come from <b>your</b> policies, prices and products.</p></div>
+      <div class="card reveal"><div class="f-ic i-orange">🎯</div><h3>Smart classification</h3>
+        <p>Every email is scored for relevance and confidence. Below your threshold? It's ignored, not answered.</p></div>
+      <div class="card reveal"><div class="f-ic i-blue">✍️</div><h3>Send or Draft modes</h3>
+        <p>Fully automatic sending when you're confident, or drafts waiting for your approval. You decide.</p></div>
+      <div class="card reveal"><div class="f-ic i-pink">🔔</div><h3>Telegram &amp; WhatsApp</h3>
+        <p>Get notified the moment a reply is sent — and even chat with your inbox assistant from your phone.</p></div>
+      <div class="card reveal"><div class="f-ic i-teal">🛡️</div><h3>Usage guardrails</h3>
+        <p>Token, daily-send and inbox limits with a full reserve → commit ledger. No surprise costs.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" style="background:var(--soft)">
+  <div class="wrap center">
+    <span class="overline">How it works</span>
+    <h2>Autopilot in 4 steps</h2>
+    <p class="sub">Setup takes minutes. Then MailPilot polls, thinks and replies — 24/7.</p>
+    <div class="steps">
+      <div class="step reveal"><h4>Connect your inbox</h4><p>Gmail OAuth or SMTP/IMAP credentials. Enabled accounts start instantly.</p></div>
+      <div class="step reveal"><h4>Teach the AI</h4><p>Upload docs/JSON or let the crawler read your website into the knowledge base.</p></div>
+      <div class="step reveal"><h4>Set your rules</h4><p>Service keywords, relevance threshold, and send-vs-draft mode per account.</p></div>
+      <div class="step reveal"><h4>Go on autopilot</h4><p>Scheduler polls your inbox, RAG grounds the answer, reply goes out with a notification.</p></div>
+    </div>
+
+    <!-- PIPELINE VISUALIZATION -->
+    <div class="pipeline reveal">
+      <div class="p-step"><div class="p-ic i-violet">📨</div><h4>New email</h4><p>Gmail / IMAP poll</p></div>
+      <div class="p-arrow"><span class="p-dot"></span></div>
+      <div class="p-step"><div class="p-ic i-orange">🔤</div><h4>Keyword filter</h4><p>SERVICE_KEYWORDS pre-check</p></div>
+      <div class="p-arrow"><span class="p-dot"></span></div>
+      <div class="p-step"><div class="p-ic i-green">🧠</div><h4>RAG retrieve</h4><p>pgvector · top-6 chunks</p></div>
+      <div class="p-arrow"><span class="p-dot"></span></div>
+      <div class="p-step"><div class="p-ic i-blue">🤖</div><h4>AI decides</h4><p>relevance + confidence + reply</p></div>
+      <div class="p-arrow"><span class="p-dot"></span></div>
+      <div class="p-step"><div class="p-ic i-pink">🚀</div><h4>Send / Draft</h4><p>quota check → notify</p></div>
+    </div>
+    <div class="pipe-note">Every auto-send passes through <b>reserve → send → commit</b> billing checks, so limits are never exceeded.</div>
+  </div>
+</section>
+
+<!-- RAG -->
+<section id="rag" class="rag">
+  <div class="wrap rag-grid">
+    <div class="reveal">
+      <span class="overline">Knowledge Base · RAG</span>
+      <h2 style="margin-top:18px">Replies grounded in <em>your</em> truth — not the model's imagination</h2>
+      <div class="rag-list">
+        <div class="rag-item"><div class="f-ic i-violet">📄</div><div><h4>Ingest anything</h4>
+          <p>Upload text/HTML/JSON files or point the crawler at your website — it chunks (1200 chars, 120 overlap) automatically.</p></div></div>
+        <div class="rag-item"><div class="f-ic i-green">🧲</div><div><h4>Semantic retrieval</h4>
+          <p>Each customer email is embedded and matched against your KB with HNSW cosine search — the 6 best chunks win.</p></div></div>
+        <div class="rag-item"><div class="f-ic i-orange">🚫</div><div><h4>No invented facts</h4>
+          <p>The prompt forbids inventing prices or policies. No KB match, no guess — the email is safely ignored.</p></div></div>
+        <div class="rag-item"><div class="f-ic i-blue">🔒</div><div><h4>Tenant isolation</h4>
+          <p>Every business's knowledge lives in its own isolated tenant — your data never leaks into another's answers.</p></div></div>
+      </div>
+    </div>
+
+    <div class="rag-viz reveal">
+      <div class="rv-flow">
+        <div class="rv-node"><span style="font-size:22px">📁</span><div><b>Upload / Website crawl</b><span>docs · FAQ · pricing pages</span></div><span class="rv-tag">Ingest</span></div>
+        <div class="rv-link"></div>
+        <div class="rv-node"><span style="font-size:22px">✂️</span><div><b>Chunking</b><span>max 1200 chars · overlap 120</span></div><span class="rv-tag">Split</span></div>
+        <div class="rv-link"></div>
+        <div class="rv-node"><span style="font-size:22px">🔢</span><div><b>Embeddings</b><span>text-embedding-3-small</span></div><span class="rv-tag">1536-dim</span></div>
+        <div class="rv-link"></div>
+        <div class="rv-node rv-db"><span style="font-size:22px">🐘</span><div><b style="color:#fff">pgvector store</b><span>HNSW · cosine distance</span></div><span class="rv-tag" style="background:rgba(255,255,255,.15);color:#fff">Top-6</span></div>
+        <div class="rv-link"></div>
+        <div class="rv-split">
+          <div class="rv-node" style="padding:12px 14px"><span style="font-size:18px">🧠</span><div><b>KB context</b></div></div>
+          <div class="rv-node" style="padding:12px 14px"><span style="font-size:18px">🤖</span><div><b>GPT reply</b></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VIDEO -->
+<section id="demo">
+  <div class="wrap center">
+    <span class="overline">Product demo</span>
+    <h2 style="margin-top:18px">See MailPilot in action</h2>
+    <p class="sub">From a customer email landing in your inbox to a grounded reply going out — in under two minutes.</p>
+    <div class="video-frame reveal" id="videoThumb">
+      <!-- ভিডিও সরাসরি এখানে বসান: /static/videos/mailpilot-demo.mp4 -->
+      <video id="demoVideo" preload="metadata" poster="/static/img/demo-poster.jpg">
+        <source src="/static/videos/mailpilot-demo.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      <div class="video-overlay" id="videoOverlay"><button class="play-btn" aria-label="Play demo"></button></div>
+    </div>
+    <p class="video-cap">🎥 Connect → Teach → Autopilot. Full walkthrough with real inbox.</p>
+  </div>
+</section>
+
+<!-- STATS -->
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat reveal"><div class="num"><span data-n="1536">0</span><small>-dim</small></div><p>Semantic embeddings</p></div>
+      <div class="stat reveal"><div class="num"><span data-n="6">0</span></div><p>KB chunks per reply</p></div>
+      <div class="stat reveal"><div class="num">&lt;<span data-n="2">0</span><small>s</small></div><p>Email → AI draft</p></div>
+      <div class="stat reveal"><div class="num"><span data-n="24">0</span><small>/7</small></div><p>Autopilot polling</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section style="padding-top:0">
+  <div class="wrap center">
+    <span class="overline">Loved by teams</span>
+    <h2 style="margin-top:18px">They stopped drowning in email</h2>
+    <div class="t-grid">
+      <div class="t-card reveal"><div class="stars">★★★★★</div>
+        <p>“Our response time went from hours to seconds. The best part — it quotes our actual pricing, never makes things up.”</p>
+        <div class="t-who"><div class="avatar" style="background:#efefff;color:#5b5bf0">AN</div><div><b>Ayesha N.</b><span>Founder, Craftsy</span></div></div></div>
+      <div class="t-card reveal"><div class="stars">★★★★★</div>
+        <p>“Draft mode won me over. I reviewed every reply for a week, then flipped the switch to full autopilot with total confidence.”</p>
+        <div class="t-who"><div class="avatar" style="background:#e2f8ef;color:#00b884">MR</div><div><b>Marco R.</b><span>Support lead, DevHub</span></div></div></div>
+      <div class="t-card reveal"><div class="stars">★★★★★</div>
+        <p>“Crawled my whole store website once and the bot knew my catalog better than I did. Telegram pings are addictive.”</p>
+        <div class="t-who"><div class="avatar" style="background:#fff3e4;color:#e08a1e">TK</div><div><b>Tania K.</b><span>Owner, BloomStore</span></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="pricing">
+  <div class="wrap center">
+    <span class="overline">Pricing</span>
+    <h2 style="margin-top:18px">Simple plans that scale with your inbox</h2>
+    <p class="sub">Start free on trial. Upgrade when your inbox begs for more.</p>
+    <div class="p-grid">
+      <div class="p-card reveal">
+        <h3>Starter</h3><div class="p-price">Free<small> / trial</small></div>
+        <p class="p-d">Kick the tires with real limits.</p>
+        <ul class="p-feats">
+          <li>~20 auto-sends + 80 tokens</li><li>1 inbox connection</li><li>Basic knowledge base</li><li>Email support</li>
+        </ul><a class="btn btn-ghost" href="/signup/">Start free</a>
+      </div>
+      <div class="p-card hot reveal">
+        <span class="p-badge">⭐ Most popular</span>
+        <h3>Pro</h3><div class="p-price">$29<small> /month</small></div>
+        <p class="p-d">For businesses living in their inbox.</p>
+        <ul class="p-feats">
+          <li>Unlimited* sends &amp; tokens</li><li>Multiple inbox connections</li><li>Website crawler + full RAG</li>
+          <li>Telegram &amp; WhatsApp notify</li><li>Priority support</li>
+        </ul><a class="btn btn-primary" href="/billing/">Upgrade to Pro</a>
+      </div>
+      <div class="p-card reveal">
+        <h3>Custom</h3><div class="p-price">Let's talk</div>
+        <p class="p-d">High volume, custom models, SLA.</p>
+        <ul class="p-feats">
+          <li>Custom send limits &amp; plans</li><li>Dedicated infrastructure</li><li>SSO &amp; team seats</li><li>Onboarding assistance</li>
+        </ul><a class="btn btn-ghost" href="#faq">Contact sales</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="wrap center">
+    <span class="overline">FAQ</span>
+    <h2 style="margin-top:18px">Questions, answered</h2>
+    <div class="faq" style="text-align:left">
+      <details open><summary>Which email providers are supported?</summary>
+        <div class="faq-a">Gmail via official OAuth API, plus <b>any provider with SMTP + IMAP</b> (Zoho, Outlook, cPanel mail, etc.). IMAP IDLE gives near real-time detection on IMAP accounts.</div></details>
+      <details><summary>Will the AI invent answers about my business?</summary>
+        <div class="faq-a">No. Replies are grounded in your Knowledge Base via RAG. The model is explicitly instructed never to invent prices or policies — and if no matching knowledge exists, the email is ignored instead of guessed.</div></details>
+      <details><summary>What's the difference between Send and Draft mode?</summary>
+        <div class="faq-a"><b>Send</b> replies automatically (with quota reserve → commit checks). <b>Draft</b> prepares the reply in your mailbox for one-click review. Many teams start in Draft, then switch to Send.</div></details>
+      <details><summary>How does billing and usage tracking work?</summary>
+        <div class="faq-a">Every auto-send goes through a ledger: the quota is <b>reserved</b>, the mail is sent, then usage is <b>committed</b>. If limits are hit, the send is safely blocked — no surprise overages.</div></details>
+      <details><summary>Is my knowledge base data isolated?</summary>
+        <div class="faq-a">Yes. All KB chunks are stored with a tenant ID scoped to your user/account, so no other customer's data can ever surface in your replies.</div></details>
+      <details><summary>Can I get notified outside of email?</summary>
+        <div class="faq-a">Absolutely — connect a Telegram bot or WhatsApp Cloud API and receive instant notifications (Pro and above), including chat-assistant access on Telegram.</div></details>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="padding-top:20px">
+  <div class="wrap">
+    <div class="cta-band reveal">
+      <h2>Ready to put your inbox on autopilot?</h2>
+      <p>Connect your first inbox in under 2 minutes. Free trial, no credit card required.</p>
+      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;position:relative">
+        <a class="btn btn-white" href="/signup/">Get started free</a>
+        <a class="btn btn-outline-w" href="#demo">Watch the demo</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="f-grid">
+      <div>
+        <a class="logo" href="#"><span class="logo-mark">✈</span>MailPilot</a>
+        <p style="color:var(--muted);font-size:14.5px;margin-top:16px;max-width:280px">AI email autopilot with RAG-grounded replies for Gmail and IMAP inboxes.</p>
+      </div>
+      <div><h5>Product</h5><a href="#features">Features</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="/api/v1/">API docs</a></div>
+      <div><h5>Company</h5><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></div>
+      <div><h5>Legal</h5><a href="#">Privacy policy</a><a href="#">Terms of service</a><a href="#">Security</a></div>
+    </div>
+    <div class="f-bottom">
+      <span>© 2025 MailPilot. All rights reserved.</span>
+      <span>Built with Django · PostgreSQL + pgvector · OpenAI</span>
+    </div>
+  </div>
+</footer>
+
+<!-- VIDEO MODAL -->
+<div class="modal" id="videoModal">
+  <div class="modal-box">
+    <button class="modal-close" id="closeModal">×</button>
+    <!-- Option A: self-hosted MP4  → /static/videos/mailpilot-demo.mp4 -->
+    <!-- Option B: YouTube → replace innerHTML with <iframe src="https://www.youtube.com/embed/YOUR_ID" allowfullscreen></iframe> -->
+  </div>
+</div>
+
+<script>
+/* ---------- Nav scroll shadow ---------- */
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>10));
+/* ---------- Mobile menu ---------- */
+const burger=document.getElementById('burger'),mm=document.getElementById('mobileMenu');
+burger.onclick=()=>mm.classList.toggle('open');
+mm.querySelectorAll('a').forEach(a=>a.onclick=()=>mm.classList.remove('open'));
+/* ---------- Reveal on scroll ---------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+/* ---------- Counters ---------- */
+const cio=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting)return;cio.unobserve(e.target);
+  const el=e.target,end=+el.dataset.n,t0=performance.now();
+  (function tick(t){const p=Math.min((t-t0)/1400,1);
+    el.textContent=Math.round(end*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(tick)})(t0);
+}),{threshold:.6});
+document.querySelectorAll('[data-n]').forEach(el=>cio.observe(el));
+/* ---------- Video modal ---------- */
+const modal=document.getElementById('videoModal'),mbox=modal.querySelector('.modal-box');
+const VID='<video controls autoplay src="/static/videos/mailpilot-demo.mp4"></video>'; // ← আপনার ভিডিও পাথ
+const openVid=()=>{mbox.insertAdjacentHTML('beforeend',VID);modal.classList.add('open');document.body.style.overflow='hidden'};
+const closeVid=()=>{modal.classList.remove('open');mbox.querySelectorAll('video,iframe').forEach(v=>v.remove());document.body.style.overflow=''};
+document.getElementById('openVideoHero').onclick=e=>{e.preventDefault();openVid()};
+document.getElementById('videoThumb').onclick=openVid;
+document.getElementById('closeModal').onclick=closeVid;
+modal.onclick=e=>{if(e.target===modal)closeVid()};
+addEventListener('keydown',e=>{if(e.key==='Escape')closeVid()});
+/* ---------- Live inbox demo loop ---------- */
+const rows=[...document.querySelectorAll('.mock-row')];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const setSt=(row,cls,html)=>{const s=row.querySelector('.row-status');
+  s.className='row-status '+cls;s.innerHTML=html};
+const FLOW=[
+ [0,'st-read','👁 Reading…',1100],[0,'st-rag','🧠 RAG · 6 chunks',1300],
+ [0,'st-write','<span class="tdots"><i></i><i></i><i></i></span> AI writing',1900],[0,'st-sent','✓ Sent',2400],
+ [1,'st-read','👁 Reading…',1100],[1,'st-rag','🧠 RAG · 6 chunks',1300],
+ [1,'st-write','<span class="tdots"><i></i><i></i><i></i></span> AI writing',1900],[1,'st-draft','📝 Draft saved',2400],
+ [2,'st-read','👁 Reading…',1100],[2,'st-ignored','— Ignored',2600],
+];
+(async function loop(){
+  while(true){
+    for(const r of rows)r.classList.remove('active');
+    rows.forEach(r=>setSt(r,'','Waiting…'));
+    await sleep(800);
+    for(const [i,cls,html,wait] of FLOW){
+      rows[i].classList.add('active');setSt(rows[i],cls,html);await sleep(wait);
+    }
+    await sleep(1800);
+  }
+})();
+</script>
+</body>
+</html>

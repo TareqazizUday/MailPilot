@@ -1,39 +1,111 @@
-{% extends "mailpilot_base.html" %}
-
-{% block title %}Dashboard · Email Automation{% endblock %}
-
-{% block head_extra %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard · MailPilot</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#ffffff" />
+  {% include "components/favicon.html" %}
+  {% include "components/meta_pixel.html" %}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <style>
-    .dash-card{max-width:1180px;margin:0 auto;width:100%;overflow-x:clip;}
-    @media(min-width:1200px){
-      .dash-card{max-width:1440px;}
-    }
-    .dash-body{padding:clamp(14px,3vw,22px) clamp(12px,3vw,22px) clamp(20px,3vw,28px);min-height:420px;}
-    .dash-mailbox{padding:8px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;}
+    {% include "components/app_shell_css.html" %}
+
+    /* Dashboard panels live inside app-main; no outer card chrome */
+    .dash-body{min-height:0;}
+    .dash-mailbox{padding:8px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;position:relative;z-index:5;}
     .dash-mailbox-label{display:block;margin-bottom:4px;color:var(--txm);}
+    .dash-mb-wrap{position:relative;}
     .dash-mailbox-select{
+      position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+      overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+    }
+    .dash-mb-trigger{
       width:100%;max-width:100%;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
       font-size:12px;padding:8px 10px;box-sizing:border-box;
       background:var(--input-bg);border:1px solid var(--input-border);
-      border-radius:10px;color:var(--text);font-family:var(--font);outline:none;
+      border-radius:10px;color:var(--text);font-family:var(--font);
+      cursor:pointer;text-align:left;
     }
-    .dash-mailbox-select:focus{border-color:rgba(79,110,247,0.6);box-shadow:0 0 0 3px rgba(79,110,247,0.1);}
-    .dash-mailbox-viewing{margin-top:6px;color:var(--txm);line-height:1.4;word-break:break-word;}
+    .dash-mb-trigger:hover{border-color:#d0d2f5;}
+    .dash-mb-trigger:focus{
+      outline:none;
+      border-color:rgba(79,110,247,0.6);box-shadow:0 0 0 3px rgba(79,110,247,0.1);
+    }
+    .dash-mb-trigger-text{
+      min-width:0;flex:1;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .dash-mb-trigger i{color:var(--txm);flex-shrink:0;font-size:11px;transition:transform .15s;}
+    .dash-mb-wrap.is-open .dash-mb-trigger i{transform:rotate(180deg);}
+    .dash-mb-menu{
+      display:none;
+      position:static;
+      width:100%;
+      margin-top:6px;
+      max-height:min(220px,40vh);
+      overflow-y:auto;
+      background:#fff;
+      border:1px solid var(--bdr);
+      border-radius:12px;
+      box-shadow:0 10px 28px rgba(20,26,46,0.12);
+      padding:6px;
+      box-sizing:border-box;
+    }
+    .dash-mb-menu.open{display:block;}
+    .dash-mb-option{
+      display:block;width:100%;
+      padding:10px 12px;border:none;border-radius:9px;
+      background:transparent;cursor:pointer;
+      font-family:var(--font);font-size:12px;font-weight:600;
+      color:var(--tx);text-align:left;line-height:1.35;
+      overflow-wrap:anywhere;
+    }
+    .dash-mb-option:hover{background:var(--bg2);}
+    .dash-mb-option.is-selected{
+      background:#efefff;color:var(--info,#5b5bf0);
+    }
+    /* Trigger already shows selected mailbox — hide redundant line to prevent overlap */
+    .dash-mailbox-viewing{display:none !important;}
+    #dashPanelMessages,
+    #dashPanelReading,
+    #dashPanelControls{
+      overflow:hidden;
+      min-width:0;
+      z-index:1;
+    }
+    #dashPanelMessages .msg-list{min-height:0;flex:1 1 auto;}
+    #inboxListHint{
+      flex-shrink:0;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
 
-    /* ── Three Column Layout (inside MailPilot card) ── */
+    /* ── Responsive tri-pane: flexible fr tracks, break earlier so mid widths don't crush ── */
     .tri{
       display:grid;
-      grid-template-columns:minmax(220px,280px) minmax(0,1fr) minmax(260px,380px);
+      grid-template-columns:minmax(0,0.95fr) minmax(0,1.45fr) minmax(0,1fr);
       gap:12px;
       min-height:560px;
       min-width:0;
     }
-    @media(min-width:1200px){
-      .tri{grid-template-columns:minmax(300px,360px) minmax(0,1fr) minmax(320px,460px);gap:14px;min-height:620px;}
-    }
-    @media(max-width:1100px){
+    @media(min-width:1500px){
       .tri{
-        grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
+        grid-template-columns:minmax(0,0.9fr) minmax(0,1.55fr) minmax(0,0.95fr);
+        gap:14px;
+        min-height:620px;
+      }
+    }
+    /* With left rail, ~1320px viewport ≈ cramped 3-col — stack controls under */
+    @media(max-width:1320px){
+      .tri{
+        grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);
         grid-template-areas:
           "messages reading"
           "controls controls";
@@ -50,20 +122,40 @@
           "messages"
           "reading"
           "controls";
-        gap:10px;
+        gap:12px;
+        min-height:0;
       }
-      .tri .pnl{min-height:auto;}
-      .tri .pnl:nth-child(1){max-height:min(46vh,420px);min-height:260px;}
-      .tri .pnl:nth-child(2){min-height:min(52vh,480px);}
+      .tri .pnl{
+        min-height:0;
+        max-height:none !important;
+        height:auto;
+      }
+      #dashPanelMessages{
+        display:flex;
+        flex-direction:column;
+      }
+      #dashPanelMessages .msg-list{
+        flex:0 1 auto;
+        max-height:min(36vh,280px);
+        overflow-y:auto;
+      }
+      #dashPanelReading .rp-empty{
+        padding:24px 16px;
+        min-height:140px;
+      }
+      .dash-mb-menu{max-height:min(160px,28vh);}
+      .dash-mb-trigger{font-size:16px;min-height:44px;padding:10px 12px;}
+      .dash-mb-option{font-size:14px;padding:12px;}
     }
     @media(max-width:480px){
       .dash-body{padding:12px 10px 20px;min-height:0;}
-      .tri .pnl:nth-child(1){max-height:min(42vh,360px);min-height:220px;}
-      .tri .pnl:nth-child(2){min-height:min(48vh,420px);}
+      #dashPanelMessages .msg-list{max-height:min(32vh,240px);}
+      #dashPanelReading .rp-empty{padding:20px 12px;min-height:120px;}
+      .dash-mailbox{padding:8px 10px;}
     }
 
     /* ── Panel ── */
-    .pnl{background:var(--card);border:1px solid var(--bdr);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+    .pnl{background:var(--card);border:1px solid var(--bdr);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative;}
     .pnl-hd{padding:11px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
     .pnl-t{font-family:var(--font-head);font-size:12.5px;font-weight:600;letter-spacing:-.01em}
     .pnl-badge{font-size:10px;color:var(--txm);background:var(--bg2);padding:1px 7px;border-radius:8px}
@@ -151,8 +243,8 @@
     .rp-msg-lbl{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--grn-l);margin-bottom:8px}
 
     /* ── Controls Panel ── */
-    .ctrl-sec{padding:12px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0}
-    .run-btn{width:100%;padding:9px;border:none;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--blue-d));color:#fff;font-family:var(--font-head);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:7px;position:relative;overflow:hidden}
+    .ctrl-sec{padding:12px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;min-width:0}
+    .run-btn{width:100%;padding:9px;border:none;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--blue-d));color:#fff;font-family:var(--font-head);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:7px;position:relative;overflow:hidden;white-space:normal;text-align:center;line-height:1.3;min-width:0;box-sizing:border-box}
     .run-btn:hover{transform:translateY(-1px);box-shadow:0 5px 20px var(--blue-glow)}
     .run-btn:active{transform:translateY(0)}
     .run-btn.proc{pointer-events:none;opacity:.8}
@@ -182,18 +274,13 @@
 
     /* ── Dashboard responsive polish ── */
     @media(max-width:768px){
-      body .main-wrap{padding:20px 12px 56px;}
       .dash-card{border-radius:16px;}
-      .setup-card-header{padding:20px 16px 16px;}
-      .setup-card-title{font-size:1.1rem;}
-      .setup-card-sub{font-size:0.82rem;word-break:break-word;}
       .pnl-hd{padding:10px 12px;}
       .rp-top{padding:14px 16px;}
       .rp-subj{font-size:14px;}
       .rp-body{padding:14px 16px;font-size:12.5px;}
       .ctrl-sec{padding:12px;}
       .run-btn{min-height:44px;padding:12px;font-size:13px;}
-      .dash-mailbox-select{font-size:16px;}
       .msg-si input{font-size:16px;}
       .msg-fr{font-size:11.5px;}
       .msg-sj{font-size:11px;}
@@ -201,33 +288,178 @@
       .rp-dt{width:100%;margin-top:2px;}
     }
     @media(max-width:480px){
-      body .main-wrap{padding:16px 10px 48px;}
-      .setup-card-header{padding:16px 14px 14px;}
-      .dash-body{padding:10px 8px 16px;}
-      .dash-mailbox{padding:8px 10px;}
       .pnl{border-radius:8px;}
-      .qt{min-width:460px;font-size:10px;}
+      .qt{min-width:0;font-size:10px;}
       .qt th,.qt td{padding:7px 8px;}
       .qt-fr{max-width:110px;}
       .msg-it{padding:10px;}
       .msg-st-row{flex-wrap:wrap;}
     }
     @media(max-width:380px){
-      .setup-card-title{font-size:1rem;}
       .pnl-t{font-size:12px;}
     }
 
-  </style>
-{% endblock %}
+    /* Light dashboard tokens / overrides */
+    .dash-page-head {
+      margin-bottom: 16px;
+    }
+    .dash-page-sub { font-size: 0.92rem; color: var(--muted); line-height: 1.55; }
+    .dash-page-sub strong { color: var(--ink); }
+    .dash-card {
+      max-width: none; margin: 0; background: transparent;
+      border: none; box-shadow: none; border-radius: 0; overflow: visible;
+    }
+    .dash-body { padding: 0; min-height: 0; }
+    .pnl { background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+    #dashPanelMessages,
+    #dashPanelReading,
+    #dashPanelControls { overflow: hidden; }
+    .pnl-hd { border-bottom-color: var(--line); }
+    .pnl-t { font-family: var(--font); color: var(--ink); font-weight: 700; }
+    .pnl-badge { background: var(--soft); color: var(--muted); }
+    .dash-mailbox-select {
+      /* visually hidden; custom trigger is the UI */
+    }
+    .dash-mb-trigger {
+      background: #fff; border: 1.5px solid var(--line); color: var(--ink);
+    }
+    .dash-mb-trigger:focus {
+      border-color: rgba(91,91,240,0.55); box-shadow: 0 0 0 3px rgba(91,91,240,0.14);
+    }
+    .dash-mb-menu {
+      border-color: var(--line);
+      box-shadow: var(--shadow-lg, 0 16px 40px rgba(20,26,46,0.16));
+    }
+    .dash-mb-option.is-selected {
+      background: #efefff; color: var(--primary);
+    }
+    #billingInfo {
+      font-size: 0.78rem !important;
+      line-height: 1.4 !important;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    #pendingHint, .ctrl-row, #pInfo, #lRun {
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      max-width: 100%;
+    }
+    #dashPanelControls {
+      overflow-x: hidden;
+    }
+    #dashPanelControls .qt-w {
+      max-width: 100%;
+    }
+    @media (max-width: 768px) {
+      .dash-page-head { margin-bottom: 10px; }
+      .dash-page-sub { font-size: 0.82rem; }
+      .app-rail-dash .app-rail-subnav .main-tab { padding: 8px 10px; }
+      #billingInfo { font-size: 0.74rem !important; }
+      .ctrl-row { font-size: 0.78rem; }
+    }
+    @media (max-width: 480px) {
+      .dash-page-sub { font-size: 0.78rem; }
+    }
+    .msg-si { background: #fff; border-color: var(--line); }
+    .msg-si:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(91,91,240,0.14); }
+    .msg-si input { color: var(--ink); }
+    .msg-it { background: #fff; border-color: var(--line); }
+    .msg-it:hover { border-color: #d9d9ff; background: #fafbff; }
+    .msg-it.msg-seen { background: #e2f8ef; border-color: rgba(0,184,132,0.28); }
+    .msg-it.unr { background: #fff5f5; border-color: rgba(239,68,68,0.25); }
+    .msg-it.sel { background: #efefff !important; border-color: var(--primary) !important; box-shadow: 0 0 0 2px rgba(91,91,240,0.14); }
+    .msg-fr, .rp-nm, .rp-subj { color: var(--ink); }
+    .msg-sj, .rp-body { color: #333c52; }
+    .msg-st--reject { background: #ffe8e8; color: #b91c1c; border-color: rgba(239,68,68,0.25); }
+    .msg-st--sent { background: #e2f8ef; color: #067a56; border-color: rgba(0,184,132,0.28); }
+    .msg-st--draft { background: #efefff; color: var(--primary); border-color: #d9d9ff; }
+    .msg-it.unr::after { background: #ef4444; }
+    .rp-av { background: #efefff; border-color: #d9d9ff; color: var(--primary); }
+    .rp-msg--reply { background: var(--soft); border-color: var(--line); }
+    .rp-msg-lbl { color: #00b884; }
+    .run-btn {
+      background: var(--grad); border-radius: 12px; font-family: var(--font);
+      box-shadow: 0 8px 20px rgba(91,91,240,0.28);
+    }
+    .run-btn:hover { box-shadow: 0 12px 26px rgba(91,91,240,0.36); }
+    .run-btn.auto-on { background: linear-gradient(135deg,#00b884,#067a56); }
+    .qt th { background: #fff; color: var(--muted); border-bottom-color: var(--line); }
+    .qt td { color: #333c52; border-bottom-color: var(--line); }
+    .qt tr:hover td { background: var(--soft); }
+    .rb.ap { background: #fff3e4; color: #9a5b0a; border-color: rgba(224,138,30,0.3); }
+    .rb.rk { background: #ffe8e8; color: #b91c1c; border-color: rgba(239,68,68,0.25); }
+    .rb.ar { background: #e7f3ff; color: #1d4ed8; border-color: rgba(59,130,246,0.25); }
+    .sb.pe { background: #efefff; color: var(--primary); border-color: #d9d9ff; }
+    .sb.dn { background: #e2f8ef; color: #067a56; border-color: rgba(0,184,132,0.28); }
+    .sb.rj { background: #ffe8e8; color: #b91c1c; border-color: rgba(239,68,68,0.25); }
+    .sb.er { background: #fff3e4; color: #9a5b0a; border-color: rgba(224,138,30,0.3); }
+    :root {
+      --blue: #5b5bf0;
+      --blue-d: #4a4ad4;
+      --blue-l: #5b5bf0;
+      --blue-soft: rgba(91,91,240,0.12);
+      --blue-glow: rgba(91,91,240,0.28);
+      --red: #ef4444;
+      --warn: #e08a1e;
+      --info: #5b5bf0;
+      --grn-l: #00b884;
+      --card-h: #f6f8fd;
+      --font-head: var(--font);
+    }
+    .app-rail-dash .app-rail-link,
+    .app-rail-dash .app-rail-parent { font-size: 0.9rem; }
+    .app-rail-dash .app-rail-link i,
+    .app-rail-dash .app-rail-parent i { width: 1.1em; text-align: center; }
+    .dash-panel-focus { outline: 2px solid rgba(91,91,240,0.35); outline-offset: -2px; }
 
-{% block content %}
+  </style>
+</head>
+<body class="app-shell">
+  {% include "components/app_shell_top.html" %}
+  <div class="app-shell-body">
+    <aside class="app-rail app-rail-dash" aria-label="App navigation">
+      <nav class="app-rail-nav" aria-label="App pages">
+        <a href="{% url 'setup' %}" class="app-rail-link">
+          <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-gear" aria-hidden="true"></i> Setup</span>
+        </a>
+        <div class="app-rail-group">
+          <div class="app-rail-parent is-active" aria-current="page">
+            <i class="fa-solid fa-inbox" aria-hidden="true"></i> Dashboard
+          </div>
+          <nav class="app-rail-subnav" id="dashRailNav" aria-label="Dashboard sections">
+            <button class="main-tab on" id="btnDashMessages" type="button" data-dash="messages" onclick="showDash('messages')">
+              <div>
+                <div class="main-tab-label">Messages</div>
+                <div class="sub">Inbox list &amp; search</div>
+              </div>
+              <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></div>
+            </button>
+            <button class="main-tab" id="btnDashReading" type="button" data-dash="reading" onclick="showDash('reading')">
+              <div>
+                <div class="main-tab-label">Reading</div>
+                <div class="sub">Thread preview</div>
+              </div>
+              <div class="tab-icon" aria-hidden="true"><i class="fa-regular fa-envelope-open"></i></div>
+            </button>
+            <button class="main-tab" id="btnDashControls" type="button" data-dash="controls" onclick="showDash('controls')">
+              <div>
+                <div class="main-tab-label">Controls &amp; Queue</div>
+                <div class="sub">Poll &amp; pending jobs</div>
+              </div>
+              <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-sliders"></i></div>
+            </button>
+          </nav>
+        </div>
+      </nav>
+      <a class="app-rail-upgrade" href="{% url 'pricing' %}">Upgrade plan</a>
+    </aside>
+    <main id="main-content" class="app-main">
+
+  <div class="dash-page-head">
+    <p class="dash-page-sub" style="margin:0;">Inbox preview, queue status, and manual runs. <strong id="pgStatus">Checking connection…</strong></p>
+  </div>
+
   <div class="setup-card dash-card">
-    <div class="setup-card-header">
-      <div class="setup-card-title"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Dashboard</div>
-      <div class="setup-card-sub">
-        Inbox preview, queue status, and manual runs. <strong id="pgStatus">Checking connection…</strong>
-      </div>
-    </div>
     <div class="dash-body">
   <!-- Hidden legacy status elements used by existing JS -->
   <div style="display:none;">
@@ -239,15 +471,22 @@
 
   <div class="tri" id="inbox-section">
     <!-- Messages -->
-    <div class="pnl">
+    <div class="pnl" id="dashPanelMessages">
       <div class="pnl-hd">
         <span class="pnl-t">Messages</span>
         <span class="pnl-badge" id="msgCnt">-</span>
       </div>
       <div class="dash-mailbox">
-        <label class="small dash-mailbox-label" for="dashAccountSelect">Multiple Mailbox</label>
-        <select id="dashAccountSelect" class="dash-mailbox-select" aria-label="Select mailbox"></select>
-        <div class="small dash-mailbox-viewing" id="dashAccountViewing"></div>
+        <label class="small dash-mailbox-label" for="dashAccountTrigger">Multiple Mailbox</label>
+        <div class="dash-mb-wrap">
+          <select id="dashAccountSelect" class="dash-mailbox-select" aria-label="Select mailbox" tabindex="-1"></select>
+          <button type="button" class="dash-mb-trigger" id="dashAccountTrigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="dashAccountMenu">
+            <span class="dash-mb-trigger-text" id="dashAccountTriggerText">Select mailbox</span>
+            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+          </button>
+          <div class="small dash-mailbox-viewing" id="dashAccountViewing"></div>
+          <div class="dash-mb-menu" id="dashAccountMenu" role="listbox" hidden></div>
+        </div>
       </div>
       <div class="msg-search">
         <div class="msg-si">
@@ -261,7 +500,7 @@
     </div>
 
     <!-- Reading Pane -->
-    <div class="pnl">
+    <div class="pnl" id="dashPanelReading">
       <div class="pnl-hd"><span class="pnl-t">Reading pane</span></div>
       <div class="rp-empty" id="rpE">
         <i class="fa-regular fa-envelope-open" aria-hidden="true"></i>
@@ -293,7 +532,7 @@
     </div>
 
     <!-- Controls -->
-    <div class="pnl">
+    <div class="pnl" id="dashPanelControls">
       <div class="pnl-hd">
         <span class="pnl-t">Controls</span>
         <span class="pnl-badge" id="qCnt">-</span>
@@ -327,6 +566,32 @@
   </div>
 
   <script>
+    // Dashboard left-rail section focus (Messages / Reading / Controls)
+    window.showDash = function (which) {
+      const map = {
+        messages: { panel: 'dashPanelMessages', btn: 'btnDashMessages' },
+        reading: { panel: 'dashPanelReading', btn: 'btnDashReading' },
+        controls: { panel: 'dashPanelControls', btn: 'btnDashControls' },
+      };
+      const entry = map[which] || map.messages;
+      ['btnDashMessages', 'btnDashReading', 'btnDashControls'].forEach(function (id) {
+        const b = document.getElementById(id);
+        if (b) b.classList.toggle('on', id === entry.btn);
+      });
+      document.querySelectorAll('#dashRailNavDrawer .main-tab').forEach(function (b) {
+        const on = (b.getAttribute('data-dash') || '') === which;
+        b.classList.toggle('on', on);
+      });
+      const panel = document.getElementById(entry.panel);
+      if (!panel) return;
+      document.querySelectorAll('.dash-panel-focus').forEach(function (el) {
+        el.classList.remove('dash-panel-focus');
+      });
+      panel.classList.add('dash-panel-focus');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      window.setTimeout(function () { panel.classList.remove('dash-panel-focus'); }, 1200);
+    };
+
     // UI helpers for the “hubbuhu” dashboard layout
     let _allThreadRows = [];
     function threadSearchHaystack(t){
@@ -702,11 +967,98 @@
     function updateDashAccountViewing(){
       const sel = document.getElementById('dashAccountSelect');
       const viewing = document.getElementById('dashAccountViewing');
-      if(!sel || !viewing) return;
+      const triggerText = document.getElementById('dashAccountTriggerText');
+      if(!sel) return;
       const opt = sel.selectedOptions && sel.selectedOptions[0];
-      if(opt){
-        viewing.textContent = 'Viewing inbox for ' + (opt.textContent || 'mailbox').replace(/\s*-\s*not connected\s*$/i, '');
+      const label = opt ? (opt.textContent || 'mailbox') : 'Select mailbox';
+      if(triggerText) triggerText.textContent = label;
+      if(viewing && opt){
+        viewing.textContent = 'Viewing inbox for ' + label.replace(/\s*-\s*not connected\s*$/i, '').replace(/\s*-\s*wrong Google account\s*$/i, '');
       }
+      syncDashMailboxMenuSelection();
+    }
+
+    function closeDashMailboxMenu(){
+      const menu = document.getElementById('dashAccountMenu');
+      const trigger = document.getElementById('dashAccountTrigger');
+      const wrap = trigger && trigger.closest ? trigger.closest('.dash-mb-wrap') : null;
+      if(menu){
+        menu.classList.remove('open');
+        menu.hidden = true;
+      }
+      if(trigger) trigger.setAttribute('aria-expanded', 'false');
+      if(wrap) wrap.classList.remove('is-open');
+    }
+
+    function openDashMailboxMenu(){
+      const menu = document.getElementById('dashAccountMenu');
+      const trigger = document.getElementById('dashAccountTrigger');
+      const wrap = trigger && trigger.closest ? trigger.closest('.dash-mb-wrap') : null;
+      if(!menu || !trigger) return;
+      menu.hidden = false;
+      menu.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
+      if(wrap) wrap.classList.add('is-open');
+      syncDashMailboxMenuSelection();
+    }
+
+    function syncDashMailboxMenuSelection(){
+      const sel = document.getElementById('dashAccountSelect');
+      const menu = document.getElementById('dashAccountMenu');
+      if(!sel || !menu) return;
+      const val = String(sel.value || '');
+      menu.querySelectorAll('.dash-mb-option').forEach(function(btn){
+        btn.classList.toggle('is-selected', String(btn.getAttribute('data-value') || '') === val);
+      });
+    }
+
+    function rebuildDashMailboxMenu(){
+      const sel = document.getElementById('dashAccountSelect');
+      const menu = document.getElementById('dashAccountMenu');
+      if(!sel || !menu) return;
+      menu.innerHTML = '';
+      Array.prototype.forEach.call(sel.options, function(opt){
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dash-mb-option';
+        btn.setAttribute('role', 'option');
+        btn.setAttribute('data-value', opt.value);
+        btn.textContent = opt.textContent || opt.value;
+        if(String(opt.value) === String(sel.value)) btn.classList.add('is-selected');
+        btn.addEventListener('click', function(){
+          if(String(sel.value) !== String(opt.value)){
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+          }else{
+            updateDashAccountViewing();
+          }
+          closeDashMailboxMenu();
+        });
+        menu.appendChild(btn);
+      });
+      updateDashAccountViewing();
+    }
+
+    function initDashMailboxPicker(){
+      const trigger = document.getElementById('dashAccountTrigger');
+      const menu = document.getElementById('dashAccountMenu');
+      const wrap = trigger && trigger.closest ? trigger.closest('.dash-mb-wrap') : null;
+      if(!trigger || !menu || trigger.dataset.bound === '1') return;
+      trigger.dataset.bound = '1';
+      trigger.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        const open = !menu.classList.contains('open');
+        if(open) openDashMailboxMenu();
+        else closeDashMailboxMenu();
+      });
+      document.addEventListener('click', function(e){
+        if(!wrap || wrap.contains(e.target)) return;
+        closeDashMailboxMenu();
+      });
+      document.addEventListener('keydown', function(e){
+        if(e.key === 'Escape') closeDashMailboxMenu();
+      });
     }
 
     function resetReadingPane(){
@@ -778,6 +1130,8 @@
           sel.dataset.changeBound = '1';
           sel.onchange = () => { switchMailbox(); };
         }
+        rebuildDashMailboxMenu();
+        initDashMailboxPicker();
       }catch(e){ /* ignore */ }
     }
 
@@ -986,4 +1340,9 @@
   </script>
     </div>
   </div>
-{% endblock %}
+    </main>
+  </div>
+  {% include "components/toasts.html" with toast_top="64px" %}
+  {% include "components/app_shell_js.html" %}
+</body>
+</html>

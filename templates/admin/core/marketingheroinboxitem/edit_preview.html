@@ -1,0 +1,34 @@
+{% load i18n %}
+<div class="mp-hero-edit__preview-wrap" id="mp-hero-preview-root">
+  <div class="mp-hero-edit__preview-card">
+    <div class="mp-hero-edit__preview-head">
+      <span class="mp-hero-edit__preview-label">{% trans "Live preview" %}</span>
+      <span class="mp-hero-edit__preview-hint">{% trans "Updates as you type" %}</span>
+    </div>
+    <div class="mp-hero-edit__mock">
+      <div class="mp-hero-edit__mock-bar" aria-hidden="true">
+        <span class="mp-hero-edit__dot mp-hero-edit__dot--r"></span>
+        <span class="mp-hero-edit__dot mp-hero-edit__dot--y"></span>
+        <span class="mp-hero-edit__dot mp-hero-edit__dot--g"></span>
+        <span class="mp-hero-edit__mock-url">app.mailpilot.io/inbox</span>
+      </div>
+      <div class="mp-hero-edit__email email-item" id="mp-hero-preview-row">
+        <div class="email-avatar" id="mp-hero-preview-avatar" style="{% if original %}{{ original.avatar_gradient_style }}{% else %}background:linear-gradient(135deg,#4f6ef7,#a78bfa){% endif %}">
+          {% if original %}{{ original.avatar_initials }}{% else %}AK{% endif %}
+        </div>
+        <div class="email-meta">
+          <div class="email-from" id="mp-hero-preview-from">
+            {% if original %}{{ original.sender_display }}{% else %}{% trans "Sender name" %}{% endif %}
+          </div>
+          <div class="email-subject" id="mp-hero-preview-subject">
+            {% if original %}{{ original.subject }}{% else %}{% trans "Subject line appears here" %}{% endif %}
+          </div>
+        </div>
+        <div class="email-badge {% if original %}{{ original.badge_css_class }}{% else %}badge-replied{% endif %}" id="mp-hero-preview-badge">
+          <i class="{% if original and original.badge_icon_class %}{{ original.badge_icon_class }}{% endif %}" id="mp-hero-preview-badge-ico" aria-hidden="true" {% if not original or not original.badge_icon_class %}hidden{% endif %}></i>
+          <span id="mp-hero-preview-badge-text">{% if original %}{{ original.badge_label }}{% else %}✓ Auto-Replied{% endif %}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,42 @@
+{% load i18n %}
+<div class="mp-mkt mb-4">
+  <div class="mp-mkt__toolbar">
+    <div class="mp-mkt__intro">
+      <h2 class="mp-mkt__title">{{ mp_mkt.title }}</h2>
+      <p class="mp-mkt__sub">{{ mp_mkt.subtitle }}</p>
+      <div class="mp-mkt__links">
+        {% if mp_mkt.site_url %}
+          <a class="mp-mkt__link" href="{{ mp_mkt.site_url }}" target="_blank" rel="noopener">{% trans "View on site" %}</a>
+        {% endif %}
+        {% if mp_mkt.settings_url %}
+          <a class="mp-mkt__link" href="{{ mp_mkt.settings_url }}">{{ mp_mkt.settings_label }}</a>
+        {% endif %}
+        {% if mp_mkt.extra_links %}
+          {% for link in mp_mkt.extra_links %}
+            <a class="mp-mkt__link" href="{{ link.href }}">{{ link.label }}</a>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+    {% if not mp_mkt.hide_stats %}
+    <div class="mp-mkt__stats" aria-label="{% trans 'Section stats' %}">
+      <div class="mp-mkt__stat">
+        <span class="mp-mkt__stat-value">{{ mp_mkt.total }}</span>
+        <span class="mp-mkt__stat-label">{% trans "Total" %}</span>
+      </div>
+      <div class="mp-mkt__stat">
+        <span class="mp-mkt__stat-value">{{ mp_mkt.published }}</span>
+        <span class="mp-mkt__stat-label">{% trans "Published" %}</span>
+      </div>
+      <div class="mp-mkt__stat">
+        <span class="mp-mkt__stat-value">{{ mp_mkt.homepage }}</span>
+        <span class="mp-mkt__stat-label">{% trans "On homepage" %}</span>
+      </div>
+      <div class="mp-mkt__stat{% if mp_mkt.draft %} mp-mkt__stat--muted{% endif %}">
+        <span class="mp-mkt__stat-value">{{ mp_mkt.draft }}</span>
+        <span class="mp-mkt__stat-label">{% trans "Draft" %}</span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>

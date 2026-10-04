@@ -1,63 +1,333 @@
-{% extends 'unfold/layouts/unauthenticated.html' %}
+{% load i18n static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}{{ title }} | {{ site_title }}{% endblock %}</title>
+  {% include "components/favicon.html" %}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink: #141a2e;
+      --muted: #5b6478;
+      --soft: #f4f6fb;
+      --line: #e6eaf3;
+      --primary: #5b5bf0;
+      --primary2: #8a5bf0;
+      --grad: linear-gradient(135deg,#5b5bf0,#8a5bf0);
+      --danger: #b91c1c;
+      --danger-bg: #ffe8e8;
+      --danger-border: rgba(239,68,68,0.3);
+    }
+    html, body {
+      height: 100%;
+      font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+      background: var(--soft);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0,1.05fr) minmax(0,0.95fr);
+    }
+    .brand-panel {
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 40px 48px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 70% 50% at 10% -10%, rgba(91,91,240,0.14) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 45% at 100% 100%, rgba(138,91,240,0.1) 0%, transparent 50%),
+        #fff;
+      border-right: 1px solid var(--line);
+    }
+    .brand-panel::after {
+      content: "";
+      position: absolute;
+      width: 280px; height: 280px;
+      right: -80px; bottom: -60px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(91,91,240,0.08), transparent 70%);
+      pointer-events: none;
+    }
+    .logo {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-size: 1.2rem; font-weight: 800; letter-spacing: -0.03em;
+      text-decoration: none; color: var(--ink); position: relative; z-index: 1;
+    }
+    .logo span {
+      background: var(--grad);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-body {
+      flex: 1; display: flex; flex-direction: column; justify-content: center;
+      padding: 48px 0; max-width: 440px; position: relative; z-index: 1;
+    }
+    .brand-kicker {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--primary); margin-bottom: 14px;
+    }
+    .brand-kicker::before {
+      content: ""; width: 18px; height: 2px; border-radius: 2px; background: var(--grad);
+    }
+    .brand-title {
+      font-size: clamp(1.75rem, 3vw, 2.4rem);
+      font-weight: 800; line-height: 1.12; letter-spacing: -0.035em; margin-bottom: 14px;
+    }
+    .brand-title .gr {
+      background: var(--grad);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-desc { font-size: 0.95rem; color: var(--muted); line-height: 1.65; margin-bottom: 28px; }
+    .feat-list { display: flex; flex-direction: column; gap: 12px; }
+    .feat-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 14px; border-radius: 14px;
+      border: 1px solid var(--line); background: rgba(255,255,255,0.72);
+    }
+    .feat-icon {
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #efefff; border: 1px solid #d9d9ff; color: var(--primary); font-size: 0.9rem;
+    }
+    .feat-text { font-size: 0.88rem; color: var(--muted); line-height: 1.5; padding-top: 6px; }
+    .feat-text strong { color: var(--ink); font-weight: 700; }
+    .brand-foot { font-size: 0.75rem; color: var(--muted); position: relative; z-index: 1; }
+    .brand-foot a { color: var(--primary); font-weight: 600; text-decoration: none; }
+    .brand-foot a:hover { text-decoration: underline; }
 
-{% load i18n static unfold %}
-
-{% block extrastyle %}
-    {{ block.super }}
-    {{ form.media }}
-{% endblock %}
-
-{% block title %}
-    {{ title }} | {{ site_title }}
-{% endblock %}
-
-{% block content %}
-    {% include "unfold/helpers/unauthenticated_title.html" with title=site_title|default:_('Django site admin') subtitle=_('Welcome back to') %}
-
-    {% include "unfold/helpers/messages.html" %}
-
-    {% if form.errors or form.non_field_errors %}
-        <div class="flex flex-col gap-4 mb-8 *:mb-0">
-            {% include "unfold/helpers/messages/errornote.html" with errors=form.errors %}
-
-            {% include "unfold/helpers/messages/error.html" with errors=form.non_field_errors %}
-
-            {% if user.is_authenticated %}
-                {% blocktranslate trimmed asvar message %}
-                    You are authenticated as {{ username }}, but are not authorized to
-                    access this page. Would you like to login to a different account?
-                {% endblocktranslate %}
-
-                {% include "unfold/helpers/messages/error.html" with error=message %}
-            {% endif %}
+    .form-panel {
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      padding: 48px 40px;
+      background:
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(91,91,240,0.06) 0%, transparent 50%),
+        var(--soft);
+    }
+    .form-box {
+      width: 100%; max-width: 420px;
+      background: #fff; border: 1px solid var(--line); border-radius: 20px;
+      padding: 32px 28px; box-shadow: 0 18px 50px rgba(20,26,46,0.07);
+    }
+    .back {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.82rem; font-weight: 600; color: var(--muted);
+      text-decoration: none; margin-bottom: 18px;
+    }
+    .back:hover { color: var(--primary); }
+    .form-title {
+      font-size: 1.55rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 6px;
+    }
+    .form-title span {
+      background: var(--grad);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .form-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 22px; }
+    .err {
+      margin: 0 0 16px; padding: 12px 14px; border-radius: 14px;
+      background: var(--danger-bg); border: 1px solid var(--danger-border);
+      color: var(--danger); font-size: 0.85rem; font-weight: 600; line-height: 1.4;
+    }
+    .err ul { margin: 0; padding-left: 1.1em; }
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block; font-size: 0.78rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;
+    }
+    .field label .req { color: var(--danger); }
+    .input-wrap { position: relative; }
+    .input-wrap .icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 0.95rem; pointer-events: none;
+    }
+    .input-wrap input {
+      width: 100%; padding: 12px 14px 12px 42px;
+      background: #fff; border: 1.5px solid var(--line); border-radius: 12px;
+      color: var(--ink); font-size: 0.9rem; font-family: inherit; outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input-wrap input:focus {
+      border-color: rgba(91,91,240,0.55);
+      box-shadow: 0 0 0 3px rgba(91,91,240,0.14);
+    }
+    .input-wrap input.error {
+      border-color: rgba(239,68,68,0.55);
+      box-shadow: 0 0 0 3px rgba(239,68,68,0.12);
+    }
+    .input-wrap .eye-btn {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 4px;
+    }
+    .input-wrap .eye-btn:hover { color: var(--ink); }
+    .field-hint { font-size: 0.74rem; color: var(--muted); margin-top: 6px; min-height: 1em; }
+    .field-hint.bad { color: var(--danger); font-weight: 600; }
+    .forgot { display: flex; justify-content: flex-end; margin: -4px 0 14px; }
+    .forgot a { font-size: 0.82rem; font-weight: 600; color: var(--primary); text-decoration: none; }
+    .forgot a:hover { text-decoration: underline; }
+    .submit-btn {
+      width: 100%; padding: 13px; border: none; border-radius: 12px;
+      background: var(--grad); color: #fff; font-size: 0.92rem; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      box-shadow: 0 10px 24px rgba(91,91,240,0.28);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(91,91,240,0.36); }
+    .foot {
+      text-align: center; margin-top: 18px; font-size: 0.86rem; color: var(--muted);
+    }
+    .foot a { color: var(--primary); font-weight: 700; text-decoration: none; }
+    .foot a:hover { text-decoration: underline; }
+    @media (max-width: 900px) {
+      .page { grid-template-columns: 1fr; }
+      .brand-panel { display: none; }
+      .form-panel { padding: 32px 20px; min-height: 100vh; }
+    }
+    @media (max-width: 480px) {
+      .form-box { padding: 24px 18px; border-radius: 18px; }
+      .form-title { font-size: 1.35rem; }
+      .input-wrap input { font-size: 16px; }
+      .submit-btn { min-height: 44px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <aside class="brand-panel">
+    <a href="{% if site_url %}{{ site_url }}{% else %}/{% endif %}" class="logo" aria-label="MailPilot home">
+      {% include "components/brand_logo.html" with logo_w=28 logo_h=28 %}<span>MailPilot</span>
+    </a>
+    <div class="brand-body">
+      <p class="brand-kicker">Staff access</p>
+      <h1 class="brand-title">Your <span class="gr">control center</span> for MailPilot</h1>
+      <p class="brand-desc">Sign in to manage users, billing, marketing content, and operations.</p>
+      <div class="feat-list">
+        <div class="feat-row">
+          <div class="feat-icon" aria-hidden="true"><i class="fa-solid fa-gauge-high"></i></div>
+          <div class="feat-text"><strong>Operations dashboard</strong> — usage, plans, and mailboxes at a glance</div>
         </div>
-    {% endif %}
+        <div class="feat-row">
+          <div class="feat-icon" aria-hidden="true"><i class="fa-solid fa-users-gear"></i></div>
+          <div class="feat-text"><strong>User &amp; billing tools</strong> — subscriptions, gateways, and support</div>
+        </div>
+        <div class="feat-row">
+          <div class="feat-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></div>
+          <div class="feat-text"><strong>Staff only</strong> — restricted to authorized admin accounts</div>
+        </div>
+      </div>
+    </div>
+    <div class="brand-foot">
+      <a href="{% if site_url %}{{ site_url }}{% else %}/{% endif %}">← Return to site</a>
+    </div>
+  </aside>
 
-    {% block login_before %}{% endblock %}
+  <div class="form-panel">
+    <div class="form-box">
+      <a class="back" href="{% if site_url %}{{ site_url }}{% else %}/{% endif %}">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Return to site
+      </a>
+      <h1 class="form-title">Admin <span>sign in</span></h1>
+      <p class="form-sub">Welcome back — continue to MailPilot Admin.</p>
 
-    <form action="{{ app_path }}" method="post" id="login-form">
+      {% if form.errors or form.non_field_errors %}
+        <div class="err" role="alert">
+          {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+          {% elif form.errors %}
+            {% translate "Please correct the errors below." %}
+          {% endif %}
+          {% if user.is_authenticated %}
+            <div style="margin-top:8px;">
+              {% blocktranslate trimmed with username=user.get_username %}
+                You are authenticated as {{ username }}, but are not authorized to access this page.
+                Would you like to login to a different account?
+              {% endblocktranslate %}
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <form action="{{ app_path }}" method="post" id="login-form" novalidate>
         {% csrf_token %}
         <input type="hidden" name="next" value="{% firstof next admin_index_url %}" />
 
-        {% include "unfold/helpers/field.html" with field=form.username %}
-
-        {% include "unfold/helpers/field.html" with field=form.password %}
-
-        <div class="flex flex-col gap-3 mt-6">
-            {% component "unfold/components/button.html" with submit=1 variant="primary" class="submit-row w-full" %}
-                {% translate 'Log in' %} <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">arrow_forward</span>
-            {% endcomponent %}
-
-            {% url 'admin_password_reset' as password_reset_url %}
-            {% url 'admin:admin_password_reset' as unfold_password_reset_url %}
-
-            {% if password_reset_url or unfold_password_reset_url %}
-                {% component "unfold/components/button.html" with href=password_reset_url|default:unfold_password_reset_url variant="secondary" class="password-reset-link w-full" %}
-                    {% translate 'Forgotten your password or username?' %}
-                {% endcomponent %}
-            {% endif %}
+        <div class="field">
+          <label for="id_username">{% translate 'Username' %} <span class="req" aria-hidden="true">*</span></label>
+          <div class="input-wrap">
+            <span class="icon" aria-hidden="true"><i class="fa-regular fa-user"></i></span>
+            <input
+              type="text"
+              name="{{ form.username.name }}"
+              id="id_username"
+              value="{{ form.username.value|default_if_none:'' }}"
+              autocomplete="username"
+              required
+              autofocus
+              class="{% if form.username.errors %}error{% endif %}"
+            />
+          </div>
+          {% if form.username.errors %}
+            <div class="field-hint bad">{% for e in form.username.errors %}{{ e }}{% endfor %}</div>
+          {% endif %}
         </div>
-    </form>
 
-    {% block login_after %}{% endblock %}
-{% endblock %}
+        <div class="field">
+          <label for="id_password">{% translate 'Password' %} <span class="req" aria-hidden="true">*</span></label>
+          <div class="input-wrap">
+            <span class="icon" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            <input
+              type="password"
+              name="{{ form.password.name }}"
+              id="id_password"
+              autocomplete="current-password"
+              required
+              class="{% if form.password.errors %}error{% endif %}"
+            />
+            <button type="button" class="eye-btn" onclick="togglePwd()" id="eyeBtn" aria-label="{% translate 'Show password' %}">
+              <i class="fa-regular fa-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+          {% if form.password.errors %}
+            <div class="field-hint bad">{% for e in form.password.errors %}{{ e }}{% endfor %}</div>
+          {% endif %}
+        </div>
+
+        {% url 'admin_password_reset' as password_reset_url %}
+        {% url 'admin:admin_password_reset' as unfold_password_reset_url %}
+        {% if password_reset_url or unfold_password_reset_url %}
+          <div class="forgot">
+            <a href="{{ password_reset_url|default:unfold_password_reset_url }}">{% translate 'Forgotten your password or username?' %}</a>
+          </div>
+        {% endif %}
+
+        <button type="submit" class="submit-btn">{% translate 'Log in' %}</button>
+      </form>
+
+      <div class="foot">
+        Not staff? <a href="/login">Sign in to the app</a>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function togglePwd(){
+  const inp = document.getElementById('id_password');
+  const btn = document.getElementById('eyeBtn');
+  if(!inp || !btn) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  const ico = btn.querySelector('i');
+  if(ico) ico.className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+}
+</script>
+</body>
+</html>

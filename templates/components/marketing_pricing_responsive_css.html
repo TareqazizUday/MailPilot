@@ -90,10 +90,13 @@
     }
 
     @media (max-width: 1024px) {
-      .pricing-grid {
+      .pricing-grid,
+      #pricing.mp-pricing .pricing-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         max-width: 920px;
         gap: 18px;
+        margin-left: auto;
+        margin-right: auto;
       }
       .pricing-head-row {
         justify-content: center;
@@ -102,24 +105,26 @@
     }
 
     @media (max-width: 768px) {
-      .pricing-grid {
-        margin-top: 36px;
-        gap: 16px;
+      .pricing-grid,
+      #pricing.mp-pricing .pricing-grid {
+        margin-top: 28px;
+        gap: 14px;
       }
-      .pricing-card {
+      .pricing-card,
+      #pricing.mp-pricing .pricing-card {
         padding: 24px 18px 22px;
       }
       .pricing-card.is-active {
         animation: none;
         transform: none;
       }
-      .pricing-card.is-active:hover {
+      .pricing-card.is-active:hover,
+      .pricing-card:hover,
+      #pricing.mp-pricing .pricing-card:hover {
         transform: none;
       }
-      .pricing-card:hover {
-        transform: none;
-      }
-      .pricing-price {
+      .pricing-price,
+      #pricing.mp-pricing .pricing-price {
         font-size: clamp(1.65rem, 6vw, 2rem);
       }
       .pricing-was {
@@ -128,12 +133,14 @@
     }
 
     @media (max-width: 600px) {
-      .pricing-grid {
+      .pricing-grid,
+      #pricing.mp-pricing .pricing-grid {
         grid-template-columns: 1fr;
         max-width: min(480px, 100%);
         gap: 14px;
       }
-      .pricing-card.has-badge {
+      .pricing-card.has-badge,
+      #pricing.mp-pricing .pricing-card.has-badge {
         padding-top: 40px;
       }
     }

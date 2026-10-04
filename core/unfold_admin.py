@@ -15,10 +15,6 @@ def dashboard_callback(request, context):
     return context
 
 
-def environment_callback(request):
-    return ["MailPilot", "primary"]
-
-
 def contact_badge_callback(request):
     from core.models import ContactSubmission
 

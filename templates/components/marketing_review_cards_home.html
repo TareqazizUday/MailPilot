@@ -1,16 +1,31 @@
+{% load static %}
 {% for review in marketing_reviews %}
-<article class="testimonial-card">
-  <div class="testimonial-stars" aria-label="{{ review.rating }} out of 5 stars">{{ review.stars_display }}</div>
-  <p class="testimonial-quote">{{ review.quote }}</p>
-  {% if review.metric %}<p class="testimonial-metric">{{ review.metric }}</p>{% endif %}
-  <div class="testimonial-footer">
-    <div class="testimonial-avatar" style="{{ review.avatar_style_home }}">{{ review.avatar_initials }}</div>
-    <div>
-      <div class="testimonial-name">{{ review.author_name }}</div>
-      <div class="testimonial-role">{{ review.author_role }}</div>
+<article class="mp-reviews-slide{% if forloop.first %} is-active{% endif %}" data-slide="{{ forloop.counter0 }}" aria-hidden="{% if forloop.first %}false{% else %}true{% endif %}">
+  <div class="mp-reviews-slide-media">
+    {% if review.photo_url %}
+    <img src="{{ review.photo_url }}" width="640" height="640" alt="{{ review.author_name }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}" decoding="async" />
+    {% elif review.fallback_photo_static %}
+    <img src="{% static review.fallback_photo_static %}?v=1" width="640" height="640" alt="{{ review.author_name }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}" decoding="async" />
+    {% else %}
+    <div class="mp-reviews-slide-fallback" style="{{ review.avatar_style_home }}" aria-hidden="true">{{ review.avatar_initials }}</div>
+    {% endif %}
+  </div>
+  <div class="mp-reviews-slide-body">
+    <div class="mp-reviews-stars" aria-label="{{ review.rating }} out of 5 stars">
+      {% for _ in "12345"|make_list %}
+      <span class="mp-reviews-star{% if forloop.counter > review.rating %} is-empty{% endif %}" aria-hidden="true"></span>
+      {% endfor %}
     </div>
+    <blockquote class="mp-reviews-quote">{{ review.quote }}</blockquote>
+    {% if review.metric %}<p class="mp-reviews-metric">{{ review.metric }}</p>{% endif %}
+    <footer class="mp-reviews-author">
+      <div>
+        <div class="mp-reviews-name">{{ review.author_name }}</div>
+        <div class="mp-reviews-role">{{ review.author_role }}</div>
+      </div>
+    </footer>
   </div>
 </article>
 {% empty %}
-<p class="testimonials-intro" style="grid-column:1/-1;text-align:center;">Reviews will appear here once published in admin.</p>
+<p class="mp-reviews-empty">Reviews will appear here once published in admin.</p>
 {% endfor %}
