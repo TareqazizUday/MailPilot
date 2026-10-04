@@ -31,10 +31,10 @@
       <div class="rag-tab-media" aria-hidden="true">
         <img
           class="rag-tab-image"
-          src="{% if item.accent_class == "i-green" or item.accent_class == "i-orange" %}{% static 'img/hero-agents/mp-agent-02.png' %}{% elif item.accent_class == "i-blue" or item.accent_class == "i-teal" %}{% static 'img/hero-agents/mp-agent-03.png' %}{% else %}{% static 'img/hero-agents/mp-agent-01.png' %}{% endif %}"
+          src="{% if item.accent_class == 'i-green' %}{% static 'img/rag/rag-02-match.jpg' %}{% elif item.accent_class == 'i-orange' %}{% static 'img/rag/rag-03-skip.jpg' %}{% elif item.accent_class == 'i-blue' or item.accent_class == 'i-teal' %}{% static 'img/rag/rag-04-private.jpg' %}{% else %}{% static 'img/rag/rag-01-sources.jpg' %}{% endif %}"
           alt=""
-          width="2120"
-          height="1704"
+          width="1600"
+          height="1200"
           loading="lazy"
           decoding="async"
         />

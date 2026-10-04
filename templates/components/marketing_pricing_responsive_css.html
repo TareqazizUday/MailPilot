@@ -8,12 +8,14 @@
     .pricing-head-copy {
       min-width: 0;
     }
-    .pricing-grid {
+    .pricing-grid,
+    #pricing.mp-pricing .pricing-grid {
       width: 100%;
       min-width: 0;
       box-sizing: border-box;
       overflow: visible;
       padding-top: 22px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
     .pricing-card {
       min-width: 0;
