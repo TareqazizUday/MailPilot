@@ -267,7 +267,7 @@ class ContactSubmission(models.Model):
 
 
 class MarketingFeature(models.Model):
-    """Public marketing feature cards (/features and homepage)."""
+    """Public marketing feature cards (homepage features section)."""
 
     title = models.CharField(max_length=120)
     description = models.TextField()
@@ -367,7 +367,7 @@ class HowItWorksStep(models.Model):
 
 
 class MarketingReview(models.Model):
-    """Customer review / testimonial cards (/reviews and homepage)."""
+    """Customer review / testimonial cards (homepage reviews section)."""
 
     quote = models.TextField()
     metric = models.CharField(max_length=160, blank=True, default="")
@@ -447,7 +447,7 @@ class MarketingReview(models.Model):
 
 
 class MarketingPricingSettings(models.Model):
-    """Singleton copy for /pricing and homepage pricing section header."""
+    """Singleton copy for homepage pricing section header."""
 
     singleton_key = models.PositiveSmallIntegerField(primary_key=True, default=1)
     section_tag = models.CharField(max_length=40, default="Pricing")

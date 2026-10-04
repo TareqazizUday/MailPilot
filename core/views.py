@@ -260,7 +260,6 @@ def landing_page(request):
         how_it_works_steps_queryset,
         marketing_features_queryset,
         marketing_faq_queryset,
-        marketing_hero_inbox_queryset,
         marketing_pricing_plans_queryset,
         marketing_rag_queryset,
         marketing_reviews_queryset,
@@ -281,7 +280,6 @@ def landing_page(request):
     ctx["marketing_reviews"] = marketing_reviews_queryset(homepage_only=True)
     ctx["rag_items"] = marketing_rag_queryset(homepage_only=True)
     ctx["hero_settings"] = get_hero_settings()
-    ctx["hero_inbox_items"] = marketing_hero_inbox_queryset(homepage_only=True)
     ctx["faq_settings"] = get_faq_settings()
     ctx["faq_items"] = marketing_faq_queryset(homepage_only=True)
     ctx["pricing_settings"] = get_pricing_settings()
@@ -420,38 +418,10 @@ def privacy_page(request):
 
 @require_GET
 def pricing_page(request):
-    """
-    Clean URL for pricing (no `#pricing` fragment).
-    This renders a dedicated pricing page that matches the landing aesthetic.
-    """
-    from core.marketing import get_pricing_settings, marketing_pricing_plans_queryset
-    from core.pricing_currency import enrich_pricing_plans, pricing_context
-
-    pc = pricing_context(request)
-    ctx = _seo_landing_context(request, pricing_currency=pc["pricing_currency"])
-    ctx.update(pc)
-    if request.user.is_authenticated:
-        effective = runtime.get_effective_settings(request.user)
-        cfg = _user_settings_dict(request)
-        ctx["connected"] = _mailbox_connected_for_ui(effective, cfg)
-        try:
-            from core.billing import get_or_create_subscription, is_starter_expired
-
-            sub = get_or_create_subscription(request.user)
-            ctx["current_plan_code"] = sub.plan_code
-            ctx["starter_expired"] = is_starter_expired(sub)
-        except Exception:
-            ctx["current_plan_code"] = "starter"
-            ctx["starter_expired"] = False
-    else:
-        ctx["current_plan_code"] = ""
-        ctx["starter_expired"] = False
-    ctx["pricing_settings"] = get_pricing_settings()
-    ctx["pricing_plans"] = enrich_pricing_plans(
-        marketing_pricing_plans_queryset(),
-        currency=pc["pricing_currency"],
-    )
-    return render(request, "pricing.html", ctx)
+    """Permanent redirect to homepage pricing section (keeps billing query params)."""
+    qs = request.META.get("QUERY_STRING", "")
+    target = f"/?{qs}#pricing" if qs else "/#pricing"
+    return redirect(target, permanent=True)
 
 
 @require_GET
@@ -488,36 +458,14 @@ def custom_plan_builder_page(request):
 
 @require_GET
 def features_page(request):
-    """
-    Clean URL for features (no `#features` fragment).
-    """
-    from core.marketing import get_landing_page, marketing_features_queryset
-
-    ctx = _seo_landing_context(request)
-    ctx["landing"] = get_landing_page()
-    ctx["marketing_features"] = marketing_features_queryset()
-    if request.user.is_authenticated:
-        effective = runtime.get_effective_settings(request.user)
-        cfg = _user_settings_dict(request)
-        ctx["connected"] = _mailbox_connected_for_ui(effective, cfg)
-    return render(request, "features.html", ctx)
+    """Permanent redirect to homepage features section."""
+    return redirect("/#features", permanent=True)
 
 
 @require_GET
 def reviews_page(request):
-    """
-    Clean URL for reviews/testimonials (no fragment).
-    """
-    ctx = _seo_landing_context(request)
-    from core.marketing import get_landing_page, marketing_reviews_queryset
-
-    ctx["marketing_reviews"] = marketing_reviews_queryset()
-    ctx["landing"] = get_landing_page()
-    if request.user.is_authenticated:
-        effective = runtime.get_effective_settings(request.user)
-        cfg = _user_settings_dict(request)
-        ctx["connected"] = _mailbox_connected_for_ui(effective, cfg)
-    return render(request, "reviews.html", ctx)
+    """Permanent redirect to homepage reviews section."""
+    return redirect("/#testimonials", permanent=True)
 
 
 @login_required(login_url="/login")

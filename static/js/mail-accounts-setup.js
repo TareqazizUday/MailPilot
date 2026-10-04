@@ -120,7 +120,7 @@
             canDisable: true,
             reason: 'over_limit',
             lockNote:
-              'Over plan limit - pause this mailbox to stay within your plan, or <a href="/pricing/">upgrade</a>.',
+              'Over plan limit - pause this mailbox to stay within your plan, or <a href="/#pricing">upgrade</a>.',
           };
         }
       }
@@ -130,7 +130,7 @@
     if (atLimit) {
       const primary = primaryEnabledMailbox();
       let lockNote =
-        'Plan inbox limit reached - pause another mailbox or <a href="/pricing/">upgrade</a>.';
+        'Plan inbox limit reached - pause another mailbox or <a href="/#pricing">upgrade</a>.';
       if (lim === 1 && primary) {
         const transportLabel = primary.transport === 'gmail_api' ? 'Gmail' : 'SMTP';
         lockNote =
@@ -138,7 +138,7 @@
           esc(mailboxDisplayName(primary)) +
           '</strong> (' +
           transportLabel +
-          '). Pause it to use this slot, or <a href="/pricing/">upgrade</a>.';
+          '). Pause it to use this slot, or <a href="/#pricing">upgrade</a>.';
       }
       return {
         locked: true,
@@ -187,7 +187,7 @@
       esc(name) +
       '</strong> - locked on your plan (' +
       transportLabel +
-      ' allows 1 active inbox). <a href="/pricing/">Upgrade</a> to use more slots.' +
+      ' allows 1 active inbox). <a href="/#pricing">Upgrade</a> to use more slots.' +
       '</div>'
     );
   }
@@ -212,7 +212,7 @@
       esc(mailboxDisplayName(primary)) +
       '</strong> is active on ' +
       transportLabel +
-      '. Pause it to configure this transport, or <a href="/pricing/" style="color:#c4b5fd;font-weight:800;">upgrade</a>.</p>';
+      '. Pause it to configure this transport, or <a href="/#pricing" style="color:#c4b5fd;font-weight:800;">upgrade</a>.</p>';
   }
 
   function planLockBannerHtml(lockNote) {
@@ -236,7 +236,7 @@
       el.style.display = '';
       el.innerHTML =
         '<div class="oauth-h"><i class="fa-solid fa-credit-card" aria-hidden="true" style="color:var(--amber);"></i> Payment required</div>' +
-        '<p class="oauth-txt" style="margin:0;">Complete checkout for your plan before adding or enabling mailboxes. <a href="/pricing/" style="color:#c4b5fd;font-weight:800;">Go to Pricing</a></p>';
+        '<p class="oauth-txt" style="margin:0;">Complete checkout for your plan before adding or enabling mailboxes. <a href="/#pricing" style="color:#c4b5fd;font-weight:800;">Go to Pricing</a></p>';
       return;
     }
     el.style.display = 'none';
@@ -385,7 +385,7 @@
       } else {
         html +=
           '<div class="mb-card mb-card-empty mb-card-locked" title="Plan inbox limit reached">' +
-          '<i class="fa-solid fa-lock"></i> Inbox limit reached - <a href="/pricing/">upgrade</a> or pause another mailbox</div>';
+          '<i class="fa-solid fa-lock"></i> Inbox limit reached - <a href="/#pricing">upgrade</a> or pause another mailbox</div>';
       }
     }
     host.innerHTML = html;
@@ -575,7 +575,7 @@
       } else {
         html +=
           '<div class="mb-card mb-card-empty mb-card-locked" title="Plan inbox limit reached">' +
-          '<i class="fa-solid fa-lock"></i> Inbox limit reached - <a href="/pricing/">upgrade</a> or pause another mailbox</div>';
+          '<i class="fa-solid fa-lock"></i> Inbox limit reached - <a href="/#pricing">upgrade</a> or pause another mailbox</div>';
       }
     }
     host.innerHTML = html;

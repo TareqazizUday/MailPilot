@@ -76,7 +76,7 @@
   </ul>
   {% if plan.plan_code == "starter" %}
   <a
-    href="{% if user.is_authenticated %}{% if starter_expired %}{% url 'pricing' %}{% else %}{% url 'profile' %}{% endif %}{% else %}{% url 'login' %}{% endif %}"
+    href="{% if user.is_authenticated %}{% if starter_expired %}{% url 'home' %}#pricing{% else %}{% url 'profile' %}{% endif %}{% else %}{% url 'login' %}{% endif %}"
     class="pricing-cta {{ plan.cta_style }}"
     {% if plan.plan_code == "starter" %}id="starterCta" data-auth="{% if user.is_authenticated %}1{% else %}0{% endif %}"{% endif %}
   >{% if user.is_authenticated %}{% if starter_expired %}{{ plan.cta_label_starter_expired|default:"Upgrade required" }}{% else %}{{ plan.cta_label_authenticated|default:plan.cta_label }}{% endif %}{% else %}{{ plan.cta_label }}{% endif %}</a>

@@ -781,7 +781,7 @@
           <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Dashboard</span>
         </a>
       </nav>
-      <a class="app-rail-upgrade" href="{% url 'pricing' %}">Upgrade plan</a>
+      <a class="app-rail-upgrade" href="{% url 'home' %}#pricing">Upgrade plan</a>
     </aside>
     <main id="main-content" class="app-main">
       <div class="setup-page-wrap">
@@ -794,7 +794,7 @@
           <p class="setup-plan-bar-text" id="billingStripText">Checking plan…</p>
         </div>
       </div>
-      <a class="setup-plan-bar-cta" href="{% url 'pricing' %}">
+      <a class="setup-plan-bar-cta" href="{% url 'home' %}#pricing">
         Upgrade <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
       </a>
     </div>
@@ -1042,7 +1042,7 @@
             <div class="oauth-h"><i class="fa-brands fa-telegram" aria-hidden="true"></i> Connect a Telegram bot</div>
             <p class="oauth-txt" style="margin:0;">Get mail alerts and chat with your bot - replies use your Knowledge Base + LLM (same as email auto-reply). Email automation is unchanged.</p>
           </div>
-          <p class="setup-upgrade-note" id="tgUpgradeNote" style="display:none;">Telegram is included on <strong>Pro</strong> and <strong>Custom</strong> plans. <a href="/pricing/" style="color:#5b5bf0;font-weight:800;">Upgrade</a> to connect a bot.</p>
+          <p class="setup-upgrade-note" id="tgUpgradeNote" style="display:none;">Telegram is included on <strong>Pro</strong> and <strong>Custom</strong> plans. <a href="{% url 'home' %}#pricing" style="color:#5b5bf0;font-weight:800;">Upgrade</a> to connect a bot.</p>
 
           <div class="fg" style="margin-top:12px;">
             <label class="fl" for="tgEnabled">
@@ -1108,7 +1108,7 @@
             <div class="oauth-h"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp Cloud API</div>
             <p class="oauth-txt" style="margin:0;">Same optional alerts and chat commands as Telegram (Meta Business / Cloud API). Email automation is unchanged.</p>
           </div>
-          <p class="setup-upgrade-note" id="waUpgradeNote" style="display:none;">WhatsApp is included on <strong>Pro</strong> and <strong>Custom</strong> plans. <a href="/pricing/" style="color:#5b5bf0;font-weight:800;">Upgrade</a> to connect Cloud API.</p>
+          <p class="setup-upgrade-note" id="waUpgradeNote" style="display:none;">WhatsApp is included on <strong>Pro</strong> and <strong>Custom</strong> plans. <a href="{% url 'home' %}#pricing" style="color:#5b5bf0;font-weight:800;">Upgrade</a> to connect Cloud API.</p>
 
           <div class="fg" style="margin-top:12px;">
             <label class="fl" for="waEnabled">

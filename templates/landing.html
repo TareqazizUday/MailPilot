@@ -420,8 +420,6 @@
       background-position: 50% 50%;
       background-size: cover;
     }
-    .f-ic i { font-size: 1.05em; line-height: 1; }
-
     .logos { padding: 36px 0; border-block: 1px solid var(--line); background: #fafafb; overflow: hidden; }
     .logos p { text-align: center; font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #a4acc0; margin-bottom: 22px; }
     .marquee { display: flex; gap: 16px; width: max-content; animation: scroll 28s linear infinite; }
@@ -448,22 +446,6 @@
     .chip-ico--paypal { color: #003087; background: #e6eef8; }
     .chip-ico--telegram { color: #229ed9; background: #e5f5fc; }
     .chip-ico--whatsapp { color: #25d366; background: #e8f8ef; }
-
-    .features-grid, .grid-3 {
-      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 56px; text-align: left;
-    }
-    .feat-card, .card {
-      background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 34px 30px;
-      transition: .3s; position: relative; overflow: hidden;
-    }
-    .feat-card:hover, .card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); border-color: #d9d9ff; }
-    .feat-icon, .f-ic {
-      width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; font-size: 24px; margin-bottom: 20px;
-    }
-    .feat-title, .card h3 { font-size: 19px; margin-bottom: 10px; letter-spacing: -0.01em; font-weight: 700; color: var(--ink); }
-    .feat-desc, .card p { color: var(--muted); font-size: 15px; line-height: 1.65; }
-    .i-violet { background: #efefff; } .i-green { background: #e2f8ef; } .i-orange { background: #fff3e4; }
-    .i-blue { background: #e7f3ff; } .i-pink { background: #ffe3ec; } .i-teal { background: #dcf7f2; }
 
     #how-it-works.hiw-context {
       background: #000;
@@ -675,43 +657,6 @@
       .hiw-float { padding: 4px; }
       .hiw-float-title { font-size: 10px; }
     }
-    .hiw-steps, .steps {
-      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 56px; text-align: left;
-    }
-    .hiw-step {
-      background: #fff; border-radius: var(--r); padding: 34px 26px; position: relative;
-      transition: .3s; border: 1px solid var(--line);
-    }
-    .hiw-step:hover { box-shadow: var(--shadow); transform: translateY(-4px); }
-    .hiw-step-icon {
-      width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
-      color: var(--primary); background: #efefff; border: 1px solid #d9d9ff; margin-bottom: 12px;
-    }
-    .hiw-step-icon svg { width: 24px; height: 24px; stroke: currentColor; }
-    .hiw-step-badge {
-      display: none; position: absolute; top: -5px; right: -5px; min-width: 22px; height: 22px;
-      padding: 0 6px; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 800;
-      border-radius: 999px; background: var(--grad); color: #fff; border: 2px solid #fff;
-    }
-    .hiw-step-label {
-      display: inline-block; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
-      color: var(--primary); padding: 4px 10px; border-radius: 999px; background: #efefff; margin-bottom: 8px;
-    }
-    .hiw-step-title { font-size: 17px; font-weight: 800; color: var(--ink); margin: 0 0 8px; }
-    .hiw-step-desc { color: var(--muted); font-size: 14px; line-height: 1.65; margin: 0; }
-
-    .pipeline { display: flex; align-items: stretch; gap: 0; margin-top: 60px; }
-    .p-step { flex: 1; background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 26px 18px; text-align: center; transition: .3s; }
-    .p-step:hover { box-shadow: var(--shadow); border-color: #d9d9ff; }
-    .p-ic { width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 14px; display: grid; place-items: center; font-size: 23px; }
-    .p-step h4 { font-size: 15px; margin-bottom: 5px; color: var(--ink); }
-    .p-step p { font-size: 12.5px; color: var(--muted); }
-    .p-arrow { flex: 0 0 44px; align-self: center; height: 2px; background: var(--line); position: relative; margin: 0 -1px; }
-    .p-dot { position: absolute; top: -3.5px; left: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--primary); animation: flow 1.8s linear infinite; }
-    @keyframes flow { to { left: calc(100% - 9px); } }
-    @keyframes drip { 0% { top: -8px; } 100% { top: 30px; } }
-    .pipe-note { margin-top: 34px; text-align: center; background: #fff; border-radius: 14px; padding: 18px 24px; color: var(--muted); font-size: 14.5px; border: 1px solid var(--line); }
-    .pipe-note b { color: var(--ink); }
 
     #rag.rag {
       background: #fafafb;
@@ -1456,6 +1401,19 @@
       background: #14182e;
       color: #fff;
     }
+    .mp-billing-alert {
+      max-width: 720px;
+      margin: 18px auto 0;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      text-align: center;
+      background: #ffe8e8;
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #b91c1c;
+      font-weight: 600;
+    }
 
     /* Contact — match RAG / reviews / pricing editorial style */
     #contact.mp-contact {
@@ -1864,7 +1822,6 @@
     {% include "components/footer_css.html" %}
 
     @media (max-width: 1020px) {
-      .features-grid, .grid-3 { grid-template-columns: 1fr 1fr; }
       .mp-stage-head { align-items: flex-start; gap: 20px; }
       .mp-stage-card {
         container-type: inline-size;
@@ -1891,10 +1848,6 @@
         margin-right: calc(574px * (var(--mp-fit) - 1) + max(0px, (100cqi - 574px) / 2));
         margin-bottom: calc(464px * (var(--mp-fit) - 1));
       }
-      .hiw-steps { grid-template-columns: 1fr 1fr; }
-      .pipeline { flex-direction: column; }
-      .p-arrow { width: 2px; height: 34px; flex: none; margin: 2px auto; }
-      .p-dot { animation: drip 1.4s linear infinite; left: -3.5px !important; top: 0; }
       .hero-visual { margin-top: 48px; max-width: 100%; }
       .hero-goal-grid { flex-wrap: wrap; }
       .hero-goal { width: 104px; min-width: 96px; max-width: 104px; }
@@ -1913,7 +1866,6 @@
       .hero-goals { display: none; }
       .hero h1 .hl,
       .hero h1 .hero-title-rest { white-space: normal; }
-      .features-grid, .grid-3, .hiw-steps { grid-template-columns: 1fr; }
       #testimonials.mp-reviews { padding: 56px 0 64px; }
       #pricing.mp-pricing { padding: 56px 0 64px; }
       #contact.mp-contact { padding: 56px 0 64px; }
@@ -2011,7 +1963,7 @@
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       .reveal { opacity: 1; transform: none; }
-      .marquee, .hp-float-agent, .p-dot, .tdots i,
+      .marquee, .hp-float-agent, .tdots i,
       .mp-stage-visual--inbox .mp-stage-float,
       .mp-inbox-flyer,
       .mp-inbox-status, .mp-inbox-status .off, .mp-inbox-status .on, .mp-inbox-live,
@@ -2192,7 +2144,7 @@
         <a class="btn-hero-primary" href="{% url 'signup' %}">{{ landing.hero_cta_primary }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
       </div>
       <div class="mp-stage-cards">
-        {% include "components/marketing_features_home.html" with layout="stage" %}
+        {% include "components/marketing_features_home.html" %}
       </div>
     </div>
   </section>
@@ -2276,6 +2228,7 @@
     <div class="wrap">
       {% include "components/marketing_pricing_head.html" %}
       {% include "components/marketing_pricing_billing_toggle.html" %}
+      <div id="billingAlert" class="mp-billing-alert" role="status" hidden></div>
       <div class="pricing-grid reveal" role="listbox" aria-label="Choose a pricing plan">
         {% include "components/marketing_pricing_cards.html" %}
       </div>
@@ -2365,7 +2318,7 @@
         <div class="mp-cta-actions">
           <a class="mp-cta-btn" href="{% url 'signup' %}">{{ landing.cta_primary }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
           <p class="mp-cta-note">{{ landing.cta_sub }}</p>
-          <a class="mp-cta-secondary" href="{% url 'pricing' %}">{{ landing.cta_secondary }}</a>
+          <a class="mp-cta-secondary" href="{% url 'home' %}#pricing">{{ landing.cta_secondary }}</a>
         </div>
       </div>
     </div>
@@ -2632,10 +2585,30 @@
       io.unobserve(entry.target);
     });
   }, { threshold: 0.12 });
-  document.querySelectorAll('.reveal, .feat-card, .hiw-step, .mp-reviews-slider, .pricing-card, .faq-item, .contact-form-card').forEach((el) => {
+  document.querySelectorAll('.reveal, .mp-reviews-slider, .pricing-card, .faq-item, .contact-form-card').forEach((el) => {
     el.classList.add('reveal');
     io.observe(el);
   });
+})();
+
+(function () {
+  const el = document.getElementById('billingAlert');
+  if (!el) return;
+  const billing = new URLSearchParams(window.location.search).get('billing');
+  const messages = {
+    stripe_not_ready:
+      'Stripe checkout could not start. Complete card payment activation in your Stripe Dashboard, then try again.',
+    site_url_missing:
+      'Checkout cannot start: set SITE_URL in server environment (e.g. https://yourdomain.com) so payment return URLs are correct.',
+    checkout_error:
+      'Checkout could not be started. Please try again or contact support.',
+    cancelled: 'Checkout was cancelled. You can choose a plan again below.',
+    not_configured: 'Checkout is not configured yet. Set Stripe and PayPal credentials in the server environment.',
+  };
+  const msg = messages[billing];
+  if (!msg) return;
+  el.textContent = msg;
+  el.hidden = false;
 })();
 
 (function () {

@@ -1,5 +1,4 @@
-{# Homepage stage layout, or icon cards on /features. Driven by MarketingFeature admin. #}
-{% if layout == "stage" %}
+{# Feature stage cards driven by MarketingFeature admin. #}
 {% load static %}
 {% for feature in marketing_features %}
 <article class="mp-stage-card {% cycle 'is-blue' 'is-navy' 'is-mist' 'is-sand' 'is-rose' 'is-mint' %}" style="z-index: {{ forloop.counter }}">
@@ -285,16 +284,3 @@
 {% empty %}
 <p class="section-sub">Feature cards will appear here once published in admin.</p>
 {% endfor %}
-{% else %}
-{% for feature in marketing_features %}
-<div class="card reveal">
-  <div class="f-ic" style="{{ feature.icon_background_style }};color:{{ feature.accent_color|default:'#5b5bf0' }}">
-    <i class="{{ feature.icon_class|default:'fa-solid fa-star' }}" aria-hidden="true"></i>
-  </div>
-  <h3>{{ feature.title }}</h3>
-  <p>{{ feature.description }}</p>
-</div>
-{% empty %}
-<p class="section-sub" style="grid-column:1/-1;text-align:center;">Feature cards will appear here once published in admin.</p>
-{% endfor %}
-{% endif %}
