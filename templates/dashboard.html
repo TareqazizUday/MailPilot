@@ -1,4 +1,3 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +6,9 @@
   <title>Dashboard · MailPilot</title>
   <meta name="robots" content="noindex, nofollow" />
   <meta name="theme-color" content="#ffffff" />
+  <script>
+    if (/^#t=/.test(location.hash)) location.replace('{% url "inbox" %}' + location.search + location.hash);
+  </script>
   {% include "components/favicon.html" %}
   {% include "components/meta_pixel.html" %}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,1333 +18,541 @@
   <style>
     {% include "components/app_shell_css.html" %}
 
-    /* Dashboard panels live inside app-main; no outer card chrome */
-    .dash-body{min-height:0;}
-    .dash-mailbox{padding:8px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;position:relative;z-index:5;}
-    .dash-mailbox-label{display:block;margin-bottom:4px;color:var(--txm);}
-    .dash-mb-wrap{position:relative;}
-    .dash-mailbox-select{
-      position:absolute;width:1px;height:1px;padding:0;margin:-1px;
-      overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+    .ov { display: flex; flex-direction: column; gap: 18px; max-width: 1180px; margin: 0 auto; }
+    .ov-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 20px;
+      min-width: 0;
     }
-    .dash-mb-trigger{
-      width:100%;max-width:100%;
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
-      font-size:12px;padding:8px 10px;box-sizing:border-box;
-      background:var(--input-bg);border:1px solid var(--input-border);
-      border-radius:10px;color:var(--text);font-family:var(--font);
-      cursor:pointer;text-align:left;
-    }
-    .dash-mb-trigger:hover{border-color:#d0d2f5;}
-    .dash-mb-trigger:focus{
-      outline:none;
-      border-color:rgba(79,110,247,0.6);box-shadow:0 0 0 3px rgba(79,110,247,0.1);
-    }
-    .dash-mb-trigger-text{
-      min-width:0;flex:1;
-      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-    }
-    .dash-mb-trigger i{color:var(--txm);flex-shrink:0;font-size:11px;transition:transform .15s;}
-    .dash-mb-wrap.is-open .dash-mb-trigger i{transform:rotate(180deg);}
-    .dash-mb-menu{
-      display:none;
-      position:static;
-      width:100%;
-      margin-top:6px;
-      max-height:min(220px,40vh);
-      overflow-y:auto;
-      background:#fff;
-      border:1px solid var(--bdr);
-      border-radius:12px;
-      box-shadow:0 10px 28px rgba(20,26,46,0.12);
-      padding:6px;
-      box-sizing:border-box;
-    }
-    .dash-mb-menu.open{display:block;}
-    .dash-mb-option{
-      display:block;width:100%;
-      padding:10px 12px;border:none;border-radius:9px;
-      background:transparent;cursor:pointer;
-      font-family:var(--font);font-size:12px;font-weight:600;
-      color:var(--tx);text-align:left;line-height:1.35;
-      overflow-wrap:anywhere;
-    }
-    .dash-mb-option:hover{background:var(--bg2);}
-    .dash-mb-option.is-selected{
-      background:#efefff;color:var(--info,#5b5bf0);
-    }
-    /* Trigger already shows selected mailbox — hide redundant line to prevent overlap */
-    .dash-mailbox-viewing{display:none !important;}
-    #dashPanelMessages,
-    #dashPanelReading,
-    #dashPanelControls{
-      overflow:hidden;
-      min-width:0;
-      z-index:1;
-    }
-    #dashPanelMessages .msg-list{min-height:0;flex:1 1 auto;}
-    #inboxListHint{
-      flex-shrink:0;
-      overflow-wrap:anywhere;
-      word-break:break-word;
-    }
-
-    /* ── Responsive tri-pane: flexible fr tracks, break earlier so mid widths don't crush ── */
-    .tri{
-      display:grid;
-      grid-template-columns:minmax(0,0.95fr) minmax(0,1.45fr) minmax(0,1fr);
-      gap:12px;
-      min-height:560px;
-      min-width:0;
-    }
-    @media(min-width:1500px){
-      .tri{
-        grid-template-columns:minmax(0,0.9fr) minmax(0,1.55fr) minmax(0,0.95fr);
-        gap:14px;
-        min-height:620px;
-      }
-    }
-    /* With left rail, ~1320px viewport ≈ cramped 3-col — stack controls under */
-    @media(max-width:1320px){
-      .tri{
-        grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);
-        grid-template-areas:
-          "messages reading"
-          "controls controls";
-        min-height:auto;
-      }
-      .tri .pnl:nth-child(1){grid-area:messages;}
-      .tri .pnl:nth-child(2){grid-area:reading;}
-      .tri .pnl:nth-child(3){grid-area:controls;}
-    }
-    @media(max-width:768px){
-      .tri{
-        grid-template-columns:1fr;
-        grid-template-areas:
-          "messages"
-          "reading"
-          "controls";
-        gap:12px;
-        min-height:0;
-      }
-      .tri .pnl{
-        min-height:0;
-        max-height:none !important;
-        height:auto;
-      }
-      #dashPanelMessages{
-        display:flex;
-        flex-direction:column;
-      }
-      #dashPanelMessages .msg-list{
-        flex:0 1 auto;
-        max-height:min(36vh,280px);
-        overflow-y:auto;
-      }
-      #dashPanelReading .rp-empty{
-        padding:24px 16px;
-        min-height:140px;
-      }
-      .dash-mb-menu{max-height:min(160px,28vh);}
-      .dash-mb-trigger{font-size:16px;min-height:44px;padding:10px 12px;}
-      .dash-mb-option{font-size:14px;padding:12px;}
-    }
-    @media(max-width:480px){
-      .dash-body{padding:12px 10px 20px;min-height:0;}
-      #dashPanelMessages .msg-list{max-height:min(32vh,240px);}
-      #dashPanelReading .rp-empty{padding:20px 12px;min-height:120px;}
-      .dash-mailbox{padding:8px 10px;}
-    }
-
-    /* ── Panel ── */
-    .pnl{background:var(--card);border:1px solid var(--bdr);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative;}
-    .pnl-hd{padding:11px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-    .pnl-t{font-family:var(--font-head);font-size:12.5px;font-weight:600;letter-spacing:-.01em}
-    .pnl-badge{font-size:10px;color:var(--txm);background:var(--bg2);padding:1px 7px;border-radius:8px}
-
-    /* ── Messages Panel ── */
-    .msg-search{padding:8px 12px;border-bottom:1px solid var(--bdr);flex-shrink:0}
-    .msg-si{display:flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--bdr);border-radius:7px;padding:6px 10px;transition:all .2s}
-    .msg-si:focus-within{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-soft)}
-    .msg-si i{color:var(--txm);font-size:11px}
-    .msg-si input{background:transparent;border:none;outline:none;color:var(--tx);font-size:12px;font-family:var(--font);width:100%;min-width:0;}
-    .msg-si input::placeholder{color:var(--txm)}
-    .msg-list{
-      flex:1;overflow-y:auto;
-      padding:10px 12px 12px;
-      display:flex;flex-direction:column;gap:8px;
-    }
-    .msg-it{
-      padding:11px 12px;
-      border:1px solid var(--bdr);
-      border-radius:8px;
-      cursor:pointer;
-      transition:border-color .15s, background .15s, box-shadow .15s;
-      position:relative;
-      text-align:left;width:100%;
-    }
-    .msg-it.msg-seen{
-      background:rgba(16,185,129,0.09);
-      border-color:rgba(16,185,129,0.22);
-    }
-    .msg-it.msg-seen:hover{
-      background:rgba(16,185,129,0.15);
-      border-color:rgba(16,185,129,0.38);
-    }
-    .msg-it.unr{
-      background:rgba(248,113,113,0.1);
-      border-color:rgba(248,113,113,0.28);
-    }
-    .msg-it.unr:hover{
-      background:rgba(248,113,113,0.16);
-      border-color:rgba(248,113,113,0.42);
-    }
-    .msg-it.sel{
-      background:var(--blue-soft) !important;
-      border-color:var(--blue) !important;
-      box-shadow:0 0 0 2px var(--blue-soft);
-    }
-    .msg-it.unr::after{
-      content:'';position:absolute;right:12px;top:14px;
-      width:5px;height:5px;border-radius:50%;background:var(--red);
-    }
-    .msg-st-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:2px;}
-    .msg-fr{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx);flex:1;min-width:0;padding-right:0}
-    .msg-st{
-      flex-shrink:0;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;
-      text-transform:uppercase;letter-spacing:.04em;line-height:1.2;
-    }
-    .msg-st--reject{background:rgba(248,113,113,.12);color:#fca5a5;border:1px solid rgba(248,113,113,.28)}
-    .msg-st--sent{background:rgba(16,185,129,.1);color:#6ee7b7;border:1px solid rgba(16,185,129,.22)}
-    .msg-st--draft{background:rgba(99,102,241,.1);color:#a5b4fc;border:1px solid rgba(99,102,241,.2)}
-    .msg-it.unr .msg-st-row .msg-fr{padding-right:12px}
-    .msg-sj{font-size:11.5px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
-    .msg-tm{font-size:10px;color:var(--txm)}
-    .msg-empty{padding:14px 10px;text-align:center;font-size:12px;color:var(--txm);line-height:1.45}
-
-    /* ── Reading Pane ── */
-    .rp-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--txm);gap:8px;padding:18px}
-    .rp-empty i{font-size:36px;opacity:.18}
-    .rp-empty p{font-size:12.5px}
-    .rp-empty span{font-size:10.5px;opacity:.5}
-    .rp-fill{flex:1;display:none;flex-direction:column;overflow:hidden}
-    .rp-fill.on{display:flex}
-    .rp-top{padding:18px 20px;border-bottom:1px solid var(--bdr);flex-shrink:0}
-    .rp-subj{font-family:var(--font-head);font-size:15.5px;font-weight:600;letter-spacing:-.02em;line-height:1.35;margin-bottom:12px}
-    .rp-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-    .rp-av{width:32px;height:32px;border-radius:50%;background:var(--bg2);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--blue-l);flex-shrink:0}
-    .rp-inf{flex:1;min-width:0}
-    .rp-nm{font-size:12.5px;font-weight:600}
-    .rp-em{font-size:11px;color:var(--txm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rp-dt{font-size:10.5px;color:var(--txm);flex-shrink:0}
-    .rp-body{flex:1;overflow-y:auto;padding:20px;font-size:13px;line-height:1.75;color:var(--tx2)}
-    .rp-body pre{white-space:pre-wrap;word-break:break-word;font-family:var(--font);margin:0}
-    .rp-msg{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--bdr)}
-    .rp-msg:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
-    .rp-msg--reply{margin-top:4px;padding:12px 14px;background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;border-bottom:1px solid var(--bdr)}
-    .rp-msg-lbl{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--grn-l);margin-bottom:8px}
-
-    /* ── Controls Panel ── */
-    .ctrl-sec{padding:12px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;min-width:0}
-    .run-btn{width:100%;padding:9px;border:none;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--blue-d));color:#fff;font-family:var(--font-head);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:7px;position:relative;overflow:hidden;white-space:normal;text-align:center;line-height:1.3;min-width:0;box-sizing:border-box}
-    .run-btn:hover{transform:translateY(-1px);box-shadow:0 5px 20px var(--blue-glow)}
-    .run-btn:active{transform:translateY(0)}
-    .run-btn.proc{pointer-events:none;opacity:.8}
-    .run-btn.auto-on{background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 0 0 1px rgba(16,185,129,.25),0 4px 18px rgba(16,185,129,.2)}
-    .run-btn.auto-on:hover{box-shadow:0 0 0 1px rgba(16,185,129,.35),0 6px 22px rgba(16,185,129,.28)}
-    .run-btn .sh{position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:shim 4s infinite}
-    @keyframes shim{0%{left:-100%}100%{left:100%}}
-    .ctrl-row{display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--txm);gap:10px;flex-wrap:wrap;}
-    .qt-w{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;min-width:0;}
-    .qt{width:100%;min-width:520px;border-collapse:collapse;font-size:11px;}
-    .qt thead{position:sticky;top:0;z-index:1}
-    .qt th{padding:8px 11px;text-align:left;font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--txm);background:var(--card);border-bottom:1px solid var(--bdr)}
-    .qt td{padding:7px 11px;border-bottom:1px solid var(--bdr);color:var(--tx2);vertical-align:middle}
-    .qt tr:hover td{background:var(--card-h)}
-    .qt tr:last-child td{border-bottom:none}
-    .qt-id{font-family:var(--font-head);font-weight:600;color:var(--txm);font-size:10px}
-    .qt-fr{font-size:10px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rb{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}
-    .rb.ap{background:rgba(251,191,36,.08);color:var(--warn);border:1px solid rgba(251,191,36,.15)}
-    .rb.rk{background:rgba(248,113,113,.08);color:var(--red);border:1px solid rgba(248,113,113,.15)}
-    .rb.ar{background:rgba(59,130,246,.08);color:var(--blue-l);border:1px solid rgba(59,130,246,.15)}
-    .sb{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}
-    .sb.pe{background:rgba(99,102,241,.08);color:var(--info);border:1px solid rgba(99,102,241,.15)}
-    .sb.dn{background:rgba(16,185,129,.08);color:var(--grn-l);border:1px solid rgba(16,185,129,.15)}
-    .sb.rj{background:rgba(248,113,113,.08);color:var(--red);border:1px solid rgba(248,113,113,.15)}
-    .sb.er{background:rgba(251,191,36,.08);color:#fbbf24;border:1px solid rgba(251,191,36,.2)}
-
-    /* ── Dashboard responsive polish ── */
-    @media(max-width:768px){
-      .dash-card{border-radius:16px;}
-      .pnl-hd{padding:10px 12px;}
-      .rp-top{padding:14px 16px;}
-      .rp-subj{font-size:14px;}
-      .rp-body{padding:14px 16px;font-size:12.5px;}
-      .ctrl-sec{padding:12px;}
-      .run-btn{min-height:44px;padding:12px;font-size:13px;}
-      .msg-si input{font-size:16px;}
-      .msg-fr{font-size:11.5px;}
-      .msg-sj{font-size:11px;}
-      .ctrl-row{flex-direction:column;align-items:flex-start;gap:4px;}
-      .rp-dt{width:100%;margin-top:2px;}
-    }
-    @media(max-width:480px){
-      .pnl{border-radius:8px;}
-      .qt{min-width:0;font-size:10px;}
-      .qt th,.qt td{padding:7px 8px;}
-      .qt-fr{max-width:110px;}
-      .msg-it{padding:10px;}
-      .msg-st-row{flex-wrap:wrap;}
-    }
-    @media(max-width:380px){
-      .pnl-t{font-size:12px;}
-    }
-
-    /* Light dashboard tokens / overrides */
-    .dash-page-head {
+    .ov-card-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
       margin-bottom: 16px;
     }
-    .dash-page-sub { font-size: 0.92rem; color: var(--muted); line-height: 1.55; }
-    .dash-page-sub strong { color: var(--ink); }
-    .dash-card {
-      max-width: none; margin: 0; background: transparent;
-      border: none; box-shadow: none; border-radius: 0; overflow: visible;
+    .ov-card-title { font-size: 1rem; font-weight: 700; color: var(--ink); }
+    body.app-shell .ov-card-link {
+      font-size: .82rem; font-weight: 600; color: var(--primary);
+      text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
     }
-    .dash-body { padding: 0; min-height: 0; }
-    .pnl { background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
-    #dashPanelMessages,
-    #dashPanelReading,
-    #dashPanelControls { overflow: hidden; }
-    .pnl-hd { border-bottom-color: var(--line); }
-    .pnl-t { font-family: var(--font); color: var(--ink); font-weight: 700; }
-    .pnl-badge { background: var(--soft); color: var(--muted); }
-    .dash-mailbox-select {
-      /* visually hidden; custom trigger is the UI */
+    body.app-shell .ov-card-link:hover { text-decoration: underline; }
+    .ov-empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px; text-align: center; padding: 18px 8px; color: var(--muted); font-size: .86rem;
     }
-    .dash-mb-trigger {
-      background: #fff; border: 1.5px solid var(--line); color: var(--ink);
+    .ov-empty i { font-size: 1.4rem; color: #c3c8e6; }
+    .ov-empty strong { color: var(--ink); font-size: .92rem; }
+
+    /* Hero */
+    .ov-hero {
+      position: relative; overflow: hidden;
+      background: linear-gradient(135deg, #4b4be6 0%, #5b5bf0 45%, #7a5cf0 100%);
+      color: #fff; border-radius: 24px;
+      padding: clamp(20px, 3vw, 28px);
+      box-shadow: 0 18px 40px rgba(91, 91, 240, .25);
     }
-    .dash-mb-trigger:focus {
-      border-color: rgba(91,91,240,0.55); box-shadow: 0 0 0 3px rgba(91,91,240,0.14);
+    .ov-hero::after {
+      content: ""; position: absolute; right: -80px; top: -80px;
+      width: 260px; height: 260px; border-radius: 50%;
+      background: rgba(255, 255, 255, .08); pointer-events: none;
     }
-    .dash-mb-menu {
-      border-color: var(--line);
-      box-shadow: var(--shadow-lg, 0 16px 40px rgba(20,26,46,0.16));
+    .ov-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .ov-hero h1 { font-size: clamp(1.5rem, 2.6vw, 1.9rem); font-weight: 700; letter-spacing: -.02em; }
+    .ov-hero-sub { margin-top: 4px; font-size: .95rem; opacity: .88; }
+    .ov-hero-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; z-index: 1; }
+    .ov-plan-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 14px; border-radius: 999px;
+      background: rgba(255, 255, 255, .16); border: 1px solid rgba(255, 255, 255, .25);
+      font-size: .82rem; font-weight: 600; color: #fff; text-decoration: none;
     }
-    .dash-mb-option.is-selected {
+    body.app-shell .ov-btn-light {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 18px; border-radius: 999px;
+      background: #fff; color: #3b3bd6; font-weight: 600; font-size: .88rem;
+      text-decoration: none; transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .ov-btn-light:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(20, 26, 46, .18); }
+    .ov-hero-stats {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+      margin-top: 22px; position: relative; z-index: 1;
+    }
+    .ov-hero-stat {
+      background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 16px; padding: 14px 16px; min-width: 0;
+    }
+    .ov-hero-stat-label { display: flex; align-items: center; gap: 8px; font-size: .84rem; opacity: .9; }
+    .ov-hero-stat-value {
+      margin-top: 6px; font-size: 1.6rem; font-weight: 700; line-height: 1.15;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* KPI tiles */
+    .ov-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .ov-kpi {
+      display: flex; align-items: center; gap: 14px;
+      background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 16px;
+    }
+    .ov-kpi-ico {
+      width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    }
+    .ov-kpi-value { font-size: 1.45rem; font-weight: 700; line-height: 1.1; color: var(--ink); }
+    .ov-kpi-label { font-size: .82rem; color: var(--muted); }
+    .tone-sent { background: #e2f8ef; color: #067a58; }
+    .tone-drafts { background: #e7eefc; color: #2f5bd3; }
+    .tone-filtered { background: #fff4dc; color: #a46a00; }
+    .tone-failed { background: #ffe8e8; color: #c62828; }
+    .bar-sent { background: #00b884; }
+    .bar-drafts { background: #4f7cf7; }
+    .bar-filtered { background: #f5b031; }
+    .bar-failed { background: #ef4444; }
+
+    .ov-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+
+    /* Breakdown */
+    .ov-total { display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px; }
+    .ov-total strong { font-size: 1.8rem; font-weight: 700; color: var(--ink); line-height: 1; }
+    .ov-total span { color: var(--muted); font-size: .86rem; }
+    .ov-stack {
+      display: flex; height: 10px; border-radius: 999px; overflow: hidden;
+      background: #eef0f7; margin-bottom: 16px;
+    }
+    .ov-stack > i { display: block; height: 100%; }
+    .ov-rows { display: flex; flex-direction: column; gap: 10px; }
+    .ov-row { display: grid; grid-template-columns: 12px 1fr auto auto; align-items: center; gap: 10px; font-size: .88rem; }
+    .ov-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .ov-row-label { color: var(--ink); }
+    .ov-row-count { font-weight: 600; color: var(--ink); }
+    .ov-row-pct { color: var(--muted); min-width: 40px; text-align: right; }
+
+    /* Week chart */
+    .ov-week-total { font-size: .86rem; color: var(--muted); }
+    .ov-chart {
+      display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px;
+      align-items: end; height: 170px; padding-top: 8px;
+    }
+    .ov-col { display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; min-width: 0; }
+    .ov-col-bar {
+      flex: 1; width: 100%; max-width: 34px;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      background: #f3f4fa; border-radius: 10px; overflow: hidden;
+    }
+    .ov-col-bar > i { display: block; width: 100%; transition: height .4s ease; }
+    .ov-col-bar .seg-auto { background: var(--primary); }
+    .ov-col-bar .seg-other { background: #c9c9fb; }
+    .ov-col-label { font-size: .74rem; color: var(--muted); }
+    .ov-col.is-today .ov-col-label { color: var(--primary); font-weight: 700; }
+    .ov-legend { display: flex; gap: 16px; margin-top: 14px; font-size: .8rem; color: var(--muted); }
+    .ov-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .ov-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .ov-week-empty { margin: -6px 0 6px; font-size: .82rem; color: var(--muted); }
+
+    /* Usage */
+    .ov-meters { display: flex; flex-direction: column; gap: 16px; }
+    .ov-meter-top { display: flex; justify-content: space-between; gap: 10px; font-size: .88rem; color: var(--ink); }
+    .ov-meter-top strong { font-weight: 600; }
+    .ov-meter-track { margin-top: 8px; height: 8px; border-radius: 999px; background: #eef0f7; overflow: hidden; }
+    .ov-meter-track > i { display: block; height: 100%; border-radius: 999px; background: var(--grad); }
+    .ov-meter-track.is-full > i { background: #ef4444; }
+    .ov-meter-hint { margin-top: 6px; font-size: .78rem; color: var(--muted); }
+    .ov-alert {
+      padding: 10px 12px; border-radius: 12px; background: #ffe8e8; color: #b91c1c;
+      font-size: .82rem; margin-bottom: 14px;
+    }
+
+    /* Mailbox health */
+    .ov-mb-list { display: flex; flex-direction: column; gap: 10px; }
+    .ov-mb {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px; border: 1px solid var(--line); border-radius: 14px;
+    }
+    .ov-mb-ico {
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
       background: #efefff; color: var(--primary);
     }
-    #billingInfo {
-      font-size: 0.78rem !important;
-      line-height: 1.4 !important;
-      word-break: break-word;
-      overflow-wrap: anywhere;
+    .ov-mb-main { flex: 1; min-width: 0; }
+    .ov-mb-name { font-size: .88rem; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ov-mb-meta { font-size: .76rem; color: var(--muted); }
+    .ov-badge {
+      flex-shrink: 0; font-size: .74rem; font-weight: 600;
+      padding: 4px 10px; border-radius: 999px; white-space: nowrap;
     }
-    #pendingHint, .ctrl-row, #pInfo, #lRun {
-      word-break: break-word;
-      overflow-wrap: anywhere;
-      max-width: 100%;
-    }
-    #dashPanelControls {
-      overflow-x: hidden;
-    }
-    #dashPanelControls .qt-w {
-      max-width: 100%;
-    }
-    @media (max-width: 768px) {
-      .dash-page-head { margin-bottom: 10px; }
-      .dash-page-sub { font-size: 0.82rem; }
-      .app-rail-dash .app-rail-subnav .main-tab { padding: 8px 10px; }
-      #billingInfo { font-size: 0.74rem !important; }
-      .ctrl-row { font-size: 0.78rem; }
-    }
-    @media (max-width: 480px) {
-      .dash-page-sub { font-size: 0.78rem; }
-    }
-    .msg-si { background: #fff; border-color: var(--line); }
-    .msg-si:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(91,91,240,0.14); }
-    .msg-si input { color: var(--ink); }
-    .msg-it { background: #fff; border-color: var(--line); }
-    .msg-it:hover { border-color: #d9d9ff; background: #fafbff; }
-    .msg-it.msg-seen { background: #e2f8ef; border-color: rgba(0,184,132,0.28); }
-    .msg-it.unr { background: #fff5f5; border-color: rgba(239,68,68,0.25); }
-    .msg-it.sel { background: #efefff !important; border-color: var(--primary) !important; box-shadow: 0 0 0 2px rgba(91,91,240,0.14); }
-    .msg-fr, .rp-nm, .rp-subj { color: var(--ink); }
-    .msg-sj, .rp-body { color: #333c52; }
-    .msg-st--reject { background: #ffe8e8; color: #b91c1c; border-color: rgba(239,68,68,0.25); }
-    .msg-st--sent { background: #e2f8ef; color: #067a56; border-color: rgba(0,184,132,0.28); }
-    .msg-st--draft { background: #efefff; color: var(--primary); border-color: #d9d9ff; }
-    .msg-it.unr::after { background: #ef4444; }
-    .rp-av { background: #efefff; border-color: #d9d9ff; color: var(--primary); }
-    .rp-msg--reply { background: var(--soft); border-color: var(--line); }
-    .rp-msg-lbl { color: #00b884; }
-    .run-btn {
-      background: var(--grad); border-radius: 12px; font-family: var(--font);
-      box-shadow: 0 8px 20px rgba(91,91,240,0.28);
-    }
-    .run-btn:hover { box-shadow: 0 12px 26px rgba(91,91,240,0.36); }
-    .run-btn.auto-on { background: linear-gradient(135deg,#00b884,#067a56); }
-    .qt th { background: #fff; color: var(--muted); border-bottom-color: var(--line); }
-    .qt td { color: #333c52; border-bottom-color: var(--line); }
-    .qt tr:hover td { background: var(--soft); }
-    .rb.ap { background: #fff3e4; color: #9a5b0a; border-color: rgba(224,138,30,0.3); }
-    .rb.rk { background: #ffe8e8; color: #b91c1c; border-color: rgba(239,68,68,0.25); }
-    .rb.ar { background: #e7f3ff; color: #1d4ed8; border-color: rgba(59,130,246,0.25); }
-    .sb.pe { background: #efefff; color: var(--primary); border-color: #d9d9ff; }
-    .sb.dn { background: #e2f8ef; color: #067a56; border-color: rgba(0,184,132,0.28); }
-    .sb.rj { background: #ffe8e8; color: #b91c1c; border-color: rgba(239,68,68,0.25); }
-    .sb.er { background: #fff3e4; color: #9a5b0a; border-color: rgba(224,138,30,0.3); }
-    :root {
-      --blue: #5b5bf0;
-      --blue-d: #4a4ad4;
-      --blue-l: #5b5bf0;
-      --blue-soft: rgba(91,91,240,0.12);
-      --blue-glow: rgba(91,91,240,0.28);
-      --red: #ef4444;
-      --warn: #e08a1e;
-      --info: #5b5bf0;
-      --grn-l: #00b884;
-      --card-h: #f6f8fd;
-      --font-head: var(--font);
-    }
-    .app-rail-dash .app-rail-link,
-    .app-rail-dash .app-rail-parent { font-size: 0.9rem; }
-    .app-rail-dash .app-rail-link i,
-    .app-rail-dash .app-rail-parent i { width: 1.1em; text-align: center; }
-    .dash-panel-focus { outline: 2px solid rgba(91,91,240,0.35); outline-offset: -2px; }
+    .st-ok { background: #e2f8ef; color: #067a58; }
+    .st-needs_setup { background: #fff4dc; color: #a46a00; }
+    .st-oauth_mismatch { background: #ffe8e8; color: #c62828; }
+    .st-disabled { background: #eef0f7; color: #5b6478; }
 
+    /* Recent activity */
+    .ov-recent { display: flex; flex-direction: column; }
+    .ov-act {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 6px; border-bottom: 1px solid var(--line);
+      color: inherit; text-decoration: none; border-radius: 10px;
+    }
+    .ov-act:last-child { border-bottom: none; }
+    a.ov-act:hover { background: var(--soft); }
+    .ov-act-ico {
+      width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: .85rem;
+    }
+    .ov-act-main { flex: 1; min-width: 0; }
+    .ov-act-subject { font-size: .88rem; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ov-act-meta { font-size: .76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ov-act-time { font-size: .76rem; color: var(--muted); white-space: nowrap; }
+
+    .ov-error {
+      padding: 12px 14px; border-radius: 14px; background: #fff4dc; color: #8a5a00; font-size: .86rem;
+    }
+
+    @media (max-width: 1100px) {
+      .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 860px) {
+      .ov-grid-2 { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .ov-hero-stats { grid-template-columns: minmax(0, 1fr); }
+      .ov-kpi { padding: 12px; gap: 10px; }
+      .ov-kpi-ico { width: 36px; height: 36px; }
+      .ov-card { padding: 16px; }
+      .ov-chart { gap: 6px; }
+    }
   </style>
 </head>
 <body class="app-shell">
   {% include "components/app_shell_top.html" %}
   <div class="app-shell-body">
-    <aside class="app-rail app-rail-dash" aria-label="App navigation">
+    <aside class="app-rail" aria-label="App navigation">
       <nav class="app-rail-nav" aria-label="App pages">
+        <div class="app-rail-parent is-active" aria-current="page">
+          <i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Dashboard
+        </div>
+        <a href="{% url 'inbox' %}" class="app-rail-link">
+          <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Inbox</span>
+        </a>
         <a href="{% url 'setup' %}" class="app-rail-link">
           <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-gear" aria-hidden="true"></i> Setup</span>
         </a>
-        <div class="app-rail-group">
-          <div class="app-rail-parent is-active" aria-current="page">
-            <i class="fa-solid fa-inbox" aria-hidden="true"></i> Dashboard
-          </div>
-          <nav class="app-rail-subnav" id="dashRailNav" aria-label="Dashboard sections">
-            <button class="main-tab on" id="btnDashMessages" type="button" data-dash="messages" onclick="showDash('messages')">
-              <div>
-                <div class="main-tab-label">Messages</div>
-                <div class="sub">Inbox list &amp; search</div>
-              </div>
-              <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></div>
-            </button>
-            <button class="main-tab" id="btnDashReading" type="button" data-dash="reading" onclick="showDash('reading')">
-              <div>
-                <div class="main-tab-label">Reading</div>
-                <div class="sub">Thread preview</div>
-              </div>
-              <div class="tab-icon" aria-hidden="true"><i class="fa-regular fa-envelope-open"></i></div>
-            </button>
-            <button class="main-tab" id="btnDashControls" type="button" data-dash="controls" onclick="showDash('controls')">
-              <div>
-                <div class="main-tab-label">Controls &amp; Queue</div>
-                <div class="sub">Poll &amp; pending jobs</div>
-              </div>
-              <div class="tab-icon" aria-hidden="true"><i class="fa-solid fa-sliders"></i></div>
-            </button>
-          </nav>
-        </div>
       </nav>
       <a class="app-rail-upgrade" href="{% url 'home' %}#pricing">Upgrade plan</a>
     </aside>
+
     <main id="main-content" class="app-main">
+      <div class="ov" id="ov">
+        <div class="ov-error" id="ovError" hidden></div>
 
-  <div class="dash-page-head">
-    <p class="dash-page-sub" style="margin:0;">Inbox preview, queue status, and manual runs. <strong id="pgStatus">Checking connection…</strong></p>
-  </div>
-
-  <div class="setup-card dash-card">
-    <div class="dash-body">
-  <!-- Hidden legacy status elements used by existing JS -->
-  <div style="display:none;">
-    <span id="gmailConnectedBadge">-</span>
-    <span id="gmailTokenHint">-</span>
-    <span id="lastRunAt">-</span>
-    <span id="lastError">-</span>
-  </div>
-
-  <div class="tri" id="inbox-section">
-    <!-- Messages -->
-    <div class="pnl" id="dashPanelMessages">
-      <div class="pnl-hd">
-        <span class="pnl-t">Messages</span>
-        <span class="pnl-badge" id="msgCnt">-</span>
-      </div>
-      <div class="dash-mailbox">
-        <label class="small dash-mailbox-label" for="dashAccountTrigger">Multiple Mailbox</label>
-        <div class="dash-mb-wrap">
-          <select id="dashAccountSelect" class="dash-mailbox-select" aria-label="Select mailbox" tabindex="-1"></select>
-          <button type="button" class="dash-mb-trigger" id="dashAccountTrigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="dashAccountMenu">
-            <span class="dash-mb-trigger-text" id="dashAccountTriggerText">Select mailbox</span>
-            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-          </button>
-          <div class="small dash-mailbox-viewing" id="dashAccountViewing"></div>
-          <div class="dash-mb-menu" id="dashAccountMenu" role="listbox" hidden></div>
-        </div>
-      </div>
-      <div class="msg-search">
-        <div class="msg-si">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-          <input type="text" placeholder="Search messages..." id="msgQ" autocomplete="off" aria-label="Search messages">
-        </div>
-      </div>
-      <div id="messages-title" style="display:none;">Messages</div>
-      <div class="msg-list" id="threadList" role="listbox" aria-labelledby="messages-title"></div>
-      <div class="small" id="inboxListHint" style="padding:10px 14px; border-top: 1px solid var(--bdr);">{% if inbox_ready %}Loading…{% else %}Connect Gmail OAuth or save SMTP+IMAP on Setup to load messages.{% endif %}</div>
-    </div>
-
-    <!-- Reading Pane -->
-    <div class="pnl" id="dashPanelReading">
-      <div class="pnl-hd"><span class="pnl-t">Reading pane</span></div>
-      <div class="rp-empty" id="rpE">
-        <i class="fa-regular fa-envelope-open" aria-hidden="true"></i>
-        <p>Select a thread</p>
-        <span>Click a message from the list to preview</span>
-        <div class="small" id="threadDetailHint" style="margin-top: 10px;"></div>
-      </div>
-      <div class="rp-fill" id="rpF">
-        <div class="rp-top">
-          <div class="rp-subj" id="rpS"></div>
-          <div class="rp-meta">
-            <div class="rp-av" id="rpA"></div>
-            <div class="rp-inf">
-              <div class="rp-nm" id="rpN"></div>
-              <div class="rp-em" id="rpM"></div>
+        <section class="ov-hero" aria-labelledby="ovTitle">
+          <div class="ov-hero-top">
+            <div>
+              <h1 id="ovTitle">Dashboard</h1>
+              <p class="ov-hero-sub" id="ovHeroSub">Loading your activity…</p>
             </div>
-            <div class="rp-dt" id="rpD"></div>
+            <div class="ov-hero-actions">
+              <a class="ov-plan-chip" id="ovPlanChip" href="{% url 'profile' %}"><i class="fa-solid fa-crown" aria-hidden="true"></i><span>Plan</span></a>
+              <a class="ov-btn-light" id="ovHeroCta" href="{% url 'inbox' %}"><i class="fa-solid fa-inbox" aria-hidden="true"></i><span>Open inbox</span></a>
+            </div>
           </div>
+          <div class="ov-hero-stats">
+            <div class="ov-hero-stat">
+              <div class="ov-hero-stat-label"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Mailboxes</div>
+              <div class="ov-hero-stat-value" id="ovMailboxes">-</div>
+            </div>
+            <div class="ov-hero-stat">
+              <div class="ov-hero-stat-label"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Processed</div>
+              <div class="ov-hero-stat-value" id="ovProcessed">-</div>
+            </div>
+            <div class="ov-hero-stat">
+              <div class="ov-hero-stat-label"><i class="fa-regular fa-clock" aria-hidden="true"></i> Latest</div>
+              <div class="ov-hero-stat-value" id="ovLatest">-</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="ov-kpis" aria-label="Totals">
+          <div class="ov-kpi"><div class="ov-kpi-ico tone-sent"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></div><div><div class="ov-kpi-value" data-kpi="sent">0</div><div class="ov-kpi-label">Sent</div></div></div>
+          <div class="ov-kpi"><div class="ov-kpi-ico tone-drafts"><i class="fa-regular fa-file-lines" aria-hidden="true"></i></div><div><div class="ov-kpi-value" data-kpi="drafts">0</div><div class="ov-kpi-label">Drafts</div></div></div>
+          <div class="ov-kpi"><div class="ov-kpi-ico tone-filtered"><i class="fa-solid fa-filter" aria-hidden="true"></i></div><div><div class="ov-kpi-value" data-kpi="filtered">0</div><div class="ov-kpi-label">Filtered</div></div></div>
+          <div class="ov-kpi"><div class="ov-kpi-ico tone-failed"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></div><div><div class="ov-kpi-value" data-kpi="failed">0</div><div class="ov-kpi-label">Failed</div></div></div>
+        </section>
+
+        <div class="ov-grid-2">
+          <section class="ov-card" aria-labelledby="ovBreakdownTitle">
+            <div class="ov-card-head"><h2 class="ov-card-title" id="ovBreakdownTitle">Activity breakdown</h2></div>
+            <div id="ovBreakdown"></div>
+          </section>
+          <section class="ov-card" aria-labelledby="ovWeekTitle">
+            <div class="ov-card-head">
+              <h2 class="ov-card-title" id="ovWeekTitle">Last 7 days</h2>
+              <span class="ov-week-total" id="ovWeekTotal"></span>
+            </div>
+            <div id="ovWeek"></div>
+          </section>
         </div>
-        <div class="rp-body" id="threadDetail"></div>
-      </div>
 
-      <!-- Keep these IDs for existing JS compatibility (hidden) -->
-      <div id="readingWrap" class="reading-wrap is-empty" style="display:none;"></div>
-      <div id="threadMessagesBlock" style="display:none;"></div>
-      <div id="readingHead" style="display:none;"></div>
-      <div id="readingTitle" style="display:none;"></div>
-      <div id="readingSub" style="display:none;"></div>
-    </div>
-
-    <!-- Controls -->
-    <div class="pnl" id="dashPanelControls">
-      <div class="pnl-hd">
-        <span class="pnl-t">Controls</span>
-        <span class="pnl-badge" id="qCnt">-</span>
-      </div>
-      <div class="ctrl-sec">
-        <button type="button" class="run-btn" id="runPollBtn" onclick="runPollNow()">
-          <i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now
-        </button>
-        <div class="ctrl-row">
-          <span id="pInfo">-</span>
-          <span id="lRun">Last run: -</span>
+        <div class="ov-grid-2">
+          <section class="ov-card" aria-labelledby="ovUsageTitle">
+            <div class="ov-card-head">
+              <h2 class="ov-card-title" id="ovUsageTitle">Usage</h2>
+              <a class="ov-card-link" id="ovUsageLink" href="{% url 'home' %}#pricing">Upgrade <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+            </div>
+            <div id="ovUsage"></div>
+          </section>
+          <section class="ov-card" aria-labelledby="ovHealthTitle">
+            <div class="ov-card-head">
+              <h2 class="ov-card-title" id="ovHealthTitle">Mailbox health</h2>
+              <a class="ov-card-link" href="{% url 'setup' %}">Manage <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+            </div>
+            <div id="ovHealth"></div>
+          </section>
         </div>
-        <div class="small" id="billingInfo" style="margin-top:8px;color:var(--txm);line-height:1.45;">Plan: checking…</div>
+
+        <section class="ov-card" aria-labelledby="ovRecentTitle">
+          <div class="ov-card-head">
+            <h2 class="ov-card-title" id="ovRecentTitle">Recent activity</h2>
+            <a class="ov-card-link" href="{% url 'inbox' %}">Open inbox <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+          </div>
+          <div id="ovRecent"></div>
+        </section>
       </div>
-      <div class="pnl-hd" style="border-top:1px solid var(--bdr)">
-        <span class="pnl-t">Queue</span>
-        <span class="pnl-badge" id="pendingInfo">-</span>
-      </div>
-      <div class="qt-w">
-        <table class="qt">
-          <thead><tr><th>ID</th><th>From</th><th>Reason</th><th>Status</th></tr></thead>
-          <tbody id="pendingBody">
-            <tr><td colspan="4" class="small" style="padding: 12px 11px;">Nothing waiting</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="small" id="pendingHint" style="padding: 10px 14px; border-top: 1px solid var(--bdr);">-</div>
-
-      <!-- Sent records removed (Queue already shows status) -->
-    </div>
-  </div>
-
-  <script>
-    // Dashboard left-rail section focus (Messages / Reading / Controls)
-    window.showDash = function (which) {
-      const map = {
-        messages: { panel: 'dashPanelMessages', btn: 'btnDashMessages' },
-        reading: { panel: 'dashPanelReading', btn: 'btnDashReading' },
-        controls: { panel: 'dashPanelControls', btn: 'btnDashControls' },
-      };
-      const entry = map[which] || map.messages;
-      ['btnDashMessages', 'btnDashReading', 'btnDashControls'].forEach(function (id) {
-        const b = document.getElementById(id);
-        if (b) b.classList.toggle('on', id === entry.btn);
-      });
-      document.querySelectorAll('#dashRailNavDrawer .main-tab').forEach(function (b) {
-        const on = (b.getAttribute('data-dash') || '') === which;
-        b.classList.toggle('on', on);
-      });
-      const panel = document.getElementById(entry.panel);
-      if (!panel) return;
-      document.querySelectorAll('.dash-panel-focus').forEach(function (el) {
-        el.classList.remove('dash-panel-focus');
-      });
-      panel.classList.add('dash-panel-focus');
-      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-      window.setTimeout(function () { panel.classList.remove('dash-panel-focus'); }, 1200);
-    };
-
-    // UI helpers for the “hubbuhu” dashboard layout
-    let _allThreadRows = [];
-    function threadSearchHaystack(t){
-      const from = (t.from || '').trim();
-      const sj = (t.subject || '').trim();
-      const sn = (t.snippet || '').trim();
-      const tm = fmtTs(t.internal_date);
-      const emailMatch = from.match(/<([^>]+)>/);
-      const emailOnly = emailMatch ? emailMatch[1].trim() : '';
-      const nameOnly = from.replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
-      return (from + ' ' + nameOnly + ' ' + emailOnly + ' ' + sj + ' ' + sn + ' ' + tm)
-        .toLowerCase()
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-    function threadMatchesQuery(haystack, q){
-      if(!q) return true;
-      const terms = q.split(/\s+/).filter(Boolean);
-      if(!terms.length) return true;
-      return terms.every(term => haystack.includes(term));
-    }
-    function renderThreadRows(rows){
-      _allThreadRows = rows || [];
-      filterMsg();
-    }
-    function filterMsg(){
-      const q = (document.getElementById('msgQ')?.value || '').toLowerCase().trim().replace(/\s+/g, ' ');
-      const list = document.getElementById('threadList');
-      if(!list) return;
-      const shown = _allThreadRows.filter(r => threadMatchesQuery(r._search || '', q));
-      const cnt = document.getElementById('msgCnt');
-      if(cnt){
-        cnt.textContent = q && _allThreadRows.length
-          ? (shown.length + ' / ' + _allThreadRows.length)
-          : String(_allThreadRows.length);
-      }
-      const hint = document.getElementById('inboxListHint');
-      if(hint && _allThreadRows.length){
-        hint.textContent = q
-          ? (shown.length ? (shown.length + ' of ' + _allThreadRows.length + ' match') : 'No messages match your search')
-          : (_allThreadRows.length + ' messages');
-      }
-      if(!shown.length){
-        list.innerHTML = q && _allThreadRows.length
-          ? '<p class="msg-empty">No messages match &ldquo;' + esc(q) + '&rdquo;</p>'
-          : '';
-      }else{
-        list.innerHTML = shown.map(r => r.html).join('');
-      }
-      if(activeTid){
-        list.querySelectorAll('.msg-it').forEach(el => {
-          const on = el.getAttribute('data-tid') === activeTid;
-          el.classList.toggle('sel', on);
-        });
-      }
-    }
-    window.filterMsg = filterMsg;
-
-    function setEnabled(el, enabled){
-      if(!el) return;
-      el.disabled = !enabled;
-      el.style.opacity = enabled ? "1" : "0.55";
-      el.style.cursor = enabled ? "pointer" : "not-allowed";
-    }
-
-    /** Auto poll state while Django server is running (from /healthz + connection-status). */
-    let _mailPoll = { autoOn: false, intervalSec: 60, pollReady: false, imapIdle: false };
-
-    function updatePollButtonUi(){
-      const btn = document.getElementById('runPollBtn');
-      if(!btn || btn.classList.contains('proc')) return;
-      const auto = _mailPoll.autoOn && _mailPoll.pollReady;
-      if(auto){
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-        btn.classList.add('auto-on');
-        const sec = _mailPoll.intervalSec || 60;
-        const rt = _mailPoll.imapIdle ? 'Real-time ON' : ('every ' + sec + 's');
-        btn.innerHTML = '<span class="sh"></span><i class="fa-solid fa-bolt" aria-hidden="true"></i> Auto poll · ' + rt;
-        return;
-      }
-      btn.classList.remove('auto-on');
-      if(_mailPoll.pollReady){
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-        btn.innerHTML = '<i class="fa-solid fa-rotate" aria-hidden="true"></i> Run mail poll now';
-        return;
-      }
-      btn.disabled = true;
-      btn.style.opacity = '0.55';
-      btn.style.cursor = 'not-allowed';
-      btn.innerHTML = '<i class="fa-solid fa-plug-circle-xmark" aria-hidden="true"></i> Connect mailbox on Setup';
-    }
-
-    function queueStatusLabel(status){
-      const s = (status || 'pending').toLowerCase();
-      if(s === 'completed' || s === 'done' || s === 'sent') return 'Completed';
-      if(s === 'reject') return 'Reject';
-      if(s === 'error') return 'Error';
-      if(s === 'draft') return 'Draft';
-      if(s === 'pending' || s === 'processing') return 'Pending';
-      return s ? (s.charAt(0).toUpperCase() + s.slice(1)) : 'Pending';
-    }
-
-    function queueStatusClass(status){
-      const s = (status || 'pending').toLowerCase();
-      if(s === 'completed' || s === 'done' || s === 'sent') return 'dn';
-      if(s === 'reject') return 'rj';
-      if(s === 'error') return 'er';
-      return 'pe';
-    }
-
-    function queueRowId(it){
-      const raw = String(it.id || it.message_id || '').trim();
-      if(!raw) return '-';
-      return raw.length > 14 ? raw.slice(0, 12) + '…' : raw;
-    }
-
-    async function apiGetPending(){
-      const res = await fetch('/api/pending' + dashAccountQuery());
-      return await res.json();
-    }
-
-    async function refreshPending(){
-      const info = document.getElementById('pendingInfo');
-      const hint = document.getElementById('pendingHint');
-      try{
-        const j = await apiGetPending();
-        if(!j.ok){
-          info.textContent = j.error || 'Could not load';
-          if(hint) hint.textContent = 'Try refreshing the page.';
-          return;
-        }
-        const items = j.items || [];
-        const body = document.getElementById('pendingBody');
-        const sel = document.getElementById('dashAccountSelect');
-        const mbLabel = (sel && sel.selectedOptions && sel.selectedOptions[0])
-          ? sel.selectedOptions[0].textContent.replace(/\s*-\s*not connected\s*$/i, '').replace(/\s*-\s*wrong Google account\s*$/i, '').trim()
-          : 'this mailbox';
-        const activeCount = items.filter(it => {
-          const s = (it.status || 'pending').toLowerCase();
-          return s !== 'completed' && s !== 'done' && s !== 'sent' && s !== 'reject';
-        }).length;
-        if(items.length === 0){
-          body.innerHTML = '<tr><td colspan="4" class="small" style="padding: 12px 11px;">No queue activity for this mailbox yet</td></tr>';
-          info.textContent = '0';
-          if(hint) hint.textContent = 'Queue for ' + mbLabel + ' - sent replies show Completed; filtered mail shows Reject.';
-          const qc = document.getElementById('qCnt'); if(qc) qc.textContent = '0';
-          const pi = document.getElementById('pInfo'); if(pi) pi.textContent = '0 items in queue';
-          return;
-        }
-        body.innerHTML = items.map(it => {
-          const status = (it.status || 'pending').toLowerCase();
-          const isDone = status === 'completed' || status === 'done' || status === 'sent';
-          const isReject = status === 'reject';
-          const cls = queueStatusClass(status);
-          const label = queueStatusLabel(status);
-          const reason = (it.reason || '').toLowerCase();
-          const rbClass = reason.includes('approval') ? 'ap' : (reason.includes('risk') || reason.includes('keyword')) ? 'rk' : 'ar';
-          const rbLabel = it.reason || 'auto_reply';
-          const rowId = queueRowId(it);
-          const from = (it.from_email || '').trim() || '-';
-          return (
-            `<tr>
-              <td><span class="qt-id" title="${attrEsc(it.message_id || it.id || '')}">${esc(rowId)}</span></td>
-              <td><span class="qt-fr" title="${attrEsc(from)}">${esc(from)}</span></td>
-              <td><span class="rb ${rbClass}">${esc(rbLabel)}</span></td>
-              <td><span class="sb ${cls}">${esc(label)}</span></td>
-            </tr>`
-          );
-        }).join('');
-        info.textContent = String(items.length);
-        if(hint){
-          hint.textContent = 'Queue for ' + mbLabel + ' - '
-            + items.length + ' item(s). Sent → Completed · Rejected → Reject.';
-        }
-        const qc = document.getElementById('qCnt'); if(qc) qc.textContent = String(items.length);
-        const pi = document.getElementById('pInfo');
-        if(pi){
-          pi.textContent = activeCount > 0
-            ? (activeCount + ' pending · ' + items.length + ' total for mailbox')
-            : (items.length + ' item(s) in queue for selected mailbox');
-        }
-      }catch(e){
-        info.textContent = 'Could not load';
-        if(hint) hint.textContent = 'Network error. Try again.';
-      }
-    }
-
-    async function refreshStatus(){
-      const res = await fetch('/healthz');
-      const j = await res.json();
-      document.getElementById('lastRunAt').textContent = j.last_run_at || '-';
-      document.getElementById('lastError').textContent = j.last_error || '-';
-      const lrEl = document.getElementById('lRun');
-      if(lrEl) lrEl.textContent = 'Last run: ' + (j.last_run_at || '-');
-      _mailPoll.autoOn = (j.mail_poll_backend === 'apscheduler' || j.mail_poll_backend === 'celery');
-      _mailPoll.intervalSec = j.mail_poll_interval_seconds || j.mail_poll_beat_seconds || 60;
-      _mailPoll.imapIdle = (j.imap_idle_watchers || 0) > 0;
-      updatePollButtonUi();
-    }
-
-    async function runPollNow(){
-      const btn = document.getElementById('runPollBtn');
-      if(btn && btn.classList.contains('proc')) return;
-      if(btn){ btn.classList.add('proc'); btn.innerHTML = '<span class="sh"></span><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Starting…'; }
-      try{
-        const res = await fetch('/api/trigger-poll', { method: 'POST' });
-        const j = await res.json().catch(() => ({}));
-        if(!res.ok || !j.ok){
-          if(btn) btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ' + (j.error || ('HTTP ' + res.status));
-          setTimeout(() => { if(btn){ btn.classList.remove('proc'); updatePollButtonUi(); } }, 2500);
-          return;
-        }
-        if(btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Polling…';
-        for(let i = 0; i < 12; i++){
-          await new Promise(r => setTimeout(r, 500));
-          await refreshStatus();
-          const le = document.getElementById('lastError')?.textContent || '';
-          const lr = document.getElementById('lastRunAt')?.textContent || '';
-          if(lr && lr !== '-') break;
-          if(le && le !== '-' && le.trim()) break;
-        }
-        await refreshPending();
-      }catch(e){
-        if(btn) btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Network error';
-        setTimeout(() => { if(btn){ btn.classList.remove('proc'); updatePollButtonUi(); } }, 2500);
-        return;
-      }
-      if(btn){ btn.classList.remove('proc'); updatePollButtonUi(); }
-    }
-
-    async function refreshGmailConnection(){
-      try{
-        const res = await fetch('/api/gmail/connection-status' + dashAccountQuery());
-        const j = await res.json();
-        const badge = document.getElementById('gmailConnectedBadge');
-        const hint = document.getElementById('gmailTokenHint');
-        const pg = document.getElementById('pgStatus');
-        if(!j.ok){
-          badge.textContent = 'Not connected';
-          if(hint) hint.textContent = j.error || 'Could not verify Gmail.';
-          if(pg) pg.style.display = 'none';
-          return;
-        }
-
-        const gmailConnected = !!j.gmail_connected;
-        const imapConnected = !!j.imap_connected;
-        const anyConnected = !!j.connected;
-        if(anyConnected){
-          badge.textContent = 'Connected';
-          if(pg){
-            pg.style.display = '';
-            var pgLine = gmailConnected
-              ? 'Connected to Gmail'
-              : (imapConnected
-                ? 'Mailbox (IMAP)'
-                : (j.smtp_last_test_ok && j.send_transport === 'smtp' ? 'SMTP verified' : 'Connected'));
-            pg.innerHTML = '<i class="fa-solid fa-circle" aria-hidden="true"></i> ' + pgLine;
-          }
-        }else{
-          badge.textContent = 'Not connected';
-          if(pg) pg.style.display = 'none';
-        }
-
-        const tokenErr = j.token_error ? (' ' + j.token_error) : '';
-        const base = j.has_token ? 'Signed in with Google.' : 'Not signed in - add Gmail on the Connect page.';
-        if(hint){
-          if(imapConnected && !gmailConnected){
-            hint.textContent = 'Reading inbox via IMAP (same mailbox as SMTP).';
-          }else{
-            hint.textContent = (base + tokenErr).trim();
-          }
-        }
-
-        _mailPoll.pollReady = !!j.poll_ready;
-        updatePollButtonUi();
-
-        if(typeof window.refreshNavConnectionStatus === 'function'){
-          window.refreshNavConnectionStatus(j);
-        }
-      }catch(e){
-        const badge = document.getElementById('gmailConnectedBadge');
-        if(badge){
-          badge.className = 'status-badge disconnected';
-          badge.textContent = 'Unknown';
-        }
-      }
-    }
-
-    function esc(s){
-      const d = document.createElement('div');
-      d.textContent = s == null ? '' : String(s);
-      return d.innerHTML;
-    }
-    function attrEsc(s){
-      if(s == null || s === '') return '';
-      return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
-        .replace(/</g, '&lt;');
-    }
-    function fmtTs(ms){
-      if(!ms) return '-';
-      try{ return new Date(ms).toLocaleString(); }catch(e){ return String(ms); }
-    }
-
-    function setHashThread(threadId){
-      if(!threadId) return;
-      const h = '#t=' + encodeURIComponent(threadId);
-      const base = location.pathname + location.search;
-      if(location.hash !== h) history.replaceState(null, '', base + h);
-    }
-    function threadIdFromHash(){
-      const m = /^#t=(.+)$/.exec(location.hash || '');
-      return m ? decodeURIComponent(m[1]) : null;
-    }
-    let activeTid = null;
-    let _dashAccountId = sessionStorage.getItem('mailpilot_account_id') || '';
-
-    function dashAccountQuery(){
-      return _dashAccountId ? ('?account_id=' + encodeURIComponent(_dashAccountId)) : '';
-    }
-
-    async function refreshBillingInfo(){
-      const el = document.getElementById('billingInfo');
-      if(!el) return;
-      try{
-        const res = await fetch('/api/billing/summary' + dashAccountQuery());
-        const j = await res.json().catch(() => ({}));
-        if(!res.ok || !j.ok || !j.billing){
-          el.textContent = 'Plan: unavailable';
-          return;
-        }
-        const b = j.billing;
-        const plan = ((b.plan && b.plan.code) || 'starter').replace(/^\w/, c => c.toUpperCase());
-        const tok = b.tokens || {};
-        const daily = b.daily || {};
-        const tokenTxt = tok.limit == null ? (tok.used + ' tokens used') : (tok.left + '/' + tok.limit + ' monthly tokens left');
-        const dailyTxt = daily.limit == null ? '' : (' · ' + daily.left + '/' + daily.limit + ' sends left today');
-        el.textContent = plan + ' · ' + tokenTxt + dailyTxt;
-      }catch(e){
-        el.textContent = 'Plan: unavailable';
-      }
-    }
-
-    function inboxReadyAccount(a){
-      if(!a || !a.is_enabled) return false;
-      if(a.oauth_email_mismatch) return false;
-      if(typeof a.inbox_ready === 'boolean') return a.inbox_ready;
-      return a.transport === 'gmail_api' ? !!a.gmail_inbox_ready : !!a.imap_ready;
-    }
-
-    function inboxErrorMessage(err, j){
-      const e = String(err || '').trim();
-      if(e === 'not_connected'){
-        return 'This mailbox is not connected. Open Setup, add credentials.json, and Connect OAuth for this address.';
-      }
-      if(e === 'oauth_email_mismatch'){
-        const cfg = (j && j.email) ? j.email : 'this mailbox';
-        const prof = (j && j.profile_email) ? j.profile_email : 'another account';
-        return 'Wrong Google account connected for ' + cfg + '. OAuth is signed in as ' + prof + '. Disconnect on Setup and Connect OAuth again using ' + cfg + '.';
-      }
-      if(e.includes('429') || /rate limit/i.test(e)){
-        return 'Gmail rate limit - wait a few minutes, then select this mailbox again.';
-      }
-      return e || 'Could not load inbox';
-    }
-
-    function updateDashAccountViewing(){
-      const sel = document.getElementById('dashAccountSelect');
-      const viewing = document.getElementById('dashAccountViewing');
-      const triggerText = document.getElementById('dashAccountTriggerText');
-      if(!sel) return;
-      const opt = sel.selectedOptions && sel.selectedOptions[0];
-      const label = opt ? (opt.textContent || 'mailbox') : 'Select mailbox';
-      if(triggerText) triggerText.textContent = label;
-      if(viewing && opt){
-        viewing.textContent = 'Viewing inbox for ' + label.replace(/\s*-\s*not connected\s*$/i, '').replace(/\s*-\s*wrong Google account\s*$/i, '');
-      }
-      syncDashMailboxMenuSelection();
-    }
-
-    function closeDashMailboxMenu(){
-      const menu = document.getElementById('dashAccountMenu');
-      const trigger = document.getElementById('dashAccountTrigger');
-      const wrap = trigger && trigger.closest ? trigger.closest('.dash-mb-wrap') : null;
-      if(menu){
-        menu.classList.remove('open');
-        menu.hidden = true;
-      }
-      if(trigger) trigger.setAttribute('aria-expanded', 'false');
-      if(wrap) wrap.classList.remove('is-open');
-    }
-
-    function openDashMailboxMenu(){
-      const menu = document.getElementById('dashAccountMenu');
-      const trigger = document.getElementById('dashAccountTrigger');
-      const wrap = trigger && trigger.closest ? trigger.closest('.dash-mb-wrap') : null;
-      if(!menu || !trigger) return;
-      menu.hidden = false;
-      menu.classList.add('open');
-      trigger.setAttribute('aria-expanded', 'true');
-      if(wrap) wrap.classList.add('is-open');
-      syncDashMailboxMenuSelection();
-    }
-
-    function syncDashMailboxMenuSelection(){
-      const sel = document.getElementById('dashAccountSelect');
-      const menu = document.getElementById('dashAccountMenu');
-      if(!sel || !menu) return;
-      const val = String(sel.value || '');
-      menu.querySelectorAll('.dash-mb-option').forEach(function(btn){
-        btn.classList.toggle('is-selected', String(btn.getAttribute('data-value') || '') === val);
-      });
-    }
-
-    function rebuildDashMailboxMenu(){
-      const sel = document.getElementById('dashAccountSelect');
-      const menu = document.getElementById('dashAccountMenu');
-      if(!sel || !menu) return;
-      menu.innerHTML = '';
-      Array.prototype.forEach.call(sel.options, function(opt){
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'dash-mb-option';
-        btn.setAttribute('role', 'option');
-        btn.setAttribute('data-value', opt.value);
-        btn.textContent = opt.textContent || opt.value;
-        if(String(opt.value) === String(sel.value)) btn.classList.add('is-selected');
-        btn.addEventListener('click', function(){
-          if(String(sel.value) !== String(opt.value)){
-            sel.value = opt.value;
-            sel.dispatchEvent(new Event('change', { bubbles: true }));
-          }else{
-            updateDashAccountViewing();
-          }
-          closeDashMailboxMenu();
-        });
-        menu.appendChild(btn);
-      });
-      updateDashAccountViewing();
-    }
-
-    function initDashMailboxPicker(){
-      const trigger = document.getElementById('dashAccountTrigger');
-      const menu = document.getElementById('dashAccountMenu');
-      const wrap = trigger && trigger.closest ? trigger.closest('.dash-mb-wrap') : null;
-      if(!trigger || !menu || trigger.dataset.bound === '1') return;
-      trigger.dataset.bound = '1';
-      trigger.addEventListener('click', function(e){
-        e.preventDefault();
-        e.stopPropagation();
-        const open = !menu.classList.contains('open');
-        if(open) openDashMailboxMenu();
-        else closeDashMailboxMenu();
-      });
-      document.addEventListener('click', function(e){
-        if(!wrap || wrap.contains(e.target)) return;
-        closeDashMailboxMenu();
-      });
-      document.addEventListener('keydown', function(e){
-        if(e.key === 'Escape') closeDashMailboxMenu();
-      });
-    }
-
-    function resetReadingPane(){
-      activeTid = null;
-      const base = location.pathname + location.search;
-      if(location.hash) history.replaceState(null, '', base);
-      const rpE = document.getElementById('rpE');
-      const rpF = document.getElementById('rpF');
-      const panel = document.getElementById('threadDetail');
-      const hint = document.getElementById('threadDetailHint');
-      if(rpF) rpF.classList.remove('on');
-      if(rpE) rpE.style.display = 'flex';
-      if(panel) panel.innerHTML = '';
-      if(hint) hint.textContent = '';
-    }
-
-    function clearInboxUi(){
-      renderThreadRows([]);
-      const cnt = document.getElementById('msgCnt');
-      if(cnt) cnt.textContent = '-';
-      resetReadingPane();
-    }
-
-    async function switchMailbox(){
-      const sel = document.getElementById('dashAccountSelect');
-      _dashAccountId = (sel && sel.value) ? sel.value : '';
-      sessionStorage.setItem('mailpilot_account_id', _dashAccountId);
-      updateDashAccountViewing();
-      clearInboxUi();
-      await loadInbox();
-      await refreshGmailConnection();
-      await refreshPending();
-      await refreshBillingInfo();
-    }
-
-    async function loadDashAccounts(){
-      const sel = document.getElementById('dashAccountSelect');
-      const viewing = document.getElementById('dashAccountViewing');
-      if(!sel) return;
-      try{
-        const res = await fetch('/api/mail-accounts/');
-        const j = await res.json().catch(() => ({}));
-        if(!res.ok || !j.ok) return;
-        const accounts = (j.accounts || []).filter(a => a.is_enabled);
-        sel.innerHTML = '';
-        accounts.forEach(a => {
-          const opt = document.createElement('option');
-          opt.value = a.id;
-          const label = a.email || a.label || ('Slot ' + a.slot);
-          const kind = a.transport === 'gmail_api' ? ' (Gmail)' : ' (SMTP)';
-          const ready = inboxReadyAccount(a);
-          let suffix = ready ? '' : ' - not connected';
-          if(a.oauth_email_mismatch) suffix = ' - wrong Google account';
-          opt.textContent = label + kind + suffix;
-          opt.dataset.inboxReady = ready ? '1' : '0';
-          sel.appendChild(opt);
-        });
-        if(accounts.length){
-          const stored = _dashAccountId && accounts.some(a => String(a.id) === String(_dashAccountId));
-          const preferred = accounts.find(a => inboxReadyAccount(a));
-          _dashAccountId = stored ? _dashAccountId : String((preferred || accounts[0]).id);
-          sel.value = _dashAccountId;
-          sessionStorage.setItem('mailpilot_account_id', _dashAccountId);
-          updateDashAccountViewing();
-        }else if(viewing){
-          viewing.textContent = 'No active mailboxes - enable one on Setup.';
-        }
-        if(!sel.dataset.changeBound){
-          sel.dataset.changeBound = '1';
-          sel.onchange = () => { switchMailbox(); };
-        }
-        rebuildDashMailboxMenu();
-        initDashMailboxPicker();
-      }catch(e){ /* ignore */ }
-    }
-
-    async function loadInbox(){
-      const hint = document.getElementById('inboxListHint');
-      const list = document.getElementById('threadList');
-      const sel = document.getElementById('dashAccountSelect');
-      if(!hint || !list) return;
-      const opt = sel && sel.selectedOptions && sel.selectedOptions[0];
-      if(opt && opt.dataset.inboxReady === '0'){
-        clearInboxUi();
-        hint.textContent = 'This mailbox is not connected - connect it on Setup first.';
-        return;
-      }
-      hint.textContent = 'Loading inbox…';
-      renderThreadRows([]);
-      try{
-        const res = await fetch('/api/gmail/inbox' + dashAccountQuery());
-        const j = await res.json().catch(() => ({}));
-        if(!res.ok || !j.ok){
-          clearInboxUi();
-          hint.textContent = inboxErrorMessage(j.error, j);
-          return;
-        }
-        if(j.email){
-          const viewing = document.getElementById('dashAccountViewing');
-          if(viewing) viewing.textContent = 'Viewing inbox for ' + j.email;
-        }
-        const threads = j.threads || [];
-        if(threads.length === 0){
-          hint.textContent = 'No threads in this folder.';
-          renderThreadRows([]);
-          return;
-        }
-        hint.textContent = threads.length + ' message' + (threads.length === 1 ? '' : 's');
-        refreshPending();
-        renderThreadRows(threads.map(t => {
-          const from = (t.from || '').trim();
-          const sj = (t.subject || '').trim();
-          const tm = fmtTs(t.internal_date);
-          const st = (t.message_status || '').toLowerCase();
-          let stBadge = '';
-          if(st === 'reject') stBadge = '<span class="msg-st msg-st--reject">Reject</span>';
-          else if(st === 'sent') stBadge = '<span class="msg-st msg-st--sent">Sent</span>';
-          else if(st === 'draft') stBadge = '<span class="msg-st msg-st--draft">Draft</span>';
-          const html = (
-            `<button type="button" class="msg-it${t.unread ? ' unr' : ' msg-seen'}" data-tid="${attrEsc(t.thread_id)}" role="option" aria-selected="false">
-              <div class="msg-st-row">
-                <div class="msg-fr">${esc(from || '-')}</div>
-                ${stBadge}
-              </div>
-              <div class="msg-sj">${esc(sj || '(No subject)')}</div>
-              <div class="msg-tm">${esc(tm)}</div>
-            </button>`
-          );
-          return { html, _search: threadSearchHaystack(t), thread_id: t.thread_id };
-        }));
-
-        const wanted = threadIdFromHash();
-        if(wanted){
-          const match = Array.from(list.querySelectorAll('.msg-it')).find(b => b.getAttribute('data-tid') === wanted);
-          if(match) selectThread(wanted, { focusEl: match, skipHash: true });
-        }
-      }catch(e){
-        clearInboxUi();
-        hint.textContent = 'Could not load inbox.';
-      }
-    }
-    async function selectThread(threadId, opts){
-      opts = opts || {};
-      if(!threadId) return;
-      activeTid = threadId;
-      if(!opts.skipHash) setHashThread(threadId);
-
-      document.querySelectorAll('.msg-it').forEach(el => {
-        const on = el.getAttribute('data-tid') === threadId;
-        el.classList.toggle('sel', on);
-        el.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-
-      const hint = document.getElementById('threadDetailHint');
-      const panel = document.getElementById('threadDetail');
-      const rpE = document.getElementById('rpE');
-      const rpF = document.getElementById('rpF');
-      const rpS = document.getElementById('rpS');
-      const rpA = document.getElementById('rpA');
-      const rpN = document.getElementById('rpN');
-      const rpM = document.getElementById('rpM');
-      const rpD = document.getElementById('rpD');
-      if(!panel || !rpE || !rpF) return;
-
-      rpE.style.display = 'none';
-      rpF.classList.add('on');
-      panel.innerHTML = '<div class="small" style="padding: 12px 0; color: var(--txm);">Opening…</div>';
-      hint.textContent = '';
-
-      if(opts.focusEl && opts.focusEl.scrollIntoView){
-        try{ opts.focusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }catch(e){}
-      }
-
-      try{
-        const res = await fetch('/api/gmail/threads/' + encodeURIComponent(threadId) + dashAccountQuery());
-        const j = await res.json().catch(() => ({}));
-        if(!res.ok || !j.ok){
-          rpF.classList.remove('on');
-          rpE.style.display = 'flex';
-          hint.textContent = j.error || 'Could not open thread';
-          return;
-        }
-        const msgs = j.messages || [];
-        const inboundFirst = msgs.find(m => !m.is_from_me) || msgs[0];
-        const subj = (inboundFirst?.subject || msgs[0]?.subject || '(No subject)').replace(/^re:\s*/i, '').trim() || '(No subject)';
-        const from = inboundFirst?.from || (msgs[0]?.from || '');
-        const fromName = (from || '').replace(/\s*<.*?>/, '').trim();
-        const fromEmail = (from || '').match(/<([^>]+)>/)?.[1] || from || '';
-        const dt = fmtTs(inboundFirst?.internal_date || msgs[0]?.internal_date);
-
-        rpS.textContent = subj;
-        rpA.textContent = (fromName || fromEmail || '-').slice(0,1).toUpperCase();
-        rpN.textContent = fromName || 'Contact';
-        rpM.textContent = fromEmail || from || '';
-        rpD.textContent = dt;
-
-        hint.textContent = msgs.length > 1 ? (msgs.length + ' messages in thread') : '';
-        const ordered = [...msgs].sort((a, b) => (a.internal_date || 0) - (b.internal_date || 0));
-        panel.innerHTML = ordered.map(m => {
-          const rawBody = (m.body_text || '').trim();
-          const fallback = (!rawBody && (m.snippet || '')) ? ('Preview: ' + m.snippet) : (rawBody || m.snippet || '(No content)');
-          const mine = !!m.is_from_me;
-          const who = mine ? 'You' : ((m.from || '').replace(/\s*<.*?>/, '').trim() || 'Contact');
-          const whoEmail = mine ? (m.from || '') : (m.from || '');
-          const cls = mine ? 'rp-msg rp-msg--reply' : 'rp-msg';
-          const lbl = mine ? '<div class="rp-msg-lbl">Your reply</div>' : '<div class="rp-msg-lbl">Incoming</div>';
-          return (
-            `<div class="${cls}">
-              ${lbl}
-              <div class="small" style="display:flex; justify-content:space-between; gap:10px; margin-bottom:6px;">
-                <span><strong style="color:var(--tx); font-family:var(--font-head); font-weight:600;">${esc(who)}</strong> <span style="color:var(--txm);">· ${esc(whoEmail)}</span></span>
-                <span>${esc(fmtTs(m.internal_date))}</span>
-              </div>
-              <pre>${esc(fallback)}</pre>
-            </div>`
-          );
-        }).join('');
-
-        const rp = document.getElementById('readingWrap');
-        if(rp && rp.scrollIntoView && window.innerWidth < 900){
-          try{ rp.scrollIntoView({ behavior: 'smooth', block: 'start' }); }catch(e){}
-        }
-      }catch(e){
-        rpF.classList.remove('on');
-        rpE.style.display = 'flex';
-        hint.textContent = 'Could not open this thread.';
-      }
-    }
-    window.addEventListener('hashchange', () => {
-      const tid = threadIdFromHash();
-      if(tid && tid !== activeTid){
-        const match = Array.from(document.querySelectorAll('.msg-it')).find(b => b.getAttribute('data-tid') === tid);
-        if(match) selectThread(tid, { focusEl: match, skipHash: true });
-      }
-    });
-
-    function maybeScrollFromView(){
-      try{
-        const p = new URLSearchParams(location.search);
-        if(p.get('view') === 'inbox'){
-          const el = document.getElementById('inbox-section');
-          if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }catch(e){}
-    }
-
-    async function refreshDashboard(){
-      await refreshStatus();
-      await loadDashAccounts();
-      await refreshGmailConnection();
-      await refreshPending();
-      await refreshBillingInfo();
-    }
-    async function initDashboard(){
-      await refreshDashboard();
-      {% if inbox_ready %}await loadInbox();{% endif %}
-    }
-    initDashboard();
-    setInterval(refreshDashboard, 30000);
-    {% if inbox_ready %}
-    setInterval(() => { loadInbox(); }, 120000);
-    {% endif %}
-
-    maybeScrollFromView();
-    document.getElementById('msgQ')?.addEventListener('input', filterMsg);
-    const threadListEl = document.getElementById('threadList');
-    if(threadListEl && !threadListEl.dataset.clickBound){
-      threadListEl.dataset.clickBound = '1';
-      threadListEl.addEventListener('click', (e) => {
-        const el = e.target.closest('.msg-it');
-        if(!el) return;
-        selectThread(el.getAttribute('data-tid'), { focusEl: el });
-      });
-    }
-    {% if not inbox_ready %}
-      const inh = document.getElementById('inboxListHint');
-      if(inh) inh.textContent = 'Connect Gmail or configure IMAP (Setup) to load messages.';
-    {% endif %}
-  </script>
-    </div>
-  </div>
     </main>
   </div>
-  {% include "components/toasts.html" with toast_top="64px" %}
+
+  {{ summary|json_script:"ovData" }}
+  <script>
+  (function () {
+    const URLS = {
+      api: '{% url "api_dashboard_summary" %}',
+      inbox: '{% url "inbox" %}',
+      setup: '{% url "setup" %}',
+      pricing: '{% url "home" %}#pricing',
+      profile: '{% url "profile" %}'
+    };
+    const ACTION_UI = {
+      sent: { tone: 'sent', icon: 'fa-solid fa-paper-plane' },
+      draft: { tone: 'drafts', icon: 'fa-regular fa-file-lines' },
+      ignored: { tone: 'filtered', icon: 'fa-solid fa-filter' },
+      error: { tone: 'failed', icon: 'fa-solid fa-triangle-exclamation' }
+    };
+    const STATUS_LABEL = { ok: 'Healthy', needs_setup: 'Needs setup', oauth_mismatch: 'Account mismatch', disabled: 'Paused' };
+
+    const $ = function (id) { return document.getElementById(id); };
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function num(n) { return Number(n || 0).toLocaleString(); }
+    function ago(iso) {
+      if (!iso) return '';
+      const t = Date.parse(iso);
+      if (isNaN(t)) return '';
+      const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+      if (s < 60) return 'Just now';
+      if (s < 3600) return Math.floor(s / 60) + 'm ago';
+      if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+      if (s < 86400 * 7) return Math.floor(s / 86400) + 'd ago';
+      return new Date(t).toLocaleDateString();
+    }
+    function fullDate(iso) {
+      const t = Date.parse(iso || '');
+      return isNaN(t) ? '' : new Date(t).toLocaleString();
+    }
+    function empty(icon, title, text) {
+      return '<div class="ov-empty"><i class="' + icon + '" aria-hidden="true"></i><strong>' + esc(title) + '</strong><span>' + esc(text) + '</span></div>';
+    }
+
+    function renderHero(d) {
+      const mb = d.mailboxes || {};
+      const totals = d.totals || {};
+      const plan = d.plan || {};
+      const total = Number(mb.total || 0);
+      const connected = Number(mb.connected || 0);
+      $('ovMailboxes').textContent = connected + '/' + total;
+      $('ovProcessed').textContent = num(totals.processed);
+      $('ovLatest').textContent = ago(totals.latest_processed_at) || '—';
+      $('ovLatest').title = fullDate(totals.latest_processed_at);
+
+      let sub;
+      if (!total) sub = 'Connect a mailbox to start automating replies';
+      else if (!connected) sub = 'Finish connecting a mailbox to start automating replies';
+      else sub = connected + ' of ' + total + ' mailbox' + (total === 1 ? '' : 'es') + ' active'
+        + (totals.pending ? ' · ' + num(totals.pending) + ' in queue' : ' · auto-replies running');
+      $('ovHeroSub').textContent = sub;
+
+      const cta = $('ovHeroCta');
+      if (!connected) {
+        cta.href = URLS.setup;
+        cta.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i><span>Connect mailbox</span>';
+      } else {
+        cta.href = URLS.inbox;
+        cta.innerHTML = '<i class="fa-solid fa-inbox" aria-hidden="true"></i><span>Open inbox</span>';
+      }
+      $('ovPlanChip').querySelector('span').textContent = plan.label || 'Starter plan';
+    }
+
+    function renderKpis(d) {
+      const totals = d.totals || {};
+      document.querySelectorAll('[data-kpi]').forEach(function (el) {
+        el.textContent = num(totals[el.getAttribute('data-kpi')]);
+      });
+    }
+
+    function renderBreakdown(d) {
+      const rows = d.breakdown || [];
+      const total = Number((d.totals || {}).processed || 0);
+      let html = '<div class="ov-total"><strong>' + num(total) + '</strong><span>processed</span></div>';
+      html += '<div class="ov-stack" aria-hidden="true">' + (total ? rows.map(function (r) {
+        return r.count ? '<i class="bar-' + esc(r.key) + '" style="width:' + (r.count * 100 / total) + '%"></i>' : '';
+      }).join('') : '') + '</div>';
+      html += '<div class="ov-rows">' + rows.map(function (r) {
+        return '<div class="ov-row"><span class="ov-dot bar-' + esc(r.key) + '"></span>'
+          + '<span class="ov-row-label">' + esc(r.label) + '</span>'
+          + '<span class="ov-row-count">' + num(r.count) + '</span>'
+          + '<span class="ov-row-pct">' + Number(r.percent || 0) + '%</span></div>';
+      }).join('') + '</div>';
+      if (!total) html += empty('fa-regular fa-envelope', 'No processed mail yet', 'Activity shows here after the first poll.');
+      $('ovBreakdown').innerHTML = html;
+    }
+
+    function renderWeek(d) {
+      const days = d.daily || [];
+      const weekTotal = Number(d.week_total || 0);
+      $('ovWeekTotal').textContent = num(weekTotal) + ' email' + (weekTotal === 1 ? '' : 's');
+      const max = Math.max(1, ...days.map(function (x) { return Number(x.total || 0); }));
+      const today = days.length ? days[days.length - 1].date : '';
+      let html = weekTotal ? '' : '<p class="ov-week-empty">No activity this week</p>';
+      html += '<div class="ov-chart" role="img" aria-label="Processed emails per day for the last 7 days">' + days.map(function (x) {
+        const autoH = (Number(x.auto_replied || 0) * 100 / max);
+        const otherH = (Number(x.other || 0) * 100 / max);
+        const tip = x.date + ': ' + x.auto_replied + ' auto-replied, ' + x.other + ' other';
+        return '<div class="ov-col' + (x.date === today ? ' is-today' : '') + '" title="' + esc(tip) + '">'
+          + '<div class="ov-col-bar"><i class="seg-other" style="height:' + otherH + '%"></i><i class="seg-auto" style="height:' + autoH + '%"></i></div>'
+          + '<span class="ov-col-label">' + esc(x.label) + '</span></div>';
+      }).join('') + '</div>';
+      html += '<div class="ov-legend"><span><i style="background:var(--primary)"></i>Auto-replied</span><span><i style="background:#c9c9fb"></i>Other activity</span></div>';
+      $('ovWeek').innerHTML = html;
+    }
+
+    function meter(label, used, limit, hint) {
+      const u = Number(used || 0);
+      const unlimited = limit === null || limit === undefined;
+      const l = unlimited ? 0 : Number(limit);
+      const pct = unlimited ? 0 : (l ? Math.min(100, u * 100 / l) : 100);
+      return '<div><div class="ov-meter-top"><span>' + esc(label) + '</span><strong>' + num(u) + ' / ' + (unlimited ? 'Unlimited' : num(l)) + '</strong></div>'
+        + '<div class="ov-meter-track' + (!unlimited && pct >= 100 ? ' is-full' : '') + '"><i style="width:' + pct + '%"></i></div>'
+        + (hint ? '<div class="ov-meter-hint">' + esc(hint) + '</div>' : '') + '</div>';
+    }
+
+    function renderUsage(d) {
+      const u = d.usage || {};
+      const plan = d.plan || {};
+      const tokens = u.tokens || {};
+      const inboxes = u.active_inboxes || {};
+      const trial = u.starter_trial || {};
+      const isStarter = (plan.code || 'starter') === 'starter';
+      const link = $('ovUsageLink');
+      if (isStarter) {
+        link.href = URLS.pricing;
+        link.innerHTML = 'Upgrade <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
+      } else {
+        link.href = URLS.profile;
+        link.innerHTML = 'Billing <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
+      }
+      if (!u.plan) {
+        $('ovUsage').innerHTML = empty('fa-solid fa-chart-pie', 'Usage unavailable', 'Try again in a moment.');
+        return;
+      }
+      let html = '';
+      if (plan.starter_expired) html += '<div class="ov-alert">Your Starter trial has ended. Upgrade to keep auto-replies running.</div>';
+      html += '<div class="ov-meters">';
+      const perSend = tokens.per_send ? tokens.per_send + ' tokens per auto-reply' : '';
+      html += meter(isStarter ? 'Trial tokens' : 'Tokens this month', tokens.used, tokens.limit, perSend);
+      html += meter('Active inboxes', inboxes.used, inboxes.limit, '');
+      if (isStarter && trial.lifetime) html += meter('Trial auto-replies', trial.sends_used, trial.sends_limit, '');
+      html += '</div>';
+      $('ovUsage').innerHTML = html;
+    }
+
+    function renderHealth(d) {
+      const items = (d.mailboxes || {}).items || [];
+      if (!items.length) {
+        $('ovHealth').innerHTML = empty('fa-solid fa-inbox', 'No mailboxes yet', 'Add Gmail or SMTP on Setup to get started.');
+        return;
+      }
+      $('ovHealth').innerHTML = '<div class="ov-mb-list">' + items.map(function (m) {
+        const gmail = m.transport === 'gmail_api';
+        const meta = [gmail ? 'Gmail' : 'SMTP / IMAP', num(m.processed) + ' processed'];
+        if (m.last_processed_at) meta.push('last ' + ago(m.last_processed_at));
+        return '<div class="ov-mb"><div class="ov-mb-ico"><i class="' + (gmail ? 'fa-brands fa-google' : 'fa-solid fa-server') + '" aria-hidden="true"></i></div>'
+          + '<div class="ov-mb-main"><div class="ov-mb-name" title="' + esc(m.label) + '">' + esc(m.label) + '</div>'
+          + '<div class="ov-mb-meta">' + esc(meta.join(' · ')) + '</div></div>'
+          + '<span class="ov-badge st-' + esc(m.status) + '">' + esc(STATUS_LABEL[m.status] || m.status) + '</span></div>';
+      }).join('') + '</div>';
+    }
+
+    function renderRecent(d) {
+      const items = d.recent || [];
+      if (!items.length) {
+        $('ovRecent').innerHTML = empty('fa-regular fa-bell', 'All quiet', 'Auto-replies, drafts and filtered mail will appear here.');
+        return;
+      }
+      $('ovRecent').innerHTML = '<div class="ov-recent">' + items.map(function (it) {
+        const ui = ACTION_UI[it.action] || ACTION_UI.ignored;
+        const meta = [it.label, it.from_email, it.account_label].filter(Boolean).join(' · ');
+        const inner = '<div class="ov-act-ico tone-' + ui.tone + '"><i class="' + ui.icon + '" aria-hidden="true"></i></div>'
+          + '<div class="ov-act-main"><div class="ov-act-subject">' + esc(it.subject) + '</div><div class="ov-act-meta">' + esc(meta) + '</div></div>'
+          + '<span class="ov-act-time" title="' + esc(fullDate(it.processed_at)) + '">' + esc(ago(it.processed_at)) + '</span>';
+        if (!it.thread_id) return '<div class="ov-act">' + inner + '</div>';
+        return '<a class="ov-act" href="' + URLS.inbox + '#t=' + encodeURIComponent(it.thread_id) + '" data-account="' + esc(it.account_id || '') + '">' + inner + '</a>';
+      }).join('') + '</div>';
+    }
+
+    function render(d) {
+      if (!d || d.ok === false) {
+        $('ovError').hidden = false;
+        $('ovError').textContent = 'Could not load dashboard data. It will retry automatically.';
+        return;
+      }
+      $('ovError').hidden = true;
+      renderHero(d);
+      renderKpis(d);
+      renderBreakdown(d);
+      renderWeek(d);
+      renderUsage(d);
+      renderHealth(d);
+      renderRecent(d);
+    }
+
+    $('ovRecent').addEventListener('click', function (e) {
+      const a = e.target.closest('a[data-account]');
+      const acc = a && a.getAttribute('data-account');
+      if (acc) sessionStorage.setItem('mailpilot_account_id', acc);
+    });
+
+    let loading = false;
+    async function refresh() {
+      if (loading || document.hidden) return;
+      loading = true;
+      try {
+        const res = await fetch(URLS.api, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+        if (res.status === 401) { location.href = '/login?next=' + encodeURIComponent(location.pathname); return; }
+        render(await res.json());
+      } catch (e) {
+        render(null);
+      } finally {
+        loading = false;
+      }
+    }
+
+    let initial = null;
+    try { initial = JSON.parse($('ovData').textContent); } catch (e) {}
+    if (initial && initial.ok) render(initial); else refresh();
+    setInterval(refresh, 60000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+  })();
+  </script>
   {% include "components/app_shell_js.html" %}
 </body>
 </html>

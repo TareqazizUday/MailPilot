@@ -52,6 +52,7 @@ urlpatterns = [
     path("billing/paypal/return", views.billing_paypal_return, name="billing_paypal_return"),
     path("setup", views.setup_page, name="setup"),
     path("dashboard", views.dashboard_page, name="dashboard"),
+    path("inbox", views.inbox_page, name="inbox"),
     path("profile", views.profile_page, name="profile"),
     path("settings", views.settings_page, name="settings"),
 ]

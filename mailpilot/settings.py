@@ -124,6 +124,20 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Per-user mailbox files (client_secret.json, token.json, crawl output).
+USER_DATA_ROOT = Path(os.environ.get("MAILPILOT_USER_DATA_ROOT") or BASE_DIR / "data" / "users")
+
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    # Test users get recycled ids; keep their files away from real users' data and uploads.
+    import atexit
+    import shutil
+    import tempfile
+
+    _TEST_FILES_ROOT = Path(tempfile.mkdtemp(prefix="mailpilot-test-"))
+    atexit.register(shutil.rmtree, _TEST_FILES_ROOT, ignore_errors=True)
+    MEDIA_ROOT = _TEST_FILES_ROOT / "media"
+    USER_DATA_ROOT = _TEST_FILES_ROOT / "users"
+
 # SEO: canonical URLs and Open Graph image in production (optional).
 # Example: SITE_URL=https://yourdomain.com  OG_IMAGE_URL=https://yourdomain.com/static/seo/og.png
 SITE_URL = (os.environ.get("SITE_URL") or "").strip().rstrip("/")

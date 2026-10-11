@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.urls import include, path
+from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from core import mail_account_views as ma_views
@@ -12,6 +13,9 @@ urlpatterns = [
     path("schema/", SpectacularAPIView.as_view(), name="api_schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="api_schema"), name="api_docs"),
     path("redoc/", SpectacularRedocView.as_view(url_name="api_schema"), name="api_redoc"),
+    path("schema", RedirectView.as_view(pattern_name="api_schema", query_string=True)),
+    path("docs", RedirectView.as_view(pattern_name="api_docs")),
+    path("redoc", RedirectView.as_view(pattern_name="api_redoc")),
     # Versioned API
     path("v1/", include("api.v1.urls")),
     # Legacy endpoints (keep working)
@@ -48,6 +52,7 @@ urlpatterns = [
     path("kb/export-bundle", legacy_views.api_kb_export_bundle, name="api_kb_export_bundle_legacy"),
     path("kb/replace-json", legacy_views.api_kb_replace_json, name="api_kb_replace_json_legacy"),
     path("pending", legacy_views.api_pending, name="api_pending_legacy"),
+    path("dashboard/summary", legacy_views.api_dashboard_summary, name="api_dashboard_summary"),
     path("billing/summary", legacy_views.api_billing_summary, name="api_billing_summary_legacy"),
     path("billing/select-plan", legacy_views.api_billing_select_plan, name="api_billing_select_plan_legacy"),
     path("billing/interval", legacy_views.api_billing_interval, name="api_billing_interval_legacy"),

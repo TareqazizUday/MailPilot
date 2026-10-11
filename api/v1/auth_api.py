@@ -24,7 +24,9 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from drf_spectacular.utils import extend_schema
 
+from api.v1 import serializers as sz
 from core.audit import log_audit
 from core.models import PasswordResetOTP, UserProfile
 
@@ -91,6 +93,10 @@ class EmailOrUsernameTokenView(TokenObtainPairView):
     serializer_class = EmailOrUsernameTokenSerializer
 
 
+@extend_schema(
+    request=sz.SignupRequestSerializer,
+    responses={201: sz.SignupResponseSerializer, 400: sz.ErrorSerializer},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @authentication_classes([])
@@ -158,7 +164,7 @@ def signup(request):
     UserProfile.objects.get_or_create(user=user)
     log_audit(request, "signup_api", "")
     tokens = _tokens_for_user(user)
-    return Response({"ok": True, "user": _profile_payload(user), **tokens}, status=status.HTTP_201_CREATED)
+    return Response({"ok": True, "user": _profile_payload(user, request), **tokens}, status=status.HTTP_201_CREATED)
 
 
 def _send_reset_email(to_email: str, otp: str, hello_name: str) -> None:
@@ -167,6 +173,10 @@ def _send_reset_email(to_email: str, otp: str, hello_name: str) -> None:
     _send_password_reset_otp_email(to_email, otp, hello_name=hello_name)
 
 
+@extend_schema(
+    request=sz.PasswordResetRequestSerializer,
+    responses={200: sz.PasswordResetRequestResponseSerializer, 400: sz.ErrorSerializer, 500: sz.ErrorSerializer},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @authentication_classes([])
@@ -218,6 +228,10 @@ def password_reset_request(request):
     return Response({"ok": True, "email": "", "email_hint": identifier})
 
 
+@extend_schema(
+    request=sz.PasswordResetVerifyRequestSerializer,
+    responses={200: sz.PasswordResetVerifyResponseSerializer, 400: sz.ErrorSerializer},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @authentication_classes([])
@@ -249,6 +263,10 @@ def password_reset_verify(request):
     return Response({"ok": True, "reset_token": reset_token})
 
 
+@extend_schema(
+    request=sz.PasswordResetConfirmRequestSerializer,
+    responses={200: sz.OkSerializer, 400: sz.ErrorSerializer},
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @authentication_classes([])
@@ -281,6 +299,12 @@ def password_reset_confirm(request):
     return Response({"ok": True})
 
 
+@extend_schema(methods=["GET"], responses={200: sz.UserProfileResponseSerializer})
+@extend_schema(
+    methods=["PATCH"],
+    request=sz.ProfileUpdateRequestSerializer,
+    responses={200: sz.UserProfileResponseSerializer, 400: sz.ErrorSerializer},
+)
 @api_view(["GET", "PATCH"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
@@ -323,6 +347,12 @@ def me(request):
     return Response({"ok": True, "user": _profile_payload(u, request)})
 
 
+@extend_schema(
+    methods=["POST"],
+    request={"multipart/form-data": sz.AvatarUploadRequestSerializer},
+    responses={200: sz.UserProfileResponseSerializer, 400: sz.ErrorSerializer},
+)
+@extend_schema(methods=["DELETE"], request=None, responses={200: sz.UserProfileResponseSerializer})
 @api_view(["POST", "DELETE"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
@@ -348,6 +378,10 @@ def me_avatar(request):
     return Response({"ok": True, "user": _profile_payload(request.user, request)})
 
 
+@extend_schema(
+    request=sz.ChangePasswordRequestSerializer,
+    responses={200: sz.OkSerializer, 400: sz.ErrorSerializer},
+)
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])

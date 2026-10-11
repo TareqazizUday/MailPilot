@@ -10,13 +10,13 @@ logger = logging.getLogger("mailpilot.request")
 class RequestLogMiddleware(MiddlewareMixin):
     def process_request(self, request):
         p = request.path
-        if p.startswith("/api/") or p in {"/", "/setup", "/dashboard"}:
+        if p.startswith("/api/") or p in {"/", "/setup", "/dashboard", "/inbox"}:
             logger.info("REQ %s %s", request.method, p)
         return None
 
     def process_response(self, request, response):
         p = request.path
-        if p.startswith("/api/") or p in {"/", "/setup", "/dashboard"}:
+        if p.startswith("/api/") or p in {"/", "/setup", "/dashboard", "/inbox"}:
             try:
                 logger.info("RESP %s %s -> %s", request.method, p, response.status_code)
             except Exception:

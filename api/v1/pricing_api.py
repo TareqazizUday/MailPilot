@@ -6,6 +6,7 @@ import logging
 
 from django.urls import reverse
 from django.utils.html import strip_tags
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
@@ -37,6 +38,19 @@ class _OptionalJWTAuthentication(JWTAuthentication):
             return super().authenticate(request)
         except Exception:
             return None
+
+
+class _OptionalJWTScheme(OpenApiAuthenticationExtension):
+    """Reference the shared `jwtAuth` scheme instead of registering a second one with the same name."""
+
+    target_class = _OptionalJWTAuthentication
+    name: list[str] = []
+
+    def get_security_requirement(self, auto_schema):
+        return {"jwtAuth": []}
+
+    def get_security_definition(self, auto_schema):
+        return []
 
 
 def _account_state(user) -> tuple[str, bool]:

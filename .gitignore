@@ -52,3 +52,5 @@ scraper/output/*
 .cursor/
 mailpilot_dump.sql
 mailpilot_backup.sql
+backups/
+*.dump

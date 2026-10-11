@@ -367,6 +367,7 @@ def robots_txt(request):
         "Disallow: /api/\n"
         "Disallow: /healthz\n"
         "Disallow: /dashboard\n"
+        "Disallow: /inbox\n"
         "Disallow: /setup\n"
         "Disallow: /profile\n"
         "\n"
@@ -502,25 +503,39 @@ def setup_page(request):
     )
 
 
-@login_required(login_url="/login")
-@require_GET
-def dashboard_page(request):
-    logger.info("dashboard_page hit path=%s", request.path)
+def _app_connection_context(request) -> dict[str, Any]:
     from core.user_settings import migrate_legacy_file_config_if_needed
 
     migrate_legacy_file_config_if_needed(request.user)
     effective = runtime.get_effective_settings(request.user)
     cfg = _user_settings_dict(request)
-    connected = _mailbox_connected_for_ui(effective, cfg)
-    inbox_ready = gmail_oauth_ready(effective) or imap_inbox_ready(effective)
-    return render(
-        request,
-        "dashboard.html",
-        {
-            "connected": connected,
-            "inbox_ready": inbox_ready,
-        },
-    )
+    return {
+        "connected": _mailbox_connected_for_ui(effective, cfg),
+        "inbox_ready": gmail_oauth_ready(effective) or imap_inbox_ready(effective),
+    }
+
+
+@login_required(login_url="/login")
+@require_GET
+def dashboard_page(request):
+    from core.dashboard_stats import dashboard_summary
+    from core.mail_accounts import ensure_legacy_migrated
+
+    ctx = _app_connection_context(request)
+    ensure_legacy_migrated(request.user)
+    try:
+        summary = dashboard_summary(request.user)
+    except Exception:
+        logger.exception("dashboard summary failed user=%s", request.user.pk)
+        summary = {"ok": False}
+    return render(request, "dashboard.html", {**ctx, "summary": summary})
+
+
+@login_required(login_url="/login")
+@require_GET
+def inbox_page(request):
+    logger.info("inbox_page hit path=%s", request.path)
+    return render(request, "inbox.html", _app_connection_context(request))
 
 
 @login_required(login_url="/login")
@@ -638,6 +653,27 @@ def settings_page(request):
             "connected": connected,
         },
     )
+
+
+@require_GET
+def api_dashboard_summary(request):
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    if not request.user.is_authenticated:
+        return JsonResponse({"ok": False, "error": "user_required"}, status=400)
+    from core.dashboard_stats import dashboard_summary
+    from core.mail_accounts import ensure_legacy_migrated
+
+    try:
+        days = int(request.GET.get("days") or 7)
+    except ValueError:
+        days = 7
+    try:
+        ensure_legacy_migrated(request.user)
+        return JsonResponse(dashboard_summary(request.user, days=days))
+    except Exception:
+        logger.exception("dashboard summary failed")
+        return JsonResponse({"ok": False, "error": "dashboard_summary_failed"}, status=500)
 
 
 @require_GET
@@ -2007,42 +2043,83 @@ def billing_stripe_webhook(request):
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
-@csrf_exempt
-def api_setup_credentials(request):
-    logger.info("api_setup_credentials hit")
+def _save_setup_credentials(request):
+    """Save gmail_address + client_secret.json on the first Gmail mailbox. Returns (account, error_response)."""
+    from core.mail_account_views import mailbox_plan_gate_response, read_gmail_credentials_upload
+    from core.mail_accounts import (
+        TRANSPORT_GMAIL,
+        create_account,
+        ensure_legacy_migrated,
+        patch_account_config,
+        resolve_account,
+        save_account_client_secret,
+    )
+    from core.user_settings import save_client_secret_json
+
     if request.method != "POST":
-        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+        return None, JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
     if not check_api_access(request):
-        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+        return None, JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
 
-    gmail_address = (request.POST.get("gmail_address") or "").strip()
-    if not gmail_address:
-        return JsonResponse({"ok": False, "error": "Missing gmail_address"}, status=400)
-
-    secret_file = request.FILES.get("client_secret")
-    if secret_file is None or not getattr(secret_file, "name", ""):
-        return JsonResponse({"ok": False, "error": "Missing client_secret.json file"}, status=400)
-
-    filename = secure_filename(secret_file.name)
-    if not filename.lower().endswith(".json"):
-        return JsonResponse({"ok": False, "error": "client_secret file must be .json"}, status=400)
-
-    from core.user_settings import save_client_secret_json, save_settings_patch
-
-    raw = b"".join(secret_file.chunks())
-    from core.mail_accounts import TRANSPORT_GMAIL, create_account, ensure_legacy_migrated, resolve_account
+    gmail_address, secret_json, err = read_gmail_credentials_upload(request)
+    if err:
+        return None, JsonResponse({"ok": False, "error": err}, status=400)
 
     ensure_legacy_migrated(request.user)
     acc = resolve_account(request.user, transport=TRANSPORT_GMAIL)
     if acc is None:
-        acc = create_account(request.user, transport=TRANSPORT_GMAIL, gmail_address=gmail_address)
-    save_client_secret_json(request.user, raw.decode("utf-8"))
-    from core.mail_accounts import patch_account_config, save_account_client_secret
-
-    save_account_client_secret(acc, raw.decode("utf-8"))
+        blocked = mailbox_plan_gate_response(request.user)
+        if blocked is not None:
+            return None, blocked
+        try:
+            acc = create_account(request.user, transport=TRANSPORT_GMAIL, gmail_address=gmail_address)
+        except ValueError as e:
+            return None, JsonResponse({"ok": False, "error": str(e)}, status=400)
+    save_client_secret_json(request.user, secret_json)
+    save_account_client_secret(acc, secret_json)
     patch_account_config(acc, {"GMAIL_ADDRESS": gmail_address})
+    return acc, None
+
+
+def setup_error_redirect(request, error: str, account_id: int | None = None):
+    """Send a browser back to /setup with the message shown in the OAuth error box."""
+    if not request.user.is_authenticated:
+        from django.contrib.auth.views import redirect_to_login
+
+        return redirect_to_login(reverse("setup"), "/login")
+    url = f"{reverse('setup')}?oauth_error={quote((error or 'request_failed')[:300], safe='')}"
+    if account_id:
+        url += f"&account_id={account_id}"
+    return redirect(url)
+
+
+def setup_error_redirect_from_json(request, resp, account_id: int | None = None):
+    try:
+        error = str(json.loads(resp.content or b"{}").get("error") or "")
+    except Exception:
+        error = ""
+    return setup_error_redirect(request, error or f"request_failed_{resp.status_code}", account_id)
+
+
+@csrf_exempt
+def api_setup_credentials(request):
+    logger.info("api_setup_credentials hit")
+    acc, err = _save_setup_credentials(request)
+    if err is not None:
+        return setup_error_redirect_from_json(request, err)
     request.session["oauth_account_id"] = acc.id
     return redirect(reverse("oauth_start"))
+
+
+@csrf_exempt
+def api_setup_credentials_json(request):
+    """Same as api_setup_credentials for API clients: JSON instead of the browser OAuth redirect."""
+    from core.mail_accounts import account_to_dict
+
+    acc, err = _save_setup_credentials(request)
+    if err is not None:
+        return err
+    return JsonResponse({"ok": True, "account": account_to_dict(acc)})
 
 
 @login_required(login_url="/login")
@@ -2058,7 +2135,7 @@ def oauth_start(request):
         effective = runtime.get_effective_settings(request.user, account_id=acc.id if acc else None)
         client_secret_path = effective.GOOGLE_CLIENT_SECRET_FILE
         if not os.path.exists(client_secret_path):
-            return JsonResponse({"ok": False, "error": "client_secret.json missing"}, status=400)
+            return setup_error_redirect(request, "client_secret_missing", acc.id if acc else None)
 
         callback_url = _oauth_callback_url(request, effective)
         flow = Flow.from_client_secrets_file(
@@ -2083,10 +2160,22 @@ def oauth_start(request):
         return redirect(f"{reverse('setup')}?oauth_error={q}")
 
 
-@login_required(login_url="/login")
 @require_GET
 def oauth_callback(request):
     logger.info("oauth_callback hit; args_keys=%s", list(request.GET.keys()))
+    from core import gmail_mobile_oauth
+
+    try:
+        mobile = gmail_mobile_oauth.handle_callback(request)
+    except Exception as e:
+        logger.exception("mobile OAuth callback failed")
+        return HttpResponse(f"callback_error: {e}", status=200, content_type="text/plain; charset=utf-8")
+    if mobile is not None:
+        return mobile
+    if not request.user.is_authenticated:
+        from django.contrib.auth.views import redirect_to_login
+
+        return redirect_to_login(request.get_full_path(), "/login")
     try:
         from core.mail_accounts import ensure_legacy_migrated, resolve_account, save_account_oauth_token
 
@@ -2120,7 +2209,7 @@ def oauth_callback(request):
             flow.fetch_token(code=code)
         except Exception as e:
             logger.exception("OAuth fetch_token failed")
-            return HttpResponse(f"token_exchange_failed: {e}", status=200, content_type="text/plain; charset=utf-8")
+            return setup_error_redirect(request, f"token_exchange_failed: {e}", acc.id if acc else None)
 
         creds = flow.credentials
         token_json = creds.to_json()
@@ -2153,7 +2242,7 @@ def oauth_callback(request):
         return redirect(f"{reverse('setup')}?account_id={aid}" if aid else reverse("dashboard"))
     except Exception as e:
         logger.exception("OAuth callback failed")
-        return HttpResponse(f"callback_error: {e}", status=200, content_type="text/plain; charset=utf-8")
+        return setup_error_redirect(request, f"callback_error: {e}")
 
 
 @require_GET

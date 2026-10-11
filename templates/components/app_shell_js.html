@@ -32,7 +32,7 @@
     if (window.innerWidth > 1024) setOpen(false);
   });
 
-  /* Nest Setup / Dashboard section tabs under the matching page in the mobile drawer */
+  /* Nest Setup / Inbox section tabs under the matching page in the mobile drawer */
   function nestRailIntoDrawer(railId, pageHrefPart, parentHtml, dataAttr) {
     const railNav = document.getElementById(railId);
     const drawerNav = drawer.querySelector('.app-drawer-panel > .app-rail-nav');
@@ -84,8 +84,8 @@
   );
   nestRailIntoDrawer(
     'dashRailNav',
-    'dashboard',
-    '<i class="fa-solid fa-inbox" aria-hidden="true"></i> Dashboard',
+    'inbox',
+    '<i class="fa-solid fa-inbox" aria-hidden="true"></i> Inbox',
     'data-dash'
   );
 })();

@@ -29,6 +29,7 @@ urlpatterns = [
     # Worker
     path("trigger-poll", views.trigger_poll, name="v1_trigger_poll"),
     path("pending", views.pending, name="v1_pending"),
+    path("dashboard/summary", views.dashboard_summary, name="v1_dashboard_summary"),
     # Knowledge base
     path("kb/status", views.kb_status, name="v1_kb_status"),
     path("kb/upload-json", views.kb_upload_json, name="v1_kb_upload_json"),
@@ -50,6 +51,11 @@ urlpatterns = [
     path("mail-accounts/create", wrappers.mail_accounts_create, name="v1_mail_accounts_create"),
     path("mail-accounts/<int:account_id>", wrappers.mail_accounts_detail, name="v1_mail_accounts_detail"),
     path("mail-accounts/<int:account_id>/test-smtp", wrappers.mail_account_test_smtp, name="v1_mail_account_test_smtp"),
+    path(
+        "mail-accounts/<int:account_id>/setup-credentials",
+        wrappers.mail_account_setup_credentials,
+        name="v1_mail_account_setup_credentials",
+    ),
     path(
         "mail-accounts/<int:account_id>/disconnect-gmail",
         wrappers.mail_account_disconnect_gmail,

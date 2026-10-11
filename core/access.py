@@ -12,11 +12,11 @@ def check_api_access(request) -> bool:
     """Require logged-in user, or valid X-Admin-Api-Key when ADMIN_API_KEY is set in env."""
     if request.user.is_authenticated:
         return True
-    s = runtime.base_settings()
-    if s.ADMIN_API_KEY is not None:
+    admin_key = getattr(runtime.base_settings(), "ADMIN_API_KEY", None)
+    if admin_key is not None:
         provided = (request.headers.get("X-Admin-Api-Key") or "").strip()
         try:
-            if provided and secrets.compare_digest(provided, s.ADMIN_API_KEY.get_secret_value()):
+            if provided and secrets.compare_digest(provided, admin_key.get_secret_value()):
                 return True
         except Exception:
             return False

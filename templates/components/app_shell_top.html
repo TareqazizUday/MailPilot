@@ -54,11 +54,14 @@
   <div class="app-drawer-panel" id="appDrawerPanel">
     <div class="app-rail-label">App</div>
     <nav class="app-rail-nav" aria-label="App pages">
+      <a href="{% url 'dashboard' %}" class="app-rail-link{% if request.resolver_match and request.resolver_match.url_name == 'dashboard' %} is-active{% endif %}">
+        <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Dashboard</span>
+      </a>
+      <a href="{% url 'inbox' %}" class="app-rail-link{% if request.resolver_match and request.resolver_match.url_name == 'inbox' %} is-active{% endif %}">
+        <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Inbox</span>
+      </a>
       <a href="{% url 'setup' %}" class="app-rail-link{% if request.resolver_match and request.resolver_match.url_name == 'setup' %} is-active{% endif %}">
         <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-gear" aria-hidden="true"></i> Setup</span>
-      </a>
-      <a href="{% url 'dashboard' %}" class="app-rail-link{% if request.resolver_match and request.resolver_match.url_name == 'dashboard' %} is-active{% endif %}">
-        <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Dashboard</span>
       </a>
     </nav>
     <a class="app-rail-upgrade" href="{% url 'home' %}#pricing">Upgrade plan</a>

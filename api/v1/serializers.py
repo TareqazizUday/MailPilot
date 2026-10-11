@@ -14,7 +14,7 @@ class ErrorSerializer(serializers.Serializer):
 
 class SetupCredentialsRequestSerializer(serializers.Serializer):
     gmail_address = serializers.EmailField()
-    client_secret = serializers.FileField()
+    client_secret = serializers.FileField(help_text="Google OAuth client JSON (.json)")
 
 
 class GmailConnectionStatusResponseSerializer(serializers.Serializer):
@@ -125,9 +125,127 @@ class OAuthAuthorizeUrlResponseSerializer(serializers.Serializer):
 class OAuthExchangeRequestSerializer(serializers.Serializer):
     code = serializers.CharField()
     state = serializers.CharField(required=False, allow_blank=True)
+    account_id = serializers.IntegerField(
+        required=False, help_text="Save the token on this Gmail mailbox instead of the user-level token."
+    )
 
 
 class OAuthExchangeResponseSerializer(serializers.Serializer):
     ok = serializers.BooleanField()
+    account_id = serializers.IntegerField(required=False)
+    error = serializers.CharField(required=False, allow_blank=True)
+
+
+class MailAccountSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    slot = serializers.IntegerField()
+    transport = serializers.ChoiceField(choices=["gmail_api", "smtp"])
+    label = serializers.CharField(allow_blank=True)
+    is_enabled = serializers.BooleanField()
+    email = serializers.CharField(allow_blank=True)
+    gmail_connected = serializers.BooleanField()
+    gmail_inbox_ready = serializers.BooleanField()
+    oauth_email_mismatch = serializers.BooleanField()
+    profile_email = serializers.CharField(allow_blank=True)
+    imap_ready = serializers.BooleanField()
+    inbox_ready = serializers.BooleanField()
+    has_client_secret = serializers.BooleanField()
+    has_token = serializers.BooleanField()
+    has_smtp_password = serializers.BooleanField()
+    smtp_last_test_ok = serializers.BooleanField()
+    config = serializers.DictField()
+    kb_chunk_count = serializers.IntegerField(required=False)
+
+
+class MailAccountResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    account = MailAccountSerializer()
+
+
+class UserProfileSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    email = serializers.CharField(allow_blank=True)
+    first_name = serializers.CharField(allow_blank=True)
+    last_name = serializers.CharField(allow_blank=True)
+    display_name = serializers.CharField(allow_blank=True)
+    phone = serializers.CharField(allow_blank=True)
+    company = serializers.CharField(allow_blank=True)
+    timezone = serializers.CharField()
+    notes = serializers.CharField(allow_blank=True)
+    avatar_url = serializers.URLField(allow_null=True)
+
+
+class UserProfileResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    user = UserProfileSerializer()
+
+
+class AvatarUploadRequestSerializer(serializers.Serializer):
+    avatar = serializers.ImageField(help_text="PNG, JPG, WEBP or GIF, max 2 MB")
+
+
+class ProfileUpdateRequestSerializer(serializers.Serializer):
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    display_name = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    company = serializers.CharField(required=False, allow_blank=True, max_length=160)
+    timezone = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+
+class SignupRequestSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    email = serializers.EmailField()
+    password = serializers.CharField(min_length=8)
+    password2 = serializers.CharField()
+    terms = serializers.BooleanField(help_text="Must be true")
+    username = serializers.CharField(required=False, allow_blank=True, help_text="Derived from email when omitted")
+
+
+class SignupResponseSerializer(UserProfileResponseSerializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class ChangePasswordRequestSerializer(serializers.Serializer):
+    current_password = serializers.CharField()
+    new_password = serializers.CharField(min_length=8)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    identifier = serializers.CharField(help_text="Email or username")
+
+
+class PasswordResetRequestResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    email = serializers.CharField(allow_blank=True, help_text="Empty when no account matches")
+    email_hint = serializers.CharField(allow_blank=True)
+
+
+class PasswordResetVerifyRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(help_text="6-digit code from the email")
+
+
+class PasswordResetVerifyResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    reset_token = serializers.CharField()
+
+
+class PasswordResetConfirmRequestSerializer(serializers.Serializer):
+    reset_token = serializers.CharField()
+    password = serializers.CharField(min_length=8)
+    password2 = serializers.CharField()
+
+
+class KBClearResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    deleted_documents = serializers.IntegerField(required=False)
+    deleted_chunks = serializers.IntegerField(required=False)
+    deleted_crawl_file = serializers.BooleanField(required=False)
     error = serializers.CharField(required=False, allow_blank=True)
 

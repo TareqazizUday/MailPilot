@@ -56,6 +56,27 @@ def api_mail_accounts_list(request):
     return JsonResponse({"ok": True, "accounts": accounts, "summary": summary})
 
 
+def mailbox_plan_gate_response(user) -> JsonResponse | None:
+    """403 `upgrade_required` response when the plan does not allow another active mailbox."""
+    try:
+        from core.billing import can_enable_mailbox
+
+        gate = can_enable_mailbox(user)
+    except Exception:
+        return None
+    if gate.allowed:
+        return None
+    return JsonResponse(
+        {
+            "ok": False,
+            "error": gate.reason or "plan_inbox_limit_reached",
+            "upgrade_required": True,
+            "billing": gate.summary or {},
+        },
+        status=403,
+    )
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_mail_accounts_create(request):
@@ -67,22 +88,9 @@ def api_mail_accounts_create(request):
         return JsonResponse({"ok": False, "error": "invalid_transport"}, status=400)
     if count_accounts(request.user, transport) >= MAX_SLOTS_PER_TRANSPORT:
         return JsonResponse({"ok": False, "error": "max_slots_reached"}, status=400)
-    try:
-        from core.billing import can_enable_mailbox
-
-        gate = can_enable_mailbox(request.user)
-        if not gate.allowed:
-            return JsonResponse(
-                {
-                    "ok": False,
-                    "error": gate.reason or "plan_inbox_limit_reached",
-                    "upgrade_required": True,
-                    "billing": gate.summary or {},
-                },
-                status=403,
-            )
-    except Exception:
-        pass
+    blocked = mailbox_plan_gate_response(request.user)
+    if blocked is not None:
+        return blocked
     try:
         acc = create_account(
             request.user,
@@ -96,13 +104,16 @@ def api_mail_accounts_create(request):
 
 
 @csrf_exempt
-@require_http_methods(["PATCH", "DELETE"])
+@require_http_methods(["GET", "PATCH", "DELETE"])
 def api_mail_accounts_detail(request, account_id: int):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     acc = get_account(request.user, int(account_id))
     if acc is None:
         return JsonResponse({"ok": False, "error": "not_found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse({"ok": True, "account": account_to_dict(acc, include_kb_count=True)})
 
     if request.method == "DELETE":
         acc.delete()
@@ -251,40 +262,70 @@ def api_mail_account_disconnect_gmail(request, account_id: int):
     return JsonResponse({"ok": True})
 
 
+def read_gmail_credentials_upload(request) -> tuple[str, str, str]:
+    """Validate multipart `gmail_address` + `client_secret` (.json). Returns (address, secret_json, error)."""
+    from werkzeug.utils import secure_filename
+
+    gmail_address = (request.POST.get("gmail_address") or "").strip()
+    if not gmail_address or "@" not in gmail_address:
+        return "", "", "Missing gmail_address"
+    secret_file = request.FILES.get("client_secret")
+    if secret_file is None or not getattr(secret_file, "name", ""):
+        return "", "", "Missing client_secret"
+    if not secure_filename(secret_file.name).lower().endswith(".json"):
+        return "", "", "client_secret must be .json"
+    try:
+        secret_json = b"".join(secret_file.chunks()).decode("utf-8")
+        parsed = json.loads(secret_json)
+    except (UnicodeDecodeError, ValueError):
+        return "", "", "client_secret is not valid JSON"
+    if not isinstance(parsed, dict) or not ({"installed", "web"} & set(parsed)):
+        return "", "", "client_secret must be a Google OAuth client JSON (installed or web)"
+    return gmail_address, secret_json, ""
+
+
+def _save_mailbox_gmail_credentials(request, account_id: int):
+    """Returns (account, error_response)."""
+    if request.method != "POST":
+        return None, JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
+    if not check_api_access(request):
+        return None, JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    acc = get_account(request.user, int(account_id))
+    if acc is None or acc.transport != TRANSPORT_GMAIL:
+        return None, JsonResponse({"ok": False, "error": "not_found"}, status=404)
+    gmail_address, secret_json, err = read_gmail_credentials_upload(request)
+    if err:
+        return None, JsonResponse({"ok": False, "error": err}, status=400)
+    save_account_client_secret(acc, secret_json)
+    patch_account_config(acc, {"GMAIL_ADDRESS": gmail_address})
+    acc.refresh_from_db()
+    return acc, None
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_mail_account_setup_credentials(request, account_id: int):
     """Upload client_secret + gmail_address for a specific account, then redirect OAuth."""
     from django.shortcuts import redirect
     from django.urls import reverse
-    from werkzeug.utils import secure_filename
 
-    if request.method != "POST":
-        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
-    if not check_api_access(request):
-        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    from core.views import setup_error_redirect_from_json
 
-    acc = get_account(request.user, int(account_id))
-    if acc is None or acc.transport != TRANSPORT_GMAIL:
-        return JsonResponse({"ok": False, "error": "not_found"}, status=404)
-
-    gmail_address = (request.POST.get("gmail_address") or "").strip()
-    if not gmail_address:
-        return JsonResponse({"ok": False, "error": "Missing gmail_address"}, status=400)
-
-    secret_file = request.FILES.get("client_secret")
-    if secret_file is None:
-        return JsonResponse({"ok": False, "error": "Missing client_secret"}, status=400)
-
-    filename = secure_filename(secret_file.name)
-    if not filename.lower().endswith(".json"):
-        return JsonResponse({"ok": False, "error": "client_secret must be .json"}, status=400)
-
-    raw = b"".join(secret_file.chunks())
-    save_account_client_secret(acc, raw.decode("utf-8"))
-    patch_account_config(acc, {"GMAIL_ADDRESS": gmail_address})
+    acc, err = _save_mailbox_gmail_credentials(request, account_id)
+    if err is not None:
+        return setup_error_redirect_from_json(request, err, int(account_id))
     request.session["oauth_account_id"] = acc.id
     return redirect(reverse("oauth_start"))
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_mail_account_setup_credentials_json(request, account_id: int):
+    """Same upload for API clients: JSON response, OAuth is started separately."""
+    acc, err = _save_mailbox_gmail_credentials(request, account_id)
+    if err is not None:
+        return err
+    return JsonResponse({"ok": True, "account": account_to_dict(acc)})
 
 
 def parse_account_id_from_request(request) -> int | None:

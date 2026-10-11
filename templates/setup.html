@@ -735,6 +735,12 @@
   <div class="app-shell-body">
     <aside class="app-rail" aria-label="Setup navigation">
       <nav class="app-rail-nav" aria-label="App pages">
+        <a href="{% url 'dashboard' %}" class="app-rail-link">
+          <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Dashboard</span>
+        </a>
+        <a href="{% url 'inbox' %}" class="app-rail-link">
+          <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Inbox</span>
+        </a>
         <div class="app-rail-group">
           <div class="app-rail-parent is-active" aria-current="page">
             <i class="fa-solid fa-gear" aria-hidden="true"></i> Setup
@@ -777,9 +783,6 @@
             </button>
           </nav>
         </div>
-        <a href="{% url 'dashboard' %}" class="app-rail-link">
-          <span style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Dashboard</span>
-        </a>
       </nav>
       <a class="app-rail-upgrade" href="{% url 'home' %}#pricing">Upgrade plan</a>
     </aside>

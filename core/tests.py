@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth.models import User
-from django.test import Client, SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 
 from core.billing import (
     STARTER_LIFETIME_SEND_LIMIT,
@@ -219,6 +219,7 @@ class CustomPlanPricingTests(SimpleTestCase):
         self.assertEqual(q["inboxes"], 1)
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class AdminLoginRedirectTests(TestCase):
     def test_admin_without_trailing_slash_redirects(self) -> None:
         client = Client()
@@ -334,11 +335,14 @@ class PaymentProviderChoiceTests(SimpleTestCase):
         self.assertIn(PAYMENT_PAYPAL, providers)
 
     def test_debug_uses_local_checkout_form(self) -> None:
+        import os
+        from unittest.mock import patch
+
         from django.test import override_settings
 
         from core.payment_gateway import billing_use_local_checkout
 
-        with override_settings(DEBUG=True):
+        with override_settings(DEBUG=True), patch.dict(os.environ, {"BILLING_LIVE_CHECKOUT": ""}):
             self.assertTrue(billing_use_local_checkout())
 
 

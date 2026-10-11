@@ -538,7 +538,11 @@
     document.querySelectorAll('[data-disc]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (!confirm('Disconnect Gmail OAuth for this mailbox?')) return;
-        await apiJson('/api/mail-accounts/' + btn.dataset.disc + '/disconnect-gmail/', { method: 'POST', body: '{}' });
+        const { res, j } = await apiJson('/api/mail-accounts/' + btn.dataset.disc + '/disconnect-gmail', {
+          method: 'POST',
+          body: '{}',
+        });
+        if (!res.ok || !j.ok) showPlanError(j, 'Could not disconnect Gmail');
         await loadMailAccounts();
       });
     });

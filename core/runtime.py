@@ -390,9 +390,23 @@ def _scheduled_job():
             ws.running = False
 
 
+_MANAGE_PROGRAMS = ("manage.py", "django-admin", "django-admin.py", "django-admin.exe")
+
+
+def _is_one_off_management_command() -> bool:
+    """True for `manage.py test/migrate/spectacular/...` — background pollers would hold DB sessions open."""
+    if len(sys.argv) < 2 or os.path.basename(sys.argv[0]).lower() not in _MANAGE_PROGRAMS:
+        return False
+    return sys.argv[1] != "runserver"
+
+
 def ensure_scheduler_started() -> None:
     global _scheduler, _scheduler_started, _mail_poll_backend, _mail_poll_interval_sec
     if _scheduler_started:
+        return
+    if _is_one_off_management_command():
+        _mail_poll_backend = "none"
+        _mail_poll_interval_sec = None
         return
     if "runserver" in sys.argv and os.environ.get("RUN_MAIN") != "true":
         _mail_poll_backend = "none"

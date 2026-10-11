@@ -49,7 +49,7 @@ MODE_SMTP = "smtp"
 
 
 def user_data_dir(user_id: int) -> Path:
-    base = Path(dj_settings.BASE_DIR) / "data" / "users" / str(user_id)
+    base = Path(dj_settings.USER_DATA_ROOT) / str(user_id)
     base.mkdir(parents=True, exist_ok=True)
     return base
 
