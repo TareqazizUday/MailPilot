@@ -15,6 +15,7 @@ CURRENCY_GBP = "gbp"
 CURRENCY_EUR = "eur"
 _CURRENCIES = frozenset({CURRENCY_USD, CURRENCY_GBP, CURRENCY_EUR})
 _SESSION_KEY = "pricing_currency"
+_SESSION_EXPLICIT = "pricing_currency_explicit"
 
 # UK → GBP; Eurozone → EUR; all others → USD.
 _COUNTRY_GBP = frozenset({"GB"})
@@ -76,7 +77,7 @@ def normalize_currency(raw: str | None) -> str:
         "eur": CURRENCY_EUR,
         "€": CURRENCY_EUR,
     }
-    return aliases.get(value, CURRENCY_USD)
+    return aliases.get(value, CURRENCY_GBP)
 
 
 def currency_symbol(currency: str) -> str:
@@ -89,7 +90,7 @@ def currency_label(currency: str) -> str:
 
 def currency_from_country(country_code: str | None) -> str:
     code = (country_code or "").strip().upper()
-    if code in _COUNTRY_GBP:
+    if not code or code in _COUNTRY_GBP:
         return CURRENCY_GBP
     if code in _EUROZONE:
         return CURRENCY_EUR
@@ -105,31 +106,32 @@ def _country_from_request(request: HttpRequest) -> str:
 
 
 def get_pricing_currency(request: HttpRequest) -> str:
-    """Active currency for this request (session → query → geo → USD)."""
-    session_val = request.session.get(_SESSION_KEY)
-    if session_val:
-        return normalize_currency(session_val)
-    query_val = normalize_currency(request.GET.get("currency"))
-    if query_val != CURRENCY_USD or request.GET.get("currency"):
-        return query_val
+    """Active currency (explicit choice → query → geo). Unknown country defaults to GBP."""
+    raw_query = request.GET.get("currency")
+    if raw_query:
+        return normalize_currency(raw_query)
+    if request.session.get(_SESSION_EXPLICIT) and request.session.get(_SESSION_KEY):
+        return normalize_currency(request.session.get(_SESSION_KEY))
     return currency_from_country(_country_from_request(request))
 
 
 def set_pricing_currency(request: HttpRequest, currency: str) -> str:
     normalized = normalize_currency(currency)
     request.session[_SESSION_KEY] = normalized
+    request.session[_SESSION_EXPLICIT] = True
     return normalized
 
 
 def sync_pricing_currency_session(request: HttpRequest) -> str:
-    """Pin currency from session, ?currency=, or geo on first marketing visit."""
-    if request.session.get(_SESSION_KEY):
-        return normalize_currency(request.session[_SESSION_KEY])
+    """Pin currency from ?currency=, an explicit choice, or geo. No country → GBP."""
     raw_query = request.GET.get("currency")
     if raw_query:
         return set_pricing_currency(request, raw_query)
+    if request.session.get(_SESSION_EXPLICIT) and request.session.get(_SESSION_KEY):
+        return normalize_currency(request.session.get(_SESSION_KEY))
     detected = currency_from_country(_country_from_request(request))
     request.session[_SESSION_KEY] = detected
+    request.session[_SESSION_EXPLICIT] = False
     return detected
 
 

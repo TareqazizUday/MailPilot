@@ -343,6 +343,18 @@ class HowItWorksStep(models.Model):
         default="",
         help_text="Inline SVG for homepage cards (optional on dedicated page).",
     )
+    image = models.ImageField(
+        upload_to="marketing/how-it-works/",
+        blank=True,
+        null=True,
+        help_text="Card image on the homepage. Leave empty to use the built-in illustration.",
+    )
+    fallback_image = models.CharField(
+        max_length=8,
+        blank=True,
+        default="",
+        help_text="Built-in illustration when no upload is set: 01–06.",
+    )
     sort_order = models.PositiveIntegerField(
         default=0,
         db_index=True,
@@ -364,6 +376,30 @@ class HowItWorksStep(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    FALLBACK_STATIC = {
+        "01": "img/hiw-context/hiw-01-inbox.webp",
+        "02": "img/hiw-context/hiw-02-keywords.webp",
+        "03": "img/hiw-context/hiw-03-rag.webp",
+        "04": "img/hiw-context/hiw-04-analysis.webp",
+        "05": "img/hiw-context/hiw-05-send.webp",
+        "06": "img/hiw-context/hiw-06-queue.webp",
+    }
+
+    @property
+    def image_url(self) -> str:
+        if self.image and getattr(self.image, "name", ""):
+            try:
+                if self.image.storage.exists(self.image.name):
+                    return self.image.url
+            except Exception:
+                return ""
+        return ""
+
+    @property
+    def fallback_static_path(self) -> str:
+        key = (self.fallback_image or "").strip()
+        return self.FALLBACK_STATIC.get(key, "")
 
 
 class MarketingReview(models.Model):
@@ -719,26 +755,43 @@ class MarketingLandingPage(models.Model):
         help_text="Supports light HTML (e.g. <b>).",
     )
     hero_cta_primary = models.CharField(max_length=80, default="Get Started")
-    hero_cta_secondary = models.CharField(max_length=80, default="See the workflow")
-    float_1_title = models.CharField(max_length=60, default="Auto-reply sent")
-    float_1_sub = models.CharField(max_length=80, blank=True, default="grounded in your KB")
-    float_2_title = models.CharField(max_length=60, default="RAG match · 94%")
-    float_2_sub = models.CharField(max_length=80, blank=True, default="6 chunks · pgvector")
-    float_3_title = models.CharField(max_length=60, default="Telegram notified")
-    float_3_sub = models.CharField(max_length=80, blank=True, default="")
+    hero_goals_question = models.CharField(
+        max_length=160,
+        default="What would you like MailPilot to handle?",
+    )
+    hero_micro = models.CharField(
+        max_length=160,
+        default="Free to start. No credit card required.",
+    )
+    hero_image_1 = models.ImageField(
+        upload_to="marketing/hero/",
+        blank=True,
+        null=True,
+        help_text="Floating agent — left. Leave empty for the default.",
+    )
+    hero_image_2 = models.ImageField(
+        upload_to="marketing/hero/",
+        blank=True,
+        null=True,
+        help_text="Floating agent — center. Leave empty for the default.",
+    )
+    hero_image_3 = models.ImageField(
+        upload_to="marketing/hero/",
+        blank=True,
+        null=True,
+        help_text="Floating agent — right. Leave empty for the default.",
+    )
 
     # Logos strip
     logos_label = models.CharField(max_length=120, default="Tools that plug in cleanly")
 
     # Features header
-    features_tag = models.CharField(max_length=40, default="Features")
     features_title = models.CharField(max_length=120, default="What you get")
     features_sub = models.TextField(
         default="Inbox connect, smart filters, grounded replies, and alerts—without another helpdesk."
     )
 
     # How it works header
-    hiw_tag = models.CharField(max_length=40, default="Workflow")
     hiw_title_lead = models.CharField(max_length=80, default="How MailPilot")
     hiw_title_highlight = models.CharField(max_length=40, default="works")
     hiw_sub = models.TextField(
@@ -746,11 +799,13 @@ class MarketingLandingPage(models.Model):
     )
 
     # RAG header
-    rag_tag = models.CharField(max_length=60, default="Grounding")
     rag_title_html = models.CharField(
         max_length=200,
         default="Grounded in your docs",
         help_text="Supports light HTML (e.g. <em>).",
+    )
+    rag_sub = models.TextField(
+        default="Retrieve the right chunks before you reply—accurate when grounded, skipped when it would guess.",
     )
 
     # Testimonials header
@@ -773,22 +828,36 @@ class MarketingLandingPage(models.Model):
     contact_intro = models.TextField(
         default="Tell us volume and mailbox type—we reply within one business day."
     )
-    contact_aside_title = models.CharField(max_length=80, default="We help you launch faster")
-    contact_aside_body = models.TextField(
-        default="Ask about limits, knowledge-base setup, or team seats—we'll map you to a plan."
-    )
-    contact_perk_1 = models.CharField(max_length=120, default="Trial setup tips")
-    contact_perk_2 = models.CharField(max_length=120, default="Encrypted credentials")
-    contact_perk_3 = models.CharField(max_length=120, default="Agency volume pricing")
     contact_form_title = models.CharField(max_length=80, default="Send us a message")
     contact_form_sub = models.CharField(max_length=120, default="Required fields unless marked optional.")
+    contact_label_name = models.CharField(max_length=80, default="Full name")
+    contact_placeholder_name = models.CharField(max_length=80, default="Your name")
+    contact_label_email = models.CharField(max_length=80, default="Email")
+    contact_placeholder_email = models.CharField(max_length=80, default="you@company.com")
+    contact_label_phone = models.CharField(max_length=80, default="Phone")
+    contact_phone_optional = models.CharField(max_length=40, default="(optional)")
+    contact_placeholder_phone = models.CharField(max_length=80, default="+1 555 000 0000")
+    contact_label_message = models.CharField(max_length=80, default="Message")
     contact_message_placeholder = models.CharField(
         max_length=160,
         default="Volume, mailbox type, team size…",
     )
+    contact_submit_label = models.CharField(max_length=80, default="Send message")
     contact_privacy = models.CharField(
-        max_length=160,
+        max_length=200,
         default="We use your details only to respond to this inquiry.",
+    )
+    contact_success = models.CharField(
+        max_length=200,
+        default="Thanks — we received your message and will reply soon.",
+    )
+    contact_error_invalid = models.CharField(
+        max_length=200,
+        default="Please enter your name, a valid email, and a message.",
+    )
+    contact_error_mail = models.CharField(
+        max_length=240,
+        default="Your message was saved, but we could not send email right now. Please try again or email team@timerni.co.uk directly.",
     )
 
     # Bottom CTA
@@ -808,13 +877,6 @@ class MarketingLandingPage(models.Model):
         null=True,
         help_text="Floating agent — bottom left. Leave empty to use the default.",
     )
-    cta_image_3 = models.ImageField(
-        upload_to="marketing/cta/",
-        blank=True,
-        null=True,
-        help_text="Floating agent — top left. Leave empty to use the default.",
-    )
-
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -828,7 +890,7 @@ class MarketingLandingPage(models.Model):
     def trust_logo_list(self) -> list[str]:
         return [line.strip() for line in (self.trust_logos or "").splitlines() if line.strip()]
 
-    def _cta_image_url(self, field) -> str:
+    def _image_url(self, field) -> str:
         if field and getattr(field, "name", ""):
             try:
                 if field.storage.exists(field.name):
@@ -839,15 +901,226 @@ class MarketingLandingPage(models.Model):
 
     @property
     def cta_image_1_url(self) -> str:
-        return self._cta_image_url(self.cta_image_1)
+        return self._image_url(self.cta_image_1)
 
     @property
     def cta_image_2_url(self) -> str:
-        return self._cta_image_url(self.cta_image_2)
+        return self._image_url(self.cta_image_2)
 
     @property
-    def cta_image_3_url(self) -> str:
-        return self._cta_image_url(self.cta_image_3)
+    def hero_image_1_url(self) -> str:
+        return self._image_url(self.hero_image_1)
+
+    @property
+    def hero_image_2_url(self) -> str:
+        return self._image_url(self.hero_image_2)
+
+    @property
+    def hero_image_3_url(self) -> str:
+        return self._image_url(self.hero_image_3)
+
+
+class MarketingHeroGoal(models.Model):
+    """Selectable goals under the homepage hero headline."""
+
+    label = models.CharField(max_length=80)
+    value = models.SlugField(max_length=40)
+    icon_class = models.CharField(
+        max_length=80,
+        default="fa-solid fa-star",
+        help_text="Font Awesome class, e.g. fa-solid fa-reply-all",
+    )
+    sort_order = models.PositiveIntegerField(default=0, db_index=True)
+    is_published = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingherogoal"
+        ordering = ["sort_order", "id"]
+        verbose_name = "hero goal"
+        verbose_name_plural = "hero goals"
+
+    def __str__(self) -> str:
+        return self.label
+
+
+class MarketingLogoChip(models.Model):
+    """Scrolling tool chips under the hero."""
+
+    ICON_GMAIL = "gmail"
+    ICON_IMAP = "imap"
+    ICON_AI = "ai"
+    ICON_DB = "db"
+    ICON_STRIPE = "stripe"
+    ICON_PAYPAL = "paypal"
+    ICON_TELEGRAM = "telegram"
+    ICON_WHATSAPP = "whatsapp"
+    ICON_CHOICES = [
+        (ICON_GMAIL, "Gmail"),
+        (ICON_IMAP, "IMAP / SMTP"),
+        (ICON_AI, "AI"),
+        (ICON_DB, "Database"),
+        (ICON_STRIPE, "Stripe"),
+        (ICON_PAYPAL, "PayPal"),
+        (ICON_TELEGRAM, "Telegram"),
+        (ICON_WHATSAPP, "WhatsApp"),
+    ]
+
+    label = models.CharField(max_length=80)
+    icon_key = models.CharField(max_length=16, choices=ICON_CHOICES, default=ICON_AI)
+    sort_order = models.PositiveIntegerField(default=0, db_index=True)
+    is_published = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketinglogochip"
+        ordering = ["sort_order", "id"]
+        verbose_name = "logo chip"
+        verbose_name_plural = "logo chips"
+
+    def __str__(self) -> str:
+        return self.label
+
+
+class MarketingFooterSettings(models.Model):
+    """Singleton copy for the public site footer."""
+
+    singleton_key = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    brand_name = models.CharField(max_length=80, default="MailPilot")
+    brand_suffix = models.CharField(max_length=120, default="AI Email Automation")
+    tagline = models.TextField(
+        default=(
+            "Automate Gmail and IMAP replies with relevance filtering, RAG grounding, and secure "
+            "multi-tenant controls - built for teams that need consistent, fast responses."
+        ),
+    )
+    product_column_title = models.CharField(max_length=40, default="Product")
+    account_column_title = models.CharField(max_length=40, default="Account")
+    credit_prefix = models.CharField(max_length=80, default="Proudly brought to you by")
+    credit_brand = models.CharField(max_length=80, default="MailPilot")
+    copyright_year = models.CharField(max_length=8, default="2026")
+    copyright_suffix = models.CharField(max_length=80, default=". All rights reserved.")
+    watermark = models.CharField(max_length=40, default="MAILPILOT")
+    partner_1_name = models.CharField(max_length=80, default="Tedbot AI")
+    partner_1_url = models.URLField(default="https://tedbotai.com/")
+    partner_1_logo_key = models.CharField(max_length=16, default="tedbot")
+    partner_2_name = models.CharField(max_length=80, default="Timerni")
+    partner_2_url = models.URLField(default="https://timerni.com/")
+    partner_2_logo_key = models.CharField(max_length=16, default="timerni")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "core_marketingfootersettings"
+        verbose_name = "footer"
+        verbose_name_plural = "footer"
+
+    def __str__(self) -> str:
+        return "Footer"
+
+
+class MarketingFooterLink(models.Model):
+    COLUMN_PRODUCT = "product"
+    COLUMN_ACCOUNT = "account"
+    COLUMN_CHOICES = [
+        (COLUMN_PRODUCT, "Product"),
+        (COLUMN_ACCOUNT, "Account"),
+    ]
+
+    page = models.ForeignKey(
+        MarketingFooterSettings,
+        on_delete=models.CASCADE,
+        related_name="links",
+        default=1,
+    )
+    column = models.CharField(max_length=16, choices=COLUMN_CHOICES, default=COLUMN_PRODUCT)
+    label = models.CharField(max_length=80)
+    href = models.CharField(max_length=200, help_text="Path or full URL, e.g. /#pricing or /signup")
+    sort_order = models.PositiveIntegerField(default=0, db_index=True)
+    is_published = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        db_table = "core_marketingfooterlink"
+        ordering = ["column", "sort_order", "id"]
+        verbose_name = "footer link"
+        verbose_name_plural = "footer links"
+
+    def __str__(self) -> str:
+        return self.label
+
+
+class MarketingFooterTrust(models.Model):
+    STYLE_CAPS = "caps"
+    STYLE_CLUTCH = "clutch"
+    STYLE_GOODFIRMS = "goodfirms"
+    STYLE_TRUSTPILOT = "trustpilot"
+    STYLE_SORTLIST = "sortlist"
+    STYLE_CHOICES = [
+        (STYLE_CAPS, "Caps"),
+        (STYLE_CLUTCH, "Clutch"),
+        (STYLE_GOODFIRMS, "GoodFirms"),
+        (STYLE_TRUSTPILOT, "Trustpilot"),
+        (STYLE_SORTLIST, "Sortlist"),
+    ]
+
+    page = models.ForeignKey(
+        MarketingFooterSettings,
+        on_delete=models.CASCADE,
+        related_name="trust_badges",
+        default=1,
+    )
+    name = models.CharField(max_length=40)
+    url = models.URLField()
+    style_key = models.CharField(max_length=16, choices=STYLE_CHOICES, default=STYLE_CAPS)
+    score = models.CharField(max_length=8, default="5.0")
+    filled_stars = models.PositiveSmallIntegerField(default=5, help_text="How many of 5 stars are filled.")
+    sort_order = models.PositiveIntegerField(default=0, db_index=True)
+    is_published = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        db_table = "core_marketingfootertrust"
+        ordering = ["sort_order", "id"]
+        verbose_name = "footer trust badge"
+        verbose_name_plural = "footer trust badges"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class MarketingFooterOffice(models.Model):
+    page = models.ForeignKey(
+        MarketingFooterSettings,
+        on_delete=models.CASCADE,
+        related_name="offices",
+        default=1,
+    )
+    code = models.CharField(max_length=8)
+    country = models.CharField(max_length=80)
+    region = models.CharField(max_length=80, blank=True, default="")
+    address = models.CharField(max_length=240)
+    phones = models.TextField(help_text="One phone number per line.")
+    sort_order = models.PositiveIntegerField(default=0, db_index=True)
+    is_published = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        db_table = "core_marketingfooteroffice"
+        ordering = ["sort_order", "id"]
+        verbose_name = "footer office"
+        verbose_name_plural = "footer offices"
+
+    def __str__(self) -> str:
+        return f"{self.code} — {self.country}"
+
+    def phone_rows(self) -> list[tuple[str, str]]:
+        rows: list[tuple[str, str]] = []
+        for line in (self.phones or "").splitlines():
+            label = line.strip()
+            if not label:
+                continue
+            digits = "".join(ch for ch in label if ch.isdigit() or ch == "+")
+            rows.append((label, f"tel:{digits}" if digits else ""))
+        return rows
 
 
 class MarketingRagItem(models.Model):

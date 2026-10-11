@@ -1,4 +1,4 @@
-{% load static %}
+{% load static marketing_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -124,6 +124,13 @@
 
     .fu-row { margin-top: 12px; }
     .fu-mini { font-size: 0.78rem; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+    .fu-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .prof-msg {
+      padding: 12px 14px; border-radius: 14px; margin-bottom: 14px;
+      font-size: 0.88rem; line-height: 1.5; border: 1px solid var(--line);
+    }
+    .prof-msg.success { border-color: rgba(0,184,132,0.35); background: #e2f8ef; color: #067a56; }
+    .prof-msg.error { border-color: rgba(239,68,68,0.35); background: #fdecec; color: #b42318; }
 
     .field { margin-bottom: 18px; min-width: 0; }
     .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -268,6 +275,9 @@
       </div>
 
       <div class="prof-main">
+        {% for message in messages %}
+        <div class="prof-msg {{ message.tags }}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}">{{ message }}</div>
+        {% endfor %}
         {% if is_edit %}
         <form method="post" action="{% url 'profile' %}" enctype="multipart/form-data">
           {% csrf_token %}
@@ -297,8 +307,16 @@
               <div class="av-usr">@{{ user.username }} · {{ user.email|default:"-" }}</div>
               <div class="fu-row">
                 <label class="label" for="avatar">Profile photo</label>
-                <input class="input" id="avatar" name="avatar" type="file" accept="image/*"/>
+                <input class="input" id="avatar" name="avatar" type="file" accept="image/png,image/jpeg,image/webp,image/gif"/>
                 <div class="fu-mini">PNG/JPG/WEBP/GIF · Max 2 MB.</div>
+                {% if avatar_url %}
+                <div class="fu-actions">
+                  <button class="btn-soft btn-sm" type="submit" name="remove_avatar" value="1" formnovalidate
+                          onclick="return confirm('Remove your profile photo?');">
+                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i> Remove photo
+                  </button>
+                </div>
+                {% endif %}
               </div>
             </div>
           </div>
@@ -366,7 +384,16 @@
             fi.addEventListener('change', () => {
               const f = fi.files && fi.files[0];
               if(!f) return;
-              if(!String(f.type || '').startsWith('image/')) return;
+              if(!/^image\/(png|jpeg|webp|gif)$/.test(String(f.type || ''))){
+                alert('Avatar must be an image file (PNG/JPG/WEBP/GIF).');
+                fi.value = '';
+                return;
+              }
+              if(f.size > 2 * 1024 * 1024){
+                alert('Avatar is too large. Max 2 MB.');
+                fi.value = '';
+                return;
+              }
               const url = URL.createObjectURL(f);
               let img = document.getElementById('avImg');
               const fb = document.getElementById('avFallback');
@@ -457,7 +484,7 @@
     </div>
   </main>
 
-  {% include "components/footer.html" %}
+  {% marketing_footer %}
   {% include "components/toasts.html" with toast_top="88px" %}
 
   <script>

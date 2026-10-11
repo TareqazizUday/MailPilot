@@ -32,8 +32,15 @@ def _json_from_legacy(resp: HttpResponseBase) -> tuple[dict[str, Any], int]:
 
 
 def _call_legacy_json(fn, drf_request, *args, **kwargs) -> Response:
-    # Legacy views expect Django HttpRequest
+    # Legacy views expect Django HttpRequest with an authenticated user.
+    # JWT auth lives on the DRF Request — sync user onto the underlying HttpRequest.
     dj_req = getattr(drf_request, "_request", drf_request)
+    try:
+        user = getattr(drf_request, "user", None)
+        if user is not None and getattr(user, "is_authenticated", False):
+            dj_req.user = user
+    except Exception:
+        pass
     legacy_resp = fn(dj_req, *args, **kwargs)
     payload, code = _json_from_legacy(legacy_resp)
 

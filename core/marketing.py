@@ -5,9 +5,15 @@ from core.models import (
     MarketingFaqItem,
     MarketingFaqSettings,
     MarketingFeature,
+    MarketingFooterLink,
+    MarketingFooterOffice,
+    MarketingFooterSettings,
+    MarketingFooterTrust,
+    MarketingHeroGoal,
     MarketingHeroInboxItem,
     MarketingHeroSettings,
     MarketingLandingPage,
+    MarketingLogoChip,
     MarketingPricingPlan,
     MarketingPricingSettings,
     MarketingRagItem,
@@ -100,6 +106,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
             "</svg>"
         ),
         "sort_order": 1,
+        "fallback_image": "01",
     },
     {
         "title": "Keyword prefilter",
@@ -112,6 +119,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
             "</svg>"
         ),
         "sort_order": 2,
+        "fallback_image": "02",
     },
     {
         "title": "RAG lookup",
@@ -126,6 +134,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
             "</svg>"
         ),
         "sort_order": 3,
+        "fallback_image": "03",
     },
     {
         "title": "AI relevance & reply",
@@ -139,6 +148,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
             "</svg>"
         ),
         "sort_order": 4,
+        "fallback_image": "04",
     },
     {
         "title": "Draft or auto-send",
@@ -152,6 +162,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
             "</svg>"
         ),
         "sort_order": 5,
+        "fallback_image": "05",
     },
     {
         "title": "State & queue",
@@ -166,6 +177,7 @@ DEFAULT_HOW_IT_WORKS_STEPS: list[dict[str, str | int | bool]] = [
             "</svg>"
         ),
         "sort_order": 6,
+        "fallback_image": "06",
     },
 ]
 
@@ -612,25 +624,20 @@ DEFAULT_LANDING_PAGE: dict[str, str | int] = {
         "knowledge base - accurate answers from your docs, not generic chatbot filler."
     ),
     "hero_cta_primary": "Get Started",
-    "hero_cta_secondary": "See the workflow",
-    "float_1_title": "Auto-reply sent",
-    "float_1_sub": "grounded in your KB",
-    "float_2_title": "RAG match · 94%",
-    "float_2_sub": "6 chunks · pgvector",
-    "float_3_title": "Telegram notified",
-    "float_3_sub": "",
+    "hero_goals_question": "What would you like MailPilot to handle?",
+    "hero_micro": "Free to start. No credit card required.",
     "logos_label": "Tools that plug in cleanly",
-    "features_tag": "Features",
     "features_title": "What you get",
     "features_sub": (
         "Inbox connect, smart filters, grounded replies, and alerts—without another helpdesk."
     ),
-    "hiw_tag": "Workflow",
     "hiw_title_lead": "How MailPilot",
     "hiw_title_highlight": "works",
     "hiw_sub": "Six steps from poll to send—inbox to queue, grounded in your knowledge base.",
-    "rag_tag": "Grounding",
     "rag_title_html": "Grounded in your docs",
+    "rag_sub": (
+        "Retrieve the right chunks before you reply—accurate when grounded, skipped when it would guess."
+    ),
     "testimonials_tag": "Customers",
     "testimonials_title_lead": "Trusted by",
     "testimonials_title_highlight": "teams who live in email",
@@ -641,17 +648,25 @@ DEFAULT_LANDING_PAGE: dict[str, str | int] = {
     "contact_title_lead": "Questions before you",
     "contact_title_highlight": "sign up?",
     "contact_intro": "Tell us volume and mailbox type—we reply within one business day.",
-    "contact_aside_title": "We help you launch faster",
-    "contact_aside_body": (
-        "Ask about limits, knowledge-base setup, or team seats—we'll map you to a plan."
-    ),
-    "contact_perk_1": "Trial setup tips",
-    "contact_perk_2": "Encrypted credentials",
-    "contact_perk_3": "Agency volume pricing",
     "contact_form_title": "Send us a message",
     "contact_form_sub": "Required fields unless marked optional.",
+    "contact_label_name": "Full name",
+    "contact_placeholder_name": "Your name",
+    "contact_label_email": "Email",
+    "contact_placeholder_email": "you@company.com",
+    "contact_label_phone": "Phone",
+    "contact_phone_optional": "(optional)",
+    "contact_placeholder_phone": "+1 555 000 0000",
+    "contact_label_message": "Message",
     "contact_message_placeholder": "Volume, mailbox type, team size…",
+    "contact_submit_label": "Send message",
     "contact_privacy": "We use your details only to respond to this inquiry.",
+    "contact_success": "Thanks — we received your message and will reply soon.",
+    "contact_error_invalid": "Please enter your name, a valid email, and a message.",
+    "contact_error_mail": (
+        "Your message was saved, but we could not send email right now. "
+        "Please try again or email team@timerni.co.uk directly."
+    ),
     "cta_title": "Ready when you are",
     "cta_sub": "Get full access. No credit card required.",
     "cta_primary": "Create free account",
@@ -716,3 +731,115 @@ def seed_default_landing_page() -> None:
             for row in DEFAULT_RAG_ITEMS
         ]
     )
+    seed_default_hero_goals()
+    seed_default_logo_chips()
+    seed_default_footer()
+
+
+DEFAULT_HERO_GOALS: list[dict[str, str | int]] = [
+    {"label": "Auto-reply email", "value": "auto-reply", "icon_class": "fa-solid fa-reply-all", "sort_order": 1},
+    {"label": "Connect Gmail", "value": "gmail", "icon_class": "fa-brands fa-google", "sort_order": 2},
+    {"label": "IMAP / SMTP", "value": "imap", "icon_class": "fa-solid fa-server", "sort_order": 3},
+    {"label": "Ground in docs", "value": "rag", "icon_class": "fa-solid fa-book-open", "sort_order": 4},
+    {"label": "Draft for review", "value": "draft", "icon_class": "fa-solid fa-file-pen", "sort_order": 5},
+    {"label": "Team alerts", "value": "alerts", "icon_class": "fa-solid fa-bell", "sort_order": 6},
+    {"label": "Skip the noise", "value": "filter", "icon_class": "fa-solid fa-filter", "sort_order": 7},
+]
+
+DEFAULT_LOGO_CHIPS: list[dict[str, str | int]] = [
+    {"label": "Gmail API", "icon_key": "gmail", "sort_order": 1},
+    {"label": "IMAP / SMTP", "icon_key": "imap", "sort_order": 2},
+    {"label": "AI", "icon_key": "ai", "sort_order": 3},
+    {"label": "PostgreSQL + pgvector", "icon_key": "db", "sort_order": 4},
+    {"label": "Stripe", "icon_key": "stripe", "sort_order": 5},
+    {"label": "PayPal", "icon_key": "paypal", "sort_order": 6},
+    {"label": "Telegram", "icon_key": "telegram", "sort_order": 7},
+    {"label": "WhatsApp", "icon_key": "whatsapp", "sort_order": 8},
+]
+
+
+def marketing_hero_goals_queryset():
+    return MarketingHeroGoal.objects.filter(is_published=True).order_by("sort_order", "pk")
+
+
+def marketing_logo_chips_queryset():
+    return MarketingLogoChip.objects.filter(is_published=True).order_by("sort_order", "pk")
+
+
+def seed_default_hero_goals() -> None:
+    if MarketingHeroGoal.objects.exists():
+        return
+    MarketingHeroGoal.objects.bulk_create(
+        [MarketingHeroGoal(**row, is_published=True) for row in DEFAULT_HERO_GOALS]
+    )
+
+
+def seed_default_logo_chips() -> None:
+    if MarketingLogoChip.objects.exists():
+        return
+    MarketingLogoChip.objects.bulk_create(
+        [MarketingLogoChip(**row, is_published=True) for row in DEFAULT_LOGO_CHIPS]
+    )
+
+
+def get_footer_settings() -> MarketingFooterSettings:
+    obj, _ = MarketingFooterSettings.objects.get_or_create(singleton_key=1)
+    return obj
+
+
+def seed_default_footer() -> None:
+    page, _ = MarketingFooterSettings.objects.get_or_create(singleton_key=1)
+    if not MarketingFooterLink.objects.exists():
+        MarketingFooterLink.objects.bulk_create(
+            [
+                MarketingFooterLink(page=page, column="product", label="Features", href="/#features", sort_order=1),
+                MarketingFooterLink(page=page, column="product", label="How it Works", href="/#how-it-works", sort_order=2),
+                MarketingFooterLink(page=page, column="product", label="Pricing", href="/#pricing", sort_order=3),
+                MarketingFooterLink(page=page, column="account", label="Create account", href="/signup", sort_order=1),
+                MarketingFooterLink(page=page, column="account", label="Log in", href="/login", sort_order=2),
+                MarketingFooterLink(page=page, column="account", label="Terms of Service", href="/terms", sort_order=3),
+                MarketingFooterLink(page=page, column="account", label="Privacy Policy", href="/privacy", sort_order=4),
+            ]
+        )
+    if not MarketingFooterTrust.objects.exists():
+        MarketingFooterTrust.objects.bulk_create(
+            [
+                MarketingFooterTrust(page=page, name="DESIGNRUSH", url="https://www.designrush.com/", style_key="caps", score="4.8", filled_stars=5, sort_order=1),
+                MarketingFooterTrust(page=page, name="Clutch", url="https://clutch.co/", style_key="clutch", score="5.0", filled_stars=5, sort_order=2),
+                MarketingFooterTrust(page=page, name="GoodFirms", url="https://www.goodfirms.co/", style_key="goodfirms", score="4.8", filled_stars=5, sort_order=3),
+                MarketingFooterTrust(page=page, name="Trustpilot", url="https://www.trustpilot.com/", style_key="trustpilot", score="4.5", filled_stars=4, sort_order=4),
+                MarketingFooterTrust(page=page, name="sortlist", url="https://www.sortlist.com/", style_key="sortlist", score="4.9", filled_stars=5, sort_order=5),
+            ]
+        )
+    if not MarketingFooterOffice.objects.exists():
+        MarketingFooterOffice.objects.bulk_create(
+            [
+                MarketingFooterOffice(
+                    page=page,
+                    code="UK",
+                    country="United Kingdom",
+                    region="Portsmouth, England",
+                    address="1-2 Hampshire Terrace, Portsmouth, PO1 2QF",
+                    phones="+44 333 041 1796",
+                    sort_order=1,
+                ),
+                MarketingFooterOffice(
+                    page=page,
+                    code="BD",
+                    country="Bangladesh",
+                    region="Dhaka - Uttara",
+                    address="Level-3/A, House-24, Road-10, Sector-10, Uttara, Dhaka-1230",
+                    phones="+880 1331-662244\n+880 1348-080697",
+                    sort_order=2,
+                ),
+                MarketingFooterOffice(
+                    page=page,
+                    code="US",
+                    country="United States",
+                    region="New York",
+                    address="New York, NY",
+                    phones="+1 920 280 6586",
+                    sort_order=3,
+                ),
+            ]
+        )

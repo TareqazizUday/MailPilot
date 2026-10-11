@@ -445,7 +445,13 @@
             ? '<button type="button" class="btn btn-ghost btn-sm" data-disc="' +
               a.id +
               '">Disconnect wrong account</button>'
-            : '') + renderGmailConnectForm(a, mismatch));
+            : '') +
+          renderGmailConnectForm(a, mismatch) +
+          (a.gmail_connected
+            ? ''
+            : '<div class="mb-card-actions"><button type="button" class="btn btn-ghost btn-sm" data-del-gmail="' +
+              a.id +
+              '"><i class="fa-solid fa-trash-can"></i> Remove</button></div>'));
     return (
       '<article class="mb-card' +
       (paused ? ' mb-paused' : '') +
@@ -533,6 +539,17 @@
       btn.addEventListener('click', async () => {
         if (!confirm('Disconnect Gmail OAuth for this mailbox?')) return;
         await apiJson('/api/mail-accounts/' + btn.dataset.disc + '/disconnect-gmail/', { method: 'POST', body: '{}' });
+        await loadMailAccounts();
+      });
+    });
+    document.querySelectorAll('[data-del-gmail]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Remove this Gmail mailbox?')) return;
+        const { res, j } = await apiJson('/api/mail-accounts/' + btn.dataset.delGmail + '/', {
+          method: 'DELETE',
+          body: '{}',
+        });
+        if (!res.ok || !j.ok) showPlanError(j, 'Could not remove Gmail mailbox');
         await loadMailAccounts();
       });
     });

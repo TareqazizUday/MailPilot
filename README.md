@@ -2,9 +2,13 @@
 
 MailPilot is a Django-based email automation platform. It connects with Gmail API or SMTP/IMAP, polls inbox messages, runs AI-assisted processing, and uses an optional Knowledge Base (RAG) powered by PostgreSQL + pgvector for grounded responses.
 
+Django backend only. Mobile app is a **separate folder**: `../mailPilotMobile`.  
+API contract for clients: [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md). Layout: [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md).
+
 ## Project Overview
 
 - **Backend:** Django app (`core`, `api`) with REST APIs and server-rendered web pages.
+- **Mobile:** Separate Expo project at `Desktop/office/mailPilotMobile` (JWT → `/api/v1`).
 - **Email integration:** Gmail OAuth + Gmail API, plus SMTP/IMAP fallback.
 - **Automation runtime:** Background mail polling worker (in-process scheduler or Celery, based on env config).
 - **Knowledge Base:** JSON upload / website crawl -> chunking -> embeddings -> pgvector storage.

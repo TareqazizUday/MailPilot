@@ -25,9 +25,15 @@ from core.models import (
     MarketingFeature,
     MarketingFaqItem,
     MarketingFaqSettings,
+    MarketingFooterLink,
+    MarketingFooterOffice,
+    MarketingFooterSettings,
+    MarketingFooterTrust,
+    MarketingHeroGoal,
     MarketingHeroInboxItem,
     MarketingHeroSettings,
     MarketingLandingPage,
+    MarketingLogoChip,
     MarketingRagItem,
     MarketingReview,
     MarketingPricingPlan,
@@ -589,7 +595,7 @@ class HowItWorksStepAdmin(MarketingListUIMixin, _MPModelAdmin):
     actions = [publish_how_it_works_steps, unpublish_how_it_works_steps]
     fieldsets = (
         (None, {"fields": ("title", "description")}),
-        ("Display", {"fields": ("accent", "icon_svg", "sort_order")}),
+        ("Display", {"fields": ("accent", "image", "fallback_image", "icon_svg", "sort_order")}),
         ("Visibility", {"fields": ("is_published", "show_on_homepage")}),
         ("Meta", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
@@ -724,20 +730,18 @@ class MarketingLandingPageAdmin(_MPModelAdmin):
         (
             "Hero",
             {
-                "description": "Top of homepage — headline, CTAs, and floating status cards.",
+                "description": "Headline, goals prompt, and optional floating agent images. Edit goal chips under Website → Hero goals.",
                 "fields": (
                     "hero_overline",
                     "hero_title_before",
                     "hero_title_highlight",
                     "hero_sub_html",
                     "hero_cta_primary",
-                    "hero_cta_secondary",
-                    "float_1_title",
-                    "float_1_sub",
-                    "float_2_title",
-                    "float_2_sub",
-                    "float_3_title",
-                    "float_3_sub",
+                    "hero_goals_question",
+                    "hero_micro",
+                    "hero_image_1",
+                    "hero_image_2",
+                    "hero_image_3",
                 ),
             },
         ),
@@ -745,7 +749,7 @@ class MarketingLandingPageAdmin(_MPModelAdmin):
             "Logos strip",
             {
                 "classes": ("collapse",),
-                "description": "Label above the scrolling tools marquee.",
+                "description": "Label above the scrolling tools marquee. Edit chips under Website → Logo chips.",
                 "fields": ("logos_label",),
             },
         ),
@@ -753,21 +757,21 @@ class MarketingLandingPageAdmin(_MPModelAdmin):
             "Features header",
             {
                 "description": "Section title only — edit cards under Website → Features.",
-                "fields": ("features_tag", "features_title", "features_sub"),
+                "fields": ("features_title", "features_sub"),
             },
         ),
         (
             "How it works header",
             {
                 "description": "Section title only — edit steps under Website → How it works.",
-                "fields": ("hiw_tag", "hiw_title_lead", "hiw_title_highlight", "hiw_sub"),
+                "fields": ("hiw_title_lead", "hiw_title_highlight", "hiw_sub"),
             },
         ),
         (
             "Grounding header",
             {
                 "description": "RAG section title — edit bullets under Website → Grounding.",
-                "fields": ("rag_tag", "rag_title_html"),
+                "fields": ("rag_title_html", "rag_sub"),
             },
         ),
         (
@@ -787,21 +791,28 @@ class MarketingLandingPageAdmin(_MPModelAdmin):
         (
             "Contact",
             {
-                "description": "Contact section copy around the form.",
+                "description": "Contact section copy and form labels.",
                 "fields": (
                     "contact_tag",
                     "contact_title_lead",
                     "contact_title_highlight",
                     "contact_intro",
-                    "contact_aside_title",
-                    "contact_aside_body",
-                    "contact_perk_1",
-                    "contact_perk_2",
-                    "contact_perk_3",
                     "contact_form_title",
                     "contact_form_sub",
+                    "contact_label_name",
+                    "contact_placeholder_name",
+                    "contact_label_email",
+                    "contact_placeholder_email",
+                    "contact_label_phone",
+                    "contact_phone_optional",
+                    "contact_placeholder_phone",
+                    "contact_label_message",
                     "contact_message_placeholder",
+                    "contact_submit_label",
                     "contact_privacy",
+                    "contact_success",
+                    "contact_error_invalid",
+                    "contact_error_mail",
                 ),
             },
         ),
@@ -1429,6 +1440,83 @@ class AuditLogAdmin(_MPModelAdmin):
         return text or "-"
 
 
+class MarketingHeroGoalAdmin(MarketingListUIMixin, _MPModelAdmin):
+    mp_mkt_title = "Hero goals"
+    mp_mkt_subtitle = "Checkboxes under the homepage headline"
+    mp_mkt_site_url = "/#hero"
+    list_display = ("sort_order", "label", "value", "icon_class", "is_published")
+    list_display_links = ("label",)
+    list_editable = ("sort_order", "is_published")
+    ordering = ("sort_order", "id")
+    search_fields = ("label", "value")
+
+
+class MarketingLogoChipAdmin(MarketingListUIMixin, _MPModelAdmin):
+    mp_mkt_title = "Logo chips"
+    mp_mkt_subtitle = "Scrolling tools under the hero"
+    mp_mkt_site_url = "/"
+    list_display = ("sort_order", "label", "icon_key", "is_published")
+    list_display_links = ("label",)
+    list_editable = ("sort_order", "is_published")
+    ordering = ("sort_order", "id")
+    search_fields = ("label",)
+
+
+class MarketingFooterLinkInline(StackedInline):
+    model = MarketingFooterLink
+    extra = 0
+    fields = ("column", "label", "href", "sort_order", "is_published")
+
+
+class MarketingFooterTrustInline(StackedInline):
+    model = MarketingFooterTrust
+    extra = 0
+    fields = ("name", "url", "style_key", "score", "filled_stars", "sort_order", "is_published")
+
+
+class MarketingFooterOfficeInline(StackedInline):
+    model = MarketingFooterOffice
+    extra = 0
+    fields = ("code", "country", "region", "address", "phones", "sort_order", "is_published")
+
+
+class MarketingFooterSettingsAdmin(_MPModelAdmin):
+    inlines = (MarketingFooterLinkInline, MarketingFooterTrustInline, MarketingFooterOfficeInline)
+    fieldsets = (
+        ("Brand", {"fields": ("brand_name", "brand_suffix", "tagline", "watermark")}),
+        ("Columns", {"fields": ("product_column_title", "account_column_title")}),
+        (
+            "Bar",
+            {
+                "fields": (
+                    "partner_1_name",
+                    "partner_1_url",
+                    "partner_2_name",
+                    "partner_2_url",
+                    "credit_prefix",
+                    "credit_brand",
+                    "copyright_year",
+                    "copyright_suffix",
+                ),
+            },
+        ),
+        ("Meta", {"fields": ("updated_at",), "classes": ("collapse",)}),
+    )
+    readonly_fields = ("updated_at",)
+
+    def has_add_permission(self, request):
+        return not MarketingFooterSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        from core.marketing import get_footer_settings
+
+        obj = get_footer_settings()
+        return redirect(reverse("admin:core_marketingfootersettings_change", args=(obj.pk,)))
+
+
 class PasswordResetOTPAdmin(_MPModelAdmin):
     list_display = ("email", "created_at", "expires_at", "attempts", "expired_badge")
     search_fields = ("email",)
@@ -1462,6 +1550,9 @@ admin_site.register(MarketingReview, MarketingReviewAdmin)
 admin_site.register(MarketingHeroSettings, MarketingHeroSettingsAdmin)
 admin_site.register(MarketingHeroInboxItem, MarketingHeroInboxItemAdmin)
 admin_site.register(MarketingLandingPage, MarketingLandingPageAdmin)
+admin_site.register(MarketingHeroGoal, MarketingHeroGoalAdmin)
+admin_site.register(MarketingLogoChip, MarketingLogoChipAdmin)
+admin_site.register(MarketingFooterSettings, MarketingFooterSettingsAdmin)
 admin_site.register(MarketingRagItem, MarketingRagItemAdmin)
 admin_site.register(MarketingFaqSettings, MarketingFaqSettingsAdmin)
 admin_site.register(MarketingFaqItem, MarketingFaqItemAdmin)

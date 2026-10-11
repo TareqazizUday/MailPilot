@@ -290,10 +290,12 @@ else:
 SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "").lower() in ("1", "true", "yes")
 # Local `runserver` is plain HTTP. Production .env turns on Secure cookies and
 # HTTPS redirect; browsers then drop the CSRF cookie and login/signup POST 403.
+# Also allow any Host (LAN IP) so Expo Go / phones can hit 0.0.0.0:8000.
 if "runserver" in sys.argv:
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
     SECURE_SSL_REDIRECT = False
+    ALLOWED_HOSTS = ["*"]
 SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0") or "0")
 SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "").lower() in (
     "1",
@@ -453,6 +455,21 @@ UNFOLD = {
                         "title": _("Hero inbox"),
                         "icon": "mark_email_unread",
                         "link": reverse_lazy("admin:core_marketingheroinboxitem_changelist"),
+                    },
+                    {
+                        "title": _("Hero goals"),
+                        "icon": "checklist",
+                        "link": reverse_lazy("admin:core_marketingherogoal_changelist"),
+                    },
+                    {
+                        "title": _("Logo chips"),
+                        "icon": "sell",
+                        "link": reverse_lazy("admin:core_marketinglogochip_changelist"),
+                    },
+                    {
+                        "title": _("Footer"),
+                        "icon": "vertical_align_bottom",
+                        "link": reverse_lazy("admin:core_marketingfootersettings_changelist"),
                     },
                     {
                         "title": _("Features"),

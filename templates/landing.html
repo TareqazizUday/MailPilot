@@ -1,4 +1,4 @@
-{% load static %}
+{% load static marketing_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1281,6 +1281,7 @@
       border: 1px solid rgba(0, 184, 132, .28);
       color: #067a58;
     }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-card-free,
     #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-card-free {
       background: rgba(255, 255, 255, .12);
       border-color: rgba(255, 255, 255, .18);
@@ -1303,6 +1304,7 @@
       color: #8b93a7;
       text-decoration: line-through;
     }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-was,
     #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-was { color: rgba(255,255,255,.45); }
     #pricing.mp-pricing .pricing-save {
       font-size: 0.72rem;
@@ -1313,6 +1315,7 @@
       padding: 4px 10px;
       border-radius: 999px;
     }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-save,
     #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-save {
       color: #9ef0d0;
       background: rgba(255,255,255,.1);
@@ -1330,12 +1333,14 @@
       font-weight: 500;
       color: #5b6478;
     }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-price span,
     #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-price span { color: rgba(255,255,255,.62); }
     #pricing.mp-pricing .pricing-period {
       font-size: 14px;
       color: #5b6478;
       margin: 6px 0 10px;
     }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-period,
     #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-period { color: rgba(255,255,255,.62); }
     #pricing.mp-pricing .pricing-desc {
       font-size: 14px;
@@ -1344,6 +1349,7 @@
       margin-bottom: 18px;
       font-weight: 400;
     }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-desc,
     #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-desc { color: rgba(255,255,255,.68); }
     #pricing.mp-pricing .pricing-features { list-style: none; flex: 1; margin-bottom: 22px; }
     #pricing.mp-pricing .pricing-features li {
@@ -1356,6 +1362,7 @@
       border-bottom: 1px solid rgba(20, 26, 46, .08);
       font-weight: 400;
     }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-features li,
     #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-features li {
       color: rgba(255,255,255,.88);
       border-bottom-color: rgba(255,255,255,.1);
@@ -1370,6 +1377,7 @@
       background: #003ea8;
       flex-shrink: 0;
     }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-features li::before,
     #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-features li::before {
       background: #7eb6ff;
     }
@@ -1406,6 +1414,16 @@
     #pricing.mp-pricing .pricing-card[data-plan="custom"] .pricing-cta.secondary {
       background: #14182e;
       color: #fff;
+    }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-cta.secondary,
+    #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-cta.secondary {
+      background: #fff;
+      color: #14182e;
+    }
+    #pricing.mp-pricing .pricing-card.is-active .pricing-cta.secondary:hover,
+    #pricing.mp-pricing .pricing-card[data-plan="pro"] .pricing-cta.secondary:hover {
+      background: #e7eefc;
+      color: #14182e;
     }
     .mp-billing-alert {
       max-width: 720px;
@@ -2049,9 +2067,9 @@
 <main id="main-content">
   <header class="hero" id="hero" aria-labelledby="hero-heading">
     <div class="wrap">
-      <img class="hp-float-agent _01" src="{% static 'img/hero-agents/mp-agent-01.png' %}?v=6" width="96" height="96" alt="" loading="lazy" decoding="async" draggable="true" />
-      <img class="hp-float-agent _02" src="{% static 'img/hero-agents/mp-agent-02.png' %}?v=6" width="96" height="96" alt="" loading="lazy" decoding="async" draggable="true" />
-      <img class="hp-float-agent _03" src="{% static 'img/hero-agents/mp-agent-03.png' %}?v=6" width="96" height="96" alt="" loading="lazy" decoding="async" draggable="true" />
+      <img class="hp-float-agent _01" src="{% if landing.hero_image_1_url %}{{ landing.hero_image_1_url }}{% else %}{% static 'img/hero-agents/mp-agent-01.png' %}?v=6{% endif %}" width="96" height="96" alt="" loading="lazy" decoding="async" draggable="true" />
+      <img class="hp-float-agent _02" src="{% if landing.hero_image_2_url %}{{ landing.hero_image_2_url }}{% else %}{% static 'img/hero-agents/mp-agent-02.png' %}?v=6{% endif %}" width="96" height="96" alt="" loading="lazy" decoding="async" draggable="true" />
+      <img class="hp-float-agent _03" src="{% if landing.hero_image_3_url %}{{ landing.hero_image_3_url }}{% else %}{% static 'img/hero-agents/mp-agent-03.png' %}?v=6{% endif %}" width="96" height="96" alt="" loading="lazy" decoding="async" draggable="true" />
 
       <div class="hero-stage">
         <span class="hero-badge">{{ landing.hero_overline }}</span>
@@ -2065,50 +2083,16 @@
       </div>
 
       <div class="hero-goals">
-        <p class="hero-goals__q">What would you like MailPilot to handle?</p>
-        <div class="hero-goal-grid" role="group" aria-label="Choose what MailPilot should handle">
+        <p class="hero-goals__q">{{ landing.hero_goals_question }}</p>
+        <div class="hero-goal-grid" role="group" aria-label="{{ landing.hero_goals_question }}">
+          {% for goal in hero_goals %}
           <label class="hero-goal">
-            <input type="checkbox" name="hero_goal" value="auto-reply" />
+            <input type="checkbox" name="hero_goal" value="{{ goal.value }}" />
             <span class="hero-goal__check" aria-hidden="true"></span>
-            <span class="hero-goal__ico"><i class="fa-solid fa-reply-all" aria-hidden="true"></i></span>
-            <span class="hero-goal__label">Auto-reply email</span>
+            <span class="hero-goal__ico"><i class="{{ goal.icon_class }}" aria-hidden="true"></i></span>
+            <span class="hero-goal__label">{{ goal.label }}</span>
           </label>
-          <label class="hero-goal">
-            <input type="checkbox" name="hero_goal" value="gmail" />
-            <span class="hero-goal__check" aria-hidden="true"></span>
-            <span class="hero-goal__ico"><i class="fa-brands fa-google" aria-hidden="true"></i></span>
-            <span class="hero-goal__label">Connect Gmail</span>
-          </label>
-          <label class="hero-goal">
-            <input type="checkbox" name="hero_goal" value="imap" />
-            <span class="hero-goal__check" aria-hidden="true"></span>
-            <span class="hero-goal__ico"><i class="fa-solid fa-server" aria-hidden="true"></i></span>
-            <span class="hero-goal__label">IMAP / SMTP</span>
-          </label>
-          <label class="hero-goal">
-            <input type="checkbox" name="hero_goal" value="rag" />
-            <span class="hero-goal__check" aria-hidden="true"></span>
-            <span class="hero-goal__ico"><i class="fa-solid fa-book-open" aria-hidden="true"></i></span>
-            <span class="hero-goal__label">Ground in docs</span>
-          </label>
-          <label class="hero-goal">
-            <input type="checkbox" name="hero_goal" value="draft" />
-            <span class="hero-goal__check" aria-hidden="true"></span>
-            <span class="hero-goal__ico"><i class="fa-solid fa-file-pen" aria-hidden="true"></i></span>
-            <span class="hero-goal__label">Draft for review</span>
-          </label>
-          <label class="hero-goal">
-            <input type="checkbox" name="hero_goal" value="alerts" />
-            <span class="hero-goal__check" aria-hidden="true"></span>
-            <span class="hero-goal__ico"><i class="fa-solid fa-bell" aria-hidden="true"></i></span>
-            <span class="hero-goal__label">Team alerts</span>
-          </label>
-          <label class="hero-goal">
-            <input type="checkbox" name="hero_goal" value="filter" />
-            <span class="hero-goal__check" aria-hidden="true"></span>
-            <span class="hero-goal__ico"><i class="fa-solid fa-filter" aria-hidden="true"></i></span>
-            <span class="hero-goal__label">Skip the noise</span>
-          </label>
+          {% endfor %}
         </div>
       </div>
 
@@ -2117,7 +2101,7 @@
           {{ landing.hero_cta_primary }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
         </a>
         <p class="hero-micro">
-          Free to start. No credit card required.
+          {{ landing.hero_micro }}
         </p>
       </div>
 
@@ -2134,24 +2118,14 @@
   <div class="logos">
     <p>{{ landing.logos_label }}</p>
     <div class="marquee">
-      <div class="chip"><span class="chip-ico chip-ico--gmail" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5L4 8V6l8 5 8-5v2z"/></svg></span>Gmail API</div>
-      <div class="chip"><span class="chip-ico chip-ico--imap" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M6 8h.01M10 8h.01M14 8h.01"/></svg></span>IMAP / SMTP</div>
-      <div class="chip"><span class="chip-ico chip-ico--ai" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 16l.8 2.2L8 19l-2.2.8L5 22l-.8-2.2L2 19l2.2-.8L5 16z"/><path d="M19 13l.6 1.6L21 15l-1.4.4L19 17l-.6-1.6L17 15l1.4-.4L19 13z"/></svg></span>AI</div>
-      <div class="chip"><span class="chip-ico chip-ico--db" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg></span>PostgreSQL + pgvector</div>
-      <div class="chip"><span class="chip-ico chip-ico--stripe" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.876 4.61 3.106 3.84 4.787 3.84 6.906c0 4.129 2.54 5.788 6.615 7.244 2.53.902 3.315 1.549 3.315 2.53 0 .97-.842 1.545-2.354 1.545-1.878 0-4.995-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305h.001z"/></svg></span>Stripe</div>
-      <div class="chip"><span class="chip-ico chip-ico--paypal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a.3.3 0 0 0-.032-.14c-.888-2.366-3.15-3.2-5.95-3.2H9.99c-.524 0-.968.382-1.05.9L7.22 14.4c-.082.518.246.9.77.9h2.84c3.71 0 6.56-1.507 7.4-5.84.34-1.76.21-3.19-.008-3.543z"/></svg></span>PayPal</div>
-      <div class="chip"><span class="chip-ico chip-ico--telegram" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></span>Telegram</div>
-      <div class="chip"><span class="chip-ico chip-ico--whatsapp" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg></span>WhatsApp</div>
-      <div class="chip"><span class="chip-ico chip-ico--gmail" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5L4 8V6l8 5 8-5v2z"/></svg></span>Gmail API</div>
-      <div class="chip"><span class="chip-ico chip-ico--imap" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M6 8h.01M10 8h.01M14 8h.01"/></svg></span>IMAP / SMTP</div>
-      <div class="chip"><span class="chip-ico chip-ico--ai" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 16l.8 2.2L8 19l-2.2.8L5 22l-.8-2.2L2 19l2.2-.8L5 16z"/><path d="M19 13l.6 1.6L21 15l-1.4.4L19 17l-.6-1.6L17 15l1.4-.4L19 13z"/></svg></span>AI</div>
-      <div class="chip"><span class="chip-ico chip-ico--db" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg></span>PostgreSQL + pgvector</div>
-      <div class="chip"><span class="chip-ico chip-ico--stripe" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.876 4.61 3.106 3.84 4.787 3.84 6.906c0 4.129 2.54 5.788 6.615 7.244 2.53.902 3.315 1.549 3.315 2.53 0 .97-.842 1.545-2.354 1.545-1.878 0-4.995-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305h.001z"/></svg></span>Stripe</div>
-      <div class="chip"><span class="chip-ico chip-ico--paypal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a.3.3 0 0 0-.032-.14c-.888-2.366-3.15-3.2-5.95-3.2H9.99c-.524 0-.968.382-1.05.9L7.22 14.4c-.082.518.246.9.77.9h2.84c3.71 0 6.56-1.507 7.4-5.84.34-1.76.21-3.19-.008-3.543z"/></svg></span>PayPal</div>
-      <div class="chip"><span class="chip-ico chip-ico--telegram" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></span>Telegram</div>
-      <div class="chip"><span class="chip-ico chip-ico--whatsapp" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg></span>WhatsApp</div>
+      {% for _copy in "ab" %}
+      {% for chip in logo_chips %}
+      <div class="chip">{% include "components/logo_chip_icon.html" with key=chip.icon_key %}{{ chip.label }}</div>
+      {% endfor %}
+      {% endfor %}
     </div>
   </div>
+
 
   <section id="features" class="mp-sec mp-stage" aria-labelledby="features-heading">
     <div class="wrap">
@@ -2185,18 +2159,10 @@
           <figure class="hiw-float" data-i="{{ forloop.counter0 }}" data-gsap-role="context-item">
             <figcaption class="hiw-float-title">{{ step.title }}</figcaption>
             <span class="hiw-float-media">
-              {% if forloop.counter == 1 %}
-              <img loading="lazy" decoding="async" width="1100" height="700" src="{% static 'img/hiw-context/hiw-01-inbox.webp' %}?v=6" alt="" />
-              {% elif forloop.counter == 2 %}
-              <img loading="lazy" decoding="async" width="1100" height="400" src="{% static 'img/hiw-context/hiw-02-keywords.webp' %}?v=6" alt="" />
-              {% elif forloop.counter == 3 %}
-              <img loading="lazy" decoding="async" width="1100" height="600" src="{% static 'img/hiw-context/hiw-03-rag.webp' %}?v=6" alt="" />
-              {% elif forloop.counter == 4 %}
-              <img loading="lazy" decoding="async" width="1100" height="500" src="{% static 'img/hiw-context/hiw-04-analysis.webp' %}?v=6" alt="" />
-              {% elif forloop.counter == 5 %}
-              <img loading="lazy" decoding="async" width="1100" height="500" src="{% static 'img/hiw-context/hiw-05-send.webp' %}?v=6" alt="" />
-              {% else %}
-              <img loading="lazy" decoding="async" width="1100" height="600" src="{% static 'img/hiw-context/hiw-06-queue.webp' %}?v=6" alt="" />
+              {% if step.image_url %}
+              <img loading="lazy" decoding="async" width="1100" height="700" src="{{ step.image_url }}" alt="" />
+              {% elif step.fallback_static_path %}
+              <img loading="lazy" decoding="async" width="1100" height="700" src="{% static step.fallback_static_path %}?v=6" alt="" />
               {% endif %}
             </span>
           </figure>
@@ -2210,7 +2176,7 @@
     <div class="wrap">
       <div class="rag-head reveal">
         <h2 class="rag-title" id="rag-heading">{{ landing.rag_title_html|safe }}</h2>
-        <p class="rag-sub">Retrieve the right chunks before you reply—accurate when grounded, skipped when it would guess.</p>
+        <p class="rag-sub">{{ landing.rag_sub }}</p>
       </div>
       <div class="rag-tabs-wrap reveal">
         {% include "components/marketing_rag_items.html" %}
@@ -2243,7 +2209,7 @@
     </div>
   </section>
 
-  <section id="pricing" class="mp-sec mp-pricing" aria-labelledby="pricing-heading" data-initial-billing-interval="{{ billing_interval|default:'monthly' }}" data-initial-pricing-currency="{{ pricing_currency|default:'usd' }}">
+  <section id="pricing" class="mp-sec mp-pricing" aria-labelledby="pricing-heading" data-initial-billing-interval="{{ billing_interval|default:'monthly' }}" data-initial-pricing-currency="{{ pricing_currency|default:'gbp' }}">
     <div class="wrap">
       {% include "components/marketing_pricing_head.html" %}
       {% include "components/marketing_pricing_billing_toggle.html" %}
@@ -2263,9 +2229,9 @@
         <p class="mp-contact-sub">{{ landing.contact_intro }}</p>
       </div>
       {% if contact_sent %}
-      <div class="contact-alert ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Thanks — we received your message and will reply soon.</span></div>
+      <div class="contact-alert ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>{{ landing.contact_success }}</span></div>
       {% elif contact_error %}
-      <div class="contact-alert err" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>{% if contact_error == "mail" %}Your message was saved, but we could not send email right now. Please try again or email team@timerni.co.uk directly.{% else %}Please enter your name, a valid email, and a message.{% endif %}</span></div>
+      <div class="contact-alert err" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span>{% if contact_error == "mail" %}{{ landing.contact_error_mail }}{% else %}{{ landing.contact_error_invalid }}{% endif %}</span></div>
       {% endif %}
       <div class="contact-panel reveal">
         <div class="contact-form-card">
@@ -2275,36 +2241,36 @@
             <form method="post" action="{% url 'landing_contact' %}" novalidate>
               {% csrf_token %}
               <div class="fg">
-                <label class="fl" for="contact-name">Full name</label>
+                <label class="fl" for="contact-name">{{ landing.contact_label_name }}</label>
                 <div class="contact-input-wrap">
-                  <input class="fi" id="contact-name" name="name" type="text" autocomplete="name" required maxlength="120" placeholder="Your name" />
+                  <input class="fi" id="contact-name" name="name" type="text" autocomplete="name" required maxlength="120" placeholder="{{ landing.contact_placeholder_name }}" />
                   <i class="fa-solid fa-user" aria-hidden="true"></i>
                 </div>
               </div>
               <div class="contact-row2">
                 <div class="fg">
-                  <label class="fl" for="contact-email">Email</label>
+                  <label class="fl" for="contact-email">{{ landing.contact_label_email }}</label>
                   <div class="contact-input-wrap">
-                    <input class="fi" id="contact-email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@company.com" />
+                    <input class="fi" id="contact-email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="{{ landing.contact_placeholder_email }}" />
                     <i class="fa-solid fa-envelope" aria-hidden="true"></i>
                   </div>
                 </div>
                 <div class="fg">
-                  <label class="fl" for="contact-phone">Phone <span class="opt">(optional)</span></label>
+                  <label class="fl" for="contact-phone">{{ landing.contact_label_phone }} <span class="opt">{{ landing.contact_phone_optional }}</span></label>
                   <div class="contact-input-wrap">
-                    <input class="fi" id="contact-phone" name="phone" type="tel" autocomplete="tel" maxlength="32" placeholder="+1 555 000 0000" />
+                    <input class="fi" id="contact-phone" name="phone" type="tel" autocomplete="tel" maxlength="32" placeholder="{{ landing.contact_placeholder_phone }}" />
                     <i class="fa-solid fa-phone" aria-hidden="true"></i>
                   </div>
                 </div>
               </div>
               <div class="fg">
-                <label class="fl" for="contact-message">Message</label>
+                <label class="fl" for="contact-message">{{ landing.contact_label_message }}</label>
                 <div class="contact-input-wrap">
                   <textarea class="fi" id="contact-message" name="message" rows="4" maxlength="2000" required placeholder="{{ landing.contact_message_placeholder }}"></textarea>
                   <i class="fa-solid fa-message" aria-hidden="true"></i>
                 </div>
               </div>
-              <button class="contact-submit" type="submit"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send message</button>
+              <button class="contact-submit" type="submit"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> {{ landing.contact_submit_label }}</button>
               <p class="contact-privacy">{{ landing.contact_privacy }}</p>
             </form>
           </div>
@@ -2344,7 +2310,7 @@
   </section>
 </main>
 
-{% include "components/footer.html" %}
+{% marketing_footer %}
 
 <script>
 (function () {

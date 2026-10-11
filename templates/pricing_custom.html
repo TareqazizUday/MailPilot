@@ -1,4 +1,4 @@
-{% load static %}
+{% load static marketing_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -260,7 +260,7 @@
     class="mp-marketing-main"
     aria-labelledby="custom-heading"
     data-initial-billing-interval="{{ billing_interval|default:'monthly' }}"
-    data-initial-pricing-currency="{{ pricing_currency|default:'usd' }}"
+    data-initial-pricing-currency="{{ pricing_currency|default:'gbp' }}"
   >
     <header class="builder-head">
       <div class="builder-kicker">Custom plan</div>
@@ -331,7 +331,7 @@
     </div>
   </main>
 
-  {% include "components/footer.html" %}
+  {% marketing_footer %}
   {% include "components/marketing_pricing_billing_toggle_js.html" %}
 
   <script>

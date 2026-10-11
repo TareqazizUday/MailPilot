@@ -256,6 +256,8 @@ def landing_page(request):
         get_faq_settings,
         get_hero_settings,
         get_landing_page,
+        marketing_hero_goals_queryset,
+        marketing_logo_chips_queryset,
         get_pricing_settings,
         how_it_works_steps_queryset,
         marketing_features_queryset,
@@ -275,6 +277,8 @@ def landing_page(request):
     ctx["current_plan_code"] = ""
 
     ctx["landing"] = get_landing_page()
+    ctx["hero_goals"] = marketing_hero_goals_queryset()
+    ctx["logo_chips"] = marketing_logo_chips_queryset()
     ctx["marketing_features"] = marketing_features_queryset(homepage_only=True)
     ctx["how_it_works_steps"] = how_it_works_steps_queryset(homepage_only=True)
     ctx["marketing_reviews"] = marketing_reviews_queryset(homepage_only=True)
@@ -522,36 +526,25 @@ def dashboard_page(request):
 @login_required(login_url="/login")
 @require_http_methods(["GET", "POST"])
 def profile_page(request):
-    from core.models import UserProfile
+    from django.contrib import messages
     from django.core.files.uploadedfile import UploadedFile
+
+    from core.avatar import remove_avatar, save_avatar, validate_avatar
+    from core.models import UserProfile
 
     prof, _ = UserProfile.objects.get_or_create(user=request.user)
     if request.method == "POST":
-        # Avatar upload (optional)
         av: UploadedFile | None = request.FILES.get("avatar")  # type: ignore[assignment]
-        if av and getattr(av, "name", ""):
-            name = (av.name or "").lower()
-            ok_ext = name.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))
-            ok_mime = str(getattr(av, "content_type", "") or "").startswith("image/")
-            max_bytes = 2 * 1024 * 1024
-            if (not ok_ext) or (not ok_mime):
-                from django.contrib import messages
-
-                messages.error(request, "Avatar must be an image file (PNG/JPG/WEBP/GIF).")
-                return redirect(reverse("profile"))
-            if getattr(av, "size", 0) and av.size > max_bytes:
-                from django.contrib import messages
-
-                messages.error(request, "Avatar is too large. Max 2 MB.")
-                return redirect(reverse("profile"))
-
-            # Best-effort cleanup of old file
-            try:
-                if prof.avatar and prof.avatar.name and prof.avatar.storage.exists(prof.avatar.name):
-                    prof.avatar.delete(save=False)
-            except Exception:
-                pass
-            prof.avatar = av
+        if (request.POST.get("remove_avatar") or "").strip() == "1":
+            remove_avatar(prof)
+            log_audit(request, "avatar_removed", "")
+        elif av and getattr(av, "name", ""):
+            err = validate_avatar(av)
+            if err:
+                messages.error(request, err)
+                return redirect(f"{reverse('profile')}?edit=1")
+            save_avatar(prof, av)
+            log_audit(request, "avatar_updated", "")
 
         u = request.user
         u.first_name = (request.POST.get("first_name") or "").strip()[:150]
@@ -565,8 +558,6 @@ def profile_page(request):
         prof.notes = (request.POST.get("notes") or "").strip()[:2000]
         prof.save()
         log_audit(request, "profile_updated", "")
-        from django.contrib import messages
-
         messages.success(request, "Profile saved.")
         return redirect(reverse("profile"))
 
@@ -578,13 +569,9 @@ def profile_page(request):
     cfg = _user_settings_dict(request)
     connected = _mailbox_connected_for_ui(effective, cfg)
 
-    # Avatar URL (avoid broken /media/... links if file is missing)
-    avatar_url = ""
-    try:
-        if prof.avatar and prof.avatar.name and prof.avatar.storage.exists(prof.avatar.name):
-            avatar_url = prof.avatar.url
-    except Exception:
-        avatar_url = ""
+    from core.avatar import avatar_url as _avatar_url
+
+    avatar_url = _avatar_url(prof)
 
     billing: dict = {}
     bill_display: dict = {}

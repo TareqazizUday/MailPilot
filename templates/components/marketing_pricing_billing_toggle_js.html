@@ -56,7 +56,7 @@
 
     if (fromData) return normalizeCurrency(fromData);
 
-    return 'usd';
+    return 'gbp';
 
   }
 
@@ -190,21 +190,24 @@
 
     const billingPrefix = interval === 'yearly' ? 'yearly' : 'monthly';
 
-    const currencySuffix = currency === 'usd' ? '' : '-' + currency;
-
-
+    function fieldKey(name) {
+      const cap = name.charAt(0).toUpperCase() + name.slice(1);
+      if (!currency || currency === 'usd') return billingPrefix + cap;
+      const cur = currency.charAt(0).toUpperCase() + currency.slice(1);
+      return billingPrefix + cap + cur;
+    }
 
     cards.forEach((card) => {
 
-      const price = card.dataset[billingPrefix + 'Price' + currencySuffix] || card.dataset[billingPrefix + 'Price'] || '';
+      const price = card.dataset[fieldKey('price')] || card.dataset[billingPrefix + 'Price'] || '';
 
-      const suffix = card.dataset[billingPrefix + 'Suffix' + currencySuffix] || card.dataset[billingPrefix + 'Suffix'] || '';
+      const suffix = card.dataset[fieldKey('suffix')] || card.dataset[billingPrefix + 'Suffix'] || '';
 
-      const was = card.dataset[billingPrefix + 'Was' + currencySuffix] || card.dataset[billingPrefix + 'Was'] || '';
+      const was = card.dataset[fieldKey('was')] || card.dataset[billingPrefix + 'Was'] || '';
 
-      const save = card.dataset[billingPrefix + 'Save' + currencySuffix] || card.dataset[billingPrefix + 'Save'] || '';
+      const save = card.dataset[fieldKey('save')] || card.dataset[billingPrefix + 'Save'] || '';
 
-      const period = card.dataset[billingPrefix + 'Period' + currencySuffix] || card.dataset[billingPrefix + 'Period'] || '';
+      const period = card.dataset[fieldKey('period')] || card.dataset[billingPrefix + 'Period'] || '';
 
 
 
@@ -392,13 +395,13 @@
 
       .then((payload) => {
 
-        const currency = (payload && payload.ok && payload.currency) ? payload.currency : 'usd';
+        const currency = (payload && payload.ok && payload.currency) ? payload.currency : 'gbp';
 
         applyCurrency(currency, { persist: false });
 
       })
 
-      .catch(() => applyCurrency('usd', { persist: false }));
+      .catch(() => applyCurrency('gbp', { persist: false }));
 
   }
 
