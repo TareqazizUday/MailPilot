@@ -38,7 +38,7 @@ from core.social_auth import (
 logger = logging.getLogger("mailpilot.auth.social")
 
 STATE_TTL_SECONDS = 10 * 60
-CODE_TTL_SECONDS = 120
+CODE_TTL_SECONDS = 300
 
 
 def _state_key(state: str) -> str:

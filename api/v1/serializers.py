@@ -260,7 +260,7 @@ class SocialAuthorizeUrlResponseSerializer(serializers.Serializer):
 
 
 class SocialExchangeRequestSerializer(serializers.Serializer):
-    code = serializers.CharField(help_text="One-time `code` from the `return_to` deep link (valid 2 minutes)")
+    code = serializers.CharField(help_text="One-time `code` from the `return_to` deep link (valid 5 minutes)")
 
 
 class SocialTokenRequestSerializer(serializers.Serializer):

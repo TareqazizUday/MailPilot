@@ -328,9 +328,18 @@ class FirebaseAppBrowserTests(TestCase):
             ).content.decode()
             self.assertIn("Continue with Google", html)
 
+    def test_page_has_return_link_for_custom_tabs(self):
+        html = self.client.get(
+            "/auth/social/firebase/app", {"return_to": "mailpilot://social", "provider": "github"}
+        ).content.decode()
+        self.assertIn('id="return-link"', html)
+        self.assertIn("Open MailPilot", html)
+        self.assertIn("auth/popup-blocked", html)
+
     def test_page_rejects_bad_return_to(self):
         html = self.client.get("/auth/social/firebase/app", {"return_to": "https://evil.example/x"}).content.decode()
         self.assertNotIn('id="provider-btn"', html)
+        self.assertNotIn('id="return-link"', html)
         self.assertIn("invalid", html)
 
     def test_github_token_deep_link_says_github(self):

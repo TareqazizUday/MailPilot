@@ -47,6 +47,14 @@ def is_gmail_rate_limit_error(err: BaseException) -> bool:
     return isinstance(err, HttpError) and getattr(err.resp, "status", None) == 429
 
 
+# threads.get costs 10 quota units and Gmail allows ~250 units/second per user,
+# so a single batch of 40 would trip userRateLimitExceeded.
+THREAD_BATCH_SIZE = 20
+THREAD_BATCH_RETRY_ROUNDS = 2
+THREAD_BATCH_MAX_WAIT_SECONDS = 3.0
+_THREAD_METADATA_HEADERS = ["From", "Subject", "Date"]
+
+
 class GmailClient:
     """Thin Gmail API wrapper used by the dashboard UI."""
 
@@ -190,6 +198,50 @@ class GmailClient:
             return threads, "search"
         return threads, "all"
 
+    def _batch_thread_metadata(self, svc, tids: List[str]) -> List[Tuple[str, Any, BaseException | None]]:
+        """One HTTP round trip for ``tids``; returns (thread_id, response, error) per thread."""
+        got: Dict[str, Tuple[Any, BaseException | None]] = {}
+
+        def on_done(request_id, response, exception):
+            got[request_id] = (response, exception)
+
+        batch = svc.new_batch_http_request(callback=on_done)
+        for tid in tids:
+            batch.add(
+                svc.users()
+                .threads()
+                .get(userId="me", id=tid, format="metadata", metadataHeaders=_THREAD_METADATA_HEADERS),
+                request_id=tid,
+            )
+        try:
+            batch.execute()
+        except Exception as e:
+            return [(tid, None, e) for tid in tids]
+        missing = RuntimeError("missing_batch_response")
+        return [(tid, *got.get(tid, (None, missing))) for tid in tids]
+
+    def _threads_metadata(self, svc, tids: List[str]) -> Dict[str, Any]:
+        """Thread metadata by id, fetched in batches; ``None`` marks a thread that could not be loaded."""
+        results: Dict[str, Any] = {}
+        pending = list(tids)
+        for round_no in range(THREAD_BATCH_RETRY_ROUNDS + 1):
+            limited: List[str] = []
+            wait = 0.0
+            for i in range(0, len(pending), THREAD_BATCH_SIZE):
+                for tid, det, err in self._batch_thread_metadata(svc, pending[i : i + THREAD_BATCH_SIZE]):
+                    if err is None:
+                        results[tid] = det
+                    elif is_gmail_rate_limit_error(err) and round_no < THREAD_BATCH_RETRY_ROUNDS:
+                        limited.append(tid)
+                        wait = max(wait, gmail_retry_after_seconds(err))
+                    else:
+                        results[tid] = None
+            if not limited:
+                break
+            time.sleep(min(wait, THREAD_BATCH_MAX_WAIT_SECONDS))
+            pending = limited
+        return results
+
     def list_inbox_thread_summaries(self, max_threads: int = 40) -> List[Dict[str, Any]]:
         svc = self._service()
         max_n = max(1, int(max_threads or 40))
@@ -199,19 +251,17 @@ class GmailClient:
         if not threads:
             threads, _source = self._threads_list(svc, max_threads=max_n)
 
-        out: List[Dict[str, Any]] = []
+        snippets: Dict[str, str] = {}
         for t in threads:
             tid = str(t.get("id") or "")
-            if not tid:
-                continue
-            list_snippet = str(t.get("snippet") or "")
-            try:
-                det = self._execute(
-                    svc.users()
-                    .threads()
-                    .get(userId="me", id=tid, format="metadata", metadataHeaders=["From", "Subject", "Date"])
-                )
-            except Exception:
+            if tid and tid not in snippets:
+                snippets[tid] = str(t.get("snippet") or "")
+        details = self._threads_metadata(svc, list(snippets))
+
+        out: List[Dict[str, Any]] = []
+        for tid, list_snippet in snippets.items():
+            det = details.get(tid)
+            if det is None:
                 # Rate limits or transient errors: still show thread stub from list().
                 out.append(
                     {

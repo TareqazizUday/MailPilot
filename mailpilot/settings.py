@@ -119,6 +119,7 @@ _db_user = (os.environ.get("DJANGO_DB_USER") or "mailpilot_user").strip()
 _db_password = os.environ.get("DJANGO_DB_PASSWORD") or ""
 _db_host = (os.environ.get("DJANGO_DB_HOST") or "127.0.0.1").strip()
 _db_port = str(os.environ.get("DJANGO_DB_PORT") or "5432").strip()
+_db_conn_max_age = int(os.environ.get("DJANGO_DB_CONN_MAX_AGE", "60") or "0")
 
 DATABASES = {
     "default": {
@@ -128,6 +129,9 @@ DATABASES = {
         "PASSWORD": _db_password,
         "HOST": _db_host,
         "PORT": _db_port,
+        # Reuse connections across requests; health checks drop ones Postgres closed (restart, idle kill).
+        "CONN_MAX_AGE": _db_conn_max_age,
+        "CONN_HEALTH_CHECKS": _db_conn_max_age > 0,
     }
 }
 

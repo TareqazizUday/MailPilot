@@ -15,6 +15,7 @@ from urllib.parse import quote, urljoin
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.http import FileResponse, HttpRequest, HttpResponse, JsonResponse
@@ -2488,6 +2489,23 @@ def _annotate_inbox_threads(
     return threads
 
 
+GMAIL_INBOX_CACHE_SECONDS = 30
+
+
+def _gmail_inbox_cache_key(user_id: int, account_id: int, effective: Settings) -> str:
+    """Changes when the mailbox is reconnected (new token file) or its address changes."""
+    try:
+        token_mtime = os.path.getmtime(effective.GOOGLE_TOKEN_FILE)
+    except (OSError, TypeError, ValueError):
+        token_mtime = 0
+    raw = f"{user_id}:{account_id}:{(effective.GMAIL_ADDRESS or '').strip().lower()}:{token_mtime}"
+    return "gmail_inbox:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:40]
+
+
+def _wants_fresh(request) -> bool:
+    return str(request.GET.get("refresh") or "").strip().lower() in ("1", "true", "yes")
+
+
 @require_GET
 def api_gmail_inbox(request):
     if not check_api_access(request):
@@ -2515,22 +2533,29 @@ def api_gmail_inbox(request):
         if g_ok:
             from email_automation.gmail_auth import gmail_oauth_matches_configured
 
-            matches, profile_email, configured_email = gmail_oauth_matches_configured(effective)
-            if not matches:
-                return JsonResponse(
-                    {
-                        "ok": False,
-                        "error": "oauth_email_mismatch",
-                        "email": configured_email or effective.GMAIL_ADDRESS,
-                        "profile_email": profile_email,
-                        "account_id": acc.id,
-                    },
-                    status=400,
-                )
-            client = GmailClient(settings=effective)
-            threads = _annotate_inbox_threads(
-                client.list_inbox_thread_summaries(max_threads=40), request.user, account_id=acc.id
-            )
+            cache_key = _gmail_inbox_cache_key(request.user.id, acc.id, effective)
+            listing = None if _wants_fresh(request) else cache.get(cache_key)
+            if not isinstance(listing, dict):
+                matches, profile_email, configured_email = gmail_oauth_matches_configured(effective)
+                if not matches:
+                    return JsonResponse(
+                        {
+                            "ok": False,
+                            "error": "oauth_email_mismatch",
+                            "email": configured_email or effective.GMAIL_ADDRESS,
+                            "profile_email": profile_email,
+                            "account_id": acc.id,
+                        },
+                        status=400,
+                    )
+                client = GmailClient(settings=effective)
+                listing = {
+                    "threads": client.list_inbox_thread_summaries(max_threads=40),
+                    "profile_email": profile_email,
+                }
+                cache.set(cache_key, listing, timeout=GMAIL_INBOX_CACHE_SECONDS)
+            # Status badges come from our DB, so they stay live even when the Gmail listing is cached.
+            threads = _annotate_inbox_threads(listing["threads"], request.user, account_id=acc.id)
             return JsonResponse(
                 {
                     "ok": True,
@@ -2538,7 +2563,7 @@ def api_gmail_inbox(request):
                     "source": "gmail",
                     "account_id": acc.id,
                     "email": effective.GMAIL_ADDRESS,
-                    "profile_email": profile_email,
+                    "profile_email": listing["profile_email"],
                     "oauth_email_mismatch": False,
                 }
             )

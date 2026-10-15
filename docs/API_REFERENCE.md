@@ -40,7 +40,7 @@ Open `{SITE_URL}/auth/social/firebase/app?provider=<google|github>&return_to=<ap
    `return_to` rules are the same as Gmail connect (`mailpilot://`, `exp://`, `exps://`, `http://localhost:8081`, `http://127.0.0.1:8081`, `SITE_URL`).
 3. The provider returns to the website callback, which redirects to  
    `return_to?status=ok&code=<one-time>&provider=<id>` or `return_to?status=error&error=<code>&provider=<id>` (state valid 10 minutes).
-4. `POST /auth/social/exchange { "code" }` within **2 minutes** → JWT. The code works once.
+4. `POST /auth/social/exchange { "code" }` within **5 minutes** → JWT. The code works once.
 
 **Native SDK flow (optional)**
 

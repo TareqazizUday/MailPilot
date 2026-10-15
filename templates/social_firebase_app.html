@@ -18,6 +18,10 @@
     button svg { width: 22px; height: 22px; }
     .status { margin-top: 14px; min-height: 1.2em; font-size: 0.85rem; color: #5b6478; }
     .status.err { color: #c62828; }
+    .return { display: flex; align-items: center; justify-content: center; width: 100%; height: 52px;
+              margin-top: 14px; border-radius: 14px; background: #4648D4; color: #fff;
+              font-size: 1rem; font-weight: 600; text-decoration: none; }
+    .return[hidden], button[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -38,6 +42,7 @@
         Continue with {{ provider_label }}
       </button>
       <div class="status" id="status"></div>
+      <a class="return" id="return-link" href="#" hidden>Open MailPilot</a>
       {{ firebase_web|json_script:"firebase-web-config" }}
       {{ return_to|json_script:"return-to" }}
       {{ provider|json_script:"provider-name" }}
@@ -61,8 +66,19 @@
           provider.setCustomParameters({ prompt: "select_account" });
         }
 
+        const returnLink = document.getElementById("return-link");
         const say = (msg, err) => { status.textContent = msg; status.className = err ? "status err" : "status"; };
         const csrf = () => (document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/) || [])[1] || "";
+
+        // Chrome Custom Tabs block custom-scheme navigation without a fresh user gesture,
+        // so the automatic redirect can silently fail after the awaits; the link always works.
+        const backToApp = (url, ok) => {
+          returnLink.href = url;
+          returnLink.hidden = false;
+          btn.hidden = true;
+          say(ok ? "Signed in. Tap the button if the app did not open." : "Tap the button to go back to the app.", !ok);
+          window.location.href = url;
+        };
 
         btn.addEventListener("click", async () => {
           btn.disabled = true;
@@ -82,11 +98,12 @@
             });
             const data = await r.json().catch(() => ({}));
             signOut(auth).catch(() => {});
-            if (data.redirect) { say("Returning to the app…"); window.location.href = data.redirect; return; }
+            if (data.redirect) { backToApp(data.redirect, !!data.ok); return; }
             say("Could not sign in. Please try again.", true);
           } catch (e) {
             const code = (e && e.code) || "";
             if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") say("");
+            else if (code === "auth/popup-blocked") say("The sign-in window was blocked. Tap the button again.", true);
             else if (code === "auth/unauthorized-domain") say("Add " + location.hostname + " to Firebase → Authentication → Authorized domains.", true);
             else if (code === "auth/operation-not-allowed") say("{{ provider_label }} is not enabled in Firebase → Authentication → Sign-in method.", true);
             else if (code === "auth/account-exists-with-different-credential") say("This email already signs in with another provider. Use that one.", true);
