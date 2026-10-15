@@ -36,3 +36,27 @@ def poll_all_users_mail() -> None:
         return
     for uid in ids:
         poll_user_mail.delay(int(uid))
+
+
+@shared_task(ignore_result=True)
+def deliver_notification(notification_id: int) -> None:
+    from core.notifications.delivery import deliver
+
+    try:
+        deliver(notification_id)
+    except Exception as e:
+        log.warning("deliver_notification failed id=%s: %s", notification_id, e)
+
+
+@shared_task(ignore_result=True)
+def flush_notification_digests() -> None:
+    from core.notifications.delivery import flush_digests
+
+    flush_digests()
+
+
+@shared_task(ignore_result=True)
+def cleanup_notifications() -> None:
+    from core.notifications.delivery import cleanup_old_notifications
+
+    cleanup_old_notifications()

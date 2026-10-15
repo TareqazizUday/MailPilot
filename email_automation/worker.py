@@ -210,7 +210,7 @@ def _should_consider_email(settings: Settings, *, from_email: str, subject: str,
     return any(t in hay for t in toks)
 
 
-def _maybe_telegram_notify(
+def _maybe_notify(
     state_store: StateStore,
     event: str,
     *,
@@ -218,9 +218,11 @@ def _maybe_telegram_notify(
     from_email: str = "",
     error: str = "",
     reply_subject: str = "",
+    message_id: str = "",
+    thread_id: str = "",
 ) -> None:
     try:
-        from core.telegram_notify import notify_mail_event
+        from core.notifications import notify_mail_event
 
         notify_mail_event(
             state_store.tenant_id,
@@ -229,19 +231,8 @@ def _maybe_telegram_notify(
             from_email=from_email,
             error=error,
             reply_subject=reply_subject,
-        )
-    except Exception:
-        pass
-    try:
-        from core.whatsapp_notify import notify_mail_event as whatsapp_notify_mail_event
-
-        whatsapp_notify_mail_event(
-            state_store.tenant_id,
-            event,
-            subject=subject,
-            from_email=from_email,
-            error=error,
-            reply_subject=reply_subject,
+            message_id=message_id,
+            thread_id=thread_id,
         )
     except Exception:
         pass
@@ -388,12 +379,14 @@ def poll_once(
                                 "quota_blocked": True,
                             },
                         )
-                        _maybe_telegram_notify(
+                        _maybe_notify(
                             state_store,
                             "draft",
                             subject=subject,
                             from_email=from_email,
                             reply_subject=reply_subject,
+                            message_id=mid,
+                            thread_id=tid,
                         )
                         continue
                 try:
@@ -451,12 +444,14 @@ def poll_once(
                         "processed_at": _now_iso(),
                     },
                 )
-                _maybe_telegram_notify(
+                _maybe_notify(
                     state_store,
                     "sent",
                     subject=subject,
                     from_email=from_email,
                     reply_subject=reply_subject,
+                    message_id=mid,
+                    thread_id=tid,
                 )
             else:
                 drafts += 1
@@ -481,12 +476,14 @@ def poll_once(
                         "processed_at": _now_iso(),
                     },
                 )
-                _maybe_telegram_notify(
+                _maybe_notify(
                     state_store,
                     "draft",
                     subject=subject,
                     from_email=from_email,
                     reply_subject=reply_subject,
+                    message_id=mid,
+                    thread_id=tid,
                 )
         else:
             ignored += 1
@@ -728,12 +725,13 @@ def poll_once_imap(
                                 _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
                                 quota_meta,
                             )
-                            _maybe_telegram_notify(
+                            _maybe_notify(
                                 state_store,
                                 "draft",
                                 subject=subject,
                                 from_email=from_email,
                                 reply_subject=reply_subject,
+                                message_id=dedupe_id,
                             )
                             print(f"[mailpoll][imap] quota_blocked uid={uid} reason={reservation.reason!r}")
                             continue
@@ -785,12 +783,13 @@ def poll_once_imap(
                             conn.uid("store", uid, "+FLAGS", r"(\Seen)")
                         except Exception:
                             pass
-                        _maybe_telegram_notify(
+                        _maybe_notify(
                             state_store,
                             "sent",
                             subject=subject,
                             from_email=from_email,
                             reply_subject=reply_subject,
+                            message_id=dedupe_id,
                         )
                     except Exception as e:
                         err = str(e)
@@ -822,12 +821,13 @@ def poll_once_imap(
                             _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
                             err_meta,
                         )
-                        _maybe_telegram_notify(
+                        _maybe_notify(
                             state_store,
                             "error",
                             subject=subject,
                             from_email=from_email,
                             error=err,
+                            message_id=dedupe_id,
                         )
                 else:
                     drafts += 1
@@ -847,12 +847,13 @@ def poll_once_imap(
                         _dedupe_aliases(primary_id=dedupe_id, uid=uid, email_msg=msg),
                         draft_meta,
                     )
-                    _maybe_telegram_notify(
+                    _maybe_notify(
                         state_store,
                         "draft",
                         subject=subject,
                         from_email=from_email,
                         reply_subject=reply_subject,
+                        message_id=dedupe_id,
                     )
             else:
                 ignored += 1

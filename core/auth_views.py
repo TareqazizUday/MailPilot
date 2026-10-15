@@ -306,6 +306,10 @@ def login_view(request: HttpRequest):
             return redirect(post_login_redirect_url(request, user, next_url=nxt))
         err = "Invalid username or password."
         log_audit(request, "login_failed", "")
+    if not err:
+        from core.social_auth import social_error_message
+
+        err = social_error_message(request.GET)
     return render(request, "login.html", {"error": err, "next": request.GET.get("next") or ""})
 
 
@@ -374,6 +378,10 @@ def signup_view(request: HttpRequest):
             login(request, user)
             log_audit(request, "signup", "")
             return redirect(reverse("dashboard"))
+    if not err:
+        from core.social_auth import social_error_message
+
+        err = social_error_message(request.GET)
     return render(request, "signup.html", {"error": err})
 
 

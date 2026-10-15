@@ -74,4 +74,4 @@ if (-not $ok) {
   throw "MailPilot did not become healthy at http://127.0.0.1:8011/healthz within 25s."
 }
 
-Write-Host "MailPilot is running on http://127.0.0.1:8011 (IIS -> https://mailpilot.tedbotai.com/)" -ForegroundColor Green
+Write-Host "MailPilot is running on http://127.0.0.1:8011" -ForegroundColor Green

@@ -16,6 +16,7 @@ class UserProfile(models.Model):
     company = models.CharField(max_length=160, blank=True, default="")
     timezone = models.CharField(max_length=64, blank=True, default="UTC")
     notes = models.TextField(blank=True, default="", help_text="Internal notes (optional)")
+    last_seen_at = models.DateTimeField(null=True, blank=True, help_text="Last web/app activity (notification polling)")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -1611,3 +1612,69 @@ class QueueItem(models.Model):
             models.UniqueConstraint(fields=["tenant_id", "message_id"], name="uq_queueitem_tenant_message")
         ]
         indexes = [models.Index(fields=["tenant_id", "-updated_at"], name="idx_queueitem_tenant_updated")]
+
+
+class Notification(models.Model):
+    """In-app notification record; also the source for push / Telegram / WhatsApp delivery."""
+
+    EVENT_DRAFT = "draft"
+    EVENT_SENT = "sent"
+    EVENT_ERROR = "error"
+    EVENT_BILLING = "billing"
+    EVENT_SYSTEM = "system"
+    EVENT_DIGEST = "digest"
+    EVENT_CHOICES = [
+        (EVENT_DRAFT, "Draft saved"),
+        (EVENT_SENT, "Reply sent"),
+        (EVENT_ERROR, "Error"),
+        (EVENT_BILLING, "Billing"),
+        (EVENT_SYSTEM, "System"),
+        (EVENT_DIGEST, "Digest"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    tenant_id = models.CharField(max_length=64, blank=True, default="")
+    account = models.ForeignKey(
+        MailAccount, null=True, blank=True, on_delete=models.SET_NULL, related_name="notifications"
+    )
+    event = models.CharField(max_length=16, choices=EVENT_CHOICES, db_index=True)
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True, default="")
+    data = models.JSONField(default=dict, blank=True)
+    dedupe_key = models.CharField(max_length=300, blank=True, default="", db_index=True)
+    delivered_channels = models.JSONField(default=dict, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "core_notification"
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["user", "read_at", "-created_at"], name="idx_notif_user_read_created"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Notification({self.user_id}, {self.event}, {self.title[:40]})"
+
+
+class PushDevice(models.Model):
+    """Expo push token registered by the mobile app."""
+
+    PLATFORM_IOS = "ios"
+    PLATFORM_ANDROID = "android"
+    PLATFORM_CHOICES = [(PLATFORM_IOS, "iOS"), (PLATFORM_ANDROID, "Android")]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="push_devices")
+    expo_token = models.CharField(max_length=255, unique=True)
+    platform = models.CharField(max_length=16, choices=PLATFORM_CHOICES, blank=True, default="")
+    device_name = models.CharField(max_length=120, blank=True, default="")
+    is_active = models.BooleanField(default=True, db_index=True)
+    last_seen_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "core_pushdevice"
+        ordering = ["-last_seen_at"]
+
+    def __str__(self) -> str:
+        return f"PushDevice({self.user_id}, {self.platform})"

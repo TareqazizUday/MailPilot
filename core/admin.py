@@ -38,7 +38,9 @@ from core.models import (
     MarketingReview,
     MarketingPricingPlan,
     MarketingPricingSettings,
+    Notification,
     PasswordResetOTP,
+    PushDevice,
     UsageCounter,
     UsageEvent,
     UserMailSettings,
@@ -1563,3 +1565,25 @@ admin_site.register(MarketingPricingPlan, MarketingPricingPlanAdmin)
 admin_site.register(ContactSubmission, ContactSubmissionAdmin)
 admin_site.register(AuditLog, AuditLogAdmin)
 admin_site.register(PasswordResetOTP, PasswordResetOTPAdmin)
+
+
+class NotificationAdmin(_MPModelAdmin):
+    list_display = ("created_at", "user", "event", "title", "read_at")
+    list_filter = ("event", "created_at")
+    search_fields = ("title", "body", "user__username", "user__email")
+    readonly_fields = ("created_at", "delivered_channels", "dedupe_key")
+    raw_id_fields = ("user", "account")
+    ordering = ("-created_at",)
+    date_hierarchy = "created_at"
+
+
+class PushDeviceAdmin(_MPModelAdmin):
+    list_display = ("user", "platform", "device_name", "is_active", "last_seen_at")
+    list_filter = ("platform", "is_active")
+    search_fields = ("user__username", "user__email", "device_name")
+    readonly_fields = ("expo_token", "created_at", "last_seen_at")
+    raw_id_fields = ("user",)
+
+
+admin_site.register(Notification, NotificationAdmin)
+admin_site.register(PushDevice, PushDeviceAdmin)

@@ -7,9 +7,12 @@ from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 from django.templatetags.static import static
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
+
+from mailpilot.env import PRODUCTION, env_flag, env_list, production_problems, resolve_env, site_hosts
 
 # Mailpilot project root: the folder that contains `manage.py`, `.env`, `requirements.txt`, `templates/`, `data/`.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,10 +20,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # `.env` should win over inherited shell/system vars (e.g. stale DJANGO_DB_PORT on Windows).
 load_dotenv(BASE_DIR / ".env", override=True)
 
+_RUNSERVER = "runserver" in sys.argv
+
+# One switch per machine: MAILPILOT_ENV=local on a laptop, MAILPILOT_ENV=production on the server.
+# Every flag below can still be overridden by its own env var.
+MAILPILOT_ENV, _ENV_EXPLICIT = resolve_env(runserver=_RUNSERVER)
+IS_PRODUCTION = MAILPILOT_ENV == PRODUCTION
+
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY") or "dev-email-automation-secret"
 
-_dbg = (os.environ.get("DJANGO_DEBUG") or os.environ.get("FLASK_DEBUG") or "true").lower()
-DEBUG = _dbg in ("1", "true", "yes")
+_debug_flag = env_flag("DJANGO_DEBUG")
+if _debug_flag is None:
+    _debug_flag = env_flag("FLASK_DEBUG")
+DEBUG = (not IS_PRODUCTION) if _debug_flag is None else _debug_flag
 
 _billing_demo = (os.environ.get("BILLING_DEMO_MODE") or "").strip().lower()
 if _billing_demo in ("1", "true", "yes"):
@@ -31,11 +43,26 @@ else:
     # Local dev: simulate Stripe checkout when real keys are not configured.
     BILLING_DEMO_MODE = DEBUG
 
-ALLOWED_HOSTS = (
-    ["*"]
-    if DEBUG
-    else [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()]
-)
+# Canonical public URL, e.g. https://mailpilots.net (OAuth callbacks, billing, canonical/SEO links).
+SITE_URL = (os.environ.get("SITE_URL") or "").strip().rstrip("/")
+OG_IMAGE_URL = (os.environ.get("OG_IMAGE_URL") or "").strip()
+
+if DEBUG and not IS_PRODUCTION:
+    ALLOWED_HOSTS = ["*"]
+else:
+    # Loopback stays allowed for the health check that restart scripts run against 127.0.0.1:8011.
+    ALLOWED_HOSTS = list(
+        dict.fromkeys(
+            (env_list("DJANGO_ALLOWED_HOSTS") or ["127.0.0.1", "localhost"])
+            + site_hosts(SITE_URL)
+            + ["127.0.0.1", "localhost"]
+        )
+    )
+
+if IS_PRODUCTION and _ENV_EXPLICIT:
+    _problems = production_problems(secret_key=SECRET_KEY, site_url=SITE_URL)
+    if _problems:
+        raise ImproperlyConfigured("MAILPILOT_ENV=production: " + " ".join(_problems))
 
 INSTALLED_APPS = [
     "unfold",
@@ -78,6 +105,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.nav_context",
+                "core.context_processors.social_login_context",
             ],
         },
     },
@@ -137,11 +165,6 @@ if len(sys.argv) > 1 and sys.argv[1] == "test":
     atexit.register(shutil.rmtree, _TEST_FILES_ROOT, ignore_errors=True)
     MEDIA_ROOT = _TEST_FILES_ROOT / "media"
     USER_DATA_ROOT = _TEST_FILES_ROOT / "users"
-
-# SEO: canonical URLs and Open Graph image in production (optional).
-# Example: SITE_URL=https://yourdomain.com  OG_IMAGE_URL=https://yourdomain.com/static/seo/og.png
-SITE_URL = (os.environ.get("SITE_URL") or "").strip().rstrip("/")
-OG_IMAGE_URL = (os.environ.get("OG_IMAGE_URL") or "").strip()
 
 APPEND_SLASH = False
 
@@ -280,44 +303,52 @@ if CELERY_BROKER_URL:
         "task": "core.tasks.poll_all_users_mail",
         "schedule": timedelta(seconds=MAIL_POLL_BEAT_SECONDS),
     }
+    CELERY_BEAT_SCHEDULE["notification-digests"] = {
+        "task": "core.tasks.flush_notification_digests",
+        "schedule": timedelta(seconds=60),
+    }
+    CELERY_BEAT_SCHEDULE["notification-cleanup"] = {
+        "task": "core.tasks.cleanup_notifications",
+        "schedule": timedelta(days=1),
+    }
+
+# Notifications (in-app, Expo push, Telegram/WhatsApp fallback)
+EXPO_ACCESS_TOKEN = (os.environ.get("EXPO_ACCESS_TOKEN") or "").strip()
+NOTIFY_FALLBACK_ONLINE_SECONDS = int((os.environ.get("NOTIFY_FALLBACK_ONLINE_SECONDS") or "120").strip() or "120")
+NOTIFY_EXTERNAL_RATE_LIMIT = int((os.environ.get("NOTIFY_EXTERNAL_RATE_LIMIT") or "10").strip() or "10")
+NOTIFY_RETENTION_DAYS = int((os.environ.get("NOTIFY_RETENTION_DAYS") or "90").strip() or "90")
+NOTIFY_DELIVERY_SYNC = False
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-_cookie_secure_env = (os.environ.get("DJANGO_COOKIE_SECURE") or "").strip().lower()
-if _cookie_secure_env:
-    SESSION_COOKIE_SECURE = _cookie_secure_env in ("1", "true", "yes")
-else:
-    # Default safe behavior: only force secure cookies when HTTPS redirect is enabled.
-    # This keeps local HTTP dev working even when DEBUG=false (e.g. FLASK_DEBUG=false).
-    SESSION_COOKIE_SECURE = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "").lower() in ("1", "true", "yes")
+
+# Production sits behind nginx/IIS that terminates HTTPS and sends X-Forwarded-Proto/Host.
+_ssl_redirect = env_flag("DJANGO_SECURE_SSL_REDIRECT")
+SECURE_SSL_REDIRECT = IS_PRODUCTION if _ssl_redirect is None else _ssl_redirect
+# The restart scripts poll http://127.0.0.1:8011/healthz directly, without the proxy.
+SECURE_REDIRECT_EXEMPT = [r"^healthz$"]
+_cookie_secure = env_flag("DJANGO_COOKIE_SECURE")
+SESSION_COOKIE_SECURE = (SECURE_SSL_REDIRECT or IS_PRODUCTION) if _cookie_secure is None else _cookie_secure
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-# Behind IIS / nginx reverse proxy: trust X-Forwarded-Host so request.get_host() matches the browser URL.
-_xfh = (os.environ.get("DJANGO_USE_X_FORWARDED_HOST") or "").strip().lower()
-if _xfh in ("0", "false", "no"):
-    USE_X_FORWARDED_HOST = False
-elif _xfh in ("1", "true", "yes"):
-    USE_X_FORWARDED_HOST = True
-else:
-    USE_X_FORWARDED_HOST = not DEBUG
-SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "").lower() in ("1", "true", "yes")
+_xfh = env_flag("DJANGO_USE_X_FORWARDED_HOST")
+USE_X_FORWARDED_HOST = (IS_PRODUCTION or not DEBUG) if _xfh is None else _xfh
 # Local `runserver` is plain HTTP. Production .env turns on Secure cookies and
 # HTTPS redirect; browsers then drop the CSRF cookie and login/signup POST 403.
 # Also allow any Host (LAN IP) so Expo Go / phones can hit 0.0.0.0:8000.
-if "runserver" in sys.argv:
+if _RUNSERVER:
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
     SECURE_SSL_REDIRECT = False
     ALLOWED_HOSTS = ["*"]
+# Off by default: the nginx in front of mailpilots.net already sends HSTS (two headers otherwise).
 SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0") or "0")
-SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "").lower() in (
-    "1",
-    "true",
-    "yes",
-)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = bool(env_flag("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS"))
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+# Firebase signInWithPopup needs to talk to its popup window.
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
 
 def _norm_origin(o: str) -> str:
     return (o or "").strip().rstrip("/")
@@ -330,13 +361,15 @@ _csrf_origins_raw = os.environ.get(
 )
 CSRF_TRUSTED_ORIGINS = [_norm_origin(o) for o in _csrf_origins_raw.split(",") if _norm_origin(o)]
 
-# If SITE_URL is set, trust it for CSRF (common reverse-proxy / custom domain setup).
+# If SITE_URL is set, trust it (and its www / bare twin) for CSRF.
 if SITE_URL:
-    if SITE_URL not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(SITE_URL)
+    _scheme = SITE_URL.split("://", 1)[0]
+    for _o in [SITE_URL] + [f"{_scheme}://{h}" for h in site_hosts(SITE_URL)]:
+        if _o not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_o)
 
 # Also trust https://<allowed-host> for production domains.
-if not DEBUG:
+if IS_PRODUCTION or not DEBUG:
     for _h in ALLOWED_HOSTS or []:
         h = (_h or "").strip()
         if not h or h == "*":

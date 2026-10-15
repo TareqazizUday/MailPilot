@@ -242,6 +242,39 @@ class PasswordResetConfirmRequestSerializer(serializers.Serializer):
     password2 = serializers.CharField()
 
 
+class SocialProviderSerializer(serializers.Serializer):
+    id = serializers.ChoiceField(choices=["google", "github"])
+    label = serializers.CharField()
+    configured = serializers.BooleanField(help_text="False until the provider keys are set on the server")
+
+
+class SocialProvidersResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    providers = SocialProviderSerializer(many=True)
+
+
+class SocialAuthorizeUrlResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    authorization_url = serializers.URLField()
+    state = serializers.CharField()
+
+
+class SocialExchangeRequestSerializer(serializers.Serializer):
+    code = serializers.CharField(help_text="One-time `code` from the `return_to` deep link (valid 2 minutes)")
+
+
+class SocialTokenRequestSerializer(serializers.Serializer):
+    provider = serializers.ChoiceField(choices=["firebase", "google"])
+    id_token = serializers.CharField(help_text="Firebase ID token (provider=firebase) or Google Sign-In ID token")
+    access_token = serializers.CharField(
+        required=False, help_text="GitHub OAuth access token from the same Firebase sign-in (GitHub only)"
+    )
+
+
+class SocialLoginResponseSerializer(SignupResponseSerializer):
+    created = serializers.BooleanField(help_text="True when this sign-in created the account")
+
+
 class KBClearResponseSerializer(serializers.Serializer):
     ok = serializers.BooleanField()
     deleted_documents = serializers.IntegerField(required=False)

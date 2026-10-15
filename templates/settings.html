@@ -61,6 +61,15 @@
 
     .set-wrap .setup-card{width:100%;overflow-x:clip;}
 
+    .np-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+    .np-row:last-child{border-bottom:none;}
+    .np-row .np-name{font-size:0.88rem;font-weight:700;}
+    .np-row .np-hint{font-size:0.76rem;color:rgba(148,163,184,0.82);margin-top:2px;}
+    .np-row input[type=checkbox]{width:18px;height:18px;accent-color:#4f6ef7;flex:0 0 auto;}
+    .np-times{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .np-times .input{width:auto;min-width:120px;}
+    select.input option{color:#0f172a;}
+
     @media(max-width:768px){
       body .main-wrap{padding:20px 12px 56px;}
       .set-wrap .setup-card{border-radius:16px;}
@@ -124,6 +133,66 @@
             </form>
           </div>
 
+          <div class="sec" id="notifications">
+            <div class="sec-title"><i class="fa-regular fa-bell" aria-hidden="true"></i> Notifications</div>
+            <form id="notifPrefsForm" autocomplete="off">
+              <div class="field">
+                <span class="label">Notify me about</span>
+                <label class="np-row">
+                  <span><span class="np-name">Draft saved</span><span class="np-hint" style="display:block">A reply was drafted for your review.</span></span>
+                  <input type="checkbox" name="ev_draft"/>
+                </label>
+                <label class="np-row">
+                  <span><span class="np-name">Auto-reply sent</span><span class="np-hint" style="display:block">MailPilot replied automatically.</span></span>
+                  <input type="checkbox" name="ev_sent"/>
+                </label>
+                <label class="np-row">
+                  <span><span class="np-name">Errors</span><span class="np-hint" style="display:block">A reply failed to send.</span></span>
+                  <input type="checkbox" name="ev_error"/>
+                </label>
+              </div>
+
+              <div class="field">
+                <span class="label">Channels</span>
+                <label class="np-row">
+                  <span><span class="np-name">In-app (bell)</span><span class="np-hint" style="display:block">Show unread notifications on the web and in the app.</span></span>
+                  <input type="checkbox" name="in_app"/>
+                </label>
+                <label class="np-row">
+                  <span><span class="np-name">Mobile push</span><span class="np-hint" style="display:block">Phone alerts from the MailPilot app.</span></span>
+                  <input type="checkbox" name="push"/>
+                </label>
+              </div>
+
+              <div class="field">
+                <label class="label" for="np_external">Telegram / WhatsApp</label>
+                <select class="input" id="np_external" name="external_mode">
+                  <option value="fallback">Only when I'm not using MailPilot</option>
+                  <option value="always">Always</option>
+                  <option value="off">Never</option>
+                </select>
+                <div class="help">Uses the Telegram bot and WhatsApp number configured in <a href="{% url 'setup' %}">Setup</a>.</div>
+              </div>
+
+              <div class="field">
+                <span class="label">Quiet hours</span>
+                <label class="np-row">
+                  <span><span class="np-name">Pause push and Telegram/WhatsApp</span><span class="np-hint" style="display:block">Errors still come through. Uses your profile time zone.</span></span>
+                  <input type="checkbox" name="qh_enabled"/>
+                </label>
+                <div class="np-times">
+                  <input class="input" type="time" name="qh_start" aria-label="Quiet hours start"/>
+                  <span class="help" style="margin:0">to</span>
+                  <input class="input" type="time" name="qh_end" aria-label="Quiet hours end"/>
+                </div>
+              </div>
+
+              <div class="btn-row">
+                <button class="btn-primary2" type="submit"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save notifications</button>
+              </div>
+            </form>
+          </div>
+
           <div class="sec">
             <div class="sec-title"><i class="fa-regular fa-user" aria-hidden="true"></i> Account</div>
             <div class="help">
@@ -150,5 +219,62 @@
       </div>
     </div>
   </div>
+
+  <script>
+  (function () {
+    const form = document.getElementById('notifPrefsForm');
+    if (!form) return;
+    const URL_PREFS = '/api/v1/notifications/preferences';
+
+    function csrfToken() {
+      const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      if (m) return decodeURIComponent(m[1]);
+      const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      return input ? input.value : '';
+    }
+    function toast(msg, level) {
+      if (window.standardToast) window.standardToast(msg, level || 'success', 3000);
+    }
+    function fill(p) {
+      form.ev_draft.checked = !!p.events.draft;
+      form.ev_sent.checked = !!p.events.sent;
+      form.ev_error.checked = !!p.events.error;
+      form.in_app.checked = !!p.in_app;
+      form.push.checked = !!p.push;
+      form.external_mode.value = p.external_mode;
+      form.qh_enabled.checked = !!p.quiet_hours.enabled;
+      form.qh_start.value = p.quiet_hours.start;
+      form.qh_end.value = p.quiet_hours.end;
+    }
+
+    fetch(URL_PREFS, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j && j.ok) fill(j.preferences); })
+      .catch(function () {});
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const payload = {
+        in_app: form.in_app.checked,
+        push: form.push.checked,
+        external_mode: form.external_mode.value,
+        events: { draft: form.ev_draft.checked, sent: form.ev_sent.checked, error: form.ev_error.checked },
+        quiet_hours: { enabled: form.qh_enabled.checked, start: form.qh_start.value, end: form.qh_end.value },
+      };
+      fetch(URL_PREFS, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrfToken() },
+        body: JSON.stringify(payload),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j && j.ok) { fill(j.preferences); toast('Notification settings saved'); }
+          else toast('Could not save notification settings', 'error');
+        })
+        .catch(function () { toast('Could not save notification settings', 'error'); });
+    });
+  })();
+  </script>
 {% endblock %}
 

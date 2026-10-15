@@ -233,6 +233,8 @@
         <button type="submit" class="submit-btn">Sign In to MailPilot</button>
       </form>
 
+      {% include "components/social_auth_buttons.html" with social_from="login" %}
+
       <div class="bottom-link">
         New to MailPilot? <a href="{% url 'signup' %}">Create your free account</a>
       </div>

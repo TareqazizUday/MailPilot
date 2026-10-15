@@ -209,15 +209,17 @@ SELECT COUNT(*) FROM mailpilot_kb_chunks;
 ## Important Notes
 
 - Never commit real `.env` or credentials.
-- For production, set:
-  - `DJANGO_DEBUG=false`
-  - strong `DJANGO_SECRET_KEY`
-  - proper `DJANGO_ALLOWED_HOSTS`
-  - HTTPS/reverse proxy (IIS/ARR or Nginx)
+- One codebase, one switch per machine: `MAILPILOT_ENV=local` on a laptop (from `.env.example`),
+  `MAILPILOT_ENV=production` + `SITE_URL=https://mailpilots.net` on the server (from `.env.production.example`).
+  Production derives hosts/CSRF from `SITE_URL`, forces HTTPS + secure cookies, and refuses to start without
+  `SITE_URL` or a strong `DJANGO_SECRET_KEY`.
+- Deploy: `deploy_production.ps1` (Windows) or the commands in `docs/PRODUCTION_DEPLOY.md`;
+  `python manage.py deploy_check` verifies the server.
 - Configure regular DB backups before go-live.
 
 ## Additional Docs
 
+- `docs/PRODUCTION_DEPLOY.md` (live deploy for mailpilots.net, Bangla)
 - `docs/README_CLIENT_WINDOWS_DOCKER.md` (client deployment runbook)
 - `docs/README_ENVIRONMENT_VARIABLES.md` (.env reference)
 - `docs/README_BACKUPS.md` (backup strategy)

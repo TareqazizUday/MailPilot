@@ -15,6 +15,7 @@
       {% endif %}
     </div>
     {% if user.is_authenticated %}
+    {% include "components/notification_bell.html" %}
     <div class="app-acct" id="acctMenu">
       <button class="app-acct-btn{% if request.resolver_match and request.resolver_match.url_name == 'profile' %} is-active{% endif %}" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Profile menu" title="Profile">
         {% if nav_avatar_url %}

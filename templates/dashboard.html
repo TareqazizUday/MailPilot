@@ -553,6 +553,7 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
   })();
   </script>
+  {% include "components/toasts.html" with toast_top="64px" %}
   {% include "components/app_shell_js.html" %}
 </body>
 </html>

@@ -145,7 +145,8 @@ def kb_upload_text(request):
 
 @extend_schema(
     request=sz.KBCrawlRequestSerializer,
-    responses=sz.KBCrawlResponseSerializer,
+    responses={200: sz.KBCrawlResponseSerializer, 400: sz.ErrorSerializer, 403: sz.ErrorSerializer},
+    description="Start a background crawl. `start_url` must be a valid http:// or https:// URL (400 otherwise).",
 )
 @api_view(["POST"])
 @authentication_classes(_AUTH)

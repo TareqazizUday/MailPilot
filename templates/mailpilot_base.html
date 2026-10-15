@@ -329,6 +329,7 @@
           {% endif %}
         </div>
         {% if user.is_authenticated %}
+        {% include "components/notification_bell.html" with bell_theme="dark" %}
         <div class="acct" id="acctMenu">
           <button class="acct-btn{% if request.resolver_match and request.resolver_match.url_name == 'profile' %} active{% endif %}" type="button" id="acctBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Profile menu" title="Profile">
             <span class="acct-ico" aria-hidden="true">

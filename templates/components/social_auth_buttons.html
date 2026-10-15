@@ -1,0 +1,115 @@
+{% comment %}
+  "Or continue with" row: Google (covers Gmail) and GitHub.
+  Params: social_from ("login" | "signup"), next (optional).
+  With Firebase configured both use the Firebase popup; otherwise Google uses the server
+  redirect flow and GitHub reports "not available yet".
+{% endcomment %}
+<style>
+  .social-divider {
+    display: flex; align-items: center; gap: 12px; margin: 20px 0 14px;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; color: #8a93a8; text-transform: uppercase;
+  }
+  .social-divider::before, .social-divider::after { content: ""; flex: 1; height: 1px; background: var(--line, #e8ebf4); }
+  .social-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .social-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    height: 52px; border-radius: 14px; background: #fff;
+    border: 1.5px solid var(--line, #e8ebf4); text-decoration: none;
+    font-size: 0.95rem; font-weight: 600; color: var(--ink, #141a2e);
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .social-btn:hover { border-color: rgba(91,91,240,0.45); box-shadow: 0 6px 16px rgba(20,26,46,0.08); transform: translateY(-1px); }
+  .social-btn:focus-visible { outline: none; border-color: rgba(91,91,240,0.6); box-shadow: 0 0 0 3px rgba(91,91,240,0.18); }
+  .social-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
+  .social-note { margin-top: 10px; text-align: center; font-size: 0.74rem; color: var(--muted, #5b6478); line-height: 1.5; }
+  .social-note a { color: var(--primary, #5b5bf0); font-weight: 600; text-decoration: none; }
+</style>
+{% if social_from == "signup" %}{% url 'signup' as social_page %}{% else %}{% url 'login' as social_page %}{% endif %}
+<div class="social-divider">Or continue with</div>
+<div class="social-row" id="social-row"
+     data-from="{{ social_from }}" data-next="{{ next|default:'' }}" data-endpoint="{% url 'social_firebase_login' %}"
+     data-error-base="{{ social_page }}">
+  <a class="social-btn" id="social-google-btn" data-firebase-provider="google" href="{% url 'social_login_start' 'google' %}?from={{ social_from }}{% if next %}&amp;next={{ next|urlencode }}{% endif %}" aria-label="Continue with Google" title="Continue with Google">
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+    Google
+  </a>
+  <a class="social-btn" id="social-github-btn" data-firebase-provider="github" href="{{ social_page }}?social_error=not_configured&amp;provider=github" aria-label="Continue with GitHub" title="Continue with GitHub">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#181717" d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2 0 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8 0 3.2.9.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1 .9 2.2v3.3c0 .3.1.7.8.6A12 12 0 0 0 12 .3"/></svg>
+    GitHub
+  </a>
+</div>
+{% if firebase_web %}
+{{ firebase_web|json_script:"firebase-web-config" }}
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, signOut,
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const row = document.getElementById("social-row");
+  const auth = getAuth(initializeApp(JSON.parse(document.getElementById("firebase-web-config").textContent)));
+  const makeProvider = (name) => {
+    if (name === "github") {
+      const p = new GithubAuthProvider();
+      p.addScope("user:email");
+      return p;
+    }
+    const p = new GoogleAuthProvider();
+    p.setCustomParameters({ prompt: "select_account" });
+    return p;
+  };
+  let busy = false;
+
+  const fail = (code, name) => {
+    window.location.href = row.dataset.errorBase + "?social_error=" + encodeURIComponent(code) + "&provider=" + name;
+  };
+  const csrf = () =>
+    (document.querySelector("input[name=csrfmiddlewaretoken]") || {}).value ||
+    (document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/) || [])[1] || "";
+
+  row.querySelectorAll("[data-firebase-provider]").forEach((btn) => {
+    const name = btn.dataset.firebaseProvider;
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      if (busy) return;
+      busy = true;
+      btn.style.opacity = "0.6";
+      try {
+        const result = await signInWithPopup(auth, makeProvider(name));
+        const idToken = await result.user.getIdToken();
+        // GitHub: the server re-reads the verified email from GitHub with this token.
+        const accessToken = name === "github" ? (GithubAuthProvider.credentialFromResult(result) || {}).accessToken || "" : "";
+        const r = await fetch(row.dataset.endpoint, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+          body: JSON.stringify({
+            id_token: idToken, access_token: accessToken, provider: name,
+            from: row.dataset.from, next: row.dataset.next,
+          }),
+        });
+        const data = await r.json().catch(() => ({}));
+        signOut(auth).catch(() => {});
+        if (data.redirect) window.location.href = data.redirect;
+        else fail("failed", name);
+      } catch (e) {
+        const code = (e && e.code) || "";
+        busy = false;
+        btn.style.opacity = "";
+        if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return;
+        // Google falls back to the server redirect flow; GitHub has none.
+        if (code === "auth/popup-blocked" || code === "auth/operation-not-allowed") {
+          if (name === "google") { window.location.href = btn.href; return; }
+          fail(code === "auth/popup-blocked" ? "failed" : "not_configured", name);
+          return;
+        }
+        if (code === "auth/account-exists-with-different-credential") { fail("account_exists", name); return; }
+        fail(code === "auth/unauthorized-domain" ? "unauthorized_domain" : "failed", name);
+      }
+    });
+  });
+</script>
+{% endif %}
+{% if social_from == "signup" %}
+<p class="social-note">By continuing with a social account you agree to the <a href="{% url 'terms' %}">Terms</a> and <a href="{% url 'privacy' %}">Privacy Policy</a>.</p>
+{% endif %}

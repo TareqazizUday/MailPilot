@@ -2,7 +2,7 @@
 
 This guide is written for a **Windows Server** deployment where **PostgreSQL + pgvector runs in Docker**, and the MailPilot app runs on the server.
 
-If you already have a working production instance (example: `https://mailpilot.tedbotai.com/`), you can still use this guide as the baseline runbook for a new client server.
+If you already have a working production instance, you can still use this guide as the baseline runbook for a new client server.
 
 ---
 

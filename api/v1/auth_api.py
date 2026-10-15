@@ -16,15 +16,22 @@ from django.db.models import F
 from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import status
-from rest_framework.decorators import api_view, authentication_classes, parser_classes, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    parser_classes,
+    permission_classes,
+    throttle_classes,
+)
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from api.v1 import serializers as sz
 from core.audit import log_audit
@@ -400,3 +407,135 @@ def change_password(request):
     request.user.save(update_fields=["password"])
     log_audit(request, "password_changed_api", "")
     return Response({"ok": True})
+
+
+class SocialLoginThrottle(AnonRateThrottle):
+    scope = "social_login"
+    rate = "30/min"
+
+
+_SOCIAL_ERROR_STATUS = {
+    "unknown_provider": 404,
+    "not_configured": 503,
+    "inactive": 403,
+    "invalid_token": 401,
+}
+
+
+def _social_error(code: str) -> Response:
+    return Response({"ok": False, "error": code}, status=_SOCIAL_ERROR_STATUS.get(code, 400))
+
+
+def _social_login_response(request, user: User, created: bool) -> Response:
+    UserProfile.objects.get_or_create(user=user)
+    return Response(
+        {"ok": True, "created": created, "user": _profile_payload(user, request), **_tokens_for_user(user)}
+    )
+
+
+@extend_schema(request=None, responses={200: sz.SocialProvidersResponseSerializer})
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def social_providers(request):
+    """Buttons the app can show; `configured=false` means the server has no keys for it yet."""
+    from core.social_auth import configured_providers
+
+    return Response({"ok": True, "providers": configured_providers()})
+
+
+@extend_schema(
+    request=None,
+    parameters=[
+        OpenApiParameter(
+            "return_to",
+            str,
+            required=True,
+            description="App deep link, e.g. `mailpilot://auth/social` (also `exp://`, `http://localhost:8081`).",
+        )
+    ],
+    responses={
+        200: sz.SocialAuthorizeUrlResponseSerializer,
+        400: sz.ErrorSerializer,
+        404: sz.ErrorSerializer,
+        503: sz.ErrorSerializer,
+    },
+    description=(
+        "Open `authorization_url` in a browser. After sign-in the server redirects to "
+        "`return_to?status=ok&code=...&provider=...` (or `status=error&error=...`). "
+        "Send `code` to `POST /api/v1/auth/social/exchange`."
+    ),
+)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+@throttle_classes([SocialLoginThrottle])
+def social_authorize_url(request, provider: str):
+    from core import social_mobile
+    from core.social_auth import SocialLoginError
+
+    try:
+        url, state = social_mobile.start(request, provider, request.query_params.get("return_to") or "")
+    except SocialLoginError as e:
+        return _social_error(str(e))
+    return Response({"ok": True, "authorization_url": url, "state": state})
+
+
+@extend_schema(
+    request=sz.SocialExchangeRequestSerializer,
+    responses={200: sz.SocialLoginResponseSerializer, 400: sz.ErrorSerializer, 403: sz.ErrorSerializer},
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+@throttle_classes([SocialLoginThrottle])
+def social_exchange(request):
+    """Trade the one-time deep-link `code` for JWT."""
+    from core import social_mobile
+    from core.social_auth import SocialLoginError
+
+    try:
+        user, created = social_mobile.redeem(str(request.data.get("code") or ""))
+    except SocialLoginError as e:
+        return _social_error(str(e))
+    return _social_login_response(request, user, created)
+
+
+@extend_schema(
+    request=sz.SocialTokenRequestSerializer,
+    responses={
+        200: sz.SocialLoginResponseSerializer,
+        400: sz.ErrorSerializer,
+        401: sz.ErrorSerializer,
+        403: sz.ErrorSerializer,
+        503: sz.ErrorSerializer,
+    },
+    description=(
+        "Native sign-in. `provider=firebase` with the Firebase `id_token` (Google or GitHub via Firebase Auth); "
+        "GitHub also sends the GitHub OAuth `access_token` so the server can confirm a verified email. "
+        "`provider=google` with a Google Sign-In `id_token`."
+    ),
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+@throttle_classes([SocialLoginThrottle])
+def social_token(request):
+    from core import social_mobile
+    from core.social_auth import SocialLoginError, find_or_create_user
+
+    provider = str(request.data.get("provider") or "").strip().lower()
+    try:
+        profile = social_mobile.verify_native_token(
+            provider,
+            id_token=str(request.data.get("id_token") or "").strip(),
+            access_token=str(request.data.get("access_token") or "").strip(),
+        )
+        user, created = find_or_create_user(profile)
+    except SocialLoginError as e:
+        return _social_error(str(e))
+    except Exception:
+        logger.exception("native social login failed provider=%s", provider)
+        return _social_error("failed")
+    log_audit(request, "signup_social" if created else "login_social", f"{provider} native user={user.id}")
+    return _social_login_response(request, user, created)

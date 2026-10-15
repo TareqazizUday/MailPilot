@@ -77,6 +77,24 @@ class V1SmokeTests(TestCase):
             self._assert_ok(self.api.post(path, upload(), format="multipart"), path)
             self._assert_ok(self.api.post("/api/v1/setup/credentials", {}, format="multipart"), "setup empty")
 
+    def test_kb_crawl_rejects_invalid_start_url(self) -> None:
+        for bad in ("not a url", "example.com", "ftp://example.com/", "http://", "javascript:alert(1)", "http:// space.com"):
+            with mock.patch("core.views._set_crawl_job") as start_job:
+                res = self.api.post("/api/v1/kb/crawl", {"start_url": bad}, format="json")
+            self.assertEqual(res.status_code, 400, bad)
+            self.assertFalse(res.json()["ok"], bad)
+            start_job.assert_not_called()
+
+    def test_kb_crawl_accepts_valid_start_url(self) -> None:
+        from core.billing import GateResult
+
+        with mock.patch("core.billing.can_use_kb_source", return_value=GateResult(True)), mock.patch(
+            "core.views.is_vector_db_configured", return_value=False
+        ):
+            res = self.api.post("/api/v1/kb/crawl", {"start_url": "https://example.com/docs"}, format="json")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["error"], "kb_not_configured")
+
     def test_docs_urls_without_trailing_slash_redirect(self) -> None:
         for path in ("/api/docs", "/api/redoc", "/api/schema"):
             res = self.client.get(path)

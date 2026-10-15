@@ -20,6 +20,48 @@ Gmail OAuth for the app: keep `OAUTH_REDIRECT_URI` (Google Console redirect URI)
 | POST | `/auth/password-reset/request` | `{ "identifier" }` | `{ ok, email, email_hint }` |
 | POST | `/auth/password-reset/verify` | `{ "email", "otp" }` | `{ ok, reset_token }` |
 | POST | `/auth/password-reset/confirm` | `{ "reset_token", "password", "password2" }` | `{ ok }` |
+| GET | `/auth/social/providers` | — | `{ ok, providers: [{ id, label, configured }] }` |
+| GET | `/auth/social/<provider>/authorize-url` | `?return_to=<deep link>` | `{ ok, authorization_url, state }` |
+| POST | `/auth/social/exchange` | `{ "code" }` | `{ ok, created, user, access, refresh }` |
+| POST | `/auth/social/token` | `{ provider, id_token? , access_token? }` | `{ ok, created, user, access, refresh }` |
+
+### Social login (Google / GitHub)
+
+The website buttons and the app use the same provider keys and the same account rule: a **verified email** signs in to the existing account with that email (case-insensitive), otherwise a new account is created (Starter plan, no password — the user can set one via password reset). `created` tells the app which happened.
+
+**Firebase in-app browser flow (Google in Expo Go, GitHub always)**
+
+Open `{SITE_URL}/auth/social/firebase/app?provider=<google|github>&return_to=<app link>` with `WebBrowser.openAuthSessionAsync`. The page runs the Firebase popup and redirects to `return_to?status=ok&code=<one-time>&provider=<id>` (or `status=error&error=<code>`); redeem the code with `POST /auth/social/exchange` (step 4 below).
+
+**Google redirect flow (without Firebase)**
+
+1. `GET /auth/social/providers` — hide buttons with `configured: false` (`github` needs the Firebase web config).
+2. `GET /auth/social/google/authorize-url?return_to=mailpilot://auth/social` → open `authorization_url` in the system browser (e.g. `WebBrowser.openAuthSessionAsync`).  
+   `return_to` rules are the same as Gmail connect (`mailpilot://`, `exp://`, `exps://`, `http://localhost:8081`, `http://127.0.0.1:8081`, `SITE_URL`).
+3. The provider returns to the website callback, which redirects to  
+   `return_to?status=ok&code=<one-time>&provider=<id>` or `return_to?status=error&error=<code>&provider=<id>` (state valid 10 minutes).
+4. `POST /auth/social/exchange { "code" }` within **2 minutes** → JWT. The code works once.
+
+**Native SDK flow (optional)**
+
+- Google Sign-In: `POST /auth/social/token { "provider": "google", "id_token": "..." }`. The token audience must be `GOOGLE_LOGIN_CLIENT_ID` or one of `GOOGLE_LOGIN_MOBILE_CLIENT_IDS`.
+- Firebase Auth: `POST /auth/social/token { "provider": "firebase", "id_token": "<Firebase ID token>", "access_token": "<GitHub OAuth token, GitHub only>" }`. Verified against `FIREBASE_PROJECT_ID`; only `sign_in_provider` `google.com` and `github.com` are accepted (`400 unsupported_sign_in_provider` otherwise). For GitHub the server reads the verified (primary) email from the GitHub API with `access_token` (popup scope `user:email`) and checks the GitHub user id matches the Firebase token. Same email → same account as web login.
+
+**Error codes** (`{ ok:false, error }`, or `error` in the deep link)
+
+| Code | HTTP | Meaning |
+|------|------|---------|
+| `unknown_provider` | 404 | Redirect flow: not `google`; native: not `firebase` or `google` |
+| `not_configured` | 503 | Server has no keys for that provider |
+| `invalid_return_to` | 400 | `return_to` not an allowed app link |
+| `invalid_or_expired_code` | 400 | Exchange code unknown, used or older than 2 minutes |
+| `invalid_token` | 401 | Native token invalid or issued for another app |
+| `id_token_required` / `access_token_required` | 400 | Wrong native payload (GitHub needs `access_token`) |
+| `unsupported_sign_in_provider` | 400 | Firebase token from a provider other than Google/GitHub |
+| `inactive` | 403 | Account disabled |
+| `cancelled`, `state_mismatch`, `email_missing`, `email_unverified`, `failed` | deep link | Browser flow outcome |
+
+Google redirect URI (shared by web and app): `{SITE_URL}/auth/social/google/callback`. GitHub OAuth App callback: `https://<firebase-project>.firebaseapp.com/__/auth/handler`.
 
 ## Profile (JWT)
 
@@ -180,6 +222,30 @@ Open `redirect` (or `/pricing`) in an in-app browser; Stripe/PayPal stay on the 
 | GET/POST | `/telegram/status`, `/telegram/config`, `/telegram/test` |
 | GET/POST | `/whatsapp/status`, `/whatsapp/config`, `/whatsapp/test` |
 
+## Notifications (JWT, or session + CSRF on the web)
+
+Every draft / sent / error event is stored once and shown in the bell (web) and the app. It is also sent as an Expo push to registered devices. Telegram / WhatsApp follow `external_mode`: `fallback` (default) only sends them when the user has no working push device **and** has not been active on web/app in the last `NOTIFY_FALLBACK_ONLINE_SECONDS` (120).
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/notifications?unread=1&cursor=&limit=` | `{ items, next_cursor, unread_count }`, newest first, `limit` max 100 |
+| GET | `/notifications/unread-count` | `{ unread_count, latest }`. Poll target; also marks the user active |
+| POST | `/notifications/<id>/read` | 404 if not yours |
+| POST | `/notifications/read-all` | `{ updated }` |
+| GET/PUT/PATCH | `/notifications/preferences` | partial: `in_app`, `push`, `external_mode` (`off`/`always`/`fallback`), `events {draft,sent,error}`, `quiet_hours {enabled,start,end}` (`HH:MM`, profile time zone) |
+| POST | `/devices/register` | `{ expo_token, platform: ios/android, device_name? }`. Re-registering the same token is safe |
+| POST | `/devices/unregister` | `{ expo_token }`. Call **before** clearing the JWT on logout |
+
+Item shape: `{ id, event, title, body, data, account_id, read, read_at, created_at }`. `data.deep_link` is `mailpilot://thread/<thread_id>` (Gmail) or `mailpilot://notifications`; push payloads carry the same `data` plus `notification_id`.
+
+### Expo client checklist
+
+1. `npx expo install expo-notifications expo-device expo-constants`, add the `expo-notifications` plugin to `app.json`, upload the FCM V1 key with `eas credentials`, then make a new build (remote push does not work in Expo Go on Android).
+2. After login and on app start: request permission, `getExpoPushTokenAsync({ projectId })`, `POST /devices/register`.
+3. On logout: `POST /devices/unregister`, then clear tokens.
+4. Handle taps with `addNotificationResponseReceivedListener` and `getLastNotificationResponseAsync`, opening `data.deep_link`.
+5. Optional: a notifications screen on `GET /notifications`, a badge from `/notifications/unread-count` (refresh on `AppState` foreground), and a settings screen on `/notifications/preferences`.
+
 ---
 
 ## Mobile env
@@ -188,6 +254,8 @@ Open `redirect` (or `/pricing`) in an in-app browser; Stripe/PayPal stay on the 
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8000
 EXPO_PUBLIC_WEB_BASE_URL=http://10.0.2.2:8000
 ```
+
+Server env for push: `EXPO_ACCESS_TOKEN` (optional, only if "enhanced push security" is on in Expo), `NOTIFY_FALLBACK_ONLINE_SECONDS`, `NOTIFY_EXTERNAL_RATE_LIMIT` (per minute, default 10, extras are sent as one digest), `NOTIFY_RETENTION_DAYS` (default 90).
 
 - Android emulator → `10.0.2.2`
 - iOS simulator → `127.0.0.1`

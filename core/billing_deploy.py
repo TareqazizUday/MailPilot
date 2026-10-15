@@ -31,7 +31,7 @@ def billing_production_site_url() -> str:
     site = (getattr(settings, "SITE_URL", "") or "").strip().rstrip("/")
     if site and not _is_local_site_url(site):
         return site
-    return "https://mailpilot.tedbotai.com"
+    return "https://your-domain"
 
 
 def billing_stripe_webhook_url() -> str:

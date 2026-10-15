@@ -1,6 +1,7 @@
 """Process-wide state: settings merge, stores, worker poll, APScheduler or Celery."""
 from __future__ import annotations
 
+import functools
 import logging
 import os
 import sys
@@ -343,6 +344,23 @@ def _trigger_poll_fn_locked(
     return total
 
 
+def _fresh_db_connection(job):
+    """Scheduler threads outlive requests; drop connections Postgres/proxy already closed."""
+
+    @functools.wraps(job)
+    def wrapper(*args, **kwargs):
+        from django.db import close_old_connections
+
+        close_old_connections()
+        try:
+            return job(*args, **kwargs)
+        finally:
+            close_old_connections()
+
+    return wrapper
+
+
+@_fresh_db_connection
 def _scheduled_job():
     from email_automation.worker import PollResult
 
@@ -461,8 +479,48 @@ def ensure_scheduler_started() -> None:
         log.info("Telegram inbound poller started (interval=%ss)", tg_sec)
     except Exception as e:
         log.warning("Telegram poller failed to start: %s", e)
+    try:
+        _scheduler.add_job(
+            _notification_digest_job,
+            trigger="interval",
+            seconds=60,
+            id="notification_digest_job",
+            max_instances=1,
+            replace_existing=True,
+        )
+        _scheduler.add_job(
+            _notification_cleanup_job,
+            trigger="interval",
+            hours=24,
+            id="notification_cleanup_job",
+            max_instances=1,
+            replace_existing=True,
+        )
+    except Exception as e:
+        log.warning("Notification jobs failed to start: %s", e)
 
 
+@_fresh_db_connection
+def _notification_digest_job():
+    try:
+        from core.notifications.delivery import flush_digests
+
+        flush_digests()
+    except Exception as e:
+        log.warning("Notification digest job failed: %s", e)
+
+
+@_fresh_db_connection
+def _notification_cleanup_job():
+    try:
+        from core.notifications.delivery import cleanup_old_notifications
+
+        cleanup_old_notifications()
+    except Exception as e:
+        log.warning("Notification cleanup job failed: %s", e)
+
+
+@_fresh_db_connection
 def _telegram_poll_job():
     try:
         from core.telegram_bot import poll_all_telegram_inbound

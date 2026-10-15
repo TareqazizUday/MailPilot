@@ -2821,6 +2821,17 @@ def api_kb_upload_text(request):
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
+def _is_valid_crawl_url(url: str) -> bool:
+    from django.core.exceptions import ValidationError
+    from django.core.validators import URLValidator
+
+    try:
+        URLValidator(schemes=["http", "https"])(url)
+    except ValidationError:
+        return False
+    return True
+
+
 @csrf_exempt
 def api_kb_crawl(request):
     if request.method != "POST":
@@ -2835,9 +2846,14 @@ def api_kb_crawl(request):
         except Exception:
             body = {}
 
-    start_url = (request.POST.get("start_url") or body.get("start_url") or "").strip()
+    start_url = str(request.POST.get("start_url") or body.get("start_url") or "").strip()
     if not start_url:
         return JsonResponse({"ok": False, "error": "Missing start_url"}, status=400)
+    if not _is_valid_crawl_url(start_url):
+        return JsonResponse(
+            {"ok": False, "error": "start_url must be a valid http:// or https:// URL"},
+            status=400,
+        )
 
     aid = _account_id_from_request(request)
     try:

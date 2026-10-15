@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from api.v1 import auth_api, pricing_api, views, wrappers
+from api.v1 import auth_api, notifications_api, pricing_api, views, wrappers
 
 
 urlpatterns = [
@@ -11,6 +11,14 @@ urlpatterns = [
     path("auth/token", auth_api.EmailOrUsernameTokenView.as_view(), name="v1_token_obtain_pair"),
     path("auth/refresh", TokenRefreshView.as_view(), name="v1_token_refresh"),
     path("auth/signup", auth_api.signup, name="v1_auth_signup"),
+    path("auth/social/providers", auth_api.social_providers, name="v1_social_providers"),
+    path(
+        "auth/social/<str:provider>/authorize-url",
+        auth_api.social_authorize_url,
+        name="v1_social_authorize_url",
+    ),
+    path("auth/social/exchange", auth_api.social_exchange, name="v1_social_exchange"),
+    path("auth/social/token", auth_api.social_token, name="v1_social_token"),
     path("auth/password-reset/request", auth_api.password_reset_request, name="v1_password_reset_request"),
     path("auth/password-reset/verify", auth_api.password_reset_verify, name="v1_password_reset_verify"),
     path("auth/password-reset/confirm", auth_api.password_reset_confirm, name="v1_password_reset_confirm"),
@@ -73,4 +81,24 @@ urlpatterns = [
     path("whatsapp/status", wrappers.whatsapp_status, name="v1_whatsapp_status"),
     path("whatsapp/config", wrappers.whatsapp_config, name="v1_whatsapp_config"),
     path("whatsapp/test", wrappers.whatsapp_test, name="v1_whatsapp_test"),
+    # Notifications
+    path("notifications", notifications_api.notifications_list, name="v1_notifications_list"),
+    path(
+        "notifications/unread-count",
+        notifications_api.notifications_unread_count,
+        name="v1_notifications_unread_count",
+    ),
+    path("notifications/read-all", notifications_api.notifications_read_all, name="v1_notifications_read_all"),
+    path(
+        "notifications/preferences",
+        notifications_api.notification_preferences,
+        name="v1_notification_preferences",
+    ),
+    path(
+        "notifications/<int:notification_id>/read",
+        notifications_api.notification_read,
+        name="v1_notification_read",
+    ),
+    path("devices/register", notifications_api.device_register, name="v1_device_register"),
+    path("devices/unregister", notifications_api.device_unregister, name="v1_device_unregister"),
 ]

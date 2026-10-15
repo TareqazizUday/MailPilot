@@ -230,6 +230,8 @@
         <div class="field-hint" id="termsHint"></div>
         <button type="submit" class="submit-btn" id="submitBtn">Create Account</button>
       </form>
+
+      {% include "components/social_auth_buttons.html" with social_from="signup" %}
       <div class="bottom-link">Already have an account? <a href="{% url 'login' %}">Sign in here</a></div>
     </div>
   </div>

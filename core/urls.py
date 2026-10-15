@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.urls import path
 from django.views.generic import RedirectView
 
-from core import auth_views, views
+from core import auth_views, social_auth, views
 
 urlpatterns = [
     path("robots.txt", views.robots_txt, name="robots_txt"),
@@ -24,6 +24,14 @@ urlpatterns = [
     path("login", auth_views.login_view, name="login"),
     path("signup", auth_views.signup_view, name="signup"),
     path("logout", auth_views.logout_view, name="logout"),
+    path("auth/social/firebase", social_auth.social_firebase_login, name="social_firebase_login"),
+    path("auth/social/firebase/app", social_auth.social_firebase_app, name="social_firebase_app"),
+    path("auth/social/<str:button>/start", social_auth.social_login_start, name="social_login_start"),
+    path(
+        "auth/social/<str:provider_name>/callback",
+        social_auth.social_login_callback,
+        name="social_login_callback",
+    ),
     path("password-reset", auth_views.password_reset_request_view, name="password_reset"),
     path("password-reset/done", auth_views.password_reset_done_view, name="password_reset_done"),
     path("password-reset/verify", auth_views.password_reset_verify_view, name="password_reset_verify"),
