@@ -59,12 +59,28 @@ def _provider_for(button: str) -> Provider:
     return provider
 
 
+def _firebase_github_url(request: HttpRequest, return_to: str) -> str:
+    """GitHub page that uses the provider already saved in Firebase. No second OAuth app."""
+    from urllib.parse import urlencode
+
+    from django.urls import reverse
+
+    base = request.build_absolute_uri(reverse("social_firebase_app"))
+    return f"{base}?{urlencode({'provider': 'github', 'autostart': '1', 'return_to': return_to})}"
+
+
 def start(request: HttpRequest, button: str, return_to: str) -> tuple[str, str]:
     """Return ``(authorization_url, state)`` for the in-app browser."""
-    provider = _provider_for(button)
     return_to = (return_to or "").strip()
     if not is_allowed_return_to(return_to):
         raise SocialLoginError("invalid_return_to")
+    if button == "github" and not is_configured(PROVIDERS["github"]):
+        from core.social_auth import firebase_web_config
+
+        if firebase_web_config() is None:
+            raise SocialLoginError("not_configured")
+        return _firebase_github_url(request, return_to), ""
+    provider = _provider_for(button)
     state = secrets.token_urlsafe(32)
     redirect_uri = redirect_uri_for(request, provider)
     cache.set(

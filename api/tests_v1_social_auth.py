@@ -70,6 +70,58 @@ class MobileSocialLoginTests(TestCase):
         with patch.dict(os.environ, {**_NO_KEYS, **_NO_FIREBASE}):
             self.assertEqual(self._providers(), {"google": False, "github": False})
 
+    def test_github_authorize_opens_github(self):
+        with patch.dict(os.environ, {"GITHUB_LOGIN_CLIENT_ID": "gh-client", "GITHUB_LOGIN_CLIENT_SECRET": "gh-secret"}):
+            data = self._authorize("github").json()
+        url = urlparse(data["authorization_url"])
+        q = parse_qs(url.query)
+        self.assertEqual((url.netloc, url.path), ("github.com", "/login/oauth/authorize"))
+        self.assertEqual(q["client_id"], ["gh-client"])
+        self.assertIn("user:email", q["scope"][0])
+        self.assertTrue(q["redirect_uri"][0].endswith("/auth/social/github/callback"))
+
+    def test_github_callback_logs_in_with_verified_email(self):
+        with patch.dict(os.environ, {"GITHUB_LOGIN_CLIENT_ID": "gh-client", "GITHUB_LOGIN_CLIENT_SECRET": "gh-secret"}):
+            state = self._authorize("github").json()["state"]
+
+        def get(url, **_kw):
+            if str(url).endswith("/user/emails"):
+                return _resp(200, [{"email": "octo@example.com", "verified": True, "primary": True}])
+            if str(url).endswith("/user"):
+                return _resp(200, {"id": 9, "name": "Octo Cat"})
+            return _resp(404, {})
+
+        with patch("core.social_auth.requests.post", return_value=_resp(200, {"access_token": "gho"})), patch(
+            "core.social_auth.requests.get", side_effect=get
+        ):
+            resp = self.client.get("/auth/social/github/callback", {"state": state, "code": "abc"})
+        self.assertEqual(resp.status_code, 302)
+        query = {k: v[0] for k, v in parse_qs(urlparse(resp["Location"]).query).items()}
+        self.assertEqual((query["status"], query["provider"]), ("ok", "github"))
+        exchanged = self.client.post(f"{_BASE}/exchange", {"code": query["code"]}, content_type="application/json")
+        self.assertEqual(exchanged.status_code, 200)
+        self.assertEqual(exchanged.json()["user"]["email"], "octo@example.com")
+        self.assertEqual(exchanged.json()["user"]["first_name"], "Octo")
+
+    def test_github_callback_rejects_unverified_email(self):
+        with patch.dict(os.environ, {"GITHUB_LOGIN_CLIENT_ID": "gh-client", "GITHUB_LOGIN_CLIENT_SECRET": "gh-secret"}):
+            state = self._authorize("github").json()["state"]
+
+        def get(url, **_kw):
+            if str(url).endswith("/user/emails"):
+                return _resp(200, [{"email": "octo@example.com", "verified": False, "primary": True}])
+            if str(url).endswith("/user"):
+                return _resp(200, {"id": 9, "name": "Octo Cat"})
+            return _resp(404, {})
+
+        with patch("core.social_auth.requests.post", return_value=_resp(200, {"access_token": "gho"})), patch(
+            "core.social_auth.requests.get", side_effect=get
+        ):
+            resp = self.client.get("/auth/social/github/callback", {"state": state, "code": "abc"})
+        query = {k: v[0] for k, v in parse_qs(urlparse(resp["Location"]).query).items()}
+        self.assertEqual(query["error"], "email_unverified")
+        self.assertFalse(User.objects.filter(email="octo@example.com").exists())
+
     def test_authorize_url(self):
         data = self._authorize("google").json()
         url = urlparse(data["authorization_url"])
@@ -82,9 +134,18 @@ class MobileSocialLoginTests(TestCase):
     def test_authorize_url_errors(self):
         resp = self._authorize(return_to="https://evil.example.com/x")
         self.assertEqual((resp.status_code, resp.json()["error"]), (400, "invalid_return_to"))
-        for provider in ("twitter", "facebook", "linkedin", "github"):
+        for provider in ("twitter", "facebook", "linkedin"):
             resp = self._authorize(provider=provider)
             self.assertEqual((resp.status_code, resp.json()["error"]), (404, "unknown_provider"))
+        with patch.dict(os.environ, {"GITHUB_LOGIN_CLIENT_ID": "", "GITHUB_LOGIN_CLIENT_SECRET": "", **_NO_FIREBASE}):
+            resp = self._authorize("github")
+        self.assertEqual((resp.status_code, resp.json()["error"]), (503, "not_configured"))
+        with patch.dict(os.environ, {"GITHUB_LOGIN_CLIENT_ID": "", "GITHUB_LOGIN_CLIENT_SECRET": "", **_FIREBASE}):
+            resp = self._authorize("github")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("/auth/social/firebase/app", resp.json()["authorization_url"])
+        self.assertIn("provider=github", resp.json()["authorization_url"])
+        self.assertIn("autostart=1", resp.json()["authorization_url"])
         with patch.dict(os.environ, _NO_KEYS):
             resp = self._authorize()
         self.assertEqual((resp.status_code, resp.json()["error"]), (503, "not_configured"))

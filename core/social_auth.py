@@ -49,11 +49,20 @@ PROVIDERS: dict[str, Provider] = {
         "https://oauth2.googleapis.com/token",
         "openid email profile",
     ),
+    # Mobile only. The website keeps the Firebase GitHub popup, whose OAuth app can have one callback.
+    "github": Provider(
+        "github",
+        "GITHUB_LOGIN",
+        "https://github.com/login/oauth/authorize",
+        "https://github.com/login/oauth/access_token",
+        "read:user user:email",
+    ),
 }
 
 # Buttons served by the server redirect flow (button -> (provider, label)).
 BUTTONS: dict[str, tuple[str, str]] = {
     "google": ("google", "Google"),
+    "github": ("github", "GitHub"),
 }
 
 LABELS: dict[str, str] = {"google": "Google", "github": "GitHub"}
@@ -99,7 +108,7 @@ def configured_providers() -> list[dict]:
     firebase = bool(firebase_project_id())
     return [
         {"id": "google", "label": "Google", "configured": firebase or is_configured(PROVIDERS["google"])},
-        {"id": "github", "label": "GitHub", "configured": firebase_web_config() is not None},
+        {"id": "github", "label": "GitHub", "configured": firebase_web_config() is not None or is_configured(PROVIDERS["github"])},
     ]
 
 
@@ -247,11 +256,20 @@ def _post_token(provider: Provider, code: str, redirect_uri: str) -> str:
         "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
     }
-    r = requests.post(provider.token_url, data=payload, timeout=_HTTP_TIMEOUT)
+    r = requests.post(
+        provider.token_url,
+        data=payload,
+        headers={"Accept": "application/json"},
+        timeout=_HTTP_TIMEOUT,
+    )
     if r.status_code != 200:
         logger.warning("social token exchange failed provider=%s status=%s", provider.name, r.status_code)
         raise SocialLoginError("failed")
-    token = (r.json() or {}).get("access_token")
+    try:
+        body = r.json() or {}
+    except ValueError:
+        raise SocialLoginError("failed") from None
+    token = body.get("access_token") if isinstance(body, dict) else None
     if not token:
         raise SocialLoginError("failed")
     return token
@@ -294,8 +312,38 @@ def merge_google_email(claims: dict, access_token: str, *, subject: str) -> dict
     }
 
 
+def profile_from_github_token(token: str) -> dict:
+    """Verified GitHub email from an access token this server just exchanged. No Firebase user id to compare."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "MailPilot",
+    }
+    account_resp = requests.get("https://api.github.com/user", headers=headers, timeout=_HTTP_TIMEOUT)
+    if account_resp.status_code != 200:
+        logger.warning("github user fetch failed status=%s", account_resp.status_code)
+        raise SocialLoginError("failed")
+    account = account_resp.json() or {}
+    emails_resp = requests.get("https://api.github.com/user/emails", headers=headers, timeout=_HTTP_TIMEOUT)
+    if emails_resp.status_code != 200:
+        logger.warning("github emails fetch failed status=%s", emails_resp.status_code)
+        raise SocialLoginError("failed")
+    emails = [e for e in (emails_resp.json() or []) if isinstance(e, dict) and e.get("email")]
+    verified = [e for e in emails if e.get("verified")]
+    if not verified:
+        raise SocialLoginError("email_unverified" if emails else "email_missing")
+    best = next((e for e in verified if e.get("primary")), verified[0])
+    first, _, last = (account.get("name") or "").strip().partition(" ")
+    return parse_profile(
+        {"email": best["email"], "given_name": first, "family_name": last},
+        email_verified=True,
+    )
+
+
 def profile_from_access_token(provider: Provider, token: str) -> dict:
     """Return ``{"email", "first_name", "last_name"}`` for a verified email."""
+    if provider.name == "github":
+        return profile_from_github_token(token)
     r = requests.get(
         "https://openidconnect.googleapis.com/v1/userinfo",
         headers={"Authorization": f"Bearer {token}"},
