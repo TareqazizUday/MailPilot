@@ -334,7 +334,8 @@ class FirebaseAppBrowserTests(TestCase):
         ).content.decode()
         self.assertIn('id="return-link"', html)
         self.assertIn("Open MailPilot", html)
-        self.assertIn("auth/popup-blocked", html)
+        self.assertIn("signInWithRedirect", html)
+        self.assertIn("getRedirectResult", html)
 
     def test_page_rejects_bad_return_to(self):
         html = self.client.get("/auth/social/firebase/app", {"return_to": "https://evil.example/x"}).content.decode()

@@ -49,29 +49,40 @@
       <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import {
-          getAuth, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, signOut,
+          getAuth, GoogleAuthProvider, GithubAuthProvider, signInWithRedirect, getRedirectResult,
+          setPersistence, browserLocalPersistence, signOut,
         } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
         const btn = document.getElementById("provider-btn");
         const status = document.getElementById("status");
-        const returnTo = JSON.parse(document.getElementById("return-to").textContent);
-        const providerName = JSON.parse(document.getElementById("provider-name").textContent);
-        const auth = getAuth(initializeApp(JSON.parse(document.getElementById("firebase-web-config").textContent)));
-        let provider;
-        if (providerName === "github") {
-          provider = new GithubAuthProvider();
-          provider.addScope("user:email");
-        } else {
-          provider = new GoogleAuthProvider();
-          provider.setCustomParameters({ prompt: "select_account" });
-        }
-
         const returnLink = document.getElementById("return-link");
+        const pageReturnTo = JSON.parse(document.getElementById("return-to").textContent);
+        const pageProvider = JSON.parse(document.getElementById("provider-name").textContent);
+        const auth = getAuth(initializeApp(JSON.parse(document.getElementById("firebase-web-config").textContent)));
         const say = (msg, err) => { status.textContent = msg; status.className = err ? "status err" : "status"; };
         const csrf = () => (document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/) || [])[1] || "";
 
-        // Chrome Custom Tabs block custom-scheme navigation without a fresh user gesture,
-        // so the automatic redirect can silently fail after the awaits; the link always works.
+        function providerFor(name) {
+          if (name === "github") {
+            const github = new GithubAuthProvider();
+            github.addScope("user:email");
+            return github;
+          }
+          const google = new GoogleAuthProvider();
+          google.setCustomParameters({ prompt: "select_account" });
+          return google;
+        }
+
+        // Chrome Custom Tabs (the APK in-app browser) block popups, so this page uses a full-page
+        // redirect. The return URL is stored because the redirect can come back without the query.
+        const remembered = (() => {
+          try { return JSON.parse(sessionStorage.getItem("mp_social_return") || "null"); }
+          catch { return null; }
+        })();
+        const returnTo = pageReturnTo || (remembered && remembered.returnTo) || "";
+        const providerName = pageProvider || (remembered && remembered.provider) || "google";
+
+        // Custom Tabs also drop a custom-scheme jump that is not a fresh tap, so the link is the fallback.
         const backToApp = (url, ok) => {
           returnLink.href = url;
           returnLink.hidden = false;
@@ -80,37 +91,56 @@
           window.location.href = url;
         };
 
+        async function finish(result) {
+          const name = providerName;
+          const idToken = await result.user.getIdToken();
+          const accessToken = name === "github"
+            ? (GithubAuthProvider.credentialFromResult(result) || {}).accessToken || ""
+            : "";
+          say("Signing you in…");
+          const r = await fetch("{% url 'social_firebase_app' %}", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+            body: JSON.stringify({ id_token: idToken, access_token: accessToken, return_to: returnTo, provider: name }),
+          });
+          const data = await r.json().catch(() => ({}));
+          sessionStorage.removeItem("mp_social_return");
+          signOut(auth).catch(() => {});
+          if (data.redirect) { backToApp(data.redirect, !!data.ok); return; }
+          say("Could not sign in. Please try again.", true);
+          btn.disabled = false;
+        }
+
+        function explain(e) {
+          const code = (e && e.code) || "";
+          if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request" || code === "auth/user-cancelled") say("");
+          else if (code === "auth/popup-blocked") say("The sign-in window was blocked. Tap the button again.", true);
+          else if (code === "auth/unauthorized-domain") say("Add " + location.hostname + " to Firebase → Authentication → Authorized domains.", true);
+          else if (code === "auth/operation-not-allowed") say("{{ provider_label }} is not enabled in Firebase → Authentication → Sign-in method.", true);
+          else if (code === "auth/account-exists-with-different-credential") say("This email already signs in with another provider. Use that one.", true);
+          else say("Could not sign in with {{ provider_label }}. Please try again.", true);
+          btn.disabled = false;
+        }
+
         btn.addEventListener("click", async () => {
           btn.disabled = true;
           say("Waiting for {{ provider_label }}…");
           try {
-            const result = await signInWithPopup(auth, provider);
-            const idToken = await result.user.getIdToken();
-            const accessToken = providerName === "github"
-              ? (GithubAuthProvider.credentialFromResult(result) || {}).accessToken || ""
-              : "";
-            say("Signing you in…");
-            const r = await fetch("{% url 'social_firebase_app' %}", {
-              method: "POST",
-              credentials: "same-origin",
-              headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
-              body: JSON.stringify({ id_token: idToken, access_token: accessToken, return_to: returnTo, provider: providerName }),
-            });
-            const data = await r.json().catch(() => ({}));
-            signOut(auth).catch(() => {});
-            if (data.redirect) { backToApp(data.redirect, !!data.ok); return; }
-            say("Could not sign in. Please try again.", true);
+            sessionStorage.setItem("mp_social_return", JSON.stringify({ returnTo, provider: providerName }));
+            await setPersistence(auth, browserLocalPersistence);
+            await signInWithRedirect(auth, providerFor(providerName));
           } catch (e) {
-            const code = (e && e.code) || "";
-            if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") say("");
-            else if (code === "auth/popup-blocked") say("The sign-in window was blocked. Tap the button again.", true);
-            else if (code === "auth/unauthorized-domain") say("Add " + location.hostname + " to Firebase → Authentication → Authorized domains.", true);
-            else if (code === "auth/operation-not-allowed") say("{{ provider_label }} is not enabled in Firebase → Authentication → Sign-in method.", true);
-            else if (code === "auth/account-exists-with-different-credential") say("This email already signs in with another provider. Use that one.", true);
-            else say("Could not sign in with {{ provider_label }}. Please try again.", true);
+            explain(e);
           }
-          btn.disabled = false;
         });
+
+        getRedirectResult(auth).then((result) => {
+          if (!result) return;
+          btn.disabled = true;
+          say("Waiting for {{ provider_label }}…");
+          finish(result).catch(explain);
+        }).catch(explain);
       </script>
     {% endif %}
   </div>

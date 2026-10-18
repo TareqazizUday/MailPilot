@@ -126,9 +126,19 @@ def redeem(code: str) -> tuple[User, bool]:
     return user, bool(entry.get("created"))
 
 
+# Public OAuth client IDs from the installed app (google-services.json / GoogleService-Info.plist).
+# A release APK's Google ID token audience is the web client, even when GOOGLE_LOGIN_MOBILE_CLIENT_IDS is empty.
+_APP_GOOGLE_CLIENT_IDS = (
+    "251110989928-22s146m0cnnptr2je7j9i734n9snlph6.apps.googleusercontent.com",
+    "251110989928-jr5ge5gnkr1bofteks72domuf73pnhot.apps.googleusercontent.com",
+    "251110989928-sdmspvpr4ckhagrc7ncvk7rcfmpvoc0g.apps.googleusercontent.com",
+)
+
+
 def _google_audiences() -> set[str]:
     ids = {credentials(PROVIDERS["google"])[0]}
     ids.update((os.environ.get("GOOGLE_LOGIN_MOBILE_CLIENT_IDS") or "").split(","))
+    ids.update(_APP_GOOGLE_CLIENT_IDS)
     return {i.strip() for i in ids if i and i.strip()}
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -51,10 +52,28 @@ def _account_label(acc) -> str:
     return account_display_email(acc) or (acc.label or "").strip() or f"{kind} {acc.slot}"
 
 
-def _oauth_mismatch(acc, settings) -> bool:
-    """Gmail profile lookup hits the network, so the result is cached per token file version."""
-    from email_automation.gmail_auth import gmail_oauth_matches_configured
+def _warm_oauth_match(key: str, settings) -> None:
+    """Gmail profile lookup is a network call. Dashboard must not wait on it."""
+    pending = f"{key}:pending"
+    if cache.get(pending):
+        return
+    cache.set(pending, True, 60)
 
+    def run() -> None:
+        from email_automation.gmail_auth import gmail_oauth_matches_configured
+
+        try:
+            matches, profile, _configured = gmail_oauth_matches_configured(settings)
+            mismatch = not matches and bool(profile)
+        except Exception:
+            mismatch = False
+        cache.set(key, mismatch, _OAUTH_MATCH_TTL)
+
+    threading.Thread(target=run, name="mailpilot-oauth-match", daemon=True).start()
+
+
+def _oauth_mismatch(acc, settings) -> bool:
+    """Cached Gmail profile check. A cold cache returns immediately and fills in the background."""
     token_file = (settings.GOOGLE_TOKEN_FILE or "").strip()
     try:
         version = int(os.path.getmtime(token_file))
@@ -64,13 +83,8 @@ def _oauth_mismatch(acc, settings) -> bool:
     cached = cache.get(key)
     if cached is not None:
         return bool(cached)
-    try:
-        matches, profile, _configured = gmail_oauth_matches_configured(settings)
-        mismatch = not matches and bool(profile)
-    except Exception:
-        mismatch = False
-    cache.set(key, mismatch, _OAUTH_MATCH_TTL)
-    return mismatch
+    _warm_oauth_match(key, settings)
+    return False
 
 
 def _account_health(acc) -> dict[str, Any]:
