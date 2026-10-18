@@ -193,6 +193,7 @@ class FirebaseWebLoginTests(TestCase):
             self.assertIn('id="firebase-web-config"', html)
             self.assertIn("mp-proj.firebaseapp.com", html)
             self.assertIn('data-firebase-provider="google"', html)
+            self.assertIn("credentialFromResult", html)
             self.assertIn("/auth/social/github/start", html)
             self.assertNotIn('data-firebase-provider="github"', html)
 
@@ -201,7 +202,7 @@ class FirebaseWebLoginTests(TestCase):
         html = self.client.get("/login").content.decode()
         self.assertNotIn("firebase-web-config", html)
         self.assertIn("/auth/social/google/start", html)
-        self.assertIn("social_error=not_configured&amp;provider=github", html)
+        self.assertIn("/auth/social/github/start", html)
 
     def test_popup_token_logs_in(self):
         resp = self._post(_firebase_claims(), next="/inbox")
@@ -232,6 +233,38 @@ class FirebaseWebLoginTests(TestCase):
     def test_unverified_email_rejected(self):
         resp = self._post(_firebase_claims(email_verified=False))
         self.assertEqual(resp.json()["error"], "email_unverified")
+
+    def test_google_missing_email_filled_from_same_account(self):
+        claims = _firebase_claims(
+            email="",
+            email_verified=False,
+            firebase={"sign_in_provider": "google.com", "identities": {"google.com": ["google-sub"]}},
+        )
+        info = {
+            "sub": "google-sub",
+            "email": "web@gmail.com",
+            "email_verified": True,
+            "given_name": "Web",
+            "family_name": "User",
+        }
+        with patch("core.social_auth.google_userinfo", return_value=info):
+            resp = self._post(claims, access_token="ya29.token")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), User.objects.get(email="web@gmail.com").id)
+
+    def test_google_userinfo_for_other_account_rejected(self):
+        claims = _firebase_claims(
+            email="",
+            email_verified=False,
+            firebase={"sign_in_provider": "google.com", "identities": {"google.com": ["google-sub"]}},
+        )
+        with patch(
+            "core.social_auth.google_userinfo",
+            return_value={"sub": "other", "email": "web@gmail.com", "email_verified": True},
+        ):
+            resp = self._post(claims, access_token="ya29.token")
+        self.assertEqual(resp.json()["error"], "invalid_token")
+        self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_github_uses_verified_primary_email_from_github(self):
         existing = User.objects.create_user("git", "git@example.com", "pw-12345678")

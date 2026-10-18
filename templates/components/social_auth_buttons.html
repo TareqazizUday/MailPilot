@@ -50,6 +50,8 @@
   const auth = getAuth(initializeApp(JSON.parse(document.getElementById("firebase-web-config").textContent)));
   const makeProvider = () => {
     const p = new GoogleAuthProvider();
+    p.addScope("email");
+    p.addScope("profile");
     p.setCustomParameters({ prompt: "select_account" });
     return p;
   };
@@ -70,9 +72,12 @@
       busy = true;
       btn.style.opacity = "0.6";
       try {
+        await signOut(auth).catch(() => {});
         const result = await signInWithPopup(auth, makeProvider());
-        const idToken = await result.user.getIdToken();
-        const accessToken = "";
+        const cred = GoogleAuthProvider.credentialFromResult(result);
+        const accessToken = (cred && cred.accessToken) || "";
+        if (!result.user.email) await result.user.reload().catch(() => {});
+        const idToken = await result.user.getIdToken(true);
         const r = await fetch(row.dataset.endpoint, {
           method: "POST",
           credentials: "same-origin",

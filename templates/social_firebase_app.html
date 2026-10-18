@@ -69,6 +69,8 @@
             return github;
           }
           const google = new GoogleAuthProvider();
+          google.addScope("email");
+          google.addScope("profile");
           google.setCustomParameters({ prompt: "select_account" });
           return google;
         }
@@ -97,6 +99,12 @@
           return credential.accessToken || tokenResponse.oauthAccessToken || "";
         }
 
+        function googleAccessToken(result) {
+          const credential = GoogleAuthProvider.credentialFromResult(result) || {};
+          const tokenResponse = (result && result._tokenResponse) || {};
+          return credential.accessToken || tokenResponse.oauthAccessToken || "";
+        }
+
         // Android Chrome blocks mailpilot:// unless it is an intent URL. The button stays as a tap fallback.
         function openApp(url) {
           if (!/android/i.test(navigator.userAgent) || !url.startsWith("mailpilot://")) return url;
@@ -108,8 +116,9 @@
 
         async function finish(result) {
           const name = providerName;
-          const idToken = await result.user.getIdToken();
-          const accessToken = name === "github" ? githubAccessToken(result) : "";
+          if (!result.user.email) await result.user.reload().catch(() => {});
+          const idToken = await result.user.getIdToken(true);
+          const accessToken = name === "github" ? githubAccessToken(result) : googleAccessToken(result);
           say("Signing you in…");
           const r = await fetch("{% url 'social_firebase_app' %}", {
             method: "POST",
