@@ -259,6 +259,13 @@ class SocialAuthorizeUrlResponseSerializer(serializers.Serializer):
     state = serializers.CharField()
 
 
+class SocialResultResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    status = serializers.ChoiceField(choices=["pending", "ok", "error"])
+    code = serializers.CharField(required=False)
+    error = serializers.CharField(required=False)
+
+
 class SocialExchangeRequestSerializer(serializers.Serializer):
     code = serializers.CharField(help_text="One-time `code` from the `return_to` deep link (valid 5 minutes)")
 

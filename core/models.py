@@ -1678,3 +1678,19 @@ class PushDevice(models.Model):
 
     def __str__(self) -> str:
         return f"PushDevice({self.user_id}, {self.platform})"
+
+
+class SocialAppHandoff(models.Model):
+    """Browser sign-in result shared by every server process.
+
+    The phone reads this after Chrome closes. A custom-scheme redirect from that tab
+    does not carry the login code back into the app.
+    """
+
+    state_hash = models.CharField(max_length=64, unique=True)
+    code = models.TextField(blank=True, default="")
+    error = models.CharField(max_length=64, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "core_social_app_handoff"

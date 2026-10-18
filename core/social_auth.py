@@ -108,7 +108,7 @@ def configured_providers() -> list[dict]:
     firebase = bool(firebase_project_id())
     return [
         {"id": "google", "label": "Google", "configured": firebase or is_configured(PROVIDERS["google"])},
-        {"id": "github", "label": "GitHub", "configured": firebase_web_config() is not None or is_configured(PROVIDERS["github"])},
+        {"id": "github", "label": "GitHub", "configured": is_configured(PROVIDERS["github"])},
     ]
 
 

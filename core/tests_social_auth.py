@@ -193,8 +193,8 @@ class FirebaseWebLoginTests(TestCase):
             self.assertIn('id="firebase-web-config"', html)
             self.assertIn("mp-proj.firebaseapp.com", html)
             self.assertIn('data-firebase-provider="google"', html)
-            self.assertIn('data-firebase-provider="github"', html)
-            self.assertIn("GithubAuthProvider", html)
+            self.assertIn("/auth/social/github/start", html)
+            self.assertNotIn('data-firebase-provider="github"', html)
 
     @patch.dict(os.environ, {"FIREBASE_API_KEY": ""})
     def test_no_firebase_keeps_redirect_flow(self):

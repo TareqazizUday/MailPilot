@@ -17,6 +17,7 @@ urlpatterns = [
         auth_api.social_authorize_url,
         name="v1_social_authorize_url",
     ),
+    path("auth/social/result", auth_api.social_result, name="v1_social_result"),
     path("auth/social/exchange", auth_api.social_exchange, name="v1_social_exchange"),
     path("auth/social/token", auth_api.social_token, name="v1_social_token"),
     path("auth/password-reset/request", auth_api.password_reset_request, name="v1_password_reset_request"),

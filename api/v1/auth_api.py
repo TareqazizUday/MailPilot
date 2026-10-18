@@ -474,11 +474,45 @@ def social_authorize_url(request, provider: str):
     from core import social_mobile
     from core.social_auth import SocialLoginError
 
+    return_to = request.query_params.get("return_to") or ""
     try:
-        url, state = social_mobile.start(request, provider, request.query_params.get("return_to") or "")
+        url, state = social_mobile.start(request, provider, return_to)
     except SocialLoginError as e:
         return _social_error(str(e))
+    except Exception:
+        logger.exception("social authorize failed provider=%s", provider)
+        return _social_error("failed")
     return Response({"ok": True, "authorization_url": url, "state": state})
+
+
+class SocialPollThrottle(AnonRateThrottle):
+    scope = "social_poll"
+    rate = "120/min"
+
+
+@extend_schema(
+    parameters=[OpenApiParameter("state", str, required=True)],
+    responses={200: sz.SocialResultResponseSerializer, 400: sz.ErrorSerializer},
+    description="Polled by the app while GitHub's page is open. `pending` until the callback finishes.",
+)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+@throttle_classes([SocialPollThrottle])
+def social_result(request):
+    """The browser often returns to the login screen without the deep-link code. The app reads it here."""
+    from core import social_mobile
+    from core.social_auth import SocialLoginError
+
+    try:
+        found = social_mobile.peek_handoff(request.query_params.get("state") or "")
+    except SocialLoginError as e:
+        return _social_error(str(e))
+    if found is None:
+        return Response({"ok": True, "status": "pending"})
+    if found.get("error"):
+        return Response({"ok": False, "status": "error", "error": found["error"]})
+    return Response({"ok": True, "status": "ok", "code": found["code"]})
 
 
 @extend_schema(
