@@ -88,15 +88,28 @@
           returnLink.hidden = false;
           btn.hidden = true;
           say(ok ? "Signed in. Tap the button if the app did not open." : "Tap the button to go back to the app.", !ok);
-          window.location.href = url;
+          window.location.href = openApp(url);
         };
+
+        function githubAccessToken(result) {
+          const credential = GithubAuthProvider.credentialFromResult(result) || {};
+          const tokenResponse = (result && result._tokenResponse) || {};
+          return credential.accessToken || tokenResponse.oauthAccessToken || "";
+        }
+
+        // Android Chrome blocks mailpilot:// unless it is an intent URL. The button stays as a tap fallback.
+        function openApp(url) {
+          if (!/android/i.test(navigator.userAgent) || !url.startsWith("mailpilot://")) return url;
+          let parsed;
+          try { parsed = new URL(url); } catch (e) { return url; }
+          const data = (parsed.hostname || "") + (parsed.pathname || "") + (parsed.search || "");
+          return "intent://" + data.replace(/^\//, "") + "#Intent;scheme=mailpilot;package=com.tri.mailpilot;end";
+        }
 
         async function finish(result) {
           const name = providerName;
           const idToken = await result.user.getIdToken();
-          const accessToken = name === "github"
-            ? (GithubAuthProvider.credentialFromResult(result) || {}).accessToken || ""
-            : "";
+          const accessToken = name === "github" ? githubAccessToken(result) : "";
           say("Signing you in…");
           const r = await fetch("{% url 'social_firebase_app' %}", {
             method: "POST",
@@ -106,6 +119,7 @@
           });
           const data = await r.json().catch(() => ({}));
           sessionStorage.removeItem("mp_social_return");
+          sessionStorage.removeItem("mp_social_started");
           signOut(auth).catch(() => {});
           if (data.redirect) { backToApp(data.redirect, !!data.ok); return; }
           say("Could not sign in. Please try again.", true);
@@ -123,23 +137,30 @@
           btn.disabled = false;
         }
 
-        btn.addEventListener("click", async () => {
+        async function startRedirect() {
           btn.disabled = true;
           say("Waiting for {{ provider_label }}…");
-          try {
-            sessionStorage.setItem("mp_social_return", JSON.stringify({ returnTo, provider: providerName }));
-            await setPersistence(auth, browserLocalPersistence);
-            await signInWithRedirect(auth, providerFor(providerName));
-          } catch (e) {
-            explain(e);
-          }
+          sessionStorage.setItem("mp_social_return", JSON.stringify({ returnTo, provider: providerName }));
+          sessionStorage.setItem("mp_social_started", "1");
+          await setPersistence(auth, browserLocalPersistence);
+          await signInWithRedirect(auth, providerFor(providerName));
+        }
+
+        btn.addEventListener("click", () => {
+          startRedirect().catch(explain);
         });
 
         getRedirectResult(auth).then((result) => {
-          if (!result) return;
-          btn.disabled = true;
-          say("Waiting for {{ provider_label }}…");
-          finish(result).catch(explain);
+          if (result) {
+            btn.disabled = true;
+            say("Waiting for {{ provider_label }}…");
+            finish(result).catch(explain);
+            return;
+          }
+          const autostart = new URLSearchParams(location.search).get("autostart") === "1";
+          if (autostart && sessionStorage.getItem("mp_social_started") !== "1") {
+            startRedirect().catch(explain);
+          }
         }).catch(explain);
       </script>
     {% endif %}

@@ -1,224 +1,346 @@
-{% extends "mailpilot_base.html" %}
-
-{% block title %}Settings · MailPilot{% endblock %}
-
-{% block content %}
+{% load marketing_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Settings · MailPilot</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#ffffff" />
+  {% include "components/favicon.html" %}
+  {% include "components/meta_pixel.html" %}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <style>
-    .set-wrap{max-width:980px;margin:0 auto;width:100%;}
-    .set-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:0;align-items:start;min-width:0;}
-    .set-main{padding:clamp(18px,3vw,28px) clamp(16px,3vw,32px);border-right:1px solid var(--glass-border);min-width:0;}
-    .set-side{padding:clamp(18px,2.5vw,24px);min-width:0;}
-    @media(max-width:1024px){
-      .set-grid{grid-template-columns:1fr;}
-      .set-main{border-right:none;border-bottom:1px solid var(--glass-border);}
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink: #141a2e;
+      --muted: #5b6478;
+      --soft: #f6f8fd;
+      --line: #e8ebf4;
+      --primary: #5b5bf0;
+      --primary2: #8a5bf0;
+      --r: 18px;
+      --shadow: 0 12px 40px rgba(20,26,46,.08);
+      --grad: linear-gradient(135deg,#5b5bf0,#8a5bf0);
+      --font: 'Poppins', Arial, sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 70% 50% at 10% -10%, #e6e6ff 0%, transparent 55%),
+        radial-gradient(ellipse 55% 40% at 100% 0%, #eef6ff 0%, transparent 50%),
+        var(--soft);
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100%;
+    }
+    a { text-decoration: none; color: inherit; }
+
+    {% include "components/marketing_nav_css.html" %}
+    {% include "components/marketing_page_layout_css.html" %}
+    {% include "components/footer_css.html" %}
+
+    main.mp-marketing-main {
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+      padding-left: clamp(12px, 3vw, 28px);
+      padding-right: clamp(12px, 3vw, 28px);
+      padding-bottom: clamp(40px, 8vw, 80px);
     }
 
-    .msg{padding:10px 12px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);font-size:0.88rem;margin-bottom:12px;word-break:break-word;}
-    .msg.ok{border-color:rgba(74,222,128,0.25);background:rgba(74,222,128,0.08);color:#bbf7d0;}
-    .msg.bad{border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.08);color:#fecaca;}
-
-    .h{font-weight:900;font-size:1.05rem;letter-spacing:-.01em;margin-bottom:6px;}
-    .sub{font-size:0.82rem;color:rgba(148,163,184,0.82);line-height:1.55;margin-bottom:18px;}
-
-    .sec{border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.02);border-radius:14px;padding:18px;min-width:0;}
-    .sec + .sec{margin-top:14px;}
-    .sec-title{display:flex;align-items:center;gap:10px;font-weight:900;margin-bottom:12px;flex-wrap:wrap;}
-    .sec-title i{color:rgba(148,163,184,0.9);}
-
-    .field{margin-bottom:16px;min-width:0;}
-    .label{font-size:0.75rem;font-weight:850;text-transform:uppercase;letter-spacing:0.5px;color:rgba(148,163,184,0.9);margin-bottom:10px;display:block;}
-    .input{width:100%;max-width:100%;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:var(--font);outline:none;box-sizing:border-box;}
-    .input:focus{border-color:rgba(79,110,247,0.6);background:rgba(79,110,247,0.06);box-shadow:0 0 0 3px rgba(79,110,247,0.1);}
-    .help{font-size:0.78rem;color:rgba(148,163,184,0.82);margin-top:8px;line-height:1.5;word-break:break-word;}
-
-    .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;}
-    .btn-primary2{
-      padding:12px 16px;border:none;border-radius:12px;
-      background:linear-gradient(135deg,#4f6ef7,#a78bfa);
-      color:#fff;font-weight:800;cursor:pointer;
-      box-shadow:0 6px 22px rgba(79,110,247,0.35);
-      display:inline-flex;align-items:center;justify-content:center;gap:8px;
-      font-family:'Poppins',sans-serif;
+    .set-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
     }
-    .btn-primary2:hover{transform:translateY(-1px);}
-    .btn-soft{
-      padding:11px 14px;border-radius:12px;
-      background:rgba(255,255,255,0.04);
-      border:1px solid rgba(255,255,255,0.10);
-      color:rgba(226,232,240,0.92);
-      font-weight:800;cursor:pointer;
-      display:inline-flex;align-items:center;justify-content:center;gap:8px;
-      text-decoration:none;
-      font-family:'Poppins',sans-serif;
+    .set-head {
+      padding: clamp(22px, 3vw, 32px) clamp(18px, 3vw, 40px) 0;
     }
-    .btn-soft:hover{border-color:rgba(79,110,247,0.35);background:rgba(79,110,247,0.08);}
-
-    .side-card{background:rgba(79,110,247,0.05);border:1px solid rgba(79,110,247,0.15);border-radius:14px;padding:18px;}
-    .side-card + .side-card{margin-top:12px;}
-    .side-title{font-size:0.9rem;font-weight:900;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-    .side-desc{font-size:0.82rem;color:rgba(148,163,184,0.85);line-height:1.65;word-break:break-word;}
-    .side-desc a{color:#c4b5fd;text-decoration:none;}
-
-    .set-wrap .setup-card{width:100%;overflow-x:clip;}
-
-    .np-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
-    .np-row:last-child{border-bottom:none;}
-    .np-row .np-name{font-size:0.88rem;font-weight:700;}
-    .np-row .np-hint{font-size:0.76rem;color:rgba(148,163,184,0.82);margin-top:2px;}
-    .np-row input[type=checkbox]{width:18px;height:18px;accent-color:#4f6ef7;flex:0 0 auto;}
-    .np-times{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-    .np-times .input{width:auto;min-width:120px;}
-    select.input option{color:#0f172a;}
-
-    @media(max-width:768px){
-      body .main-wrap{padding:20px 12px 56px;}
-      .set-wrap .setup-card{border-radius:16px;}
-      .set-wrap .setup-card-header{padding:20px 16px 16px;}
-      .set-wrap .setup-card-title{font-size:1.1rem;}
-      .set-wrap .setup-card-sub{font-size:0.82rem;}
-      .set-main,.set-side{padding:18px 14px;}
-      .sec{padding:14px;}
-      .btn-row{flex-direction:column;align-items:stretch;}
-      .btn-row .btn-primary2,.btn-row .btn-soft{width:100%;}
-      .input{font-size:16px;}
-      .btn-primary2,.btn-soft{min-height:44px;}
+    .set-kicker {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #efefff; color: var(--primary);
+      font-weight: 700; font-size: 12px;
+      padding: 6px 14px; border-radius: 999px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 12px;
     }
-    @media(max-width:480px){
-      body .main-wrap{padding:16px 10px 48px;}
-      .set-wrap .setup-card-header{padding:16px 14px 14px;}
-      .set-main,.set-side{padding:14px 12px;}
-      .sec{border-radius:12px;padding:12px;}
-      .side-card{padding:14px;}
+    .set-title {
+      font-size: clamp(1.35rem, 2.8vw, 1.75rem);
+      font-weight: 800; letter-spacing: -0.02em;
+      color: var(--ink); margin-bottom: 6px;
+    }
+    .set-sub { color: var(--muted); font-size: clamp(0.9rem, 2vw, 1rem); line-height: 1.55; max-width: 40rem; }
+    .set-main { padding: clamp(18px, 3vw, 28px) clamp(18px, 3vw, 40px); display: flex; flex-direction: column; gap: 14px; }
+
+    .msg {
+      padding: 12px 14px; border-radius: 14px;
+      border: 1px solid var(--line); background: var(--soft);
+      font-size: 0.88rem; word-break: break-word;
+    }
+    .msg.ok { border-color: rgba(0,184,132,0.35); background: #e2f8ef; color: #067a56; }
+    .msg.bad { border-color: rgba(239,68,68,0.3); background: #ffe8e8; color: #b91c1c; }
+
+    .sec {
+      border: 1px solid var(--line);
+      background: var(--soft);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    .sec-title {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; margin-bottom: 14px;
+      letter-spacing: -0.01em; color: var(--ink);
+    }
+    .sec-title i { color: var(--primary); }
+
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    .label {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px; display: block;
+    }
+    .input {
+      width: 100%; padding: 11px 14px;
+      background: #fff; border: 1.5px solid var(--line);
+      border-radius: 12px; color: var(--ink); font-size: 0.9rem;
+      font-family: var(--font); outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input:focus {
+      border-color: rgba(91,91,240,0.55);
+      box-shadow: 0 0 0 3px rgba(91,91,240,0.14);
+    }
+    .help { font-size: 0.8rem; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+    .help a { color: var(--primary); font-weight: 700; }
+    .help a:hover { color: var(--primary2); }
+
+    .np-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 14px; margin-top: 8px;
+      background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    }
+    .np-name { display: block; font-size: 0.9rem; font-weight: 700; color: var(--ink); }
+    .np-hint { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+    .np-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--primary); flex: 0 0 auto; }
+    .np-times { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .np-times .input { width: auto; min-width: 140px; }
+    .np-times .help { margin: 0; }
+
+    .btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+    .btn-primary2 {
+      padding: 12px 18px; border: none; border-radius: 999px;
+      background: var(--grad); color: #fff; font-weight: 700; cursor: pointer;
+      box-shadow: 0 10px 24px rgba(91,91,240,0.3);
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      font-family: var(--font); font-size: 0.9rem;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn-primary2:hover { transform: translateY(-1px); box-shadow: 0 14px 28px rgba(91,91,240,0.38); }
+    .btn-soft {
+      padding: 11px 16px; border-radius: 999px;
+      background: #fff; border: 1.5px solid var(--line);
+      color: var(--ink); font-weight: 700; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      text-decoration: none; font-size: 0.86rem; font-family: var(--font);
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .btn-soft:hover { border-color: var(--primary); color: var(--primary); background: #efefff; }
+
+    .acct-who {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      padding: 12px 14px; margin-bottom: 10px; min-width: 0;
+    }
+    .acct-avatar {
+      width: 44px; height: 44px; border-radius: 999px; flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      background: #efefff; color: var(--primary); font-weight: 800; font-size: 1.05rem;
+    }
+    .acct-id { min-width: 0; }
+    .acct-name { font-weight: 800; color: var(--ink); word-break: break-word; }
+    .acct-user { font-size: 0.82rem; color: var(--muted); word-break: break-word; }
+    .acct-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .acct-link {
+      display: flex; align-items: center; gap: 12px; min-width: 0;
+      background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      padding: 14px; color: var(--ink);
+      transition: border-color .15s, background .15s;
+    }
+    .acct-link:hover { border-color: rgba(91,91,240,0.45); background: #fafafe; }
+    .acct-ico {
+      width: 36px; height: 36px; border-radius: 10px; flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      background: #efefff; color: var(--primary);
+    }
+    .acct-copy { min-width: 0; flex: 1; }
+    .acct-copy strong { display: block; font-size: 0.92rem; }
+    .acct-copy span { display: block; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+    .acct-link .fa-chevron-right { color: #a4acc0; font-size: 0.75rem; flex: 0 0 auto; }
+
+    @media (max-width: 768px) {
+      main.mp-marketing-main { padding-left: 12px; padding-right: 12px; }
+      .set-card { border-radius: 18px; }
+      .set-head, .set-main { padding-left: 16px; padding-right: 16px; }
+      .set-head { padding-top: 20px; }
+      .set-title { font-size: 1.45rem; }
+      .sec { padding: 14px; }
+      .input { font-size: 16px; }
+      .btn-row { flex-direction: column; align-items: stretch; }
+      .btn-row .btn-primary2, .btn-row .btn-soft { width: 100%; min-height: 44px; }
+      .np-times .input { width: 100%; }
+      .np-row { align-items: flex-start; }
+      .np-row > span { min-width: 0; }
+      .acct-links { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 480px) {
+      main.mp-marketing-main { padding-left: 10px; padding-right: 10px; }
+      .set-card { border-radius: 16px; }
+      .set-head, .set-main { padding-left: 14px; padding-right: 14px; }
+      .set-head { padding-top: 16px; }
+      .set-kicker { font-size: 11px; padding: 5px 12px; }
+      .sec { border-radius: 12px; padding: 12px; }
+      .acct-link, .acct-who { padding: 12px; }
     }
   </style>
+</head>
+<body class="mp-theme-light">
+  {% include "components/marketing_nav.html" %}
+  {% include "components/marketing_nav_js.html" %}
 
-  <div class="set-wrap">
-    <div class="setup-card">
-      <div class="setup-card-header">
-        <div class="setup-card-title"><i class="fa-solid fa-gear" aria-hidden="true"></i> Settings</div>
-        <div class="setup-card-sub">Security and account settings for your MailPilot profile.</div>
+  <main id="main-content" class="mp-marketing-main">
+    <div class="set-card">
+      <div class="set-head">
+        <div class="set-kicker"><i class="fa-solid fa-gear" aria-hidden="true"></i> Account</div>
+        <h1 class="set-title">Settings</h1>
+        <p class="set-sub">Password, notifications, and the rest of your MailPilot account.</p>
       </div>
 
-      <div class="set-grid">
-        <div class="set-main">
-          {% if messages %}
-            {% for message in messages %}
-              <div class="msg {% if 'success' in message.tags %}ok{% elif 'error' in message.tags %}bad{% endif %}">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
+      <div class="set-main">
+        {% for message in messages %}
+          <div class="msg {% if 'success' in message.tags %}ok{% elif 'error' in message.tags %}bad{% endif %}" role="{% if 'error' in message.tags %}alert{% else %}status{% endif %}">{{ message }}</div>
+        {% endfor %}
 
-          <div class="sec">
-            <div class="sec-title"><i class="fa-solid fa-key" aria-hidden="true"></i> Change password</div>
-            <form method="post" action="{% url 'settings' %}">
-              {% csrf_token %}
+        <section class="sec">
+          <h2 class="sec-title"><i class="fa-solid fa-key" aria-hidden="true"></i> Change password</h2>
+          <form method="post" action="{% url 'settings' %}">
+            {% csrf_token %}
+            <div class="field">
+              <label class="label" for="old_password">Current password</label>
+              <input class="input" id="old_password" name="old_password" type="password" autocomplete="current-password" required/>
+            </div>
+            <div class="field">
+              <label class="label" for="new_password1">New password</label>
+              <input class="input" id="new_password1" name="new_password1" type="password" autocomplete="new-password" required/>
+            </div>
+            <div class="field">
+              <label class="label" for="new_password2">Confirm new password</label>
+              <input class="input" id="new_password2" name="new_password2" type="password" autocomplete="new-password" required/>
+              <div class="help">Use at least 8 characters. Avoid common passwords.</div>
+            </div>
+            <div class="btn-row">
+              <button class="btn-primary2" type="submit"><i class="fa-solid fa-lock" aria-hidden="true"></i> Update password</button>
+              <a class="btn-soft" href="{% url 'profile' %}"><i class="fa-regular fa-id-badge" aria-hidden="true"></i> Profile details</a>
+            </div>
+          </form>
+        </section>
 
-              <div class="field">
-                <label class="label" for="old_password">Current password</label>
-                <input class="input" id="old_password" name="old_password" type="password" autocomplete="current-password" required/>
-              </div>
-              <div class="field">
-                <label class="label" for="new_password1">New password</label>
-                <input class="input" id="new_password1" name="new_password1" type="password" autocomplete="new-password" required/>
-              </div>
-              <div class="field">
-                <label class="label" for="new_password2">Confirm new password</label>
-                <input class="input" id="new_password2" name="new_password2" type="password" autocomplete="new-password" required/>
-                <div class="help">Use at least 8 characters. Avoid common passwords.</div>
-              </div>
+        <section class="sec" id="notifications">
+          <h2 class="sec-title"><i class="fa-regular fa-bell" aria-hidden="true"></i> Notifications</h2>
+          <form id="notifPrefsForm" autocomplete="off">
+            <div class="field">
+              <span class="label">Notify me about</span>
+              <label class="np-row">
+                <span><span class="np-name">Draft saved</span><span class="np-hint">A reply was drafted for your review.</span></span>
+                <input type="checkbox" name="ev_draft"/>
+              </label>
+              <label class="np-row">
+                <span><span class="np-name">Auto-reply sent</span><span class="np-hint">MailPilot replied automatically.</span></span>
+                <input type="checkbox" name="ev_sent"/>
+              </label>
+              <label class="np-row">
+                <span><span class="np-name">Errors</span><span class="np-hint">A reply failed to send.</span></span>
+                <input type="checkbox" name="ev_error"/>
+              </label>
+            </div>
 
-              <div class="btn-row">
-                <button class="btn-primary2" type="submit"><i class="fa-solid fa-lock" aria-hidden="true"></i> Update password</button>
-                <a class="btn-soft" href="{% url 'profile' %}"><i class="fa-regular fa-id-badge" aria-hidden="true"></i> Profile details</a>
-              </div>
-            </form>
-          </div>
+            <div class="field">
+              <span class="label">Channels</span>
+              <label class="np-row">
+                <span><span class="np-name">In-app (bell)</span><span class="np-hint">Show unread notifications on the web and in the app.</span></span>
+                <input type="checkbox" name="in_app"/>
+              </label>
+              <label class="np-row">
+                <span><span class="np-name">Mobile push</span><span class="np-hint">Phone alerts from the MailPilot app.</span></span>
+                <input type="checkbox" name="push"/>
+              </label>
+            </div>
 
-          <div class="sec" id="notifications">
-            <div class="sec-title"><i class="fa-regular fa-bell" aria-hidden="true"></i> Notifications</div>
-            <form id="notifPrefsForm" autocomplete="off">
-              <div class="field">
-                <span class="label">Notify me about</span>
-                <label class="np-row">
-                  <span><span class="np-name">Draft saved</span><span class="np-hint" style="display:block">A reply was drafted for your review.</span></span>
-                  <input type="checkbox" name="ev_draft"/>
-                </label>
-                <label class="np-row">
-                  <span><span class="np-name">Auto-reply sent</span><span class="np-hint" style="display:block">MailPilot replied automatically.</span></span>
-                  <input type="checkbox" name="ev_sent"/>
-                </label>
-                <label class="np-row">
-                  <span><span class="np-name">Errors</span><span class="np-hint" style="display:block">A reply failed to send.</span></span>
-                  <input type="checkbox" name="ev_error"/>
-                </label>
-              </div>
+            <div class="field">
+              <label class="label" for="np_external">Telegram / WhatsApp</label>
+              <select class="input" id="np_external" name="external_mode">
+                <option value="fallback">Only when I'm not using MailPilot</option>
+                <option value="always">Always</option>
+                <option value="off">Never</option>
+              </select>
+              <div class="help">Uses the Telegram bot and WhatsApp number configured in <a href="{% url 'setup' %}">Setup</a>.</div>
+            </div>
 
-              <div class="field">
-                <span class="label">Channels</span>
-                <label class="np-row">
-                  <span><span class="np-name">In-app (bell)</span><span class="np-hint" style="display:block">Show unread notifications on the web and in the app.</span></span>
-                  <input type="checkbox" name="in_app"/>
-                </label>
-                <label class="np-row">
-                  <span><span class="np-name">Mobile push</span><span class="np-hint" style="display:block">Phone alerts from the MailPilot app.</span></span>
-                  <input type="checkbox" name="push"/>
-                </label>
+            <div class="field">
+              <span class="label">Quiet hours</span>
+              <label class="np-row">
+                <span><span class="np-name">Pause push and Telegram/WhatsApp</span><span class="np-hint">Errors still come through. Uses your profile time zone.</span></span>
+                <input type="checkbox" name="qh_enabled"/>
+              </label>
+              <div class="np-times">
+                <input class="input" type="time" name="qh_start" aria-label="Quiet hours start"/>
+                <span class="help">to</span>
+                <input class="input" type="time" name="qh_end" aria-label="Quiet hours end"/>
               </div>
+            </div>
 
-              <div class="field">
-                <label class="label" for="np_external">Telegram / WhatsApp</label>
-                <select class="input" id="np_external" name="external_mode">
-                  <option value="fallback">Only when I'm not using MailPilot</option>
-                  <option value="always">Always</option>
-                  <option value="off">Never</option>
-                </select>
-                <div class="help">Uses the Telegram bot and WhatsApp number configured in <a href="{% url 'setup' %}">Setup</a>.</div>
-              </div>
+            <div class="btn-row">
+              <button class="btn-primary2" type="submit"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save notifications</button>
+            </div>
+          </form>
+        </section>
 
-              <div class="field">
-                <span class="label">Quiet hours</span>
-                <label class="np-row">
-                  <span><span class="np-name">Pause push and Telegram/WhatsApp</span><span class="np-hint" style="display:block">Errors still come through. Uses your profile time zone.</span></span>
-                  <input type="checkbox" name="qh_enabled"/>
-                </label>
-                <div class="np-times">
-                  <input class="input" type="time" name="qh_start" aria-label="Quiet hours start"/>
-                  <span class="help" style="margin:0">to</span>
-                  <input class="input" type="time" name="qh_end" aria-label="Quiet hours end"/>
-                </div>
-              </div>
-
-              <div class="btn-row">
-                <button class="btn-primary2" type="submit"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save notifications</button>
-              </div>
-            </form>
-          </div>
-
-          <div class="sec">
-            <div class="sec-title"><i class="fa-regular fa-user" aria-hidden="true"></i> Account</div>
-            <div class="help">
-              Signed in as <strong style="color:rgba(226,232,240,0.95)">@{{ user.username }}</strong>.
-              Update your name, email, avatar, and profile info in <a href="{% url 'profile' %}">Profile details</a>.
+        <section class="sec">
+          <h2 class="sec-title"><i class="fa-regular fa-user" aria-hidden="true"></i> Account</h2>
+          <div class="acct-who">
+            <div class="acct-avatar" aria-hidden="true">{{ user.username|slice:":1"|upper }}</div>
+            <div class="acct-id">
+              <div class="acct-name">{{ user.get_full_name|default:user.username }}</div>
+              <div class="acct-user">Signed in as @{{ user.username }}</div>
             </div>
           </div>
-        </div>
-
-        <div class="set-side">
-          <div class="side-card">
-            <div class="side-title"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Security tips</div>
-            <div class="side-desc">
-              Use a unique password and keep your device secure. If you think your account is compromised, change your password immediately.
-            </div>
+          <div class="acct-links">
+            <a class="acct-link" href="{% url 'profile' %}">
+              <span class="acct-ico" aria-hidden="true"><i class="fa-regular fa-id-badge"></i></span>
+              <span class="acct-copy"><strong>Profile</strong><span>Name, email, and photo</span></span>
+              <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+            </a>
+            <a class="acct-link" href="{% url 'setup' %}">
+              <span class="acct-ico" aria-hidden="true"><i class="fa-solid fa-sliders"></i></span>
+              <span class="acct-copy"><strong>Setup</strong><span>Inbox, routing, and knowledge base</span></span>
+              <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+            </a>
           </div>
-          <div class="side-card">
-            <div class="side-title"><i class="fa-solid fa-gear" aria-hidden="true"></i> Automation settings</div>
-            <div class="side-desc">
-              Configure Gmail/SMTP, routing, and knowledge base in <a href="{% url 'setup' %}">Setup</a>.
-            </div>
-          </div>
-        </div>
+        </section>
       </div>
     </div>
-  </div>
+  </main>
+
+  {% marketing_footer %}
+  {% include "components/toasts.html" with toast_top="88px" %}
 
   <script>
   (function () {
@@ -276,5 +398,5 @@
     });
   })();
   </script>
-{% endblock %}
-
+</body>
+</html>

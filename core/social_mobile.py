@@ -30,6 +30,7 @@ from core.social_auth import (
     fetch_profile,
     find_or_create_user,
     is_configured,
+    merge_google_email,
     parse_profile,
     redirect_uri_for,
     verify_firebase_id_token,
@@ -142,7 +143,7 @@ def _google_audiences() -> set[str]:
     return {i.strip() for i in ids if i and i.strip()}
 
 
-def _verify_google_id_token(token: str) -> dict:
+def _verify_google_id_token(token: str, access_token: str = "") -> dict:
     from google.auth.transport import requests as google_requests
     from google.oauth2 import id_token as google_id_token
 
@@ -155,6 +156,9 @@ def _verify_google_id_token(token: str) -> dict:
         raise SocialLoginError("invalid_token") from None
     if claims.get("aud") not in audiences:
         raise SocialLoginError("invalid_token")
+    # A second Google account on the phone can return an ID token with no email claim.
+    # The access token from the same sign-in is checked against that token's subject.
+    claims = merge_google_email(claims, access_token, subject=str(claims.get("sub") or ""))
     return parse_profile(claims)
 
 
@@ -168,5 +172,5 @@ def verify_native_token(button: str, *, id_token: str = "", access_token: str = 
     if button == "google":
         if not id_token:
             raise SocialLoginError("id_token_required")
-        return _verify_google_id_token(id_token)
+        return _verify_google_id_token(id_token, access_token)
     raise SocialLoginError("unknown_provider")

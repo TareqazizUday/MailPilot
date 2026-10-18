@@ -169,6 +169,26 @@ class NativeSocialTokenTests(TestCase):
     def test_google_requires_id_token(self):
         self.assertEqual(self._post({"provider": "google"}).json()["error"], "id_token_required")
 
+    def test_google_missing_email_filled_from_same_account(self):
+        claims = {"aud": "android-id", "sub": "google-sub", "email": ""}
+        info = {"sub": "google-sub", "email": "second@gmail.com", "email_verified": True, "given_name": "Second"}
+        with patch("google.oauth2.id_token.verify_oauth2_token", return_value=claims), patch(
+            "core.social_auth.requests.get", return_value=_resp(200, info)
+        ):
+            resp = self._post({"provider": "google", "id_token": "tok", "access_token": "ya29"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["user"]["email"], "second@gmail.com")
+
+    def test_google_missing_email_rejects_other_account(self):
+        claims = {"aud": "android-id", "sub": "google-sub", "email": ""}
+        info = {"sub": "someone-else", "email": "victim@gmail.com", "email_verified": True}
+        with patch("google.oauth2.id_token.verify_oauth2_token", return_value=claims), patch(
+            "core.social_auth.requests.get", return_value=_resp(200, info)
+        ):
+            resp = self._post({"provider": "google", "id_token": "tok", "access_token": "ya29"})
+        self.assertEqual((resp.status_code, resp.json()["error"]), (401, "invalid_token"))
+        self.assertFalse(User.objects.filter(email="victim@gmail.com").exists())
+
     def _firebase(self, claims: dict | None = None, *, access_token: str = "", **kw):
         payload = {"provider": "firebase", "id_token": "tok"}
         if access_token:
@@ -190,6 +210,26 @@ class NativeSocialTokenTests(TestCase):
         }
         claims.update(over)
         return claims
+
+    def test_firebase_google_missing_email_filled_from_same_account(self):
+        claims = self._firebase_claims(
+            email="",
+            email_verified=False,
+            firebase={"sign_in_provider": "google.com", "identities": {"google.com": ["google-sub"]}},
+        )
+        info = {"sub": "google-sub", "email": "second@gmail.com", "email_verified": True, "given_name": "Second"}
+        with patch("core.social_auth.requests.get", return_value=_resp(200, info)):
+            resp = self._firebase(claims, access_token="ya29")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["user"]["email"], "second@gmail.com")
+
+    def test_firebase_google_missing_email_without_access_token(self):
+        claims = self._firebase_claims(
+            email="",
+            firebase={"sign_in_provider": "google.com", "identities": {"google.com": ["google-sub"]}},
+        )
+        resp = self._firebase(claims)
+        self.assertEqual(resp.json()["error"], "email_missing")
 
     def test_firebase_valid_token(self):
         resp = self._firebase(self._firebase_claims())

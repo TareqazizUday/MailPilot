@@ -621,13 +621,9 @@ def profile_page(request):
 @login_required(login_url="/login")
 @require_http_methods(["GET", "POST"])
 def settings_page(request):
-    # Provide connection state for the app nav
     from core.user_settings import migrate_legacy_file_config_if_needed
 
     migrate_legacy_file_config_if_needed(request.user)
-    effective = runtime.get_effective_settings(request.user)
-    cfg = _user_settings_dict(request)
-    connected = _mailbox_connected_for_ui(effective, cfg)
 
     if request.method == "POST":
         form = PasswordChangeForm(user=request.user, data=request.POST)
@@ -647,13 +643,7 @@ def settings_page(request):
             messages.error(request, err)
             return redirect(reverse("settings"))
 
-    return render(
-        request,
-        "settings.html",
-        {
-            "connected": connected,
-        },
-    )
+    return render(request, "settings.html")
 
 
 @require_GET

@@ -178,6 +178,10 @@ def verify_firebase_sign_in(token: str, *, provider_access_token: str = "") -> t
         raise SocialLoginError("unsupported_sign_in_provider")
     name = (claims.get("name") or "").strip()
     email_verified = None
+    if button == "google" and not (claims.get("email") or "").strip():
+        identities = (firebase.get("identities") or {}).get("google.com") or []
+        subject = str(identities[0]) if identities else ""
+        claims = merge_google_email(claims, provider_access_token, subject=subject)
     if button == "github":
         uids = (firebase.get("identities") or {}).get("github.com") or []
         email, github_name = _github_verified_email(provider_access_token, str(uids[0]) if uids else "")
@@ -256,6 +260,38 @@ def _post_token(provider: Provider, code: str, redirect_uri: str) -> str:
 def fetch_profile(provider: Provider, code: str, redirect_uri: str) -> dict:
     """Exchange an authorization ``code`` and return the verified profile."""
     return profile_from_access_token(provider, _post_token(provider, code, redirect_uri))
+
+
+def google_userinfo(access_token: str) -> dict:
+    """Profile behind a Google access token. Used when an ID token has no email claim."""
+    r = requests.get(
+        "https://openidconnect.googleapis.com/v1/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=_HTTP_TIMEOUT,
+    )
+    if r.status_code != 200:
+        logger.warning("google userinfo failed status=%s", r.status_code)
+        raise SocialLoginError("failed")
+    data = r.json() or {}
+    if not isinstance(data, dict):
+        raise SocialLoginError("failed")
+    return data
+
+
+def merge_google_email(claims: dict, access_token: str, *, subject: str) -> dict:
+    """Fill email from Google userinfo when the signed token omitted it. ``sub`` must match."""
+    if (claims.get("email") or "").strip() or not (access_token or "").strip() or not subject:
+        return claims
+    info = google_userinfo(access_token)
+    if str(info.get("sub") or "") != str(subject):
+        raise SocialLoginError("invalid_token")
+    return {
+        **claims,
+        "email": info.get("email") or "",
+        "email_verified": info.get("email_verified"),
+        "given_name": claims.get("given_name") or info.get("given_name") or "",
+        "family_name": claims.get("family_name") or info.get("family_name") or "",
+    }
 
 
 def profile_from_access_token(provider: Provider, token: str) -> dict:
