@@ -13,9 +13,13 @@ from core.access import check_api_access
 from core.mail_accounts import (
     MAX_SLOTS_PER_TRANSPORT,
     MODE_GMAIL,
+    MODE_MICROSOFT,
     MODE_SMTP,
     TRANSPORT_GMAIL,
+    TRANSPORT_MICROSOFT,
     TRANSPORT_SMTP,
+    VALID_MODES,
+    VALID_TRANSPORTS,
     account_to_dict,
     active_transport_mode,
     build_effective_settings,
@@ -24,6 +28,7 @@ from core.mail_accounts import (
     create_account,
     ensure_legacy_migrated,
     get_account,
+    has_shared_gmail_oauth_client,
     list_accounts_for_user,
     mode_for_transport,
     next_free_slot,
@@ -31,6 +36,7 @@ from core.mail_accounts import (
     save_account_client_secret,
     set_active_transport_mode,
     transport_summary,
+    update_shared_gmail_client_secret_value,
 )
 from email_automation.smtp_client import SMTPClient
 
@@ -84,7 +90,7 @@ def api_mail_accounts_create(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     body = _json_body(request)
     transport = str(body.get("transport") or TRANSPORT_GMAIL).strip()
-    if transport not in (TRANSPORT_GMAIL, TRANSPORT_SMTP):
+    if transport not in VALID_TRANSPORTS:
         return JsonResponse({"ok": False, "error": "invalid_transport"}, status=400)
     if count_accounts(request.user, transport) >= MAX_SLOTS_PER_TRANSPORT:
         return JsonResponse({"ok": False, "error": "max_slots_reached"}, status=400)
@@ -198,7 +204,7 @@ def api_transport_mode(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     body = _json_body(request)
     mode = str(body.get("mode") or "").strip()
-    if mode not in (MODE_GMAIL, MODE_SMTP):
+    if mode not in VALID_MODES:
         return JsonResponse({"ok": False, "error": "invalid_mode"}, status=400)
     set_active_transport_mode(request.user, mode)
     return JsonResponse({"ok": True, "summary": transport_summary(request.user)})
@@ -256,32 +262,41 @@ def api_mail_account_disconnect_gmail(request, account_id: int):
     if not check_api_access(request):
         return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
     acc = get_account(request.user, int(account_id))
-    if acc is None or acc.transport != TRANSPORT_GMAIL:
+    if acc is None or acc.transport not in (TRANSPORT_GMAIL, TRANSPORT_MICROSOFT):
         return JsonResponse({"ok": False, "error": "not_found"}, status=404)
     clear_account_oauth(acc)
     return JsonResponse({"ok": True})
 
 
 def read_gmail_credentials_upload(request) -> tuple[str, str, str]:
-    """Validate multipart `gmail_address` + `client_secret` (.json). Returns (address, secret_json, error)."""
+    """Validate multipart upload. ``client_secret`` optional when shared app client exists.
+
+    Returns (address, secret_json, error). Empty secret_json means use shared client.
+    """
     from werkzeug.utils import secure_filename
 
     gmail_address = (request.POST.get("gmail_address") or "").strip()
+    secret_file = request.FILES.get("client_secret")
+    has_file = secret_file is not None and bool(getattr(secret_file, "name", ""))
+    if has_file:
+        if not secure_filename(secret_file.name).lower().endswith(".json"):
+            return "", "", "client_secret must be .json"
+        try:
+            secret_json = b"".join(secret_file.chunks()).decode("utf-8")
+            parsed = json.loads(secret_json)
+        except (UnicodeDecodeError, ValueError):
+            return "", "", "client_secret is not valid JSON"
+        if not isinstance(parsed, dict) or not ({"installed", "web"} & set(parsed)):
+            return "", "", "client_secret must be a Google OAuth client JSON (installed or web)"
+        if gmail_address and "@" not in gmail_address:
+            return "", "", "Missing gmail_address"
+        return gmail_address, secret_json, ""
+    if has_shared_gmail_oauth_client():
+        # One-click path: address optional (filled from Google profile after consent).
+        return gmail_address, "", ""
     if not gmail_address or "@" not in gmail_address:
         return "", "", "Missing gmail_address"
-    secret_file = request.FILES.get("client_secret")
-    if secret_file is None or not getattr(secret_file, "name", ""):
-        return "", "", "Missing client_secret"
-    if not secure_filename(secret_file.name).lower().endswith(".json"):
-        return "", "", "client_secret must be .json"
-    try:
-        secret_json = b"".join(secret_file.chunks()).decode("utf-8")
-        parsed = json.loads(secret_json)
-    except (UnicodeDecodeError, ValueError):
-        return "", "", "client_secret is not valid JSON"
-    if not isinstance(parsed, dict) or not ({"installed", "web"} & set(parsed)):
-        return "", "", "client_secret must be a Google OAuth client JSON (installed or web)"
-    return gmail_address, secret_json, ""
+    return "", "", "Missing client_secret"
 
 
 def _save_mailbox_gmail_credentials(request, account_id: int):
@@ -296,10 +311,86 @@ def _save_mailbox_gmail_credentials(request, account_id: int):
     gmail_address, secret_json, err = read_gmail_credentials_upload(request)
     if err:
         return None, JsonResponse({"ok": False, "error": err}, status=400)
-    save_account_client_secret(acc, secret_json)
-    patch_account_config(acc, {"GMAIL_ADDRESS": gmail_address})
+    if secret_json:
+        save_account_client_secret(acc, secret_json)
+    if gmail_address:
+        patch_account_config(acc, {"GMAIL_ADDRESS": gmail_address})
     acc.refresh_from_db()
     return acc, None
+
+
+@csrf_exempt
+@require_http_methods(["POST", "GET"])
+def api_mail_account_connect_oauth(request, account_id: int):
+    """One-click OAuth start (shared Google client or Microsoft Graph). Redirects to provider."""
+    from django.shortcuts import redirect
+    from django.urls import reverse
+
+    from core.views import setup_error_redirect
+
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    acc = get_account(request.user, int(account_id))
+    if acc is None:
+        return JsonResponse({"ok": False, "error": "not_found"}, status=404)
+
+    if acc.transport == TRANSPORT_GMAIL:
+        if not has_shared_gmail_oauth_client() and not acc.client_secret_enc:
+            return setup_error_redirect(request, "client_secret_missing", acc.id)
+        body = _json_body(request) if request.method == "POST" else {}
+        addr = str(body.get("gmail_address") or request.POST.get("gmail_address") or "").strip()
+        if addr and "@" in addr:
+            patch_account_config(acc, {"GMAIL_ADDRESS": addr})
+        request.session["oauth_account_id"] = acc.id
+        return redirect(reverse("oauth_start"))
+
+    if acc.transport == TRANSPORT_MICROSOFT:
+        from core import microsoft_oauth
+
+        if not microsoft_oauth.is_configured():
+            return setup_error_redirect(request, "microsoft_oauth_not_configured", acc.id)
+        try:
+            url = microsoft_oauth.start_authorization(
+                request, user_id=request.user.id, account_id=acc.id
+            )
+        except Exception as e:
+            return setup_error_redirect(request, f"microsoft_oauth_start_failed: {e}", acc.id)
+        return redirect(url)
+
+    return JsonResponse({"ok": False, "error": "unsupported_transport"}, status=400)
+
+
+def _can_update_shared_gmail_secret(request) -> bool:
+    """Only Django staff/superuser may rotate the server shared Google client secret.
+
+    End users must never see or set GOCSPX — that is MailPilot app config, not mailbox connect.
+    Optional escape hatch: ``MAILPILOT_ALLOW_SHARED_SECRET_UPDATE=1`` still requires staff.
+    """
+    user = getattr(request, "user", None)
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    return bool(getattr(user, "is_staff", False) or getattr(user, "is_superuser", False))
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_update_shared_gmail_client_secret(request):
+    """Rotate GOCSPX inside server shared client_secret.json (fixes invalid_client)."""
+    if not check_api_access(request):
+        return JsonResponse({"ok": False, "error": "unauthorized"}, status=401)
+    if not _can_update_shared_gmail_secret(request):
+        return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+    body = _json_body(request)
+    secret = str(
+        body.get("client_secret")
+        or body.get("secret")
+        or request.POST.get("client_secret")
+        or ""
+    ).strip()
+    ok, err = update_shared_gmail_client_secret_value(secret)
+    if not ok:
+        return JsonResponse({"ok": False, "error": err or "update_failed"}, status=400)
+    return JsonResponse({"ok": True, "shared_gmail_oauth": has_shared_gmail_oauth_client()})
 
 
 @csrf_exempt

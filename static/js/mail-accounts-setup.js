@@ -92,7 +92,14 @@
   function mailboxDisplayName(a) {
     if (!a) return 'mailbox';
     if (a.transport === 'smtp') return a.label || a.config?.SMTP_USERNAME || 'SMTP mailbox';
+    if (a.transport === 'microsoft_graph') return a.email || a.label || 'Microsoft mailbox';
     return a.email || a.label || 'Gmail mailbox';
+  }
+
+  function modeLabel(mode) {
+    if (mode === 'smtp') return 'SMTP';
+    if (mode === 'microsoft') return 'Microsoft';
+    return 'Gmail';
   }
 
   function mailboxPlanState(account) {
@@ -132,7 +139,12 @@
       let lockNote =
         'Plan inbox limit reached - pause another mailbox or <a href="/#pricing">upgrade</a>.';
       if (lim === 1 && primary) {
-        const transportLabel = primary.transport === 'gmail_api' ? 'Gmail' : 'SMTP';
+        const transportLabel =
+          primary.transport === 'gmail_api'
+            ? 'Gmail'
+            : primary.transport === 'microsoft_graph'
+              ? 'Microsoft'
+              : 'SMTP';
         lockNote =
           'Starter allows <strong>1 inbox</strong>. Active: <strong>' +
           esc(mailboxDisplayName(primary)) +
@@ -202,7 +214,12 @@
       el.innerHTML = '';
       return;
     }
-    const transportLabel = primary.transport === 'gmail_api' ? 'Gmail' : 'SMTP';
+    const transportLabel =
+          primary.transport === 'gmail_api'
+            ? 'Gmail'
+            : primary.transport === 'microsoft_graph'
+              ? 'Microsoft'
+              : 'SMTP';
     el.style.display = '';
     el.innerHTML =
       '<div class="oauth-h"><i class="fa-solid fa-lock" aria-hidden="true"></i> ' +
@@ -248,10 +265,16 @@
     const planTxt =
       lim == null
         ? 'Your plan allows unlimited active inboxes (up to ' + maxTransportSlots() + ' slots per transport).'
-        : 'Your plan allows <strong>' + lim + '</strong> active inbox' + (lim === 1 ? '' : 'es') + ' total across Gmail and SMTP.';
+        : 'Your plan allows <strong>' + lim + '</strong> active inbox' + (lim === 1 ? '' : 'es') + ' total across Gmail, Microsoft, and SMTP.';
     const gmailHint = document.getElementById('gmailInboxHint');
+    const microsoftHint = document.getElementById('microsoftInboxHint');
     const smtpHint = document.getElementById('smtpInboxHint');
     if (gmailHint) gmailHint.innerHTML = planTxt + ' Toggle each mailbox on/off. Only accounts in <strong>Gmail mode</strong> run automation.';
+    if (microsoftHint) {
+      microsoftHint.innerHTML =
+        planTxt +
+        ' Connect Outlook / Microsoft 365 with one click. Only accounts in <strong>Microsoft mode</strong> run automation.';
+    }
     if (smtpHint) {
       smtpHint.innerHTML =
         planTxt +
@@ -268,10 +291,12 @@
     renderPaymentBanner();
     updateInboxHints();
     renderGmailAccounts();
+    renderMicrosoftAccounts();
     renderSmtpAccounts();
     populateKbAccountSelect();
     updateTransportPill();
     renderTransportPlanNotice('gmailPlanNotice', 'gmail_api');
+    renderTransportPlanNotice('microsoftPlanNotice', 'microsoft_graph');
     renderTransportPlanNotice('smtpPlanNotice', 'smtp');
   }
 
@@ -282,7 +307,7 @@
     const modeEnabled = transportSummary.enabled_count ?? 0;
     const planUsed = planInboxUsed();
     const planLim = planInboxLimit();
-    const inactive = mode === 'gmail' ? 'SMTP' : 'Gmail';
+    const others = ['Gmail', 'Microsoft', 'SMTP'].filter((x) => x !== modeLabel(mode)).join(' / ');
     const planPill =
       planLim == null
         ? planUsed + ' active inbox' + (planUsed === 1 ? '' : 'es')
@@ -291,7 +316,7 @@
     el.innerHTML =
       '<div class="mode-banner">' +
       '<span>Active transport: <strong>' +
-      (mode === 'gmail' ? 'Gmail' : 'SMTP') +
+      modeLabel(mode) +
       '</strong> · ' +
       modeEnabled +
       ' in this mode</span>' +
@@ -301,8 +326,8 @@
       planPill +
       '</span>' +
       '<span class="mode-muted">' +
-      inactive +
-      ' mode inactive - switch tab to use</span>' +
+      others +
+      ' inactive - switch tab to use</span>' +
       '</div>';
   }
 
@@ -312,8 +337,7 @@
     const mode = transportSummary.active_mode || 'gmail';
     const planUsed = planInboxUsed();
     const planLim = planInboxLimit();
-    let label =
-      mode === 'gmail' ? 'Gmail mode' : 'SMTP mode';
+    let label = modeLabel(mode) + ' mode';
     if (planLim == null) {
       label += ' · ' + planUsed + ' active';
     } else {
@@ -340,12 +364,13 @@
   }
 
   window.showPanel = async function (which) {
-    const smtpOn = which === 'smtp';
-    document.getElementById('tabG')?.classList.toggle('on', !smtpOn);
-    document.getElementById('tabS')?.classList.toggle('on', smtpOn);
-    document.getElementById('pGmail')?.classList.toggle('on', !smtpOn);
-    document.getElementById('pSmtp')?.classList.toggle('on', smtpOn);
-    const mode = smtpOn ? 'smtp' : 'gmail';
+    const mode = which === 'smtp' ? 'smtp' : which === 'microsoft' ? 'microsoft' : 'gmail';
+    document.getElementById('tabG')?.classList.toggle('on', mode === 'gmail');
+    document.getElementById('tabM')?.classList.toggle('on', mode === 'microsoft');
+    document.getElementById('tabS')?.classList.toggle('on', mode === 'smtp');
+    document.getElementById('pGmail')?.classList.toggle('on', mode === 'gmail');
+    document.getElementById('pMicrosoft')?.classList.toggle('on', mode === 'microsoft');
+    document.getElementById('pSmtp')?.classList.toggle('on', mode === 'smtp');
     if ((transportSummary.active_mode || 'gmail') !== mode) {
       await setTransportMode(mode);
     }
@@ -353,6 +378,10 @@
 
   function gmailAccounts() {
     return mailAccounts.filter((a) => a.transport === 'gmail_api');
+  }
+
+  function microsoftAccounts() {
+    return mailAccounts.filter((a) => a.transport === 'microsoft_graph');
   }
 
   function smtpAccounts() {
@@ -396,6 +425,33 @@
       card?.classList.add('mb-highlight');
       card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+    maybeAutoStartGmailOAuth(list);
+  }
+
+  function maybeAutoStartGmailOAuth(list) {
+    const banner = document.getElementById('transportModeBanner');
+    const oauthError = (banner?.dataset?.oauthError || '').trim();
+    // Never auto-loop while OAuth just failed — user must retry intentionally.
+    if (oauthError) return;
+    const shared = !!transportSummary.shared_gmail_oauth;
+    if (!shared) return;
+    const target =
+      list.find((a) => String(a.id) === String(banner?.dataset?.highlightAccount || '')) ||
+      list.find((a) => !a.gmail_connected && !a.oauth_email_mismatch);
+    if (!target || target.gmail_connected) return;
+    const key = 'mp_auto_gmail_oauth_' + target.id;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/api/mail-accounts/' + target.id + '/connect-oauth';
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrfmiddlewaretoken';
+    csrf.value = csrfToken();
+    form.appendChild(csrf);
+    document.body.appendChild(form);
+    form.submit();
   }
 
   function renderGmailCard(a) {
@@ -490,10 +546,11 @@
   function renderGmailConnectForm(a, forceReconnect) {
     const addr = (a.email || a.config?.GMAIL_ADDRESS || '').trim();
     const emailVal = addr ? ' value="' + attrEsc(addr) + '" readonly' : '';
-    return (
+    const shared = !!(a.shared_gmail_oauth || transportSummary.shared_gmail_oauth);
+    const oneClick =
       '<form class="mb-connect-form" method="POST" action="/api/mail-accounts/' +
       a.id +
-      '/setup-credentials" enctype="multipart/form-data">' +
+      '/connect-oauth">' +
       '<input type="hidden" name="csrfmiddlewaretoken" value="' +
       csrfToken() +
       '">' +
@@ -501,15 +558,40 @@
         ? '<p class="small" style="margin:0 0 8px;color:var(--txm);">Sign in with <strong>' +
           esc(addr || 'this Gmail address') +
           '</strong> when Google asks.</p>'
+        : '<p class="small" style="margin:0 0 8px;color:var(--txm);">Authorize MailPilot to read and reply from this Gmail inbox.</p>') +
+      (addr
+        ? '<input type="hidden" name="gmail_address" value="' + attrEsc(addr) + '">'
         : '') +
+      '<button type="submit" class="btn btn-purp btn-block"><i class="fa-brands fa-google"></i> Connect with Google</button>' +
+      '</form>';
+    const byoForm =
+      '<form class="mb-connect-form" method="POST" action="/api/mail-accounts/' +
+      a.id +
+      '/setup-credentials" enctype="multipart/form-data">' +
+      '<input type="hidden" name="csrfmiddlewaretoken" value="' +
+      csrfToken() +
+      '">' +
       '<div class="fg"><label class="fl">Email</label>' +
       '<input class="fi" type="email" name="gmail_address" placeholder="you@company.com" required' +
       emailVal +
       '></div>' +
       '<div class="fg"><label class="fl">credentials.json</label>' +
       '<input class="fi" type="file" name="client_secret" accept="application/json" required></div>' +
-      '<button type="submit" class="btn btn-purp btn-block"><i class="fa-brands fa-google"></i> Connect OAuth</button>' +
-      '</form>'
+      '<button type="submit" class="btn btn-ghost btn-block"><i class="fa-solid fa-key"></i> Connect with uploaded client</button>' +
+      '</form>';
+    if (shared || a.has_client_secret) {
+      return (
+        oneClick +
+        '<details class="mb-advanced" style="margin-top:10px;">' +
+        '<summary class="small" style="cursor:pointer;color:var(--txm);">Advanced: use your own Google OAuth client</summary>' +
+        '<div style="margin-top:8px;">' +
+        byoForm +
+        '</div></details>'
+      );
+    }
+    return (
+      '<p class="small" style="margin:0 0 8px;color:var(--amber);">Server shared Google client is not configured. Set <code>GOOGLE_OAUTH_CLIENT_ID</code> + <code>GOOGLE_OAUTH_CLIENT_SECRET</code> in <code>.env</code>, or upload a Web client JSON below.</p>' +
+      byoForm
     );
   }
 
@@ -564,7 +646,191 @@
           method: 'POST',
           body: JSON.stringify({ transport: 'gmail_api' }),
         });
-        if (!res.ok || !j.ok) showPlanError(j, 'Could not add Gmail mailbox');
+        if (!res.ok || !j.ok) {
+          showPlanError(j, 'Could not add Gmail mailbox');
+          return;
+        }
+        const created = j.account || j;
+        const shared = !!(created.shared_gmail_oauth || transportSummary.shared_gmail_oauth);
+        // One-click automatic connect: create mailbox then start Google OAuth immediately.
+        if (shared && created.id) {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '/api/mail-accounts/' + created.id + '/connect-oauth';
+          const csrf = document.createElement('input');
+          csrf.type = 'hidden';
+          csrf.name = 'csrfmiddlewaretoken';
+          csrf.value = csrfToken();
+          form.appendChild(csrf);
+          document.body.appendChild(form);
+          form.submit();
+          return;
+        }
+        await loadMailAccounts();
+      });
+    }
+  }
+
+  function renderMicrosoftAccounts() {
+    const host = document.getElementById('microsoftAccountsList');
+    if (!host) return;
+    const list = microsoftAccounts();
+    const split = splitAccountsForPlan(list);
+    let html = '';
+    split.visible.forEach((a) => {
+      html += renderMicrosoftCard(a);
+    });
+    split.lockedExtra.forEach((a) => {
+      const overLimit = a.is_enabled && planInboxLimit() != null && planInboxUsed() > planInboxLimit();
+      html += overLimit ? renderMicrosoftCard(a) : renderLockedSlotCard(a, 'Starter');
+    });
+    const showAdd = split.visible.length + split.lockedExtra.length < maxTransportSlots();
+    if (showAdd && split.lockedExtra.length === 0) {
+      if (canAddMailbox()) {
+        html +=
+          '<div class="mb-card mb-card-empty" data-action="add-microsoft">' +
+          '<i class="fa-solid fa-plus"></i> Add Microsoft account (' +
+          list.length +
+          '/' +
+          maxTransportSlots() +
+          ' slots)</div>';
+      } else {
+        html +=
+          '<div class="mb-card mb-card-empty mb-card-locked" title="Plan inbox limit reached">' +
+          '<i class="fa-solid fa-lock"></i> Inbox limit reached - <a href="/#pricing">upgrade</a></div>';
+      }
+    }
+    host.innerHTML = html || '<p class="small">No Microsoft mailboxes yet.</p>';
+    wireMicrosoftCards();
+  }
+
+  function renderMicrosoftCard(a) {
+    const plan = mailboxPlanState(a);
+    const connected = !!a.microsoft_connected || (!!a.has_token && a.transport === 'microsoft_graph' && a.inbox_ready);
+    const paused = !a.is_enabled;
+    const statusCls = plan.locked ? 'warn' : connected ? (paused ? 'info' : 'ok') : 'bad';
+    const statusTxt = plan.locked
+      ? plan.reason === 'over_limit'
+        ? 'Over limit'
+        : 'Locked'
+      : connected
+        ? paused
+          ? 'Paused'
+          : 'Active'
+        : 'Not connected';
+    const email = a.email || a.label || 'Microsoft slot ' + a.slot;
+    const msConfigured = !!transportSummary.microsoft_oauth_configured;
+    const connectForm = msConfigured
+      ? '<form class="mb-connect-form" method="POST" action="/api/mail-accounts/' +
+        a.id +
+        '/connect-oauth">' +
+        '<input type="hidden" name="csrfmiddlewaretoken" value="' +
+        csrfToken() +
+        '">' +
+        '<p class="small" style="margin:0 0 8px;color:var(--txm);">Sign in with Outlook or Microsoft 365.</p>' +
+        '<button type="submit" class="btn btn-purp btn-block"><i class="fa-brands fa-microsoft"></i> Connect with Microsoft</button>' +
+        '</form>'
+      : '<p class="small" style="color:var(--amber);">Microsoft OAuth is not configured on the server. Set <code>MICROSOFT_OAUTH_CLIENT_ID</code> and <code>MICROSOFT_OAUTH_CLIENT_SECRET</code>.</p>';
+    const toggleDisabled = plan.locked ? !plan.canDisable : !plan.canEnable && !a.is_enabled;
+    const bodyHtml =
+      '<div class="mb-card-meta">KB: ' +
+      (a.kb_chunk_count ?? 0) +
+      ' chunks</div>' +
+      (connected
+        ? '<button type="button" class="btn btn-ghost btn-sm" data-disc-ms="' +
+          a.id +
+          '">Disconnect</button>'
+        : connectForm +
+          '<div class="mb-card-actions"><button type="button" class="btn btn-ghost btn-sm" data-del-ms="' +
+          a.id +
+          '"><i class="fa-solid fa-trash-can"></i> Remove</button></div>');
+    return (
+      '<article class="mb-card' +
+      (paused ? ' mb-paused' : '') +
+      (plan.locked ? ' mb-card-plan-locked' : '') +
+      '" data-account-id="' +
+      a.id +
+      '">' +
+      '<header class="mb-card-hd">' +
+      '<div class="mb-card-title"><span class="mb-slot">#' +
+      a.slot +
+      '</span> ' +
+      esc(email) +
+      '</div>' +
+      '<label class="mb-switch" title="Run automation">' +
+      '<input type="checkbox" class="mb-enable-ms" data-id="' +
+      a.id +
+      '" ' +
+      (a.is_enabled ? 'checked' : '') +
+      (toggleDisabled ? ' disabled' : '') +
+      '>' +
+      '<span class="mb-switch-ui"></span></label>' +
+      '<span class="pill ' +
+      statusCls +
+      '">' +
+      statusTxt +
+      '</span>' +
+      '</header>' +
+      planLockBannerHtml(plan.lockNote) +
+      '<div class="mb-card-body-lock">' +
+      bodyHtml +
+      '</div>' +
+      '</article>'
+    );
+  }
+
+  function wireMicrosoftCards() {
+    document.querySelectorAll('.mb-enable-ms').forEach((inp) => {
+      inp.addEventListener('change', async () => {
+        const id = inp.dataset.id;
+        const account = mailAccounts.find((a) => String(a.id) === String(id));
+        const plan = account ? mailboxPlanState(account) : { canEnable: true };
+        if (inp.checked && !plan.canEnable) {
+          inp.checked = false;
+          showPlanError({ upgrade_required: true, error: 'plan_inbox_limit_reached' }, 'Could not enable mailbox');
+          return;
+        }
+        const { res, j } = await apiJson('/api/mail-accounts/' + id + '/', {
+          method: 'PATCH',
+          body: JSON.stringify({ is_enabled: inp.checked }),
+        });
+        if (!res.ok || !j.ok) {
+          inp.checked = !inp.checked;
+          showPlanError(j, 'Could not update mailbox');
+        }
+        await loadMailAccounts();
+      });
+    });
+    document.querySelectorAll('[data-disc-ms]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Disconnect Microsoft OAuth for this mailbox?')) return;
+        const { res, j } = await apiJson('/api/mail-accounts/' + btn.dataset.discMs + '/disconnect-gmail', {
+          method: 'POST',
+          body: '{}',
+        });
+        if (!res.ok || !j.ok) showPlanError(j, 'Could not disconnect Microsoft');
+        await loadMailAccounts();
+      });
+    });
+    document.querySelectorAll('[data-del-ms]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Remove this Microsoft mailbox?')) return;
+        const { res, j } = await apiJson('/api/mail-accounts/' + btn.dataset.delMs + '/', {
+          method: 'DELETE',
+          body: '{}',
+        });
+        if (!res.ok || !j.ok) showPlanError(j, 'Could not remove Microsoft mailbox');
+        await loadMailAccounts();
+      });
+    });
+    const add = document.querySelector('[data-action="add-microsoft"]');
+    if (add) {
+      add.addEventListener('click', async () => {
+        const { res, j } = await apiJson('/api/mail-accounts/create', {
+          method: 'POST',
+          body: JSON.stringify({ transport: 'microsoft_graph' }),
+        });
+        if (!res.ok || !j.ok) showPlanError(j, 'Could not add Microsoft mailbox');
         await loadMailAccounts();
       });
     }
@@ -978,17 +1244,68 @@
     return id ? '?account_id=' + encodeURIComponent(id) : '';
   };
 
+  function wireSharedSecretFix() {
+    const btn = document.getElementById('btnSaveSharedSecret');
+    const input = document.getElementById('sharedGocspx');
+    const status = document.getElementById('sharedSecretFixStatus');
+    if (!btn || !input) return;
+    btn.addEventListener('click', async () => {
+      const secret = (input.value || '').trim();
+      if (!secret) {
+        if (status) status.textContent = 'Paste the GOCSPX secret first.';
+        return;
+      }
+      btn.disabled = true;
+      if (status) status.textContent = 'Saving…';
+      const { res, j } = await apiJson('/api/gmail/shared-client-secret', {
+        method: 'POST',
+        body: JSON.stringify({ client_secret: secret }),
+      });
+      if (!res.ok || !j.ok) {
+        if (status) status.textContent = (j && j.error) || 'Could not save secret';
+        btn.disabled = false;
+        return;
+      }
+      if (status) status.textContent = 'Saved. Starting Connect…';
+      // Clear sticky oauth error so auto-retry / manual connect works.
+      try {
+        sessionStorage.clear();
+      } catch (_) {}
+      const gmail = (mailAccounts || []).find((a) => a.transport === 'gmail_api') || null;
+      if (gmail) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/api/mail-accounts/' + gmail.id + '/connect-oauth';
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = 'csrfmiddlewaretoken';
+        csrf.value = csrfToken();
+        form.appendChild(csrf);
+        document.body.appendChild(form);
+        form.submit();
+        return;
+      }
+      window.location.href = '/setup';
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     const banner = document.getElementById('transportModeBanner');
     const highlight = banner?.dataset?.highlightAccount || '';
     const initialMode = banner?.dataset?.initialMode || 'gmail';
     if (highlight) document.body.dataset.highlightAccount = highlight;
+    wireSharedSecretFix();
     loadMailAccounts().then(() => {
       if (initialMode === 'smtp') {
         document.getElementById('tabG')?.classList.remove('on');
         document.getElementById('tabS')?.classList.add('on');
         document.getElementById('pGmail')?.classList.remove('on');
         document.getElementById('pSmtp')?.classList.add('on');
+      } else if (initialMode === 'microsoft') {
+        document.getElementById('tabG')?.classList.remove('on');
+        document.getElementById('tabM')?.classList.add('on');
+        document.getElementById('pGmail')?.classList.remove('on');
+        document.getElementById('pMicrosoft')?.classList.add('on');
       }
     });
   });

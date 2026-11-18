@@ -8,13 +8,19 @@ from pydantic import BaseModel, Field, SecretStr, field_validator
 class Settings(BaseModel):
     # Core behavior
     REPLY_MODE: str = "draft"
-    SEND_TRANSPORT: Literal["gmail_api", "smtp"] = "gmail_api"
+    SEND_TRANSPORT: Literal["gmail_api", "smtp", "microsoft_graph"] = "gmail_api"
 
-    # Gmail OAuth / API
+    # Gmail OAuth / API (GOOGLE_TOKEN_FILE also stores Microsoft Graph token JSON)
     GMAIL_ADDRESS: str = ""
     GOOGLE_CLIENT_SECRET_FILE: str = ""
     GOOGLE_TOKEN_FILE: str = ""
     OAUTH_REDIRECT_URI: str = ""
+
+    # Microsoft Graph OAuth (app-level; redirect may also come from env)
+    MICROSOFT_OAUTH_CLIENT_ID: str = ""
+    MICROSOFT_OAUTH_CLIENT_SECRET: SecretStr | None = None
+    MICROSOFT_OAUTH_REDIRECT_URI: str = ""
+    MICROSOFT_OAUTH_TENANT: str = "common"
 
     # Worker
     WORKER_ONCE: bool = False

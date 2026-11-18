@@ -812,18 +812,36 @@
             <span class="pill" id="transportPill">-</span>
           </div>
 
-          <div id="transportModeBanner" data-highlight-account="{{ highlight_account_id|default:'' }}" data-initial-mode="{{ transport_summary.active_mode|default:'gmail' }}"></div>
+          <div id="transportModeBanner" data-highlight-account="{{ highlight_account_id|default:'' }}" data-initial-mode="{{ transport_summary.active_mode|default:'gmail' }}" data-oauth-error="{{ oauth_error|default:''|escape }}"></div>
           <div class="oauth-box" id="paymentRequiredBanner" style="display:none;"></div>
 
           {% if oauth_error %}
-            <div class="oauth-box" style="border-color: rgba(248,113,113,.18); margin-bottom:14px;">
-              <div class="oauth-h"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="color: var(--red);"></i> Google OAuth did not finish</div>
-              <p class="oauth-txt" style="margin:0;"><span class="code-inline" style="word-break:break-all;">{{ oauth_error }}</span></p>
+            <div class="oauth-box" id="oauthErrorBox" style="border-color: rgba(248,113,113,.18); margin-bottom:14px;">
+              <div class="oauth-h"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="color: var(--red);"></i> {% if oauth_error_is_microsoft %}Microsoft OAuth did not finish{% else %}Google OAuth did not finish{% endif %}</div>
+              {% if oauth_error == "gmail_connect_temporarily_unavailable" %}
+              <p class="oauth-txt" style="margin:0;">Gmail connect is temporarily unavailable. Please try again later or contact support.</p>
+              {% elif oauth_error == "microsoft_oauth_not_configured" %}
+              <p class="oauth-txt" style="margin:0;">Set <code>MICROSOFT_OAUTH_CLIENT_ID</code> and <code>MICROSOFT_OAUTH_CLIENT_SECRET</code> in server <code>.env</code>, add the redirect URI in Azure, then restart.</p>
+              {% else %}
+              <p class="oauth-txt" style="margin:0 0 10px;"><span class="code-inline" style="word-break:break-all;">{{ oauth_error }}</span></p>
+              {% endif %}
+              {% if can_fix_shared_gmail_secret and "invalid_client" in oauth_error %}
+              <div id="sharedSecretFix" style="margin-top:8px;padding-top:10px;border-top:1px solid rgba(248,113,113,.15);">
+                <p class="oauth-txt" style="margin:0 0 8px;"><strong>Staff only:</strong> Update the server shared Google client secret, then retry Connect.</p>
+                <div class="fg" style="margin-bottom:8px;">
+                  <label class="fl" for="sharedGocspx">Server client secret (GOCSPX-…)</label>
+                  <input class="fi" id="sharedGocspx" type="password" autocomplete="off" placeholder="GOCSPX-…" style="font-family:ui-monospace,monospace;">
+                </div>
+                <button type="button" class="btn btn-purp" id="btnSaveSharedSecret"><i class="fa-solid fa-key"></i> Save server secret &amp; retry</button>
+                <span class="small" id="sharedSecretFixStatus" style="margin-left:10px;color:var(--txm);"></span>
+              </div>
+              {% endif %}
             </div>
           {% endif %}
 
           <div class="tabs" role="tablist" aria-label="Email setup mode">
             <button class="tab on" id="tabG" type="button" onclick="showPanel('gmail')"><i class="fa-brands fa-google" aria-hidden="true"></i> Gmail</button>
+            <button class="tab" id="tabM" type="button" onclick="showPanel('microsoft')"><i class="fa-brands fa-microsoft" aria-hidden="true"></i> Microsoft</button>
             <button class="tab" id="tabS" type="button" onclick="showPanel('smtp')"><i class="fa-solid fa-envelope" aria-hidden="true"></i> SMTP</button>
           </div>
 
@@ -831,14 +849,33 @@
             <div class="hint" id="gmailInboxHint">Loading plan limits…</div>
             <div class="oauth-box" id="gmailPlanNotice" style="display:none;margin-bottom:14px;border-color:rgba(251,191,36,.25);"></div>
             <div class="oauth-box" style="margin-bottom:14px;">
-              <div class="oauth-h"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> OAuth redirect URI</div>
-              <p class="oauth-txt">Use <strong>Web application</strong> client in Google Cloud Console:</p>
+              <div class="oauth-h"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Connect with Google</div>
+              <p class="oauth-txt" style="margin:0 0 8px;">One-click OAuth using the server shared Google client.</p>
+              <p class="oauth-txt" style="margin:0 0 6px;">Redirect URI (Google Cloud Console → Web application):</p>
               <div class="url-box" role="group" aria-label="Redirect URI">
                 <span class="url-txt" id="redirTxt">{{ oauth_redirect_uri }}</span>
                 <button class="cp-btn" type="button" onclick="cpRedirect()" title="Copy">Copy</button>
               </div>
             </div>
             <div id="gmailAccountsList"></div>
+          </div>
+
+          <div class="panel" id="pMicrosoft">
+            <div class="hint" id="microsoftInboxHint">Loading plan limits…</div>
+            <div class="oauth-box" id="microsoftPlanNotice" style="display:none;margin-bottom:14px;border-color:rgba(251,191,36,.25);"></div>
+            <div class="oauth-box" style="margin-bottom:14px;" data-ms-configured="{% if microsoft_oauth_configured %}1{% else %}0{% endif %}">
+              <div class="oauth-h"><i class="fa-brands fa-microsoft" aria-hidden="true"></i> Connect with Microsoft</div>
+              <p class="oauth-txt" style="margin:0 0 8px;">Outlook / Microsoft 365 via Microsoft Graph OAuth. No app passwords required.</p>
+              <p class="oauth-txt" style="margin:0 0 6px;">Redirect URI (Azure → App registration → Authentication → Web):</p>
+              <div class="url-box" role="group" aria-label="Microsoft Redirect URI">
+                <span class="url-txt" id="msRedirTxt">{{ microsoft_oauth_redirect_uri }}</span>
+                <button class="cp-btn" type="button" onclick="cpMsRedirect()" title="Copy">Copy</button>
+              </div>
+              {% if not microsoft_oauth_configured %}
+              <p class="oauth-txt" style="margin:10px 0 0;color:var(--amber);">Server is missing <code>MICROSOFT_OAUTH_CLIENT_ID</code> / <code>MICROSOFT_OAUTH_CLIENT_SECRET</code>. Add them in <code>.env</code> then restart.</p>
+              {% endif %}
+            </div>
+            <div id="microsoftAccountsList"></div>
           </div>
 
           <div class="panel" id="pSmtp">
@@ -855,7 +892,7 @@
           <div class="content-aside">
             <div class="aside-card">
               <div class="aside-title"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Mailboxes</div>
-              <div class="aside-desc">Gmail and SMTP modes are mutually exclusive. Paused mailboxes keep credentials but skip poll/send.</div>
+              <div class="aside-desc">Gmail, Microsoft, and SMTP modes are mutually exclusive. Paused mailboxes keep credentials but skip poll/send.</div>
             </div>
             <div class="aside-card" style="margin-top:12px;">
               <div class="aside-title"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Next</div>
@@ -1344,6 +1381,11 @@
 
     function cpRedirect(){
       const t = document.getElementById('redirTxt')?.textContent || '';
+      if(!t) return;
+      navigator.clipboard?.writeText(t);
+    }
+    function cpMsRedirect(){
+      const t = document.getElementById('msRedirTxt')?.textContent || '';
       if(!t) return;
       navigator.clipboard?.writeText(t);
     }
@@ -2649,7 +2691,7 @@
 
     _smtpWireFieldErrorClearing();
   </script>
-  <script src="{% static 'js/mail-accounts-setup.js' %}?v=10"></script>
+  <script src="{% static 'js/mail-accounts-setup.js' %}?v=18"></script>
   <script>
     async function refreshBillingStrip(){
       const el = document.getElementById('billingStripText');

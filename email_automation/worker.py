@@ -247,7 +247,7 @@ def _send_reply_via_transport(
     body_text: str,
     thread_id: str | None = None,
 ) -> str:
-    if settings.SEND_TRANSPORT == "gmail_api" and gmail_client is not None:
+    if settings.SEND_TRANSPORT in ("gmail_api", "microsoft_graph") and gmail_client is not None:
         return str(
             gmail_client.send_reply(
                 to_email=to_email,

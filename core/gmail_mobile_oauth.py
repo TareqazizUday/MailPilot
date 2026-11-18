@@ -55,22 +55,28 @@ def with_query(url: str, params: dict[str, Any]) -> str:
 
 
 def build_flow(effective, redirect_uri: str):
-    from google_auth_oauthlib.flow import Flow
+    from core.gmail_oauth_client import build_gmail_oauth_flow, has_shared_gmail_oauth_client
 
-    return Flow.from_client_secrets_file(
-        effective.GOOGLE_CLIENT_SECRET_FILE,
-        scopes=effective.gmail_scopes(),
-        redirect_uri=redirect_uri,
-        autogenerate_code_verifier=False,
-    )
+    secrets_file = (effective.GOOGLE_CLIENT_SECRET_FILE or "").strip() or None
+    if secrets_file and os.path.isfile(secrets_file):
+        return build_gmail_oauth_flow(
+            scopes=effective.gmail_scopes(),
+            redirect_uri=redirect_uri,
+            secrets_file=secrets_file,
+        )
+    if has_shared_gmail_oauth_client():
+        return build_gmail_oauth_flow(scopes=effective.gmail_scopes(), redirect_uri=redirect_uri)
+    raise FileNotFoundError("client_secret_missing")
 
 
 def start(user, account, *, redirect_uri: str, return_to: str) -> tuple[str, str]:
     """Return (authorization_url, state) and remember who started the flow."""
+    from core.gmail_oauth_client import has_shared_gmail_oauth_client
     from core.mail_accounts import build_effective_settings
 
     effective = build_effective_settings(user, account_id=account.id)
-    if not os.path.exists(effective.GOOGLE_CLIENT_SECRET_FILE):
+    secrets_file = (effective.GOOGLE_CLIENT_SECRET_FILE or "").strip()
+    if not (secrets_file and os.path.isfile(secrets_file)) and not has_shared_gmail_oauth_client():
         raise FileNotFoundError("client_secret_missing")
     flow = build_flow(effective, redirect_uri)
     authorization_url, state = flow.authorization_url(
@@ -94,24 +100,27 @@ def pending(state: str) -> dict[str, Any] | None:
 
 
 def email_mismatch_error(account, creds) -> str:
-    expected = str((account.config_json or {}).get("GMAIL_ADDRESS") or "").strip()
-    if not expected:
-        return ""
+    """Bind mailbox to the signed-in Google profile. Always returns '' (soft bind)."""
     from googleapiclient.discovery import build
+
+    from core.mail_accounts import patch_account_config
 
     svc = build("gmail", "v1", credentials=creds, cache_discovery=False)
     profile = str(svc.users().getProfile(userId="me").execute().get("emailAddress") or "").strip()
-    if profile.lower() == expected.lower():
-        return ""
-    return f"oauth_email_mismatch: signed in as {profile}, this mailbox expects {expected}"
+    if profile:
+        patch_account_config(account, {"GMAIL_ADDRESS": profile})
+    return ""
 
 
 def exchange_and_save(account, *, code: str, redirect_uri: str) -> str:
     """Exchange `code`, save the token on `account`. Returns an error string, or '' on success."""
     from core.mail_accounts import build_effective_settings, save_account_oauth_token
 
+    from core.gmail_oauth_client import has_shared_gmail_oauth_client
+
     effective = build_effective_settings(account.user, account_id=account.id)
-    if not os.path.exists(effective.GOOGLE_CLIENT_SECRET_FILE):
+    secrets_file = (effective.GOOGLE_CLIENT_SECRET_FILE or "").strip()
+    if not (secrets_file and os.path.isfile(secrets_file)) and not has_shared_gmail_oauth_client():
         return "client_secret_missing"
     flow = build_flow(effective, redirect_uri)
     try:

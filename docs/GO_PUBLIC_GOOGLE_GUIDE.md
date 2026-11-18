@@ -99,9 +99,9 @@ EXPO_PUBLIC_WEB_BASE_URL=https://your-domain
 
 ### খ১. এখনকার অবস্থা
 
-প্রতিটা ইউজারকে নিজের Google Cloud প্রজেক্ট বানিয়ে `client_secret.json` আপলোড করতে হয় (Setup পেজে)। এতে Google-এর কোনো ভেরিফিকেশন লাগে না, কিন্তু সাধারণ ইউজারের জন্য এটা খুব কঠিন, আর বেশিরভাগ ইউজার এখানেই আটকে যাবে।
+Setup-এ **Connect with Google** one-click আছে: সার্ভারের shared Web OAuth client (`GOOGLE_CLIENT_SECRET_FILE` বা `GMAIL_OAUTH_CLIENT_SECRET_FILE`) দিয়ে ইউজারকে আর নিজের `client_secret.json` আপলোড করতে হয় না। Advanced-এ BYO credentials এখনও optional।
 
-"সবার জন্য এক ক্লিকে Connect Gmail" চাইলে MailPilot-এর **নিজের একটা কেন্দ্রীয় OAuth client** লাগবে। এর জন্য Google-এর **restricted scope verification** পার হতে হবে।
+Public ইউজারদের জন্য Google-এর **restricted scope verification** (CASA) এখনও ops-এর কাজ—Testing mode / ১০০-user production cap দিয়ে আগে চালানো যায়। বিস্তারিত: [`docs/OAUTH_MAILBOX_CONNECT.md`](OAUTH_MAILBOX_CONNECT.md)।
 
 ### খ২. কেন এটা কঠিন
 
@@ -117,10 +117,10 @@ EXPO_PUBLIC_WEB_BASE_URL=https://your-domain
 - `email_automation/settings.py`-এ এখন চারটা scope আছে। `gmail.modify` নিজেই পড়া, লেখা আর পাঠানো সব করতে পারে। তাই শুধু `gmail.modify` রাখলে রিভিউ সহজ হয়।
 - বদলানোর পর আগের সংযুক্ত অ্যাকাউন্টগুলোকে একবার আবার সংযোগ করতে হতে পারে।
 
-**ধাপ ২: কেন্দ্রীয় OAuth client।** এটাও কোডে পরিবর্তন।
+**ধাপ ২: কেন্দ্রীয় OAuth client।** কোডে fallback ইমপ্লিমেন্ট করা আছে (`shared_gmail_client_secret_path` / `build_effective_settings`)।
 - অংশ ক-এর একই Google প্রজেক্টে **Gmail API** চালু করো (APIs & Services → Library → Gmail API → Enable)।
-- নতুন একটা Web OAuth client বানাও, redirect URI দাও `https://your-domain/api/gmail/oauth/callback`।
-- সার্ভারে এই client-কে ডিফল্ট হিসেবে ব্যবহার করতে হবে, যাতে ইউজারকে আর `client_secret.json` আপলোড করতে না হয়। এটা এখনকার কোডে নেই, আলাদা করে বানাতে হবে।
+- Web OAuth client বানাও, redirect URI দাও `https://your-domain/api/gmail/oauth/callback`।
+- সার্ভারে client JSON path সেট করো: `GOOGLE_CLIENT_SECRET_FILE=` (বা `GMAIL_OAUTH_CLIENT_SECRET_FILE=`)।
 - `.env`-এ `OAUTH_REDIRECT_URI=https://your-domain/api/gmail/oauth/callback` দিতে হবে।
 
 **ধাপ ৩: Privacy Policy আপডেট।** Google এই বিষয়গুলো স্পষ্ট লেখা চায়:
@@ -190,7 +190,8 @@ EXPO_PUBLIC_WEB_BASE_URL=https://your-domain
 - [ ] Search Console-এ ডোমেইন verify (লোগো দেখাতে চাইলে)
 - [ ] অ্যাপের `EXPO_PUBLIC_API_BASE_URL` প্রোডাকশন ডোমেইনে
 - [ ] SMTP/IMAP App Password নির্দেশনা Setup পেজে
-- [ ] কোড: Gmail scope কমানো + কেন্দ্রীয় OAuth client
+- [x] কোড: কেন্দ্রীয় OAuth client (shared server client + Setup one-click)
+- [ ] কোড: Gmail scope কমানো (optional; verification সহজ করতে)
 - [ ] Gmail API চালু, Gmail OAuth client, `OAUTH_REDIRECT_URI`
 - [ ] Privacy Policy-তে Google ডাটা ব্যবহার আর Limited Use ঘোষণা
 - [ ] Demo video (YouTube, Unlisted)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from django.http import HttpResponseBase, JsonResponse
@@ -11,7 +12,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
-from google_auth_oauthlib.flow import Flow
 
 from core import views as legacy_views
 from core import runtime
@@ -334,6 +334,8 @@ def gmail_oauth_exchange(request):
         return _exchange_for_account(request, ser.validated_data["account_id"], code=code, state=state)
 
     try:
+        from core.gmail_oauth_client import build_gmail_oauth_flow
+
         effective = runtime.get_effective_settings(request.user)
         client_secret_path = effective.GOOGLE_CLIENT_SECRET_FILE
         callback_url = (effective.OAUTH_REDIRECT_URI or "").strip() or ""
@@ -342,11 +344,10 @@ def gmail_oauth_exchange(request):
                 {"ok": False, "error": "OAUTH_REDIRECT_URI_not_set"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        flow = Flow.from_client_secrets_file(
-            client_secret_path,
+        flow = build_gmail_oauth_flow(
             scopes=effective.gmail_scopes(),
             redirect_uri=callback_url.rstrip("/"),
-            autogenerate_code_verifier=False,
+            secrets_file=client_secret_path if client_secret_path and os.path.isfile(client_secret_path) else None,
         )
         flow.fetch_token(code=code)
         creds = flow.credentials

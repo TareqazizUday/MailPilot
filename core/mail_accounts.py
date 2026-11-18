@@ -44,8 +44,13 @@ def can_enable_more(user: User, transport: str, *, excluding_account_id: int | N
 
 TRANSPORT_GMAIL = "gmail_api"
 TRANSPORT_SMTP = "smtp"
+TRANSPORT_MICROSOFT = "microsoft_graph"
 MODE_GMAIL = "gmail"
 MODE_SMTP = "smtp"
+MODE_MICROSOFT = "microsoft"
+
+VALID_TRANSPORTS = (TRANSPORT_GMAIL, TRANSPORT_SMTP, TRANSPORT_MICROSOFT)
+VALID_MODES = (MODE_GMAIL, MODE_SMTP, MODE_MICROSOFT)
 
 
 def user_data_dir(user_id: int) -> Path:
@@ -77,16 +82,113 @@ def client_secret_path_for_user(user_id: int) -> str:
     return str(user_data_dir(user_id) / "client_secret.json")
 
 
+def shared_gmail_client_secret_path() -> str:
+    from core.gmail_oauth_client import shared_gmail_client_secret_path as _path
+
+    return _path()
+
+
+def has_shared_gmail_oauth_client() -> bool:
+    from core.gmail_oauth_client import has_shared_gmail_oauth_client as _has
+
+    return _has()
+
+
+def resolve_gmail_client_secret_path(user_id: int, account: MailAccount | None) -> str:
+    """Per-account BYO secret if uploaded; else shared JSON path (may be unused when env-only).
+
+    One-click Connect uses ``GOOGLE_OAUTH_CLIENT_ID`` / ``GOOGLE_OAUTH_CLIENT_SECRET``
+    or the shared JSON file. BYO uploads set ``client_secret_enc`` and win for that mailbox.
+    """
+    if account is not None:
+        acc_path = client_secret_path_for_account(user_id, account.id)
+        if account.client_secret_enc:
+            if not os.path.isfile(acc_path):
+                sync_account_files_to_disk(user_id, account)
+            if os.path.isfile(acc_path):
+                return acc_path
+    shared = shared_gmail_client_secret_path()
+    if os.path.isfile(shared):
+        return shared
+    if account is not None:
+        return client_secret_path_for_account(user_id, account.id)
+    return client_secret_path_for_user(user_id)
+
+
+def update_shared_gmail_client_secret_value(new_secret: str) -> tuple[bool, str]:
+    """Rotate shared client secret in JSON file and/or advise env update.
+
+    Returns (ok, error_message). Prefer setting ``GOOGLE_OAUTH_CLIENT_SECRET`` in ``.env``.
+    """
+    secret = (new_secret or "").strip()
+    if not secret:
+        return False, "empty_secret"
+    if len(secret) < 8:
+        return False, "secret_too_short"
+    path = Path(shared_gmail_client_secret_path())
+    if path.is_file():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False, "shared_client_invalid_json"
+        if not isinstance(data, dict):
+            return False, "shared_client_invalid_json"
+        block_key = (
+            "web"
+            if isinstance(data.get("web"), dict)
+            else ("installed" if isinstance(data.get("installed"), dict) else "")
+        )
+        if not block_key:
+            return False, "shared_client_missing_web_block"
+        block = dict(data[block_key])
+        block["client_secret"] = secret
+        data[block_key] = block
+        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        return True, ""
+    # Env-based deploy: update process env + `.env` on disk when possible.
+    if (os.environ.get("GOOGLE_OAUTH_CLIENT_ID") or os.environ.get("GMAIL_OAUTH_CLIENT_ID") or "").strip():
+        os.environ["GOOGLE_OAUTH_CLIENT_SECRET"] = secret
+        env_path = Path(dj_settings.BASE_DIR) / ".env"
+        if env_path.is_file():
+            try:
+                lines = env_path.read_text(encoding="utf-8").splitlines()
+                out: list[str] = []
+                replaced = False
+                for line in lines:
+                    if line.startswith("GOOGLE_OAUTH_CLIENT_SECRET=") or line.startswith(
+                        "GMAIL_OAUTH_CLIENT_SECRET="
+                    ):
+                        out.append(f"GOOGLE_OAUTH_CLIENT_SECRET={secret}")
+                        replaced = True
+                    else:
+                        out.append(line)
+                if not replaced:
+                    out.append(f"GOOGLE_OAUTH_CLIENT_SECRET={secret}")
+                env_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+            except OSError:
+                return False, "dotenv_write_failed"
+        return True, ""
+    return False, "shared_client_missing"
+
+
 def tenant_id_for_account(user_id: int, account_id: int) -> str:
     return f"{user_id}:{account_id}"
 
 
 def transport_for_mode(mode: str) -> str:
-    return TRANSPORT_SMTP if mode == MODE_SMTP else TRANSPORT_GMAIL
+    if mode == MODE_SMTP:
+        return TRANSPORT_SMTP
+    if mode == MODE_MICROSOFT:
+        return TRANSPORT_MICROSOFT
+    return TRANSPORT_GMAIL
 
 
 def mode_for_transport(transport: str) -> str:
-    return MODE_SMTP if transport == TRANSPORT_SMTP else MODE_GMAIL
+    if transport == TRANSPORT_SMTP:
+        return MODE_SMTP
+    if transport == TRANSPORT_MICROSOFT:
+        return MODE_MICROSOFT
+    return MODE_GMAIL
 
 
 def get_or_create_mail_settings(user: User) -> UserMailSettings:
@@ -102,16 +204,16 @@ def get_or_create_mail_settings(user: User) -> UserMailSettings:
 def active_transport_mode(user: User) -> str:
     ms = get_or_create_mail_settings(user)
     mode = str(ms.active_transport_mode or "").strip()
-    if mode in (MODE_GMAIL, MODE_SMTP):
+    if mode in VALID_MODES:
         return mode
     sj = dict(ms.settings_json or {})
     st = str(sj.get("SEND_TRANSPORT") or "").strip()
-    return MODE_SMTP if st == TRANSPORT_SMTP else MODE_GMAIL
+    return mode_for_transport(st)
 
 
 def set_active_transport_mode(user: User, mode: str) -> None:
-    if mode not in (MODE_GMAIL, MODE_SMTP):
-        raise ValueError("mode must be gmail or smtp")
+    if mode not in VALID_MODES:
+        raise ValueError("mode must be gmail, smtp, or microsoft")
     ms = get_or_create_mail_settings(user)
     ms.active_transport_mode = mode
     sj = dict(ms.settings_json or {})
@@ -186,7 +288,7 @@ def ensure_legacy_migrated(user: User) -> None:
     ms = get_or_create_mail_settings(user)
     sj = dict(ms.settings_json or {})
     st = str(sj.get("SEND_TRANSPORT") or TRANSPORT_GMAIL).strip()
-    if st not in (TRANSPORT_GMAIL, TRANSPORT_SMTP):
+    if st not in VALID_TRANSPORTS:
         st = TRANSPORT_GMAIL
     mode = mode_for_transport(st)
     ms.active_transport_mode = mode
@@ -252,12 +354,22 @@ def create_account(
     cfg: dict[str, Any] = {}
     if transport == TRANSPORT_GMAIL and gmail_address:
         cfg["GMAIL_ADDRESS"] = gmail_address.strip()
+    if transport == TRANSPORT_MICROSOFT and gmail_address:
+        cfg["MICROSOFT_ADDRESS"] = gmail_address.strip()
+        cfg["GMAIL_ADDRESS"] = gmail_address.strip()
+
+    if transport == TRANSPORT_GMAIL:
+        default_label = "Gmail"
+    elif transport == TRANSPORT_MICROSOFT:
+        default_label = "Microsoft"
+    else:
+        default_label = "SMTP"
 
     acc = MailAccount.objects.create(
         user=user,
         slot=slot,
         transport=transport,
-        label=(label or "").strip() or f"{'Gmail' if transport == TRANSPORT_GMAIL else 'SMTP'} {slot}",
+        label=(label or "").strip() or f"{default_label} {slot}",
         is_enabled=True,
         config_json=cfg,
     )
@@ -295,10 +407,46 @@ def save_account_oauth_token(account: MailAccount, token_json: str) -> None:
     sync_account_files_to_disk(account.user_id, account)
 
 
+def _oauth_client_id_from_json(secret_json: str) -> str:
+    try:
+        parsed = json.loads(secret_json)
+    except (TypeError, ValueError):
+        return ""
+    if not isinstance(parsed, dict):
+        return ""
+    block = parsed.get("web") or parsed.get("installed") or {}
+    if not isinstance(block, dict):
+        return ""
+    return str(block.get("client_id") or "").strip()
+
+
+def refresh_shared_gmail_client_secret(secret_json: str) -> bool:
+    """Replace shared SaaS client JSON when missing or same client_id (secret rotation).
+
+    oauth_start always prefers the shared file when present, so rotating the Google
+    Client secret must update that file — not only the per-account copy.
+    """
+    new_id = _oauth_client_id_from_json(secret_json)
+    if not new_id or "smoke-" in new_id:
+        return False
+    shared = Path(shared_gmail_client_secret_path())
+    if shared.is_file():
+        try:
+            cur_id = _oauth_client_id_from_json(shared.read_text(encoding="utf-8"))
+        except OSError:
+            cur_id = ""
+        if cur_id and cur_id != new_id:
+            return False
+    shared.parent.mkdir(parents=True, exist_ok=True)
+    shared.write_text(secret_json.strip() + "\n", encoding="utf-8")
+    return True
+
+
 def save_account_client_secret(account: MailAccount, secret_json: str) -> None:
     account.client_secret_enc = encrypt_str(secret_json)
     account.save(update_fields=["client_secret_enc", "updated_at"])
     sync_account_files_to_disk(account.user_id, account)
+    refresh_shared_gmail_client_secret(secret_json)
 
 
 def clear_account_oauth(account: MailAccount) -> None:
@@ -316,6 +464,8 @@ def account_display_email(account: MailAccount) -> str:
     cfg = dict(account.config_json or {})
     if account.transport == TRANSPORT_GMAIL:
         return str(cfg.get("GMAIL_ADDRESS") or "").strip()
+    if account.transport == TRANSPORT_MICROSOFT:
+        return str(cfg.get("MICROSOFT_ADDRESS") or cfg.get("GMAIL_ADDRESS") or "").strip()
     return str(cfg.get("SMTP_FROM_EMAIL") or cfg.get("SMTP_USERNAME") or "").strip()
 
 
@@ -325,6 +475,11 @@ def account_to_dict(account: MailAccount, *, include_kb_count: bool = False) -> 
     cfg = dict(account.config_json or {})
     settings = build_effective_settings(account.user, account_id=account.id)
     g_ready = account.transport == TRANSPORT_GMAIL and gmail_oauth_ready(settings)
+    ms_ready = False
+    if account.transport == TRANSPORT_MICROSOFT:
+        from email_automation.microsoft_auth import microsoft_oauth_ready
+
+        ms_ready = microsoft_oauth_ready(settings)
     profile_email = ""
     oauth_mismatch = False
     if g_ready:
@@ -335,8 +490,14 @@ def account_to_dict(account: MailAccount, *, include_kb_count: bool = False) -> 
         from email_automation.imap_mailbox import imap_inbox_ready
 
         imap_ok = imap_inbox_ready(settings)
-    inbox_ready = (g_ready and not oauth_mismatch) if account.transport == TRANSPORT_GMAIL else imap_ok
+    if account.transport == TRANSPORT_GMAIL:
+        inbox_ready = g_ready and not oauth_mismatch
+    elif account.transport == TRANSPORT_MICROSOFT:
+        inbox_ready = ms_ready
+    else:
+        inbox_ready = imap_ok
 
+    oauth_connected = g_ready or ms_ready
     out: dict[str, Any] = {
         "id": account.id,
         "slot": account.slot,
@@ -345,13 +506,22 @@ def account_to_dict(account: MailAccount, *, include_kb_count: bool = False) -> 
         "is_enabled": account.is_enabled,
         "email": account_display_email(account),
         "gmail_connected": g_ready,
-        "gmail_inbox_ready": inbox_ready,
+        "microsoft_connected": ms_ready,
+        "gmail_inbox_ready": inbox_ready if account.transport == TRANSPORT_GMAIL else False,
         "oauth_email_mismatch": oauth_mismatch,
         "profile_email": profile_email,
         "imap_ready": imap_ok,
         "inbox_ready": inbox_ready,
-        "has_client_secret": bool(account.client_secret_enc) or os.path.exists(settings.GOOGLE_CLIENT_SECRET_FILE),
-        "has_token": g_ready,
+        "has_client_secret": bool(account.client_secret_enc)
+        or (
+            account.transport == TRANSPORT_GMAIL
+            and (
+                has_shared_gmail_oauth_client()
+                or os.path.isfile(settings.GOOGLE_CLIENT_SECRET_FILE)
+            )
+        ),
+        "shared_gmail_oauth": account.transport == TRANSPORT_GMAIL and has_shared_gmail_oauth_client(),
+        "has_token": oauth_connected,
         "has_smtp_password": bool(account.smtp_password_enc),
         "smtp_last_test_ok": bool(cfg.get("SMTP_LAST_TEST_OK")),
         "config": {k: v for k, v in cfg.items() if not k.endswith("PASSWORD")},
@@ -430,6 +600,22 @@ def _merge_env_defaults_into_merged(merged: dict[str, Any], settings_json_keys: 
         uri = (os.environ.get("OAUTH_REDIRECT_URI") or "").strip()
         if uri:
             merged["OAUTH_REDIRECT_URI"] = uri
+    if not str(merged.get("MICROSOFT_OAUTH_CLIENT_ID") or "").strip():
+        mid = (os.environ.get("MICROSOFT_OAUTH_CLIENT_ID") or "").strip()
+        if mid:
+            merged["MICROSOFT_OAUTH_CLIENT_ID"] = mid
+    if not _secret_nonempty(merged.get("MICROSOFT_OAUTH_CLIENT_SECRET")):
+        msecret = (os.environ.get("MICROSOFT_OAUTH_CLIENT_SECRET") or "").strip()
+        if msecret:
+            merged["MICROSOFT_OAUTH_CLIENT_SECRET"] = SecretStr(msecret)
+    if not str(merged.get("MICROSOFT_OAUTH_REDIRECT_URI") or "").strip():
+        muri = (os.environ.get("MICROSOFT_OAUTH_REDIRECT_URI") or "").strip()
+        if muri:
+            merged["MICROSOFT_OAUTH_REDIRECT_URI"] = muri
+    if not str(merged.get("MICROSOFT_OAUTH_TENANT") or "").strip():
+        mten = (os.environ.get("MICROSOFT_OAUTH_TENANT") or "").strip()
+        if mten:
+            merged["MICROSOFT_OAUTH_TENANT"] = mten
     return merged
 
 
@@ -451,7 +637,7 @@ def build_effective_settings(user: User, account_id: int | None = None):
         mode = active_transport_mode(user)
         merged["SEND_TRANSPORT"] = transport_for_mode(mode)
         merged["GOOGLE_TOKEN_FILE"] = token_path_for_user(user.id)
-        merged["GOOGLE_CLIENT_SECRET_FILE"] = client_secret_path_for_user(user.id)
+        merged["GOOGLE_CLIENT_SECRET_FILE"] = resolve_gmail_client_secret_path(user.id, None)
         merged = _derive_imap_from_smtp(merged)
         merged = _merge_env_defaults_into_merged(merged, global_patch)
         try:
@@ -474,9 +660,14 @@ def build_effective_settings(user: User, account_id: int | None = None):
         "GMAIL_ADDRESS", "SEND_TRANSPORT",
     )})
     merged.update({k: v for k, v in acc_patch.items() if k in Settings.model_fields})
+    # Microsoft addresses reuse GMAIL_ADDRESS in Settings for outbound_from_email helpers.
+    if account.transport == TRANSPORT_MICROSOFT:
+        ms_addr = str(acc_patch.get("MICROSOFT_ADDRESS") or acc_patch.get("GMAIL_ADDRESS") or "").strip()
+        if ms_addr:
+            merged["GMAIL_ADDRESS"] = ms_addr
     merged["SEND_TRANSPORT"] = account.transport
     merged["GOOGLE_TOKEN_FILE"] = token_path_for_account(user.id, account.id)
-    merged["GOOGLE_CLIENT_SECRET_FILE"] = client_secret_path_for_account(user.id, account.id)
+    merged["GOOGLE_CLIENT_SECRET_FILE"] = resolve_gmail_client_secret_path(user.id, account)
     merged = _derive_imap_from_smtp(merged)
     merged = _merge_env_defaults_into_merged(merged, {**global_patch, **acc_patch})
     try:
@@ -531,7 +722,13 @@ def all_owner_emails_for_user(user: User) -> set[str]:
         out.add(uemail)
     for acc in list_accounts_for_user(user):
         cfg = dict(acc.config_json or {})
-        for key in ("GMAIL_ADDRESS", "SMTP_FROM_EMAIL", "SMTP_USERNAME", "IMAP_USERNAME"):
+        for key in (
+            "GMAIL_ADDRESS",
+            "MICROSOFT_ADDRESS",
+            "SMTP_FROM_EMAIL",
+            "SMTP_USERNAME",
+            "IMAP_USERNAME",
+        ):
             addr = str(cfg.get(key) or "").strip().lower()
             if addr and "@" in addr:
                 out.add(addr)
@@ -544,6 +741,8 @@ def transport_summary(user: User) -> dict[str, Any]:
     tr = transport_for_mode(mode)
     accounts = list(list_accounts_for_user(user, transport=tr))
     enabled = [a for a in accounts if a.is_enabled]
+    from email_automation.microsoft_auth import microsoft_oauth_configured
+
     summary: dict[str, Any] = {
         "active_mode": mode,
         "send_transport": tr,
@@ -551,6 +750,8 @@ def transport_summary(user: User) -> dict[str, Any]:
         "enabled_count": len(enabled),
         "max_slots": MAX_SLOTS_PER_TRANSPORT,
         "max_active": max_active_accounts(),
+        "shared_gmail_oauth": has_shared_gmail_oauth_client(),
+        "microsoft_oauth_configured": microsoft_oauth_configured(),
     }
     try:
         from core.billing import can_enable_mailbox, usage_summary

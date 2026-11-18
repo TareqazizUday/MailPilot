@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from core import runtime
 from core.mail_accounts import (
     TRANSPORT_GMAIL,
+    TRANSPORT_MICROSOFT,
     TRANSPORT_SMTP,
     account_to_dict,
     ensure_legacy_migrated,
@@ -19,6 +20,8 @@ from core.state_store import StateStore
 from email_automation.gmail_auth import gmail_oauth_matches_configured, gmail_oauth_ready
 from email_automation.gmail_client import GmailClient
 from email_automation.imap_mailbox import ImapMailbox, imap_inbox_ready
+from email_automation.microsoft_auth import microsoft_oauth_ready
+from email_automation.oauth_mail_client import build_oauth_mail_client
 
 MAX_CHAT_CHARS = 3900
 RECENT_DEFAULT_LIMIT = 5
@@ -570,6 +573,12 @@ def _fetch_account_threads(user, acc, *, max_threads: int) -> tuple[str, list[Ma
             if not gmail_oauth_matches_configured(effective)[0]:
                 return email, None, "Gmail OAuth mismatch"
             raw_threads = GmailClient(settings=effective).list_inbox_thread_summaries(max_threads=max_threads)
+        elif acc.transport == TRANSPORT_MICROSOFT:
+            if not microsoft_oauth_ready(effective):
+                return email, None, "Microsoft not connected"
+            raw_threads = build_oauth_mail_client(
+                effective, transport=acc.transport
+            ).list_inbox_thread_summaries(max_threads=max_threads)
         elif acc.transport == TRANSPORT_SMTP:
             if not imap_inbox_ready(effective):
                 return email, None, "IMAP not configured"
@@ -612,6 +621,8 @@ def _fetch_thread_messages(user, thread_id: str, *, account_ref: str = ""):
                 if not gmail_oauth_matches_configured(effective)[0]:
                     continue
                 data = GmailClient(settings=effective).get_thread_for_ui(tid)
+            elif acc.transport == TRANSPORT_MICROSOFT and microsoft_oauth_ready(effective):
+                data = build_oauth_mail_client(effective, transport=acc.transport).get_thread_for_ui(tid)
             elif acc.transport == TRANSPORT_SMTP and tid.isdigit() and imap_inbox_ready(effective):
                 data = ImapMailbox(settings=effective).get_thread_for_ui(uid=int(tid))
             else:
@@ -990,6 +1001,14 @@ def _mailbox_email(acc, effective) -> str:
     cfg = dict(acc.config_json or {})
     if acc.transport == TRANSPORT_GMAIL:
         return str(effective.GMAIL_ADDRESS or cfg.get("GMAIL_ADDRESS") or acc.label or "Gmail").strip()
+    if acc.transport == TRANSPORT_MICROSOFT:
+        return str(
+            effective.GMAIL_ADDRESS
+            or cfg.get("MICROSOFT_ADDRESS")
+            or cfg.get("GMAIL_ADDRESS")
+            or acc.label
+            or "Microsoft"
+        ).strip()
     return str(effective.outbound_from_email() or cfg.get("SMTP_FROM_EMAIL") or cfg.get("SMTP_USERNAME") or acc.label or "SMTP").strip()
 
 
@@ -1053,6 +1072,8 @@ def _account_status_label(info: dict[str, Any], *, lang: str) -> str:
 def _transport_label(transport: Any) -> str:
     if transport == TRANSPORT_GMAIL:
         return "Gmail OAuth"
+    if transport == TRANSPORT_MICROSOFT:
+        return "Microsoft Graph"
     if transport == TRANSPORT_SMTP:
         return "SMTP"
     return str(transport or "Email")

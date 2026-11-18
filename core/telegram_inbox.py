@@ -8,10 +8,17 @@ from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 from core import runtime
-from core.mail_accounts import TRANSPORT_GMAIL, TRANSPORT_SMTP, enabled_accounts_for_active_mode
+from core.mail_accounts import (
+    TRANSPORT_GMAIL,
+    TRANSPORT_MICROSOFT,
+    TRANSPORT_SMTP,
+    enabled_accounts_for_active_mode,
+)
 from email_automation.gmail_auth import gmail_oauth_matches_configured, gmail_oauth_ready
 from email_automation.gmail_client import GmailClient
 from email_automation.imap_mailbox import ImapMailbox, imap_inbox_ready
+from email_automation.microsoft_auth import microsoft_oauth_ready
+from email_automation.oauth_mail_client import build_oauth_mail_client
 from email_automation.settings import Settings
 
 log = logging.getLogger("mailpilot.telegram.inbox")
@@ -153,6 +160,14 @@ def _mailbox_email(acc, effective: Settings) -> str:
     cfg = dict(acc.config_json or {})
     if acc.transport == TRANSPORT_GMAIL:
         return str(effective.GMAIL_ADDRESS or cfg.get("GMAIL_ADDRESS") or acc.label or "Gmail").strip()
+    if acc.transport == TRANSPORT_MICROSOFT:
+        return str(
+            effective.GMAIL_ADDRESS
+            or cfg.get("MICROSOFT_ADDRESS")
+            or cfg.get("GMAIL_ADDRESS")
+            or acc.label
+            or "Microsoft"
+        ).strip()
     return str(
         effective.outbound_from_email() or cfg.get("SMTP_FROM_EMAIL") or cfg.get("SMTP_USERNAME") or acc.label or "SMTP"
     ).strip()
@@ -166,11 +181,16 @@ def _fetch_inbox_threads(user, *, max_threads: int = _INBOX_LIST_LIMIT) -> tuple
     email = _mailbox_email(acc, effective)
     try:
         g_ok = gmail_oauth_ready(effective) and acc.transport == TRANSPORT_GMAIL
+        ms_ok = microsoft_oauth_ready(effective) and acc.transport == TRANSPORT_MICROSOFT
         use_imap = acc.transport == TRANSPORT_SMTP and (
             _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
         )
         if use_imap:
             threads = ImapMailbox(settings=effective).list_inbox_summaries(max_threads=max_threads)
+        elif ms_ok:
+            threads = build_oauth_mail_client(effective, transport=acc.transport).list_inbox_thread_summaries(
+                max_threads=max_threads
+            )
         elif g_ok:
             if not gmail_oauth_matches_configured(effective)[0]:
                 return email, None, "Gmail OAuth mismatch - reconnect on Setup."
@@ -194,12 +214,15 @@ def _fetch_thread_messages(user, thread_id: str) -> tuple[str, list[dict[str, An
     email = _mailbox_email(acc, effective)
     try:
         g_ok = gmail_oauth_ready(effective) and acc.transport == TRANSPORT_GMAIL
+        ms_ok = microsoft_oauth_ready(effective) and acc.transport == TRANSPORT_MICROSOFT
         uid = int(tid) if tid.isdigit() else None
         use_imap = uid is not None and (
             _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
         )
         if use_imap:
             data = ImapMailbox(settings=effective).get_thread_for_ui(uid=uid)
+        elif ms_ok:
+            data = build_oauth_mail_client(effective, transport=acc.transport).get_thread_for_ui(tid)
         elif g_ok:
             if not gmail_oauth_matches_configured(effective)[0]:
                 return email, None, "Gmail OAuth mismatch - reconnect on Setup."

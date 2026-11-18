@@ -224,6 +224,7 @@ def _trigger_poll_fn_locked(
 
     from core.mail_accounts import (
         TRANSPORT_GMAIL,
+        TRANSPORT_MICROSOFT,
         TRANSPORT_SMTP,
         enabled_accounts_for_active_mode,
         ensure_legacy_migrated,
@@ -319,6 +320,30 @@ def _trigger_poll_fn_locked(
                         )
                 else:
                     log.warning("Gmail poll failed user=%s account=%s: %s", uid, acc.id, e)
+        elif acc.transport == TRANSPORT_MICROSOFT:
+            from email_automation.microsoft_auth import microsoft_oauth_ready
+            from email_automation.microsoft_client import MicrosoftClient
+
+            if not microsoft_oauth_ready(effective):
+                continue
+            try:
+                r = poll_once(
+                    settings=effective,
+                    state_store=st,
+                    gmail_client=MicrosoftClient(settings=effective),
+                    mail_account=acc,
+                    skip_from_emails=skip_from_emails,
+                )
+                total = PollResult(
+                    scanned=total.scanned + r.scanned,
+                    relevant=total.relevant + r.relevant,
+                    sent=total.sent + r.sent,
+                    drafts=total.drafts + r.drafts,
+                    ignored=total.ignored + r.ignored,
+                    queued=total.queued + r.queued,
+                )
+            except Exception as e:
+                log.warning("Microsoft poll failed user=%s account=%s: %s", uid, acc.id, e)
         elif acc.transport == TRANSPORT_SMTP and imap_inbox_ready(effective):
             if not out_from and not imap_inbox_ready(effective):
                 continue

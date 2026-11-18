@@ -119,13 +119,19 @@ def _mailbox_connected_for_ui(
     navbar showing Connected after Gmail OAuth disconnect.
     """
     transport = str(cfg.get("SEND_TRANSPORT") or effective.SEND_TRANSPORT or "").strip()
-    if gmail_oauth_ready(effective):
+    if transport == "microsoft_graph":
+        from email_automation.microsoft_auth import microsoft_oauth_ready
+
+        return microsoft_oauth_ready(effective)
+    if transport in ("", "gmail_api") and gmail_oauth_ready(effective):
         return True
     if transport == "smtp":
         if imap_inbox_ready(effective):
             return True
         acc_cfg = account_config if account_config is not None else {}
         return bool(acc_cfg.get("SMTP_LAST_TEST_OK") or cfg.get("SMTP_LAST_TEST_OK"))
+    if gmail_oauth_ready(effective):
+        return True
     return False
 
 
@@ -136,6 +142,19 @@ def _oauth_callback_url(request, effective: Settings) -> str:
     # Prefer SITE_URL when behind a reverse proxy (IIS/ARR), because the backend
     # may see Host=127.0.0.1 and generate a localhost redirect URI otherwise.
     base = _public_base_url(request)
+    # Stabilize local OAuth: Google treats localhost and 127.0.0.1 as different URIs.
+    try:
+        from urllib.parse import urlsplit, urlunsplit
+
+        parts = urlsplit(base)
+        host = (parts.hostname or "").lower()
+        if host == "localhost":
+            netloc = "127.0.0.1"
+            if parts.port:
+                netloc = f"{netloc}:{parts.port}"
+            base = urlunsplit((parts.scheme, netloc, "", "", "")).rstrip("/")
+    except Exception:
+        pass
     return f"{base}{reverse('oauth_callback')}"
 
 
@@ -488,7 +507,35 @@ def setup_page(request):
     cfg = _user_settings_dict(request)
     connected = _mailbox_connected_for_ui(effective, cfg)
     oauth_redirect_uri = _oauth_callback_url(request, effective)
+    from core import microsoft_oauth as ms_oauth
+
+    microsoft_oauth_redirect_uri = ms_oauth.redirect_uri_for_request(request)
+    microsoft_oauth_configured = ms_oauth.is_configured()
     highlight_account = (request.GET.get("account_id") or "").strip()
+    oauth_error = (request.GET.get("oauth_error") or "").strip()
+    if oauth_error:
+        request.session["setup_oauth_error"] = oauth_error[:500]
+        request.session.modified = True
+    else:
+        oauth_error = (request.session.get("setup_oauth_error") or "").strip()
+    from core.mail_account_views import _can_update_shared_gmail_secret
+
+    can_fix_shared = _can_update_shared_gmail_secret(request)
+    # Never show owner-only secret instructions (GOCSPX / client_secret.json) to end users.
+    oauth_error_display = oauth_error
+    if oauth_error and ("invalid_client" in oauth_error.lower() or "gocspx" in oauth_error.lower()):
+        if can_fix_shared:
+            oauth_error_display = oauth_error
+        else:
+            oauth_error_display = "gmail_connect_temporarily_unavailable"
+    oauth_error_is_microsoft = bool(
+        oauth_error_display
+        and (
+            "microsoft" in oauth_error_display.lower()
+            or oauth_error_display.startswith("AADSTS")
+        )
+    )
+
     return render(
         request,
         "setup.html",
@@ -496,10 +543,14 @@ def setup_page(request):
             "connected": connected,
             "gmail_oauth_connected": gmail_oauth_ready(effective),
             "gmail_address": (cfg.get("GMAIL_ADDRESS") or ""),
-            "oauth_error": (request.GET.get("oauth_error") or "").strip(),
+            "oauth_error": oauth_error_display,
+            "oauth_error_is_microsoft": oauth_error_is_microsoft,
             "oauth_redirect_uri": oauth_redirect_uri,
+            "microsoft_oauth_redirect_uri": microsoft_oauth_redirect_uri,
+            "microsoft_oauth_configured": microsoft_oauth_configured,
             "transport_summary": transport_summary(request.user),
             "highlight_account_id": highlight_account,
+            "can_fix_shared_gmail_secret": can_fix_shared,
         },
     )
 
@@ -2123,17 +2174,29 @@ def oauth_start(request):
         ensure_legacy_migrated(request.user)
         account_id = request.session.get("oauth_account_id")
         acc = resolve_account(request.user, account_id)
+        from core.gmail_oauth_client import build_gmail_oauth_flow, has_shared_gmail_oauth_client
+
         effective = runtime.get_effective_settings(request.user, account_id=acc.id if acc else None)
         client_secret_path = effective.GOOGLE_CLIENT_SECRET_FILE
-        if not os.path.exists(client_secret_path):
+        if not (client_secret_path and os.path.isfile(client_secret_path)) and not has_shared_gmail_oauth_client():
             return setup_error_redirect(request, "client_secret_missing", acc.id if acc else None)
 
         callback_url = _oauth_callback_url(request, effective)
-        flow = Flow.from_client_secrets_file(
-            client_secret_path,
+        flow = build_gmail_oauth_flow(
             scopes=effective.gmail_scopes(),
             redirect_uri=callback_url,
-            autogenerate_code_verifier=False,
+            secrets_file=client_secret_path if client_secret_path and os.path.isfile(client_secret_path) else None,
+        )
+        try:
+            used_client_id = str((flow.client_config or {}).get("client_id") or "")
+        except Exception:
+            used_client_id = ""
+        logger.info(
+            "oauth_start redirect_uri=%s client_id=%s secrets_file=%s account_id=%s",
+            callback_url,
+            used_client_id,
+            client_secret_path,
+            acc.id if acc else None,
         )
 
         authorization_url, state = flow.authorization_url(
@@ -2144,6 +2207,20 @@ def oauth_start(request):
         request.session["oauth_state"] = state
         if acc:
             request.session["oauth_account_id"] = acc.id
+        # Persist before leaving the site — lost session caused oauth_state_mismatch.
+        request.session.modified = True
+        request.session.save()
+        # Cache backup (same idea as mobile OAuth) if the browser drops the session cookie.
+        cache.set(
+            f"mailpilot:gmail_oauth_web:{state}",
+            {
+                "user_id": request.user.id,
+                "account_id": acc.id if acc else None,
+                "redirect_uri": callback_url,
+                "client_secret": client_secret_path,
+            },
+            timeout=10 * 60,
+        )
         return redirect(authorization_url)
     except Exception as e:
         logger.exception("OAuth start failed")
@@ -2171,19 +2248,30 @@ def oauth_callback(request):
         from core.mail_accounts import ensure_legacy_migrated, resolve_account, save_account_oauth_token
 
         ensure_legacy_migrated(request.user)
+        state = (request.GET.get("state") or "").strip()
+        pending = cache.get(f"mailpilot:gmail_oauth_web:{state}") if state else None
+        if not isinstance(pending, dict):
+            pending = None
+
         account_id = request.session.get("oauth_account_id")
+        if account_id is None and pending and pending.get("account_id") is not None:
+            account_id = pending.get("account_id")
+        from core.gmail_oauth_client import build_gmail_oauth_flow, has_shared_gmail_oauth_client
+
         acc = resolve_account(request.user, account_id)
         effective = runtime.get_effective_settings(request.user, account_id=acc.id if acc else None)
         client_secret_path = effective.GOOGLE_CLIENT_SECRET_FILE
-        if not os.path.exists(client_secret_path):
+        if pending and pending.get("client_secret") and os.path.isfile(str(pending["client_secret"])):
+            client_secret_path = str(pending["client_secret"])
+        use_file = bool(client_secret_path and os.path.isfile(client_secret_path))
+        if not use_file and not has_shared_gmail_oauth_client():
             return redirect(f"{reverse('setup')}?oauth_error=client_secret_missing")
 
-        callback_url = _oauth_callback_url(request, effective)
-        flow = Flow.from_client_secrets_file(
-            client_secret_path,
+        callback_url = (pending or {}).get("redirect_uri") or _oauth_callback_url(request, effective)
+        flow = build_gmail_oauth_flow(
             scopes=effective.gmail_scopes(),
             redirect_uri=callback_url,
-            autogenerate_code_verifier=False,
+            secrets_file=client_secret_path if use_file else None,
         )
 
         code = request.GET.get("code")
@@ -2191,35 +2279,58 @@ def oauth_callback(request):
             err = (request.GET.get("error") or "missing_code").strip()
             return redirect(f"{reverse('setup')}?oauth_error={quote(err, safe='')}")
 
-        state = request.GET.get("state")
         expected_state = request.session.get("oauth_state")
-        if expected_state and state and state != expected_state:
+        if expected_state and state and state != expected_state and not pending:
+            return redirect(f"{reverse('setup')}?oauth_error=oauth_state_mismatch")
+        if pending and pending.get("user_id") and int(pending["user_id"]) != int(request.user.id):
             return redirect(f"{reverse('setup')}?oauth_error=oauth_state_mismatch")
 
         try:
             flow.fetch_token(code=code)
         except Exception as e:
             logger.exception("OAuth fetch_token failed")
-            return setup_error_redirect(request, f"token_exchange_failed: {e}", acc.id if acc else None)
+            err = str(e)
+            if "invalid_client" in err.lower():
+                err = (
+                    "invalid_client: Google OAuth client secret is wrong. "
+                    "Update GOOGLE_OAUTH_CLIENT_SECRET in .env (or client_secret.json), then Connect again."
+                )
+            return setup_error_redirect(request, f"token_exchange_failed: {err}", acc.id if acc else None)
 
         creds = flow.credentials
         token_json = creds.to_json()
+        gmail_api_hint = ""
 
         if acc:
-            expected = str((acc.config_json or {}).get("GMAIL_ADDRESS") or "").strip()
-            if expected:
-                from googleapiclient.discovery import build
+            from googleapiclient.discovery import build
+            from googleapiclient.errors import HttpError
 
+            from core.mail_accounts import patch_account_config
+
+            # Persist token first so a profile/API hiccup does not discard a successful consent.
+            save_account_oauth_token(acc, token_json)
+            try:
                 svc = build("gmail", "v1", credentials=creds, cache_discovery=False)
                 profile = str(svc.users().getProfile(userId="me").execute().get("emailAddress") or "").strip()
-                if profile.lower() != expected.lower():
-                    err = (
-                        f"oauth_email_mismatch: You signed in as {profile} but this mailbox "
-                        f"expects {expected}. Use the correct Google account and try Connect OAuth again."
+            except HttpError as e:
+                logger.warning("oauth profile lookup failed account=%s: %s", acc.id, e)
+                profile = ""
+                err_txt = str(e).lower()
+                if "accessnotconfigured" in err_txt or "gmail api has not been used" in err_txt or "has not been used" in err_txt:
+                    gmail_api_hint = (
+                        "gmail_api_disabled: Enable Gmail API in Google Cloud "
+                        "(APIs & Services → Library → Gmail API → Enable) for this project, "
+                        "wait 1–2 minutes, then Connect with Google again. "
+                        "https://console.developers.google.com/apis/api/gmail.googleapis.com/overview?project=776438379101"
                     )
-                    return redirect(f"{reverse('setup')}?oauth_error={quote(err, safe='')}&account_id={acc.id}")
-
-            save_account_oauth_token(acc, token_json)
+            except Exception as e:
+                logger.warning("oauth profile lookup failed account=%s: %s", acc.id, e)
+                profile = ""
+            if profile:
+                patch_account_config(acc, {"GMAIL_ADDRESS": profile})
+                if not (acc.label or "").strip() or str(acc.label).startswith("Gmail"):
+                    acc.label = profile
+                    acc.save(update_fields=["label", "updated_at"])
         else:
             from core.user_settings import save_google_token_json
 
@@ -2230,10 +2341,54 @@ def oauth_callback(request):
         aid = acc.id if acc else ""
         if "oauth_account_id" in request.session:
             del request.session["oauth_account_id"]
+        if state:
+            cache.delete(f"mailpilot:gmail_oauth_web:{state}")
+        request.session.pop("setup_oauth_error", None)
+        if gmail_api_hint:
+            return setup_error_redirect(request, gmail_api_hint, acc.id if acc else None)
         return redirect(f"{reverse('setup')}?account_id={aid}" if aid else reverse("dashboard"))
     except Exception as e:
         logger.exception("OAuth callback failed")
         return setup_error_redirect(request, f"callback_error: {e}")
+
+
+@login_required(login_url="/login")
+@require_GET
+def microsoft_oauth_start(request):
+    """Start Microsoft Graph OAuth for ``account_id`` query param (or session)."""
+    from core import microsoft_oauth
+    from core.mail_accounts import TRANSPORT_MICROSOFT, ensure_legacy_migrated, resolve_account
+
+    if not microsoft_oauth.is_configured():
+        return setup_error_redirect(request, "microsoft_oauth_not_configured")
+    ensure_legacy_migrated(request.user)
+    raw = (request.GET.get("account_id") or request.session.get("microsoft_oauth_account_id") or "").strip()
+    try:
+        account_id = int(raw) if raw else None
+    except (TypeError, ValueError):
+        account_id = None
+    acc = resolve_account(request.user, account_id)
+    if acc is None or acc.transport != TRANSPORT_MICROSOFT:
+        return setup_error_redirect(request, "microsoft_account_missing", account_id)
+    try:
+        url = microsoft_oauth.start_authorization(
+            request, user_id=request.user.id, account_id=acc.id
+        )
+    except Exception as e:
+        logger.exception("microsoft oauth start failed")
+        return setup_error_redirect(request, f"microsoft_oauth_start_failed: {e}", acc.id)
+    return redirect(url)
+
+
+@require_GET
+def microsoft_oauth_callback(request):
+    from core import microsoft_oauth
+
+    try:
+        return microsoft_oauth.handle_callback(request)
+    except Exception as e:
+        logger.exception("microsoft oauth callback failed")
+        return setup_error_redirect(request, f"microsoft_callback_error: {e}")
 
 
 @require_GET
@@ -2509,6 +2664,11 @@ def api_gmail_inbox(request):
     effective = runtime.get_effective_settings(request.user, account_id=acc.id)
     try:
         g_ok = gmail_oauth_ready(effective) and acc.transport == "gmail_api"
+        ms_ok = False
+        if acc.transport == "microsoft_graph":
+            from email_automation.microsoft_auth import microsoft_oauth_ready
+
+            ms_ok = microsoft_oauth_ready(effective)
         use_imap_list = acc.transport == "smtp" and (
             _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
         )
@@ -2519,6 +2679,35 @@ def api_gmail_inbox(request):
             )
             return JsonResponse(
                 {"ok": True, "threads": threads, "source": "imap", "account_id": acc.id, "email": acc.config_json.get("SMTP_USERNAME")}
+            )
+        if ms_ok:
+            from email_automation.oauth_mail_client import build_oauth_mail_client
+
+            cache_key = _gmail_inbox_cache_key(request.user.id, acc.id, effective)
+            listing = None if _wants_fresh(request) else cache.get(cache_key)
+            if not isinstance(listing, dict):
+                client = build_oauth_mail_client(effective, transport=acc.transport)
+                profile_email = ""
+                try:
+                    profile_email = str(client.get_profile_email() or "").strip()
+                except Exception:
+                    profile_email = str(effective.GMAIL_ADDRESS or "").strip()
+                listing = {
+                    "threads": client.list_inbox_thread_summaries(max_threads=40),
+                    "profile_email": profile_email,
+                }
+                cache.set(cache_key, listing, timeout=GMAIL_INBOX_CACHE_SECONDS)
+            threads = _annotate_inbox_threads(listing["threads"], request.user, account_id=acc.id)
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "threads": threads,
+                    "source": "microsoft",
+                    "account_id": acc.id,
+                    "email": effective.GMAIL_ADDRESS or listing.get("profile_email") or "",
+                    "profile_email": listing["profile_email"],
+                    "oauth_email_mismatch": False,
+                }
             )
         if g_ok:
             from email_automation.gmail_auth import gmail_oauth_matches_configured
@@ -2586,6 +2775,11 @@ def api_gmail_thread_detail(request, thread_id: str):
     effective = runtime.get_effective_settings(request.user, account_id=acc.id)
     try:
         g_ok = gmail_oauth_ready(effective) and acc.transport == "gmail_api"
+        ms_ok = False
+        if acc.transport == "microsoft_graph":
+            from email_automation.microsoft_auth import microsoft_oauth_ready
+
+            ms_ok = microsoft_oauth_ready(effective)
         uid = int(thread_id) if thread_id.isdigit() else None
         use_imap_thread = uid is not None and (
             _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
@@ -2593,6 +2787,11 @@ def api_gmail_thread_detail(request, thread_id: str):
         if use_imap_thread:
             mb = ImapMailbox(settings=effective)
             data = mb.get_thread_for_ui(uid=uid)
+        elif ms_ok:
+            from email_automation.oauth_mail_client import build_oauth_mail_client
+
+            client = build_oauth_mail_client(effective, transport=acc.transport)
+            data = client.get_thread_for_ui(thread_id)
         elif g_ok:
             from email_automation.gmail_auth import gmail_oauth_matches_configured
 

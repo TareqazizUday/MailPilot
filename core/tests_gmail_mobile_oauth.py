@@ -72,7 +72,9 @@ class MobileGmailOAuthTests(TestCase):
         self.assertEqual(res.json()["error"], "invalid_return_to")
 
     def test_authorize_url_requires_client_secret(self) -> None:
-        with mock.patch("core.gmail_mobile_oauth.os.path.exists", return_value=False):
+        with mock.patch("core.gmail_mobile_oauth.os.path.isfile", return_value=False), mock.patch(
+            "core.gmail_oauth_client.has_shared_gmail_oauth_client", return_value=False
+        ), mock.patch("core.gmail_oauth_client.shared_gmail_oauth_client_config", return_value=None):
             res = self._authorize(account_id=self.gmail.id, return_to="mailpilot://oauth/gmail")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["error"], "client_secret_missing")
@@ -80,7 +82,7 @@ class MobileGmailOAuthTests(TestCase):
     def test_authorize_url_stores_state_for_account(self) -> None:
         flow = mock.Mock()
         flow.authorization_url.return_value = ("https://accounts.google.com/o/oauth2/auth?x", "st-1")
-        with mock.patch("core.gmail_mobile_oauth.os.path.exists", return_value=True), mock.patch(
+        with mock.patch("core.gmail_mobile_oauth.os.path.isfile", return_value=True), mock.patch(
             "core.gmail_mobile_oauth.build_flow", return_value=flow
         ) as build_flow:
             res = self._authorize(account_id=self.gmail.id, return_to="exp://10.0.2.2:8081/--/oauth/gmail")
@@ -180,7 +182,9 @@ class WebGmailSetupTests(TestCase):
         self.assertEqual(self.client.session["oauth_account_id"], self.gmail.id)
 
     def test_oauth_start_without_client_secret_redirects_to_setup(self) -> None:
-        with mock.patch("core.views.os.path.exists", return_value=False):
+        with mock.patch("core.views.os.path.isfile", return_value=False), mock.patch(
+            "core.gmail_oauth_client.has_shared_gmail_oauth_client", return_value=False
+        ), mock.patch("core.gmail_oauth_client.shared_gmail_oauth_client_config", return_value=None):
             res = self.client.get("/api/gmail/oauth/start")
         self.assertEqual(res.status_code, 302)
         self.assertIn("oauth_error=client_secret_missing", res["Location"])
@@ -222,7 +226,9 @@ class MailboxCredentialsTests(TestCase):
         smtp = MailAccount.objects.create(user=self.user, slot=1, transport=MailAccount.TRANSPORT_SMTP)
         self.assertEqual(self._upload(smtp.id).status_code, 404)
         self.assertEqual(self._upload(99999).status_code, 404)
-        self.assertEqual(self._upload(self.gmail.id, address="").status_code, 400)
+        # Empty address is allowed with a valid secret (profile email filled after OAuth).
+        with mock.patch("core.mail_account_views.save_account_client_secret"):
+            self.assertEqual(self._upload(self.gmail.id, address="").status_code, 200)
         self.assertEqual(self._upload(self.gmail.id, name="secret.txt").status_code, 400)
         res = self._upload(self.gmail.id, content=b"not json")
         self.assertEqual(res.status_code, 400)

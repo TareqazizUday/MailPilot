@@ -37,6 +37,9 @@ data/state.db
 !.env.example
 !.env.production.example
 client_secret*.json
+client_secret*.json.*
+client_secret*.bak
+*.deleted_client.bak
 data/**/client_secret*.json
 data/**/token*.json
 data/users/**

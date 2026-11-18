@@ -31,10 +31,11 @@ class UserMailSettings(models.Model):
 
     MODE_GMAIL = "gmail"
     MODE_SMTP = "smtp"
+    MODE_MICROSOFT = "microsoft"
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="mail_settings")
     settings_json = models.JSONField(default=dict, blank=True)
-    active_transport_mode = models.CharField(max_length=8, default=MODE_GMAIL)
+    active_transport_mode = models.CharField(max_length=16, default=MODE_GMAIL)
     default_account_id = models.PositiveIntegerField(null=True, blank=True)
     smtp_password_enc = models.TextField(blank=True, default="")
     imap_password_enc = models.TextField(blank=True, default="")
@@ -50,10 +51,11 @@ class UserMailSettings(models.Model):
 
 
 class MailAccount(models.Model):
-    """Per-user mailbox slot (up to 5 Gmail or 5 SMTP)."""
+    """Per-user mailbox slot (up to 5 per transport: Gmail, SMTP, or Microsoft)."""
 
     TRANSPORT_GMAIL = "gmail_api"
     TRANSPORT_SMTP = "smtp"
+    TRANSPORT_MICROSOFT = "microsoft_graph"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="mail_accounts")
     slot = models.PositiveSmallIntegerField()

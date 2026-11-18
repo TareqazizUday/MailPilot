@@ -23,6 +23,9 @@ google-auth>=2.35.0
 google-auth-oauthlib>=1.2.1
 google-auth-httplib2>=0.2.0
 
+# Microsoft Graph mailbox OAuth
+msal>=1.28.0
+
 # Knowledge base ingestion + vector search (self-hosted)
 psycopg[binary]>=3.2.6
 pgvector>=0.2.5

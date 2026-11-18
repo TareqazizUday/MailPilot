@@ -7,11 +7,18 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from core import runtime
-from core.mail_accounts import TRANSPORT_GMAIL, TRANSPORT_SMTP, enabled_accounts_for_active_mode
+from core.mail_accounts import (
+    TRANSPORT_GMAIL,
+    TRANSPORT_MICROSOFT,
+    TRANSPORT_SMTP,
+    enabled_accounts_for_active_mode,
+)
 from core.state_store import StateStore
 from email_automation.gmail_auth import gmail_oauth_matches_configured, gmail_oauth_ready
 from email_automation.gmail_client import GmailClient
 from email_automation.imap_mailbox import ImapMailbox, imap_inbox_ready
+from email_automation.microsoft_auth import microsoft_oauth_ready
+from email_automation.oauth_mail_client import build_oauth_mail_client
 
 
 def is_mail_stats_query(text: str) -> bool:
@@ -177,6 +184,15 @@ def _stats_for_account(user, acc, *, sod_ms: int, tz: ZoneInfo) -> AccountMailSt
                 out.error = "Gmail OAuth mismatch"
                 return out
             client = GmailClient(settings=effective)
+            threads = client.list_inbox_thread_summaries(max_threads=40)
+            out.connected = True
+            out.inbox_recent, out.inbox_today, out.unread = _summarize_inbox_threads(threads, sod_ms=sod_ms)
+        elif acc.transport == TRANSPORT_MICROSOFT:
+            out.email = str(effective.GMAIL_ADDRESS or label).strip()
+            if not microsoft_oauth_ready(effective):
+                out.error = "Microsoft not connected"
+                return out
+            client = build_oauth_mail_client(effective, transport=acc.transport)
             threads = client.list_inbox_thread_summaries(max_threads=40)
             out.connected = True
             out.inbox_recent, out.inbox_today, out.unread = _summarize_inbox_threads(threads, sod_ms=sod_ms)
