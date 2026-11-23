@@ -349,6 +349,10 @@ def api_mail_account_connect_oauth(request, account_id: int):
 
         if not microsoft_oauth.is_configured():
             return setup_error_redirect(request, "microsoft_oauth_not_configured", acc.id)
+        # Prefer oauth/start on localhost so session cookie matches Azure callback host.
+        bounce = microsoft_oauth.localhost_oauth_start_bounce(request, account_id=acc.id)
+        if bounce:
+            return redirect(bounce)
         try:
             url = microsoft_oauth.start_authorization(
                 request, user_id=request.user.id, account_id=acc.id

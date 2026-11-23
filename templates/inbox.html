@@ -844,6 +844,7 @@
         }
 
         const gmailConnected = !!j.gmail_connected;
+        const msConnected = !!j.microsoft_connected;
         const imapConnected = !!j.imap_connected;
         const anyConnected = !!j.connected;
         if(anyConnected){
@@ -852,9 +853,11 @@
             pg.style.display = '';
             var pgLine = gmailConnected
               ? 'Connected to Gmail'
-              : (imapConnected
-                ? 'Mailbox (IMAP)'
-                : (j.smtp_last_test_ok && j.send_transport === 'smtp' ? 'SMTP verified' : 'Connected'));
+              : (msConnected
+                ? 'Connected to Microsoft'
+                : (imapConnected
+                  ? 'Mailbox (IMAP)'
+                  : (j.smtp_last_test_ok && j.send_transport === 'smtp' ? 'SMTP verified' : 'Connected')));
             pg.innerHTML = '<i class="fa-solid fa-circle" aria-hidden="true"></i> ' + pgLine;
           }
         }else{
@@ -863,9 +866,15 @@
         }
 
         const tokenErr = j.token_error ? (' ' + j.token_error) : '';
-        const base = j.has_token ? 'Signed in with Google.' : 'Not signed in - add Gmail on the Connect page.';
+        const base = msConnected
+          ? 'Signed in with Microsoft.'
+          : (j.has_token
+            ? 'Signed in with Google.'
+            : 'Not signed in - connect a mailbox on the Setup page.');
         if(hint){
-          if(imapConnected && !gmailConnected){
+          if(msConnected){
+            hint.textContent = (base + tokenErr).trim();
+          }else if(imapConnected && !gmailConnected){
             hint.textContent = 'Reading inbox via IMAP (same mailbox as SMTP).';
           }else{
             hint.textContent = (base + tokenErr).trim();
@@ -948,7 +957,17 @@
       if(!a || !a.is_enabled) return false;
       if(a.oauth_email_mismatch) return false;
       if(typeof a.inbox_ready === 'boolean') return a.inbox_ready;
-      return a.transport === 'gmail_api' ? !!a.gmail_inbox_ready : !!a.imap_ready;
+      if(a.transport === 'gmail_api') return !!a.gmail_inbox_ready;
+      if(a.transport === 'microsoft_graph') return !!a.microsoft_connected || !!a.has_token;
+      return !!a.imap_ready;
+    }
+
+    function mailboxTransportKind(a){
+      if(!a) return '';
+      if(a.transport === 'gmail_api') return ' (Gmail)';
+      if(a.transport === 'microsoft_graph') return ' (Microsoft)';
+      if(a.transport === 'smtp') return ' (SMTP)';
+      return '';
     }
 
     function inboxErrorMessage(err, j){
@@ -1111,7 +1130,7 @@
           const opt = document.createElement('option');
           opt.value = a.id;
           const label = a.email || a.label || ('Slot ' + a.slot);
-          const kind = a.transport === 'gmail_api' ? ' (Gmail)' : ' (SMTP)';
+          const kind = mailboxTransportKind(a);
           const ready = inboxReadyAccount(a);
           let suffix = ready ? '' : ' - not connected';
           if(a.oauth_email_mismatch) suffix = ' - wrong Google account';
@@ -1165,7 +1184,9 @@
         }
         const threads = j.threads || [];
         if(threads.length === 0){
-          hint.textContent = 'No threads in this folder.';
+          hint.textContent = j.source === 'microsoft'
+            ? 'Microsoft mailbox connected, but Inbox is empty for this Microsoft account. Disconnect and Connect again — choose the work Microsoft 365 account that actually receives mail.'
+            : 'No threads in this folder.';
           renderThreadRows([]);
           return;
         }

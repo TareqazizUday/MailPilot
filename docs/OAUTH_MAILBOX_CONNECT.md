@@ -34,7 +34,7 @@ Scopes: `gmail.readonly`, `gmail.send`, `gmail.compose`, `gmail.modify`.
 2. Name: `Mailpilots` (or your brand).
 3. Supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (`common`).
 4. Redirect URI platform: **Web**
-   - Local: `http://127.0.0.1:8000/api/microsoft/oauth/callback`
+   - Local: `http://localhost:8000/api/microsoft/oauth/callback` (Azure rejects `http://127.0.0.1`; use `localhost`)
    - Production: `https://<your-domain>/api/microsoft/oauth/callback`
 5. After create → **Certificates & secrets** → **New client secret** → copy the **Value** once.
 6. **API permissions** → **Microsoft Graph** → **Delegated**:
@@ -48,12 +48,13 @@ Scopes: `gmail.readonly`, `gmail.send`, `gmail.compose`, `gmail.modify`.
 ```env
 MICROSOFT_OAUTH_CLIENT_ID=<Application client ID>
 MICROSOFT_OAUTH_CLIENT_SECRET=<secret Value>
-MICROSOFT_OAUTH_REDIRECT_URI=http://127.0.0.1:8000/api/microsoft/oauth/callback
+MICROSOFT_OAUTH_REDIRECT_URI=http://localhost:8000/api/microsoft/oauth/callback
 MICROSOFT_OAUTH_TENANT=common
 ```
 
-9. Restart the app. Setup → **Microsoft** tab → **Add Microsoft account** → **Connect with Microsoft**.
-10. Sign in with Outlook / Microsoft 365 → Allow. Dashboard inbox should list Graph mail.
+9. Restart the app. Open the app as **`http://localhost:8000`** (not `127.0.0.1`) so the session cookie matches the Azure callback host.
+10. Setup → **Microsoft** tab → **Add Microsoft account** → **Connect with Microsoft**.
+11. Sign in with Outlook / Microsoft 365 → Allow. Dashboard inbox should list Graph mail.
 
 Tokens are stored encrypted on `MailAccount.oauth_token_enc` (same field as Gmail) and mirrored to the per-account token file under `data/users/.../accounts/.../token.json`.
 
@@ -63,6 +64,9 @@ Tokens are stored encrypted on `MailAccount.oauth_token_enc` (same field as Gmai
 |--------|-----|
 | Setup shows “Microsoft OAuth is not configured” | Fill `MICROSOFT_OAUTH_CLIENT_ID` + `SECRET`, restart |
 | `AADSTS50011` / redirect mismatch | Azure Web redirect URI must **exactly** match `MICROSOFT_OAUTH_REDIRECT_URI` |
+| `You cannot use any scope value that is reserved` | App bug (fixed): do not pass `offline_access` into MSAL scopes |
+| `TokenCache has no attribute serialize` | App bug (fixed): use MSAL `SerializableTokenCache` |
+| Session lost after Microsoft Allow | Browse via `http://localhost:8000`, not `127.0.0.1` |
 | `AADSTS700016` / app not found | Wrong client ID or deleted app registration |
 | Connect works but Dashboard empty | Ensure active mode is **Microsoft** (Microsoft tab) and poll worker is running |
 | Personal MSA blocked | App registration must allow personal Microsoft accounts (`common`) |

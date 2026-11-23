@@ -161,16 +161,23 @@ class MicrosoftClient:
 
     def list_inbox_thread_summaries(self, max_threads: int = 40) -> List[Dict[str, Any]]:
         max_n = max(1, min(int(max_threads or 40), 50))
-        data = self._request(
-            "GET",
-            "/me/mailFolders/inbox/messages",
-            params={
-                "$top": max_n,
-                "$orderby": "receivedDateTime desc",
-                "$select": "id,conversationId,subject,from,receivedDateTime,bodyPreview,isRead,flag",
-            },
-        )
+        select = "id,conversationId,subject,from,receivedDateTime,bodyPreview,isRead,flag"
+        params = {
+            "$top": max_n,
+            "$orderby": "receivedDateTime desc",
+            "$select": select,
+        }
+        data = self._request("GET", "/me/mailFolders/inbox/messages", params=params)
         items = data.get("value") or []
+        # Some MSA / alias mailboxes report an empty well-known Inbox while /me/messages
+        # still has mail (or the reverse). Fall back so the UI is not falsely blank.
+        if not items:
+            try:
+                data = self._request("GET", "/me/messages", params=params)
+                items = data.get("value") or []
+            except Exception:
+                logger.debug("microsoft /me/messages fallback failed", exc_info=True)
+                items = []
         # One summary per conversation (latest message)
         seen: set[str] = set()
         out: List[Dict[str, Any]] = []

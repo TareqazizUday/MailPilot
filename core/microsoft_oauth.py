@@ -16,13 +16,14 @@ from django.urls import reverse
 logger = logging.getLogger(__name__)
 
 STATE_TTL_SECONDS = 10 * 60
-# MSAL + Azure AD v2 prefers short scope names (not full Graph URLs).
+# MSAL reserved scopes (openid/profile/offline_access) must NOT be passed —
+# MSAL injects them. Passing offline_access raises ValueError.
 GRAPH_SCOPES = [
     "Mail.ReadWrite",
     "Mail.Send",
     "User.Read",
-    "offline_access",
 ]
+_MSAL_RESERVED_SCOPES = frozenset({"openid", "profile", "offline_access"})
 
 
 def _env(name: str, default: str = "") -> str:
@@ -49,17 +50,52 @@ def state_cache_key(state: str) -> str:
     return f"mailpilot:microsoft_oauth:{state}"
 
 
-def build_msal_app():
+def build_msal_app(*, token_cache=None):
     import msal
 
     if not is_configured():
         raise RuntimeError("microsoft_oauth_not_configured")
     authority = f"https://login.microsoftonline.com/{tenant()}"
+    # Default TokenCache has no serialize(); SerializableTokenCache is required to persist.
+    cache_obj = token_cache if token_cache is not None else msal.SerializableTokenCache()
     return msal.ConfidentialClientApplication(
         client_id(),
         authority=authority,
         client_credential=client_secret(),
+        token_cache=cache_obj,
     )
+
+
+def _serialize_token_cache(app) -> str:
+    tc = getattr(app, "token_cache", None)
+    if tc is None:
+        return ""
+    serialize = getattr(tc, "serialize", None)
+    if not callable(serialize):
+        return ""
+    try:
+        return serialize() or ""
+    except Exception:
+        logger.debug("msal token_cache serialize failed", exc_info=True)
+        return ""
+
+
+def _load_token_cache(app, cache_data: str) -> None:
+    if not cache_data:
+        return
+    tc = getattr(app, "token_cache", None)
+    deserialize = getattr(tc, "deserialize", None) if tc is not None else None
+    if not callable(deserialize):
+        return
+    try:
+        deserialize(cache_data)
+    except Exception:
+        logger.debug("msal token_cache deserialize failed", exc_info=True)
+
+
+def _msal_api_scopes() -> list[str]:
+    """Scopes safe to pass into MSAL (no reserved openid/profile/offline_access)."""
+    return [s for s in GRAPH_SCOPES if s not in _MSAL_RESERVED_SCOPES]
 
 
 def redirect_uri_for_request(request: HttpRequest) -> str:
@@ -70,6 +106,50 @@ def redirect_uri_for_request(request: HttpRequest) -> str:
         return request.build_absolute_uri(reverse("microsoft_oauth_callback"))
     except Exception:
         return request.build_absolute_uri("/api/microsoft/oauth/callback")
+
+
+def _needs_localhost_host_align(request: HttpRequest) -> bool:
+    """True when browser is 127.0.0.1 but Azure redirect_uri is localhost."""
+    from urllib.parse import urlsplit
+
+    redirect_uri = redirect_uri_for_request(request)
+    try:
+        redir_host = (urlsplit(redirect_uri).hostname or "").lower()
+        req_host = (request.get_host() or "").split(":")[0].lower()
+    except Exception:
+        return False
+    return redir_host == "localhost" and req_host == "127.0.0.1"
+
+
+def localhost_bounce_url(request: HttpRequest) -> str | None:
+    """Rewrite current request URL onto localhost (same path/query)."""
+    from urllib.parse import urlsplit, urlunsplit
+
+    if not _needs_localhost_host_align(request):
+        return None
+    parts = urlsplit(request.build_absolute_uri())
+    port = parts.port
+    netloc = f"localhost:{port}" if port else "localhost"
+    qs = request.GET.urlencode()
+    return urlunsplit((parts.scheme or "http", netloc, parts.path, qs, ""))
+
+
+def localhost_oauth_start_bounce(request: HttpRequest, *, account_id: int) -> str | None:
+    """Send the browser to /api/microsoft/oauth/start on localhost before authorize."""
+    from urllib.parse import urlsplit, urlunsplit
+
+    if not _needs_localhost_host_align(request):
+        return None
+    parts = urlsplit(request.build_absolute_uri())
+    port = parts.port
+    netloc = f"localhost:{port}" if port else "localhost"
+    try:
+        path = reverse("microsoft_oauth_start")
+    except Exception:
+        path = "/api/microsoft/oauth/start"
+    return urlunsplit(
+        (parts.scheme or "http", netloc, path, f"account_id={int(account_id)}", "")
+    )
 
 
 def start_authorization(request: HttpRequest, *, user_id: int, account_id: int) -> str:
@@ -84,8 +164,9 @@ def start_authorization(request: HttpRequest, *, user_id: int, account_id: int) 
     )
     request.session["microsoft_oauth_state"] = state
     request.session["microsoft_oauth_account_id"] = account_id
+    request.session.modified = True
     return app.get_authorization_request_url(
-        scopes=GRAPH_SCOPES,
+        scopes=_msal_api_scopes(),
         state=state,
         redirect_uri=redirect_uri,
         prompt="select_account",
@@ -107,11 +188,9 @@ def _with_expiry(blob: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]
 
 def exchange_code(*, code: str, redirect_uri: str) -> dict[str, Any]:
     app = build_msal_app()
-    # offline_access is requested at authorize time; omit it on token exchange (MSAL).
-    token_scopes = [s for s in GRAPH_SCOPES if s != "offline_access"]
     result = app.acquire_token_by_authorization_code(
         code,
-        scopes=token_scopes,
+        scopes=_msal_api_scopes(),
         redirect_uri=redirect_uri,
     )
     if not isinstance(result, dict) or "access_token" not in result:
@@ -125,7 +204,7 @@ def exchange_code(*, code: str, redirect_uri: str) -> dict[str, Any]:
         "scope": result.get("scope"),
         "id_token_claims": result.get("id_token_claims") or {},
         "client_info": result.get("client_info"),
-        "token_cache": app.token_cache.serialize() if getattr(app, "token_cache", None) else "",
+        "token_cache": _serialize_token_cache(app),
     }
     return _with_expiry(blob, result)
 
@@ -133,15 +212,10 @@ def exchange_code(*, code: str, redirect_uri: str) -> dict[str, Any]:
 def refresh_access_token(token_blob: dict[str, Any]) -> dict[str, Any]:
     """Return updated token blob with a fresh access_token when possible."""
     app = build_msal_app()
-    cache_data = token_blob.get("token_cache") or ""
-    if cache_data:
-        try:
-            app.token_cache.deserialize(cache_data)
-        except Exception:
-            logger.debug("msal cache deserialize failed; falling back to refresh_token", exc_info=True)
+    _load_token_cache(app, str(token_blob.get("token_cache") or ""))
     accounts = app.get_accounts()
     result = None
-    token_scopes = [s for s in GRAPH_SCOPES if s != "offline_access"]
+    token_scopes = _msal_api_scopes()
     if accounts:
         result = app.acquire_token_silent(token_scopes, account=accounts[0])
     if not result or "access_token" not in result:
@@ -157,12 +231,11 @@ def refresh_access_token(token_blob: dict[str, Any]) -> dict[str, Any]:
     if result.get("refresh_token"):
         out["refresh_token"] = result.get("refresh_token")
     out["scope"] = result.get("scope") or out.get("scope")
-    if getattr(app, "token_cache", None):
-        out["token_cache"] = app.token_cache.serialize()
+    out["token_cache"] = _serialize_token_cache(app)
     return _with_expiry(out, result)
 
 
-def fetch_profile_email(access_token: str) -> str:
+def fetch_profile(access_token: str) -> dict[str, str]:
     import requests
 
     r = requests.get(
@@ -173,8 +246,18 @@ def fetch_profile_email(access_token: str) -> str:
     )
     r.raise_for_status()
     data = r.json() if r.content else {}
-    email = str(data.get("mail") or data.get("userPrincipalName") or "").strip()
-    return email
+    mail = str(data.get("mail") or "").strip()
+    upn = str(data.get("userPrincipalName") or "").strip()
+    return {
+        "email": mail or upn,
+        "mail": mail,
+        "upn": upn,
+        "display_name": str(data.get("displayName") or "").strip(),
+    }
+
+
+def fetch_profile_email(access_token: str) -> str:
+    return str(fetch_profile(access_token).get("email") or "").strip()
 
 
 def handle_callback(request: HttpRequest):
@@ -224,21 +307,27 @@ def handle_callback(request: HttpRequest):
         # Save token first so a Graph /me hiccup does not drop a successful consent.
         save_account_oauth_token(acc, json.dumps(blob))
         profile = ""
+        upn = ""
         try:
-            profile = fetch_profile_email(str(blob.get("access_token") or ""))
+            info = fetch_profile(str(blob.get("access_token") or ""))
+            profile = str(info.get("email") or "").strip()
+            upn = str(info.get("upn") or "").strip()
         except Exception:
             logger.warning(
                 "microsoft profile fetch failed after token save account_id=%s",
                 acc.id,
                 exc_info=True,
             )
-        if profile:
-            patch_account_config(
-                acc,
-                {"MICROSOFT_ADDRESS": profile, "GMAIL_ADDRESS": profile},
-            )
+        if profile or upn:
+            patch = {
+                "MICROSOFT_ADDRESS": profile or upn,
+                "GMAIL_ADDRESS": profile or upn,
+            }
+            if upn:
+                patch["MICROSOFT_UPN"] = upn
+            patch_account_config(acc, patch)
             if not (acc.label or "").strip() or acc.label.startswith("Microsoft"):
-                acc.label = profile
+                acc.label = profile or upn
                 acc.save(update_fields=["label", "updated_at"])
     except Exception as e:
         logger.exception("microsoft oauth callback failed")

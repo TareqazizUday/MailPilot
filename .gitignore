@@ -31,15 +31,32 @@ data/state.db
 *.sqlite3-wal
 *.sqlite3-shm
 
+# Env files with secrets (keep only *.example templates in git)
 .env
+.env.local
+.env.production
+.env.development
+.env.staging
+.env.*.local
 .env.*
 *.env
 !.env.example
 !.env.production.example
+
+# OAuth / API credential files
 client_secret*.json
 client_secret*.json.*
 client_secret*.bak
 *.deleted_client.bak
+*credentials*.json
+!*credentials*.example.json
+service-account*.json
+*.pem
+*.p12
+*.key
+!*.key.example
+
+# Runtime tokens / per-user mailbox data
 data/**/client_secret*.json
 data/**/token*.json
 data/users/**

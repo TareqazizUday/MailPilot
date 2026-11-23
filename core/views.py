@@ -2361,6 +2361,10 @@ def microsoft_oauth_start(request):
 
     if not microsoft_oauth.is_configured():
         return setup_error_redirect(request, "microsoft_oauth_not_configured")
+    # Azure allows http://localhost but not 127.0.0.1 — align browser host with redirect URI.
+    bounce = microsoft_oauth.localhost_bounce_url(request)
+    if bounce:
+        return redirect(bounce)
     ensure_legacy_migrated(request.user)
     raw = (request.GET.get("account_id") or request.session.get("microsoft_oauth_account_id") or "").strip()
     try:
@@ -2418,13 +2422,23 @@ def api_gmail_connection_status(request):
     connected = _mailbox_connected_for_ui(effective, cfg, account_config=acc_cfg)
     smtp_last_ok = bool(acc_cfg.get("SMTP_LAST_TEST_OK") if acc else cfg.get("SMTP_LAST_TEST_OK"))
     out_from = (effective.outbound_from_email() or "").strip()
+    ms_connected = False
+    if acc is not None and acc.transport == "microsoft_graph":
+        from email_automation.microsoft_auth import microsoft_oauth_ready
+
+        ms_connected = microsoft_oauth_ready(effective)
     gmail_poll_ready = bool(
         gmail_connected
         and (effective.GMAIL_ADDRESS or "").strip()
         and os.path.exists(effective.GOOGLE_TOKEN_FILE)
     )
+    microsoft_poll_ready = bool(
+        ms_connected
+        and (effective.GMAIL_ADDRESS or acc_cfg.get("MICROSOFT_ADDRESS") or "").strip()
+        and os.path.exists(effective.GOOGLE_TOKEN_FILE)
+    )
     smtp_imap_poll_ready = bool(imap_ok and send_transport_ui == "smtp" and bool(out_from))
-    poll_ready = bool(gmail_poll_ready or smtp_imap_poll_ready)
+    poll_ready = bool(gmail_poll_ready or microsoft_poll_ready or smtp_imap_poll_ready)
 
     accounts_payload = []
     if request.GET.get("include_accounts") == "1":
@@ -2439,6 +2453,7 @@ def api_gmail_connection_status(request):
             "ok": True,
             "connected": connected,
             "gmail_connected": gmail_connected,
+            "microsoft_connected": ms_connected,
             "imap_connected": imap_ok,
             "smtp_last_test_ok": smtp_last_ok,
             "send_transport": send_transport_ui,
@@ -2683,6 +2698,7 @@ def api_gmail_inbox(request):
         if ms_ok:
             from email_automation.oauth_mail_client import build_oauth_mail_client
 
+            ms_cfg = dict(acc.config_json or {})
             cache_key = _gmail_inbox_cache_key(request.user.id, acc.id, effective)
             listing = None if _wants_fresh(request) else cache.get(cache_key)
             if not isinstance(listing, dict):
@@ -2704,8 +2720,12 @@ def api_gmail_inbox(request):
                     "threads": threads,
                     "source": "microsoft",
                     "account_id": acc.id,
-                    "email": effective.GMAIL_ADDRESS or listing.get("profile_email") or "",
+                    "email": effective.GMAIL_ADDRESS
+                    or ms_cfg.get("MICROSOFT_ADDRESS")
+                    or listing.get("profile_email")
+                    or "",
                     "profile_email": listing["profile_email"],
+                    "microsoft_upn": str(ms_cfg.get("MICROSOFT_UPN") or "").strip(),
                     "oauth_email_mismatch": False,
                 }
             )
@@ -2781,8 +2801,13 @@ def api_gmail_thread_detail(request, thread_id: str):
 
             ms_ok = microsoft_oauth_ready(effective)
         uid = int(thread_id) if thread_id.isdigit() else None
-        use_imap_thread = uid is not None and (
-            _smtp_imap_inbox_active(effective) or (imap_inbox_ready(effective) and not g_ok)
+        use_imap_thread = (
+            acc.transport == "smtp"
+            and uid is not None
+            and (
+                _smtp_imap_inbox_active(effective)
+                or (imap_inbox_ready(effective) and not g_ok and not ms_ok)
+            )
         )
         if use_imap_thread:
             mb = ImapMailbox(settings=effective)
